@@ -9,7 +9,8 @@ let apiConfig = {
   model: '',
   apiKey: '',
   baseUrl: '',
-  ollamaUrl: ''
+  ollamaUrl: '',
+  enableDiagnostics: false // Dev mode flag
 };
 
 // DOM Elements
@@ -31,6 +32,7 @@ const inputModel = document.getElementById('input-model');
 const inputApiKey = document.getElementById('input-api-key');
 const inputCustomUrl = document.getElementById('input-custom-url');
 const inputOllamaUrl = document.getElementById('input-ollama-url');
+const checkboxDiagnostics = document.getElementById('input-enable-diagnostics');
 
 // Game Panel DOM Elements
 const activeQuestTitle = document.getElementById('active-quest-title');
@@ -54,6 +56,15 @@ const manaFill = document.getElementById('mana-fill');
 const xpText = document.getElementById('xp-text');
 const xpFill = document.getElementById('xp-fill');
 const inventoryContainer = document.getElementById('inventory-container');
+const codexContainer = document.getElementById('codex-container');
+
+// Tab Switchers
+const rightTabsHeader = document.getElementById('right-tabs-header');
+const rightPanelHeading = document.getElementById('right-panel-heading');
+const tabInventoryBtn = document.getElementById('tab-inventory-btn');
+const tabCodexBtn = document.getElementById('tab-codex-btn');
+const tabContentInventory = document.getElementById('tab-content-inventory');
+const tabContentCodex = document.getElementById('tab-content-codex');
 
 // Attributes
 const attrStr = document.getElementById('attr-str');
@@ -88,6 +99,7 @@ function loadSettings() {
   inputApiKey.value = apiConfig.apiKey || '';
   inputCustomUrl.value = apiConfig.baseUrl || '';
   inputOllamaUrl.value = apiConfig.ollamaUrl || '';
+  checkboxDiagnostics.checked = !!apiConfig.enableDiagnostics;
 
   toggleSettingsFields(selectProvider.value);
 }
@@ -99,8 +111,14 @@ function saveSettings() {
   apiConfig.apiKey = inputApiKey.value.trim();
   apiConfig.baseUrl = inputCustomUrl.value.trim();
   apiConfig.ollamaUrl = inputOllamaUrl.value.trim();
+  apiConfig.enableDiagnostics = checkboxDiagnostics.checked;
 
   localStorage.setItem('aetheria_settings', JSON.stringify(apiConfig));
+  
+  // Instantly apply diagnostics layout mode changes if loaded
+  if (currentCampaignId) {
+    applyLayoutMode();
+  }
 }
 
 // Show/Hide provider fields
@@ -127,6 +145,29 @@ function toggleSettingsFields(provider) {
   }
 }
 
+// Controls visibility of Outline panel and Codex tabs based on diagnostics settings
+function applyLayoutMode() {
+  const leftPanel = document.getElementById('left-diagnostics-panel');
+
+  if (apiConfig.enableDiagnostics) {
+    mainGameScreen.classList.remove('immersive-layout');
+    leftPanel.style.display = 'flex';
+    rightTabsHeader.style.display = 'flex';
+    rightPanelHeading.style.display = 'none';
+  } else {
+    mainGameScreen.classList.add('immersive-layout');
+    leftPanel.style.display = 'none';
+    rightTabsHeader.style.display = 'none';
+    rightPanelHeading.style.display = 'block';
+    
+    // Fallback active right-tab content back to Inventory
+    tabContentInventory.style.display = 'flex';
+    tabContentCodex.style.display = 'none';
+    tabInventoryBtn.classList.add('active');
+    tabCodexBtn.classList.remove('active');
+  }
+}
+
 // Bind UI triggers
 function setupEventListeners() {
   // Settings buttons
@@ -146,6 +187,21 @@ function setupEventListeners() {
     saveSettings();
     settingsModal.style.display = 'none';
     showToast('AI configurations saved.', 'success');
+  });
+
+  // Right Panel tab swapping
+  tabInventoryBtn.addEventListener('click', () => {
+    tabInventoryBtn.classList.add('active');
+    tabCodexBtn.classList.remove('active');
+    tabContentInventory.style.display = 'flex';
+    tabContentCodex.style.display = 'none';
+  });
+
+  tabCodexBtn.addEventListener('click', () => {
+    tabCodexBtn.classList.add('active');
+    tabInventoryBtn.classList.remove('active');
+    tabContentCodex.style.display = 'flex';
+    tabContentInventory.style.display = 'none';
   });
 
   // Campaigns lists buttons
@@ -329,12 +385,15 @@ window.deleteCampaign = async function (campaignId) {
 function renderGame(gameState, resetNarrative = false) {
   mainGameScreen.style.display = 'grid';
 
-  // Apply genre HSL colors dynamically!
+  // Apply layout diagnostics toggle
+  applyLayoutMode();
+
+  // Apply genre HSL colors dynamically
   if (gameState.themeColors) {
     applyCampaignTheme(gameState.genre, gameState.themeColors);
   }
 
-  // Update Quest
+  // Update Quest Details
   activeQuestTitle.textContent = gameState.currentQuest.active_quest || 'Main Quest';
   activeQuestDesc.textContent = gameState.currentQuest.quest_description || '';
   activeActBadge.textContent = `Act ${gameState.currentAct || 1}`;
@@ -342,7 +401,7 @@ function renderGame(gameState, resetNarrative = false) {
   // Update Outline List
   renderOutline(gameState.outline, gameState.currentAct);
 
-  // Update Character sheet
+  // Update Character Sheet
   const char = gameState.character;
   charName.textContent = char.name;
   charClass.textContent = char.class;
@@ -354,7 +413,6 @@ function renderGame(gameState, resetNarrative = false) {
   manaText.textContent = `${char.mana}/${char.max_mana}`;
   manaFill.style.width = `${(char.mana / char.max_mana) * 100}%`;
 
-  // XP Progress towards level up (each level is 100 XP)
   const relativeXp = char.xp % 100;
   xpText.textContent = `${relativeXp}/100`;
   xpFill.style.width = `${relativeXp}%`;
@@ -368,6 +426,9 @@ function renderGame(gameState, resetNarrative = false) {
   // Inventory
   renderInventory(char.inventory);
 
+  // Render Codex (NPC Dossiers)
+  renderCodex(gameState.npcs || []);
+
   // Graphic illustration
   if (gameState.turn.svg) {
     visualizerFrame.innerHTML = gameState.turn.svg;
@@ -376,7 +437,6 @@ function renderGame(gameState, resetNarrative = false) {
   // Text narrative
   if (resetNarrative) {
     narrativeContainer.innerHTML = '';
-    // If loading, load previous log if available or show initial turn
     appendDMDialogue(gameState.turn.narrative);
   } else {
     appendDMDialogue(gameState.turn.narrative);
@@ -388,10 +448,8 @@ function renderGame(gameState, resetNarrative = false) {
 
 // Generate HSL styles and apply class theme
 function applyCampaignTheme(genre, colors) {
-  // Clear other presets
   document.body.className = '';
   
-  // Clean values from potential spacing
   const primary = colors.primary.trim();
   const secondary = colors.secondary.trim();
   const background = colors.background.trim();
@@ -400,17 +458,15 @@ function applyCampaignTheme(genre, colors) {
   document.documentElement.style.setProperty('--theme-secondary', secondary);
   document.documentElement.style.setProperty('--theme-bg', background);
 
-  // Derive panel HSL (slightly lighter/darker than background)
   const bgParts = background.match(/\d+/g);
   if (bgParts && bgParts.length >= 3) {
     const h = bgParts[0];
     const s = bgParts[1];
-    const l = Math.min(95, parseInt(bgParts[2]) + 4); // add 4% lightness for cards
+    const l = Math.min(95, parseInt(bgParts[2]) + 4);
     document.documentElement.style.setProperty('--theme-panel', `${h}, ${s}%, ${l}%`);
     document.documentElement.style.setProperty('--theme-border', `${h}, ${s}%, ${l + 8}%`);
   }
 
-  // Add generic theme preset based on keyword if matches
   const genreLower = genre.toLowerCase();
   if (genreLower.includes('cyber') || genreLower.includes('punk') || genreLower.includes('synth')) {
     document.body.classList.add('theme-cyberpunk');
@@ -466,7 +522,6 @@ function renderInventory(items) {
     const div = document.createElement('div');
     div.className = 'inventory-item';
     
-    // Choose icon based on type
     let icon = 'fa-suitcase';
     if (item.type === 'weapon') icon = 'fa-sword';
     else if (item.type === 'armor') icon = 'fa-shield-halved';
@@ -483,11 +538,75 @@ function renderInventory(items) {
     `;
 
     div.addEventListener('click', () => {
-      // Click details modal / use item
       alert(`${item.name} (${item.type})\n\n${item.description}\n${item.stats ? `Stats: ${item.stats}` : ''}`);
     });
 
     inventoryContainer.appendChild(div);
+  });
+}
+
+// Render character Codex dossiers
+function renderCodex(npcs) {
+  codexContainer.innerHTML = '';
+  
+  if (!npcs || npcs.length === 0) {
+    codexContainer.innerHTML = `<div style="font-size: 12px; color: hsl(var(--theme-text-dim)); padding: 8px;">No character details recorded.</div>`;
+    return;
+  }
+
+  npcs.forEach(npc => {
+    const card = document.createElement('div');
+    card.className = 'npc-card';
+
+    const relationVal = npc.relationship_value || 0;
+    let relClass = 'relation-neutral';
+    let relLabel = 'Neutral';
+
+    if (relationVal > 60) {
+      relClass = 'relation-crush';
+      relLabel = 'Crush / Devoted';
+    } else if (relationVal > 15) {
+      relClass = 'relation-ally';
+      relLabel = 'Friendly / Ally';
+    } else if (relationVal < -60) {
+      relClass = 'relation-enemy';
+      relLabel = 'Enemy / Nemesis';
+    } else if (relationVal < -15) {
+      relClass = 'relation-grudge';
+      relLabel = 'Dislikes / Grudge';
+    }
+
+    const statusClass = `status-${(npc.status || 'alive').toLowerCase()}`;
+
+    card.innerHTML = `
+      <div class="npc-header">
+        <div class="npc-title-area">
+          <div class="npc-name">${escapeHtml(npc.name)}</div>
+          <div class="npc-role">${escapeHtml(npc.role || 'Supporting Character')}</div>
+        </div>
+        <span class="npc-status ${statusClass}">${npc.status || 'alive'}</span>
+      </div>
+      <div class="npc-relations">
+        <span class="relation-label">Opinion:</span>
+        <span class="relation-badge ${relClass}">${relLabel} (${relationVal})</span>
+      </div>
+      <div class="npc-details">
+        <div class="npc-details-field">
+          <strong>Personality Profile</strong>
+          <span>${escapeHtml(npc.personality || 'Unknown')}</span>
+        </div>
+        <div class="npc-details-field">
+          <strong>Unique Quirks</strong>
+          <span>${escapeHtml(npc.quirks || 'No visible habits')}</span>
+        </div>
+        <div class="npc-details-field">
+          <strong>Interaction Logs</strong>
+          <span class="notes-history">${escapeHtml(npc.notes || 'No notes.')}</span>
+        </div>
+      </div>
+    `;
+
+    codexContainer.appendChild(card);
   });
 }
 
@@ -537,7 +656,6 @@ function appendDMDialogue(markdownText) {
   const el = document.createElement('div');
   el.className = 'log-entry log-dm';
 
-  // Render markdown securely via CDN library
   const htmlContent = marked.parse(markdownText);
 
   el.innerHTML = `
@@ -548,7 +666,6 @@ function appendDMDialogue(markdownText) {
   scrollToBottom();
 }
 
-// Helper to escape HTML tags
 function escapeHtml(str) {
   return str.replace(/&/g, '&amp;')
             .replace(/</g, '&lt;')
@@ -572,7 +689,6 @@ function hideLoadingOverlay() {
   loadingOverlay.style.display = 'none';
 }
 
-// Simple Toast message helper
 function showToast(msg, type = 'info') {
   const toast = document.createElement('div');
   toast.style.position = 'fixed';

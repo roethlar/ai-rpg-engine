@@ -115,5 +115,22 @@ export async function initDb() {
     )
   `);
 
+  // Create npcs table
+  await run(`
+    CREATE TABLE IF NOT EXISTS npcs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      campaign_id INTEGER NOT NULL,
+      name TEXT NOT NULL,
+      role TEXT,
+      personality TEXT,
+      quirks TEXT,
+      relationship_value INTEGER DEFAULT 0,
+      notes TEXT,
+      status TEXT DEFAULT 'alive',
+      FOREIGN KEY (campaign_id) REFERENCES campaigns(id) ON DELETE CASCADE
+    )
+  `);
+
   console.log('Database initialized successfully at:', dbPath);
 }
+

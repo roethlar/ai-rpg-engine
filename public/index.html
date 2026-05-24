@@ -38,9 +38,9 @@
   </header>
 
   <!-- MAIN CONTAINER -->
-  <main class="main-layout" id="main-game-screen" style="display: none;">
-    <!-- LEFT PANEL: HISTORY & ACTIVE QUESTS -->
-    <section class="panel side-panel left-panel">
+  <main class="main-layout immersive-layout" id="main-game-screen" style="display: none;">
+    <!-- LEFT PANEL: HISTORY & ACTIVE QUESTS (DIAGNOSTICS MODE ONLY) -->
+    <section class="panel side-panel left-panel" id="left-diagnostics-panel" style="display: none;">
       <div class="panel-section quest-section">
         <h3><i class="fa-solid fa-compass"></i> Active Quest</h3>
         <div id="quest-card" class="glass-card quest-card">
@@ -151,11 +151,30 @@
         </div>
       </div>
 
-      <!-- INVENTORY -->
-      <div class="panel-section inventory-section">
-        <h3><i class="fa-solid fa-briefcase"></i> Inventory</h3>
-        <div class="inventory-grid" id="inventory-container">
-          <!-- Populated dynamically with items -->
+      <!-- INVENTORY / CODEX TABBED SECTION -->
+      <div class="panel-section inventory-section flex-1">
+        <div class="tabs-header" id="right-tabs-header" style="display: none;">
+          <button class="tab-btn active" id="tab-inventory-btn">
+            <i class="fa-solid fa-briefcase"></i> Inventory
+          </button>
+          <button class="tab-btn" id="tab-codex-btn">
+            <i class="fa-solid fa-address-book"></i> DM Codex
+          </button>
+        </div>
+        <h3 id="right-panel-heading"><i class="fa-solid fa-briefcase"></i> Inventory</h3>
+        
+        <!-- Inventory content -->
+        <div class="tab-content" id="tab-content-inventory">
+          <div class="inventory-grid" id="inventory-container">
+            <!-- Populated dynamically with items -->
+          </div>
+        </div>
+
+        <!-- Codex content (Diagnostics only) -->
+        <div class="tab-content" id="tab-content-codex" style="display: none;">
+          <div class="codex-grid" id="codex-container">
+            <!-- Populated dynamically with NPCs -->
+          </div>
         </div>
       </div>
     </section>
@@ -264,6 +283,14 @@
             <label for="input-ollama-url">Ollama Local Connection URL</label>
             <input type="text" id="input-ollama-url" placeholder="http://localhost:11434">
             <span class="form-tip">To run Ollama from the browser, make sure Ollama runs with CORS enabled (set environment variable `OLLAMA_ORIGINS="*"`).</span>
+          </div>
+
+          <div class="form-group" style="margin-top: 24px; padding-top: 16px; border-top: 1px solid hsl(var(--theme-border));">
+            <label class="checkbox-container" style="display: flex; align-items: center; gap: 10px; cursor: pointer; text-transform: none; font-size: 13px; font-weight: 600;">
+              <input type="checkbox" id="input-enable-diagnostics" style="width: auto; cursor: pointer;">
+              <span>Enable DM Diagnostics (Developer Mode)</span>
+            </label>
+            <span class="form-tip">Unlocks background acts outline blueprint, character personalities, and relationship details for troubleshooting.</span>
           </div>
 
           <div class="form-actions">

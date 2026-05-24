@@ -75,7 +75,7 @@ function createFallbackSvg(title, primaryColor = '200, 70%, 50%', secondaryColor
 export async function createCampaign({ genre, characterName, characterClass, apiConfig }) {
   const client = new AIClient(apiConfig);
 
-  // 1. Generate Campaign Outline
+  // 1. Generate Campaign Outline with detailed NPC properties
   const outlineSystem = `You are a legendary RPG game designer and Dungeon Master.
 Your job is to draft a coherent, epic 2-4 hour single-player campaign outline for the genre: "${genre}".
 You MUST return a JSON object ONLY matching this schema, with no additional text:
@@ -96,7 +96,12 @@ You MUST return a JSON object ONLY matching this schema, with no additional text
     { "name": "Location Name", "description": "Atmospheric details" }
   ],
   "key_npcs": [
-    { "name": "NPC Name", "description": "Visual details, role" }
+    { 
+      "name": "NPC Name", 
+      "role": "Their role in the plot (e.g., local blacksmith, rebel spy)", 
+      "personality": "Fleshed-out persistent personality traits, values, and flaws", 
+      "quirks": "Speech patterns, dialogue habits, physical ticks, or obsessions" 
+    }
   ],
   "starting_quest": {
     "title": "Starting Quest Name",
@@ -104,7 +109,7 @@ You MUST return a JSON object ONLY matching this schema, with no additional text
   }
 }`;
 
-  const outlinePrompt = `Draft an epic, highly coherent RPG campaign structure for the genre: "${genre}". Specify rich HSL theme colors appropriate for the genre (e.g., Cyberpunk needs neon pink/cyan, Fantasy needs rich green/gold/wood-tones, Space Opera needs stellar indigo/cyan, Gothic Horror needs dark blood-red/slate). Ensure the outline maps out a complete 2-4 hour questline.`;
+  const outlinePrompt = `Draft an epic, highly coherent RPG campaign structure for the genre: "${genre}". Provide 3 to 5 key NPCs with highly distinct, fleshed-out personalities and memorable quirks. Specify rich HSL theme colors appropriate for the genre. Ensure the outline maps out a complete 2-4 hour questline.`;
 
   console.log(`Generating campaign outline for genre: ${genre}...`);
   const outlineResponse = await client.sendPrompt({
@@ -156,6 +161,28 @@ You MUST return a JSON object ONLY matching this schema, with no additional text
     [campaignId, characterName, characterClass, JSON.stringify(inventory), JSON.stringify(attributes)]
   );
 
+  // Insert NPCs
+  const npcList = [];
+  if (outline.key_npcs && Array.isArray(outline.key_npcs)) {
+    for (const npc of outline.key_npcs) {
+      const npcResult = await db.run(
+        `INSERT INTO npcs (campaign_id, name, role, personality, quirks, relationship_value, notes, status)
+         VALUES (?, ?, ?, ?, ?, 0, ?, 'alive')`,
+        [campaignId, npc.name, npc.role, npc.personality, npc.quirks, `Created at campaign start. Role: ${npc.role}.`]
+      );
+      npcList.push({
+        id: npcResult.id,
+        name: npc.name,
+        role: npc.role,
+        personality: npc.personality,
+        quirks: npc.quirks,
+        relationship_value: 0,
+        notes: `Created at campaign start. Role: ${npc.role}.`,
+        status: 'alive'
+      });
+    }
+  }
+
   // 3. Generate Turn 1 (Opening Narrative and Scene SVG)
   const dmSystem = getDMSystemInstruction(outline, {
     name: characterName,
@@ -168,11 +195,11 @@ You MUST return a JSON object ONLY matching this schema, with no additional text
     level: 1,
     inventory,
     attributes
-  });
+  }, npcList);
 
   const turn1Prompt = `Set the scene and begin the campaign.
 Start the story at the beginning of Act I. Introduce the starting quest: "${outline.starting_quest.title}".
-Describe the starting location, atmosphere, and initial encounter. Output the JSON object containing the opening narrative, suggested choices, state updates, and an SVG illustration of the scene.`;
+Describe the starting location, atmosphere, and initial encounter. If you introduce any of the NPCs now, write them fully in character with their described personality and quirks. Output the JSON object containing the opening narrative, suggested choices, state updates, and an SVG illustration of the scene.`;
 
   console.log(`Generating opening turn for campaign ${campaignId}...`);
   const turn1Response = await client.sendPrompt({
@@ -221,6 +248,7 @@ Describe the starting location, atmosphere, and initial encounter. Output the JS
       inventory,
       attributes
     },
+    npcs: npcList,
     outline,
     currentQuest: outline.starting_quest,
     currentAct: 1,
@@ -258,6 +286,9 @@ export async function takeTurn(campaignId, playerAction, apiConfig) {
     attributes: JSON.parse(characterRow.attributes_json)
   };
 
+  // Fetch all NPCs for this campaign
+  const npcs = await db.all(`SELECT * FROM npcs WHERE campaign_id = ?`, [campaignId]);
+
   // Fetch last 6 turns for immediate conversational context
   const pastTurns = await db.all(
     `SELECT * FROM turns WHERE campaign_id = ? ORDER BY turn_number DESC LIMIT 6`,
@@ -271,8 +302,8 @@ export async function takeTurn(campaignId, playerAction, apiConfig) {
     [campaignId]
   );
 
-  // 2. Build the context prompt
-  const dmSystem = getDMSystemInstruction(outline, character);
+  // 2. Build the context prompt (including NPCs!)
+  const dmSystem = getDMSystemInstruction(outline, character, npcs);
 
   // Compile conversational history
   let historyPrompt = `=== CAMPAIGN HISTORY ===\n`;
@@ -310,7 +341,6 @@ export async function takeTurn(campaignId, playerAction, apiConfig) {
     }
     
     // Estimate Act progress based on turn count / events
-    // Let's assume Act 1 is turns 1-8, Act 2 is turns 9-20, Act 3 is 21+
     if (currentTurnNumber > 20) currentAct = 3;
     else if (currentTurnNumber > 8) currentAct = 2;
   }
@@ -323,13 +353,7 @@ Active Quest: "${activeQuestName}" (${activeQuestDesc})
 
 PLAYER ACTION: "${playerAction}"
 
-Dungeon Master, process this action. Output the JSON object containing:
-- The narrative description of what happens next.
-- Suggested subsequent action choices (3 choices).
-- Any character updates (health_change, mana_change, xp_gain, inventory_changes).
-- Active quest details.
-- A beautiful, styled SVG vector scene illustration representing the new situation, matching the HSL values: primary: ${outline.theme_colors?.primary}, secondary: ${outline.theme_colors?.secondary}, background: ${outline.theme_colors?.background}. Make the SVG design detailed, thematic, and modern.
-- A one-sentence memory_summary if a key plot point was resolved or a major character was met.`;
+Dungeon Master, process this action. Output the JSON object containing the narrative story, suggested choices, player state updates, active quest, a beautiful SVG matching HSL guidelines, and any relationship/interaction updates for NPCs.`;
 
   console.log(`Processing Turn ${currentTurnNumber} for Campaign ${campaignId}...`);
   const aiResponse = await client.sendPrompt({
@@ -354,12 +378,12 @@ Dungeon Master, process this action. Output the JSON object containing:
   // XP updates
   if (typeof updates.xp_gain === 'number') {
     character.xp += updates.xp_gain;
-    // Check level up (100 XP per level)
+    // Check level up
     const newLevel = Math.floor(character.xp / 100) + 1;
     if (newLevel > character.level || updates.level_up) {
       character.level = Math.max(character.level + 1, newLevel);
       character.max_health += 15;
-      character.health = character.max_health; // full heal on level up
+      character.health = character.max_health;
       character.max_mana += 10;
       character.mana = character.max_mana;
       turnData.narrative += `\n\n🎉 **LEVEL UP! You have reached Level ${character.level}! Your maximum Health and Mana have increased!**`;
@@ -398,6 +422,29 @@ Dungeon Master, process this action. Output the JSON object containing:
     [character.health, character.mana, character.xp, character.level, JSON.stringify(character.inventory), campaignId]
   );
 
+  // 4. Apply NPC relationship updates
+  if (turnData.npc_updates && Array.isArray(turnData.npc_updates)) {
+    for (const update of turnData.npc_updates) {
+      const existingNpc = npcs.find(n => n.name.toLowerCase() === update.name.toLowerCase());
+      if (existingNpc) {
+        const newRelation = Math.max(-100, Math.min(100, existingNpc.relationship_value + (update.relationship_change || 0)));
+        
+        let updatedNotes = existingNpc.notes || '';
+        if (update.note_update) {
+          updatedNotes += `\n[Turn ${currentTurnNumber}]: ${update.note_update}`;
+        }
+
+        await db.run(
+          `UPDATE npcs SET relationship_value = ?, notes = ?, status = ? WHERE id = ?`,
+          [newRelation, updatedNotes, update.status || existingNpc.status, existingNpc.id]
+        );
+      }
+    }
+  }
+
+  // Refetch updated NPCs to return to client
+  const updatedNpcs = await db.all(`SELECT * FROM npcs WHERE campaign_id = ?`, [campaignId]);
+
   // Fallback for SVG if LLM fails
   const svg = turnData.svg_illustration && turnData.svg_illustration.includes('<svg') 
     ? turnData.svg_illustration 
@@ -418,17 +465,18 @@ Dungeon Master, process this action. Output the JSON object containing:
     );
   }
 
-  // Update campaign summary if relevant
+  // Update campaign summary
   if (currentTurnNumber % 5 === 0 && turnData.memory_summary) {
     await db.run(
       `UPDATE campaigns SET summary = ? WHERE id = ?`,
-      [`A level ${character.level} ${character.class} currently pursuing: ${activeQuestName}. Last events: ${turnData.memory_summary}`, campaignId]
+      [`A level ${character.level} ${character.class} pursuing: ${activeQuestName}. Last events: ${turnData.memory_summary}`, campaignId]
     );
   }
 
   return {
     campaignId,
     character,
+    npcs: updatedNpcs,
     currentQuest: turnData.quest_update || { active_quest: activeQuestName, quest_description: activeQuestDesc },
     currentAct,
     turn: {
@@ -462,6 +510,8 @@ export async function getCampaignState(campaignId) {
     attributes: JSON.parse(characterRow.attributes_json)
   };
 
+  const npcs = await db.all(`SELECT * FROM npcs WHERE campaign_id = ?`, [campaignId]);
+
   const lastTurn = await db.get(
     `SELECT * FROM turns WHERE campaign_id = ? ORDER BY turn_number DESC LIMIT 1`,
     [campaignId]
@@ -493,6 +543,7 @@ export async function getCampaignState(campaignId) {
     setting: campaign.summary,
     themeColors: outline.theme_colors,
     character,
+    npcs,
     outline,
     currentQuest: { active_quest: activeQuestName, quest_description: activeQuestDesc },
     currentAct,
@@ -509,7 +560,20 @@ export async function getCampaignState(campaignId) {
 /**
  * System Instruction Compiler for the Dungeon Master LLM.
  */
-function getDMSystemInstruction(outline, character) {
+function getDMSystemInstruction(outline, character, npcs = []) {
+  const npcSection = npcs.length > 0 
+    ? `=== DYNAMIC NPCs & RELATIONSHIPS ===
+These characters populate the world. They have persistent personalities, specific speech quirks, and relationship levels with the player (range: -100 to +100).
+Keep their actions, dialogue, attitudes, and reactions strictly coherent with these definitions:
+${npcs.map(npc => `- **${npc.name}** (Role: ${npc.role}):
+   * Personality: ${npc.personality}
+   * Quirks/Habits: ${npc.quirks}
+   * Player Relationship: ${npc.relationship_value} / 100 (${npc.relationship_value > 60 ? 'Crush / Deep Ally' : npc.relationship_value < -60 ? 'Nemesis / Grudge' : 'Neutral'})
+   * History of Interactions: ${npc.notes}
+   * Status: ${npc.status}`).join('\n')}`
+    : `=== NPCs ===
+${outline.key_npcs.map(npc => `- ${npc.name} (${npc.role}): ${npc.description}`).join('\n')}`;
+
   return `You are a legendary Dungeon Master (DM) for a single-player role-playing game.
 Your task is to orchestrate an immersive campaign for the player, adhering to the overall campaign blueprint but reacting dynamically to what they do.
 
@@ -526,8 +590,7 @@ Act III: "${outline.acts[2].title}" - Objective: "${outline.acts[2].objective}"
 Major Locations in the World:
 ${outline.major_locations.map(loc => `- ${loc.name}: ${loc.description}`).join('\n')}
 
-Key NPCs:
-${outline.key_npcs.map(npc => `- ${npc.name} (${npc.role}): ${npc.description}`).join('\n')}
+${npcSection}
 
 === PLAYER DETAILS ===
 Character Name: ${character.name}
@@ -540,10 +603,11 @@ Current Inventory:
 ${character.inventory.map(item => `- ${item.name} (${item.type}): ${item.description} [Qty: ${item.quantity || 1}]`).join('\n')}
 
 === DM RULES ===
-1. Narrative Quality: Write vivid, rich description with high atmospheric focus. Avoid meta-commentary. Write 2-3 paragraphs.
+1. Narrative Quality: Write vivid, rich description with high atmospheric focus. Write 2-3 paragraphs. If any NPCs speak, use their unique voice, habits, or stuttering quirks.
 2. Coherence: Ensure you keep the story aligned with the current Act and Quest. Do not jump to the conclusion early. Let the player explore.
 3. Challenge & Rules: The player's actions can fail or succeed. If they try something dangerous, assess damage (-5 to -20 HP) or deduct mana for spells. Add useful loot to inventory, and reward XP (10-35 XP) for actions that advance the quest.
-4. JSON Format: You MUST respond with a JSON object ONLY matching this schema, with no surrounding text or markdown formatting outside of JSON structure:
+4. Characters, Grudges & Crushes: NPCs react strongly to player dialogue and choices. If a player acts kindly, helps, or flirts with an NPC, increase their relationship value. If they betray, insult, or ignore them, decrease it. Grudges or Crushes should translate to future dialogue lines (blushing, stuttering, anger, refusal to cooperate, or helping them in battle).
+5. JSON Format: You MUST respond with a JSON object ONLY matching this schema, with no surrounding text or markdown formatting outside of JSON structure:
 {
   "narrative": "Vivid narrative markdown description of what happens, ending in a hook.",
   "suggested_choices": [
@@ -565,8 +629,16 @@ ${character.inventory.map(item => `- ${item.name} (${item.type}): ${item.descrip
     "active_quest": "Current active quest title",
     "quest_description": "Updated detail of what the player should do next"
   },
-  "svg_illustration": "<svg xmlns=\\\"http://www.w3.org/2000/svg\\\" viewBox=\\\"0 0 800 400\\\" class=\\\"w-full h-full rounded-lg shadow-2xl\\\">...beautiful stylized SVG illustration of the scene. Use dark tones, rich linearGradients reflecting HSL: primary ${outline.theme_colors?.primary} and secondary ${outline.theme_colors?.secondary}. Combine shapes like path, polygon, circle and g to make silhouette scenes (e.g. cavern, futuristic city, creepy forest, magic runes). Keep it atmospheric and visually beautiful. Avoid text tags inside the SVG.</svg>",
-  "memory_summary": "One sentence summary of any permanent story developments this turn (or null if none)."
+  "svg_illustration": "<svg xmlns=\\\"http://www.w3.org/2000/svg\\\" viewBox=\\\"0 0 800 400\\\" class=\\\"w-full h-full rounded-lg shadow-2xl\\\">...beautiful stylized SVG illustration of the scene. Use dark tones, rich linearGradients reflecting HSL: primary ${outline.theme_colors?.primary} and secondary ${outline.theme_colors?.secondary}. Combine shapes like path, polygon, circle and g to make silhouette scenes. Keep it atmospheric and visually beautiful. Avoid text tags inside the SVG.</svg>",
+  "memory_summary": "One sentence summary of any permanent story developments this turn (or null if none).",
+  "npc_updates": [
+    {
+      "name": "NPC Name",
+      "relationship_change": 0, // Integer change between -50 and +50 to add/subtract
+      "note_update": "A brief summary of what they think/remember about this specific exchange",
+      "status": "alive|dead|missing"
+    }
+  ]
 }
 
 Double check that the SVG contains valid, clean SVG code with proper quote escaping for JSON values. Do not use unescaped double quotes inside the svg_illustration string! Use \\" for double quotes in JSON.`;
