@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Aetheria DM | AI Persistent RPG Engine</title>
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@300;400;600;700;800&family=Playfair+Display:ital,wght@0,600;0,700;1,400&display=swap" rel="stylesheet">
+  <!-- Marked Markdown Parser -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Stylesheets -->
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="theme-default">
+  <div class="stars-bg"></div>
+
+  <!-- HEADER -->
+  <header class="app-header">
+    <div class="logo">
+      <i class="fa-solid fa-dice-d20 logo-icon"></i>
+      <div class="logo-text">
+        <h1>Aetheria DM</h1>
+        <span>PERSISTENT AI RPG ENGINE</span>
+      </div>
+    </div>
+    <div class="header-actions">
+      <button id="btn-show-settings" class="btn btn-secondary">
+        <i class="fa-solid fa-sliders"></i> AI Settings
+      </button>
+      <button id="btn-show-campaigns" class="btn btn-primary">
+        <i class="fa-solid fa-list-check"></i> Campaigns
+      </button>
+    </div>
+  </header>
+
+  <!-- MAIN CONTAINER -->
+  <main class="main-layout" id="main-game-screen" style="display: none;">
+    <!-- LEFT PANEL: HISTORY & ACTIVE QUESTS -->
+    <section class="panel side-panel left-panel">
+      <div class="panel-section quest-section">
+        <h3><i class="fa-solid fa-compass"></i> Active Quest</h3>
+        <div id="quest-card" class="glass-card quest-card">
+          <h4 id="active-quest-title">Loading Quest...</h4>
+          <p id="active-quest-desc">Loading quest details...</p>
+          <div class="quest-progress">
+            <span class="quest-act-badge" id="active-act-badge">Act I</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel-section location-section">
+        <h3><i class="fa-solid fa-map-location-dot"></i> Campaign Outline</h3>
+        <div class="outline-scroll" id="campaign-outline-list">
+          <!-- Populated dynamically -->
+        </div>
+      </div>
+    </section>
+
+    <!-- CENTER PANEL: NARRATIVE STREAM -->
+    <section class="panel narrative-panel">
+      <div class="narrative-scroller" id="narrative-container">
+        <!-- Message logs populated here -->
+      </div>
+      <div class="input-area">
+        <div id="suggested-choices-container" class="choices-row">
+          <!-- Dynamic choice buttons -->
+        </div>
+        <form id="action-form" class="action-form">
+          <input type="text" id="action-input" placeholder="Type your action (e.g., 'Examine the rune-carved door', 'Cast light spell')..." autocomplete="off" required>
+          <button type="submit" class="btn btn-primary send-btn" id="btn-send-action">
+            <span>Send</span> <i class="fa-solid fa-paper-plane"></i>
+          </button>
+        </form>
+      </div>
+    </section>
+
+    <!-- RIGHT PANEL: CHARACTER & ILLUSTRATION -->
+    <section class="panel side-panel right-panel">
+      <!-- GRAPHICS CONTAINER -->
+      <div class="panel-section illustration-section">
+        <h3><i class="fa-solid fa-image"></i> Scene Visualizer</h3>
+        <div id="visualizer-frame" class="visualizer-frame">
+          <!-- Rendered SVG inline -->
+        </div>
+      </div>
+
+      <!-- CHARACTER STATS -->
+      <div class="panel-section character-section">
+        <div class="character-header">
+          <div>
+            <h3 id="char-name">Character Name</h3>
+            <span class="char-class-badge" id="char-class">Warrior</span>
+          </div>
+          <div class="char-level-badge">
+            <span class="lvl-label">Level</span>
+            <span id="char-level" class="lvl-num">1</span>
+          </div>
+        </div>
+
+        <div class="stat-bar-group">
+          <div class="stat-row">
+            <span><i class="fa-solid fa-heart text-danger"></i> Health</span>
+            <span id="health-text" class="stat-text">100/100</span>
+          </div>
+          <div class="stat-bar bg-danger-dim">
+            <div id="health-fill" class="stat-fill bg-danger" style="width: 100%;"></div>
+          </div>
+        </div>
+
+        <div class="stat-bar-group">
+          <div class="stat-row">
+            <span><i class="fa-solid fa-bolt text-primary"></i> Mana / Energy</span>
+            <span id="mana-text" class="stat-text">50/50</span>
+          </div>
+          <div class="stat-bar bg-primary-dim">
+            <div id="mana-fill" class="stat-fill bg-primary" style="width: 100%;"></div>
+          </div>
+        </div>
+
+        <div class="stat-bar-group">
+          <div class="stat-row">
+            <span><i class="fa-solid fa-star text-warning"></i> Experience</span>
+            <span id="xp-text" class="stat-text">0/100</span>
+          </div>
+          <div class="stat-bar bg-warning-dim">
+            <div id="xp-fill" class="stat-fill bg-warning" style="width: 0%;"></div>
+          </div>
+        </div>
+
+        <div class="attributes-grid" id="char-attributes">
+          <div class="attr-card">
+            <span class="attr-label">STR</span>
+            <span id="attr-str" class="attr-val">10</span>
+          </div>
+          <div class="attr-card">
+            <span class="attr-label">AGI</span>
+            <span id="attr-agi" class="attr-val">10</span>
+          </div>
+          <div class="attr-card">
+            <span class="attr-label">INT</span>
+            <span id="attr-int" class="attr-val">10</span>
+          </div>
+          <div class="attr-card">
+            <span class="attr-label">WIL</span>
+            <span id="attr-wil" class="attr-val">10</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- INVENTORY -->
+      <div class="panel-section inventory-section">
+        <h3><i class="fa-solid fa-briefcase"></i> Inventory</h3>
+        <div class="inventory-grid" id="inventory-container">
+          <!-- Populated dynamically with items -->
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- SCREEN: CAMPAIGN SELECTION & CREATION -->
+  <div class="screen-overlay" id="campaign-menu-screen">
+    <div class="menu-container glass-card">
+      <div class="menu-header">
+        <h2>Your Campaigns</h2>
+        <button id="btn-new-campaign-trigger" class="btn btn-primary">
+          <i class="fa-solid fa-plus"></i> Create Campaign
+        </button>
+      </div>
+
+      <div class="campaign-list" id="campaign-list-container">
+        <!-- Rendered campaign cards or empty state -->
+        <div class="loading-state">
+          <i class="fa-solid fa-spinner fa-spin"></i> Loading campaigns...
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- DIALOG: CAMPAIGN CREATION WIZARD -->
+  <div class="modal" id="campaign-wizard-modal" style="display: none;">
+    <div class="modal-content glass-card">
+      <div class="modal-header">
+        <h2>Initiate New Campaign</h2>
+        <button class="btn-close" id="btn-close-wizard"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-body">
+        <form id="campaign-create-form">
+          <div class="form-group">
+            <label for="input-genre">Campaign Genre / Setting</label>
+            <input type="text" id="input-genre" placeholder="e.g. Noir Cyberpunk Detective, Gothic Vampire Fantasy, Hard Sci-Fi Space Survival" required>
+            <span class="form-tip">Describe any setting you want. The AI Dungeon Master will dynamically construct the entire storyline, atmosphere, acts outline, and custom visual themes.</span>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group flex-1">
+              <label for="input-char-name">Character Name</label>
+              <input type="text" id="input-char-name" placeholder="e.g. Jax Sterling, Alistair Thorne, Seraphina" required>
+            </div>
+            <div class="form-group flex-1">
+              <label for="select-char-class">Character Class</label>
+              <select id="select-char-class" required>
+                <option value="Warrior">Warrior (Melee, Durable, Strength-based)</option>
+                <option value="Mage">Mage (Spells, Magical Focus, Intellect-based)</option>
+                <option value="Rogue">Rogue (Stealth, Dual Blades, Agility-based)</option>
+                <option value="Cleric">Cleric (Healing, Divine blunt attacks, Willpower-focused)</option>
+                <option value="Custom">Custom Adventurer (Balanced attributes)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-actions">
+            <button type="button" class="btn btn-secondary" id="btn-cancel-wizard">Cancel</button>
+            <button type="submit" class="btn btn-primary" id="btn-submit-wizard">
+              <span>Start Story</span> <i class="fa-solid fa-wand-magic-sparkles"></i>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- DIALOG: SETTINGS MODAL -->
+  <div class="modal" id="settings-modal" style="display: none;">
+    <div class="modal-content glass-card">
+      <div class="modal-header">
+        <h2>AI Model Configurations</h2>
+        <button class="btn-close" id="btn-close-settings"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-body">
+        <p class="settings-intro">Configure which AI model powers your Dungeon Master. Leaving keys empty defaults to the server's environment variables (`.env`).</p>
+        
+        <form id="settings-form">
+          <div class="form-group">
+            <label for="select-provider">AI Provider</label>
+            <select id="select-provider">
+              <option value="gemini">Google Gemini (Recommended client-side)</option>
+              <option value="openai">OpenAI (GPT)</option>
+              <option value="claude">Anthropic Claude</option>
+              <option value="ollama">Ollama (Local Models)</option>
+              <option value="custom">Custom OpenAI-Compatible Endpoint</option>
+            </select>
+          </div>
+
+          <div class="form-group" id="group-model">
+            <label for="input-model">Model Name</label>
+            <input type="text" id="input-model" placeholder="e.g. gemini-1.5-flash, gpt-4o-mini, Llama-3-8b">
+          </div>
+
+          <div class="form-group" id="group-api-key">
+            <label for="input-api-key">API Authorization Key</label>
+            <input type="password" id="input-api-key" placeholder="Enter API Key (Optional if configured in .env)">
+          </div>
+
+          <div class="form-group" id="group-custom-endpoint" style="display: none;">
+            <label for="input-custom-url">Custom Endpoint Base URL</label>
+            <input type="text" id="input-custom-url" placeholder="e.g. https://api.groq.com/openai/v1/chat/completions">
+          </div>
+
+          <div class="form-group" id="group-ollama-url" style="display: none;">
+            <label for="input-ollama-url">Ollama Local Connection URL</label>
+            <input type="text" id="input-ollama-url" placeholder="http://localhost:11434">
+            <span class="form-tip">To run Ollama from the browser, make sure Ollama runs with CORS enabled (set environment variable `OLLAMA_ORIGINS="*"`).</span>
+          </div>
+
+          <div class="form-actions">
+            <button type="button" class="btn btn-secondary" id="btn-cancel-settings">Cancel</button>
+            <button type="submit" class="btn btn-primary">Save Settings</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- LOADING OVERLAY -->
+  <div class="loading-overlay" id="loading-overlay" style="display: none;">
+    <div class="loading-box glass-card">
+      <i class="fa-solid fa-dice-d20 fa-spin loading-spinner"></i>
+      <h3 id="loading-message">Dungeon Master is drafting campaign details...</h3>
+      <p>This may take up to a minute depending on the AI model.</p>
+    </div>
+  </div>
+
+  <!-- SCRIPT -->
+  <script src="app.js" type="module"></script>
+</body>
+</html>
