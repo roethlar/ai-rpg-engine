@@ -10,6 +10,7 @@ let apiConfig = {
   apiKey: '',
   baseUrl: '',
   ollamaUrl: '',
+  accessToken: '', // Authentication token
   enableDiagnostics: false // Dev mode flag
 };
 
@@ -32,6 +33,7 @@ const inputModel = document.getElementById('input-model');
 const inputApiKey = document.getElementById('input-api-key');
 const inputCustomUrl = document.getElementById('input-custom-url');
 const inputOllamaUrl = document.getElementById('input-ollama-url');
+const inputAccessToken = document.getElementById('input-access-token');
 const checkboxDiagnostics = document.getElementById('input-enable-diagnostics');
 
 // Game Panel DOM Elements
@@ -99,6 +101,7 @@ function loadSettings() {
   inputApiKey.value = apiConfig.apiKey || '';
   inputCustomUrl.value = apiConfig.baseUrl || '';
   inputOllamaUrl.value = apiConfig.ollamaUrl || '';
+  inputAccessToken.value = apiConfig.accessToken || '';
   checkboxDiagnostics.checked = !!apiConfig.enableDiagnostics;
 
   toggleSettingsFields(selectProvider.value);
@@ -111,11 +114,11 @@ function saveSettings() {
   apiConfig.apiKey = inputApiKey.value.trim();
   apiConfig.baseUrl = inputCustomUrl.value.trim();
   apiConfig.ollamaUrl = inputOllamaUrl.value.trim();
+  apiConfig.accessToken = inputAccessToken.value.trim();
   apiConfig.enableDiagnostics = checkboxDiagnostics.checked;
 
   localStorage.setItem('aetheria_settings', JSON.stringify(apiConfig));
   
-  // Instantly apply diagnostics layout mode changes if loaded
   if (currentCampaignId) {
     applyLayoutMode();
   }
@@ -142,6 +145,40 @@ function toggleSettingsFields(provider) {
     inputModel.placeholder = 'e.g. gpt-4o-mini, gpt-4o';
   } else if (provider === 'claude') {
     inputModel.placeholder = 'e.g. claude-3-5-sonnet-20241022';
+  }
+}
+
+// Helper to compile authorization headers
+function getRequestHeaders() {
+  const headers = { 'Content-Type': 'application/json' };
+  if (apiConfig.accessToken) {
+    headers['Authorization'] = `Bearer ${apiConfig.accessToken}`;
+  }
+  return headers;
+}
+
+// Fetch helper with timeout protection
+async function fetchWithTimeout(url, options = {}, timeoutMs = 60000) {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeoutMs);
+  
+  try {
+    const response = await fetch(url, {
+      ...options,
+      headers: {
+        ...getRequestHeaders(),
+        ...(options.headers || {})
+      },
+      signal: controller.signal
+    });
+    clearTimeout(id);
+    return response;
+  } catch (error) {
+    clearTimeout(id);
+    if (error.name === 'AbortError') {
+      throw new Error(`Request timed out after ${timeoutMs / 1000}s`);
+    }
+    throw error;
   }
 }
 
@@ -227,9 +264,8 @@ function setupEventListeners() {
     showLoadingOverlay(`Dungeon Master is crafting your campaign...\nCreating outline, acts, NPCs, and initial scene.`);
 
     try {
-      const response = await fetch('/api/campaigns', {
+      const response = await fetchWithTimeout('/api/campaigns', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           genre,
           characterName: charNameVal,
@@ -249,7 +285,7 @@ function setupEventListeners() {
       campaignMenuScreen.style.display = 'none';
     } catch (error) {
       console.error(error);
-      alert(`Initialization Error: ${error.message}\n\nMake sure your API key is configured correctly in settings or server .env.`);
+      showToast(`Initialization Error: ${error.message}`, 'error');
     } finally {
       hideLoadingOverlay();
     }
@@ -264,13 +300,11 @@ function setupEventListeners() {
     actionInput.value = '';
     appendPlayerAction(actionText);
 
-    // Disable input while model runs
     setActionInputState(false);
 
     try {
-      const response = await fetch(`/api/campaigns/${currentCampaignId}/turn`, {
+      const response = await fetchWithTimeout(`/api/campaigns/${currentCampaignId}/turn`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           playerAction: actionText,
           apiConfig
@@ -298,8 +332,8 @@ async function loadCampaignsMenu() {
   campaignListContainer.innerHTML = `<div class="loading-state"><i class="fa-solid fa-spinner fa-spin"></i> Loading campaigns...</div>`;
   
   try {
-    const response = await fetch('/api/campaigns');
-    if (!response.ok) throw new Error('Could not fetch campaigns');
+    const response = await fetchWithTimeout('/api/campaigns');
+    if (!response.ok) throw new Error(response.status === 401 ? 'Unauthorized. Check Access Token.' : 'Could not fetch campaigns');
 
     const campaigns = await response.json();
     campaignListContainer.innerHTML = '';
@@ -324,24 +358,29 @@ async function loadCampaignsMenu() {
 
       const card = document.createElement('div');
       card.className = 'campaign-card glass-card';
-      card.innerHTML = `
+      
+      const safeTitle = escapeHtml(camp.title);
+      const safeGenre = escapeHtml(camp.genre);
+      const safeSummary = escapeHtml(camp.summary || 'Setting up adventure...');
+      
+      card.innerHTML = DOMPurify.sanitize(`
         <div>
-          <div class="camp-genre">${camp.genre}</div>
-          <h3 class="camp-title">${camp.title}</h3>
-          <p class="camp-summary">${camp.summary || 'Setting up adventure...'}</p>
+          <div class="camp-genre">${safeGenre}</div>
+          <h3 class="camp-title">${safeTitle}</h3>
+          <p class="camp-summary">${safeSummary}</p>
         </div>
         <div class="camp-footer">
           <span>Created: ${dateStr}</span>
           <button class="btn btn-danger btn-sm delete-camp-btn" data-id="${camp.id}" onclick="event.stopPropagation(); deleteCampaign(${camp.id})">
             <i class="fa-solid fa-trash"></i>
           </button>
-        </div>`;
+        </div>`);
 
       card.addEventListener('click', () => loadCampaign(camp.id));
       campaignListContainer.appendChild(card);
     });
   } catch (err) {
-    campaignListContainer.innerHTML = `<div class="empty-state text-danger"><i class="fa-solid fa-circle-exclamation"></i> Error loading campaigns: ${err.message}</div>`;
+    campaignListContainer.innerHTML = DOMPurify.sanitize(`<div class="empty-state text-danger"><i class="fa-solid fa-circle-exclamation"></i> Error loading campaigns: ${escapeHtml(err.message)}</div>`);
   }
 }
 
@@ -351,14 +390,14 @@ async function loadCampaign(campaignId) {
   showLoadingOverlay('Resuming campaign state...');
 
   try {
-    const response = await fetch(`/api/campaigns/${campaignId}`);
-    if (!response.ok) throw new Error('Failed to load campaign data');
+    const response = await fetchWithTimeout(`/api/campaigns/${campaignId}`);
+    if (!response.ok) throw new Error(response.status === 401 ? 'Unauthorized. Check Access Token.' : 'Failed to load campaign data');
 
     const gameState = await response.json();
     currentCampaignId = campaignId;
     renderGame(gameState, true);
   } catch (error) {
-    alert(`Load Error: ${error.message}`);
+    showToast(`Load Error: ${error.message}`, 'error');
     campaignMenuScreen.style.display = 'flex';
   } finally {
     hideLoadingOverlay();
@@ -370,14 +409,14 @@ window.deleteCampaign = async function (campaignId) {
   if (!confirm('Are you sure you want to delete this campaign? All history will be lost.')) return;
 
   try {
-    const response = await fetch(`/api/campaigns/${campaignId}`, {
+    const response = await fetchWithTimeout(`/api/campaigns/${campaignId}`, {
       method: 'DELETE'
     });
     if (!response.ok) throw new Error('Delete request failed');
     loadCampaignsMenu();
     showToast('Campaign deleted.', 'info');
   } catch (err) {
-    alert(`Delete Error: ${err.message}`);
+    showToast(`Delete Error: ${err.message}`, 'error');
   }
 };
 
@@ -393,7 +432,7 @@ function renderGame(gameState, resetNarrative = false) {
     applyCampaignTheme(gameState.genre, gameState.themeColors);
   }
 
-  // Update Quest Details
+  // Update Quest Details (Sanitized)
   activeQuestTitle.textContent = gameState.currentQuest.active_quest || 'Main Quest';
   activeQuestDesc.textContent = gameState.currentQuest.quest_description || '';
   activeActBadge.textContent = `Act ${gameState.currentAct || 1}`;
@@ -401,17 +440,19 @@ function renderGame(gameState, resetNarrative = false) {
   // Update Outline List
   renderOutline(gameState.outline, gameState.currentAct);
 
-  // Update Character Sheet
+  // Update Character Sheet (Sanitized)
   const char = gameState.character;
   charName.textContent = char.name;
   charClass.textContent = char.class;
   charLevel.textContent = char.level;
 
   healthText.textContent = `${char.health}/${char.max_health}`;
-  healthFill.style.width = `${(char.health / char.max_health) * 100}%`;
+  const hpPercent = char.max_health > 0 ? Math.max(0, Math.min(100, (char.health / char.max_health) * 100)) : 0;
+  healthFill.style.width = `${hpPercent}%`;
 
   manaText.textContent = `${char.mana}/${char.max_mana}`;
-  manaFill.style.width = `${(char.mana / char.max_mana) * 100}%`;
+  const manaPercent = char.max_mana > 0 ? Math.max(0, Math.min(100, (char.mana / char.max_mana) * 100)) : 0;
+  manaFill.style.width = `${manaPercent}%`;
 
   const relativeXp = char.xp % 100;
   xpText.textContent = `${relativeXp}/100`;
@@ -429,9 +470,10 @@ function renderGame(gameState, resetNarrative = false) {
   // Render Codex (NPC Dossiers)
   renderCodex(gameState.npcs || []);
 
-  // Graphic illustration
+  // Graphic illustration (Sanitized using DOMPurify SVG profile)
   if (gameState.turn.svg) {
-    visualizerFrame.innerHTML = gameState.turn.svg;
+    const cleanSvg = DOMPurify.sanitize(gameState.turn.svg, { USE_PROFILES: { svg: true } });
+    visualizerFrame.innerHTML = cleanSvg;
   }
 
   // Text narrative
@@ -496,16 +538,20 @@ function renderOutline(outline, activeAct = 1) {
     actCard.style.borderLeft = isActive ? '2px solid hsl(var(--theme-primary))' : 'none';
     actCard.style.paddingLeft = isActive ? '8px' : '0';
 
-    actCard.innerHTML = `
+    const safeTitle = escapeHtml(act.title);
+    const safeObj = escapeHtml(act.objective);
+
+    const htmlContent = DOMPurify.sanitize(`
       <div class="outline-act-hdr">
         <span>Act ${act.act}</span>
         ${isActive ? '<span class="text-success" style="font-size: 9px;"><i class="fa-solid fa-spinner fa-spin"></i> Active</span>' : ''}
         ${isCompleted ? '<span class="text-primary" style="font-size: 9px;"><i class="fa-solid fa-circle-check"></i> Completed</span>' : ''}
       </div>
-      <div class="outline-act-title" style="color: ${isActive ? '#fff' : 'inherit'};">${act.title}</div>
-      <div class="outline-act-obj" style="font-size: 11px;">${act.objective}</div>
-    `;
+      <div class="outline-act-title" style="color: ${isActive ? '#fff' : 'inherit'};">${safeTitle}</div>
+      <div class="outline-act-obj" style="font-size: 11px;">${safeObj}</div>
+    `);
 
+    actCard.innerHTML = htmlContent;
     campaignOutlineList.appendChild(actCard);
   });
 }
@@ -528,17 +574,21 @@ function renderInventory(items) {
     else if (item.type === 'consumable') icon = 'fa-flask';
     else if (item.type === 'key') icon = 'fa-key';
 
-    div.innerHTML = `
+    const safeName = escapeHtml(item.name);
+    const safeStats = escapeHtml(item.stats || item.description || '');
+
+    const htmlContent = DOMPurify.sanitize(`
       <i class="fa-solid ${icon} text-primary" style="font-size: 14px;"></i>
       <div class="inventory-item-details">
-        <div class="inventory-item-name">${item.name}</div>
-        <div class="inventory-item-desc">${item.stats || item.description || ''}</div>
+        <div class="inventory-item-name">${safeName}</div>
+        <div class="inventory-item-desc">${safeStats}</div>
       </div>
       ${item.quantity > 1 ? `<span class="inventory-item-qty">${item.quantity}</span>` : ''}
-    `;
+    `);
 
+    div.innerHTML = htmlContent;
     div.addEventListener('click', () => {
-      alert(`${item.name} (${item.type})\n\n${item.description}\n${item.stats ? `Stats: ${item.stats}` : ''}`);
+      showToast(`${item.name} (${item.type})\n\n${item.description}\n${item.stats ? `Stats: ${item.stats}` : ''}`, 'info');
     });
 
     inventoryContainer.appendChild(div);
@@ -577,12 +627,17 @@ function renderCodex(npcs) {
     }
 
     const statusClass = `status-${(npc.status || 'alive').toLowerCase()}`;
+    const safeName = escapeHtml(npc.name);
+    const safeRole = escapeHtml(npc.role || 'Supporting Character');
+    const safePersonality = escapeHtml(npc.personality || 'Unknown');
+    const safeQuirks = escapeHtml(npc.quirks || 'No visible habits');
+    const safeNotes = escapeHtml(npc.notes || 'No notes.');
 
-    card.innerHTML = `
+    const htmlContent = DOMPurify.sanitize(`
       <div class="npc-header">
         <div class="npc-title-area">
-          <div class="npc-name">${escapeHtml(npc.name)}</div>
-          <div class="npc-role">${escapeHtml(npc.role || 'Supporting Character')}</div>
+          <div class="npc-name">${safeName}</div>
+          <div class="npc-role">${safeRole}</div>
         </div>
         <span class="npc-status ${statusClass}">${npc.status || 'alive'}</span>
       </div>
@@ -593,19 +648,20 @@ function renderCodex(npcs) {
       <div class="npc-details">
         <div class="npc-details-field">
           <strong>Personality Profile</strong>
-          <span>${escapeHtml(npc.personality || 'Unknown')}</span>
+          <span>${safePersonality}</span>
         </div>
         <div class="npc-details-field">
           <strong>Unique Quirks</strong>
-          <span>${escapeHtml(npc.quirks || 'No visible habits')}</span>
+          <span>${safeQuirks}</span>
         </div>
         <div class="npc-details-field">
           <strong>Interaction Logs</strong>
-          <span class="notes-history">${escapeHtml(npc.notes || 'No notes.')}</span>
+          <span class="notes-history">${safeNotes}</span>
         </div>
       </div>
-    `;
+    `);
 
+    card.innerHTML = htmlContent;
     codexContainer.appendChild(card);
   });
 }
@@ -643,24 +699,27 @@ function setActionInputState(enabled) {
 function appendPlayerAction(text) {
   const el = document.createElement('div');
   el.className = 'log-entry log-player';
-  el.innerHTML = `
+  const cleanPlayerText = escapeHtml(text);
+  
+  el.innerHTML = DOMPurify.sanitize(`
     <div class="speaker"><i class="fa-solid fa-user"></i> You</div>
-    <div class="content">${escapeHtml(text)}</div>
-  `;
+    <div class="content">${cleanPlayerText}</div>
+  `);
   narrativeContainer.appendChild(el);
   scrollToBottom();
 }
 
-// Append DM description with markdown support
+// Append DM description with markdown support and DOMPurify sanitization
 function appendDMDialogue(markdownText) {
   const el = document.createElement('div');
   el.className = 'log-entry log-dm';
 
   const htmlContent = marked.parse(markdownText);
+  const cleanHtml = DOMPurify.sanitize(htmlContent);
 
   el.innerHTML = `
     <div class="speaker"><i class="fa-solid fa-dice-d20"></i> Dungeon Master</div>
-    <div class="content">${htmlContent}</div>
+    <div class="content">${cleanHtml}</div>
   `;
   narrativeContainer.appendChild(el);
   scrollToBottom();
@@ -708,12 +767,13 @@ function showToast(msg, type = 'info') {
   else if (type === 'error') toast.style.background = 'hsl(0, 70%, 45%)';
   else toast.style.background = 'hsl(210, 50%, 25%)';
 
-  toast.textContent = msg;
+  // Format linebreaks in toast
+  toast.innerText = msg;
   document.body.appendChild(toast);
 
   setTimeout(() => {
     toast.style.opacity = '0';
     toast.style.transition = 'opacity 0.5s';
     setTimeout(() => toast.remove(), 500);
-  }, 3000);
+  }, 4000);
 }

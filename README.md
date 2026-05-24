@@ -14,6 +14,12 @@ The engine stores all events in a persistent SQLite database, which double-funct
 4. **Scene Visualizer**: Renders custom inline SVG artwork generated procedurally by the AI for each encounter.
 5. **Interactive Controls**: Suggests quick action choices or accepts free-form text input for full player agency.
 6. **Model Context Protocol (MCP)**: Hosts a Server-Sent Events (SSE) MCP server exposing tools (`list_campaigns`, `get_campaign_outline`, `get_campaign_history`, `get_character_state`, `search_memories`) for semantic query search of past sessions.
+7. **Production Hardened Security & Concurrency**:
+   - **DOMPurify Sanitization**: All HTML narrative dialogues and SVG frames are scrubbed using DOMPurify CDNs, preventing XSS injections and securing local credentials.
+   - **Transaction Isolation**: Turn updates execute within SQLite immediate write transactions (`BEGIN IMMEDIATE`) to prevent concurrency interleaving.
+   - **Enforced Uniqueness**: Features unique constraints on `turns(campaign_id, turn_number)` and query indexing for performance.
+   - **WAL (Write-Ahead Logging)**: Configured for improved concurrent read/write throughput.
+   - **Optional Authentication**: Supports a gateway authorization token (`ACCESS_SECRET`) to prevent unauthorized game turns or deletion events.
 
 ---
 
@@ -43,7 +49,13 @@ Create a `.env` file from the template:
 cp .env.example .env
 ```
 Fill in your API Keys (e.g. `GEMINI_API_KEY`, `OPENAI_API_KEY`, or `ANTHROPIC_API_KEY`). 
-*Note: If you leave keys empty in `.env`, you can still enter them directly in the browser's UI Settings panel (saved securely in your local browser storage).*
+
+#### Setting Up Access Authentication (Optional)
+To lock the server endpoints from unauthorized third-party users, add a secret token in your `.env` file:
+```env
+ACCESS_SECRET=your_secret_access_password
+```
+If this is configured, click **AI Settings** in the top right of the game interface and paste this token into the **Server Access Token** field to authorize play.
 
 ### 3. Run the Server
 ```bash
@@ -55,10 +67,10 @@ Open your browser to: **`http://localhost:3000`**
 
 ## Docker Installation (Optional)
 
-To deploy Aetheria DM easily on a Linux server:
+To deploy Aetheria DM securely on a Linux server:
 
 ```bash
-# Build and run in background
+# Build and run in background (runs under rootless node user)
 docker-compose up -d
 ```
 The server will be available on port `3000` with the SQLite database persisted inside the `rpg-data` docker volume.
@@ -100,13 +112,14 @@ Add the following configuration to your `claude_desktop_config.json` (located at
       "command": "node",
       "args": ["/absolute/path/to/ai-rpg-engine/server.js"],
       "env": {
-         "NODE_ENV": "production"
+         "NODE_ENV": "production",
+         "ACCESS_SECRET": "your_secret_access_password"
       }
     }
   }
 }
 ```
-*(Alternatively, you can connect using SSE transport by providing the URL: `http://localhost:3000/api/mcp/sse` if the client supports SSE connections)*.
+*(Alternatively, you can connect using SSE transport by providing the URL: `http://localhost:3000/api/mcp/sse?token=your_secret_access_password` if the client supports SSE connections)*.
 
 ### Exposed Tools
 * `list_campaigns`: Returns IDs, titles, and genres of all games.

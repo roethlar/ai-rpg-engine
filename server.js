@@ -2,8 +2,11 @@ import express from 'express';
 import path from 'path';
 import crypto from 'crypto';
 import { fileURLToPath } from 'url';
+import dotenv from 'dotenv';
 import * as db from './db.js';
 import * as rpg from './rpg-engine.js';
+
+dotenv.config();
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -17,13 +20,56 @@ app.use(express.static(path.join(__dirname, 'public')));
 const mcpConnections = new Map();
 
 // -------------------------------------------------------------
-// GAME API ENDPOINTS
+// AUTHENTICATION MIDDLEWARE
 // -------------------------------------------------------------
+
+function authenticate(req, res, next) {
+  const secret = process.env.ACCESS_SECRET;
+  if (!secret) {
+    return next(); // Auth disabled if ACCESS_SECRET is not set
+  }
+
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'Unauthorized. Access token is required.' });
+  }
+
+  const token = authHeader.substring(7);
+  if (token !== secret) {
+    return res.status(401).json({ error: 'Unauthorized. Invalid access token.' });
+  }
+
+  next();
+}
+
+function authenticateMcpSse(req, res, next) {
+  const secret = process.env.ACCESS_SECRET;
+  if (!secret) {
+    return next();
+  }
+
+  const token = req.query.token || (req.headers.authorization && req.headers.authorization.startsWith('Bearer ') 
+    ? req.headers.authorization.substring(7) 
+    : null);
+
+  if (token !== secret) {
+    return res.status(401).send('Unauthorized. Invalid token.');
+  }
+
+  next();
+}
+
+// Apply authentication to game and MCP APIs
+app.use('/api/campaigns', authenticate);
 
 // Initialize database schema
 db.initDb().catch(err => {
   console.error('Failed to initialize database:', err);
 });
+
+// -------------------------------------------------------------
+// GAME API ENDPOINTS
+// -------------------------------------------------------------
 
 // List all campaigns
 app.get('/api/campaigns', async (req, res) => {
@@ -53,7 +99,10 @@ app.post('/api/campaigns', async (req, res) => {
 // Load an existing campaign
 app.get('/api/campaigns/:id', async (req, res) => {
   try {
-    const campaignId = parseInt(req.params.id);
+    const campaignId = parseInt(req.params.id, 10);
+    if (isNaN(campaignId)) {
+      return res.status(400).json({ error: 'Invalid campaign ID.' });
+    }
     const state = await rpg.getCampaignState(campaignId);
     if (!state) {
       return res.status(404).json({ error: 'Campaign not found' });
@@ -67,7 +116,10 @@ app.get('/api/campaigns/:id', async (req, res) => {
 // Process a game turn
 app.post('/api/campaigns/:id/turn', async (req, res) => {
   try {
-    const campaignId = parseInt(req.params.id);
+    const campaignId = parseInt(req.params.id, 10);
+    if (isNaN(campaignId)) {
+      return res.status(400).json({ error: 'Invalid campaign ID.' });
+    }
     const { playerAction, apiConfig } = req.body;
     if (!playerAction) {
       return res.status(400).json({ error: 'Missing playerAction' });
@@ -83,7 +135,10 @@ app.post('/api/campaigns/:id/turn', async (req, res) => {
 // Delete a campaign
 app.delete('/api/campaigns/:id', async (req, res) => {
   try {
-    const campaignId = parseInt(req.params.id);
+    const campaignId = parseInt(req.params.id, 10);
+    if (isNaN(campaignId)) {
+      return res.status(400).json({ error: 'Invalid campaign ID.' });
+    }
     await db.run(`DELETE FROM campaigns WHERE id = ?`, [campaignId]);
     res.json({ success: true });
   } catch (error) {
@@ -95,8 +150,8 @@ app.delete('/api/campaigns/:id', async (req, res) => {
 // MODEL CONTEXT PROTOCOL (MCP) IMPLEMENTATION OVER SSE
 // -------------------------------------------------------------
 
-// MCP SSE Handshake Endpoint
-app.get('/api/mcp/sse', (req, res) => {
+// MCP SSE Handshake Endpoint (Authenticated)
+app.get('/api/mcp/sse', authenticateMcpSse, (req, res) => {
   res.writeHead(200, {
     'Content-Type': 'text/event-stream',
     'Cache-Control': 'no-cache',
@@ -109,17 +164,23 @@ app.get('/api/mcp/sse', (req, res) => {
 
   mcpConnections.set(connectionId, res);
 
-  // Send the URI of the message endpoint for client POSTs
+  // Send SSE initial message endpoint link
   const messageUrl = `/api/mcp/message?connection_id=${connectionId}`;
   res.write(`event: endpoint\ndata: ${messageUrl}\n\n`);
 
+  // Start a periodic heartbeat to prevent network dropouts
+  const heartbeatInterval = setInterval(() => {
+    res.write(': heartbeat\n\n');
+  }, 30000);
+
   req.on('close', () => {
     console.log(`MCP client disconnected. Connection ID: ${connectionId}`);
+    clearInterval(heartbeatInterval);
     mcpConnections.delete(connectionId);
   });
 });
 
-// MCP Client Message Endpoint
+// MCP Client Message Endpoint (Authenticated via connection lookup)
 app.post('/api/mcp/message', async (req, res) => {
   const connectionId = req.query.connection_id;
   const clientResponseStream = mcpConnections.get(connectionId);
@@ -226,9 +287,8 @@ app.post('/api/mcp/message', async (req, res) => {
     };
   }
 
-  // Send the RPC response back via the open SSE stream
   clientResponseStream.write(`event: message\ndata: ${JSON.stringify(rpcResponse)}\n\n`);
-  res.status(202).send('Accepted'); // Standard HTTP acknowledgement for SSE message receivers
+  res.status(202).send('Accepted');
 });
 
 // Helper for MCP Tools router
@@ -285,11 +345,11 @@ async function handleToolCall(toolName, args) {
       case 'search_memories': {
         const query = `%${args.query}%`;
         const rows = await db.all(
-          `SELECT summary, keywords, created_at FROM memories WHERE campaign_id = ? AND (summary LIKE ? OR keywords LIKE ?) ORDER BY id DESC`,
+          `SELECT summary, importance, keywords, created_at FROM memories WHERE campaign_id = ? AND (summary LIKE ? OR keywords LIKE ?) ORDER BY importance DESC, id DESC`,
           [args.campaign_id, query, query]
         );
         contentText = rows.length > 0 
-          ? rows.map(r => `- [${r.created_at}] [Tags: ${r.keywords || 'None'}]: ${r.summary}`).join('\n')
+          ? rows.map(r => `- [Importance ${r.importance}] [${r.created_at}] [Tags: ${r.keywords || 'None'}]: ${r.summary}`).join('\n')
           : `No memories found matching "${args.query}"`;
         break;
       }
@@ -317,5 +377,10 @@ app.listen(PORT, () => {
   console.log(`   Aetheria DM Game & MCP Server running on port ${PORT}`);
   console.log(`   Local URL: http://localhost:${PORT}`);
   console.log(`   MCP SSE Endpoint: http://localhost:${PORT}/api/mcp/sse`);
+  if (process.env.ACCESS_SECRET) {
+    console.log(`   Authentication: ENABLED (Secret token configured)`);
+  } else {
+    console.log(`   Authentication: DISABLED (Configure ACCESS_SECRET in .env to enable)`);
+  }
   console.log(`--------------------------------------------------------`);
 });

@@ -7,7 +7,6 @@ import { AIClient } from './api-client.js';
 function parseJsonSafe(text) {
   let cleanText = text.trim();
   
-  // Remove markdown code fences if present (e.g., ```json ... ``` or ``` ...)
   if (cleanText.startsWith('```')) {
     const lines = cleanText.split('\n');
     if (lines[0].startsWith('```')) {
@@ -23,7 +22,6 @@ function parseJsonSafe(text) {
     return JSON.parse(cleanText);
   } catch (error) {
     console.error('Failed to parse JSON directly. Attempting extraction...', error);
-    // Fallback: extract first curly brace block
     const firstBrace = cleanText.indexOf('{');
     const lastBrace = cleanText.lastIndexOf('}');
     if (firstBrace !== -1 && lastBrace !== -1) {
@@ -54,10 +52,8 @@ function createFallbackSvg(title, primaryColor = '200, 70%, 50%', secondaryColor
     </defs>
     <rect width="100%" height="100%" fill="#0a0a0c" />
     <rect width="100%" height="100%" fill="url(#bgGrad)" />
-    <!-- Ambient Grid lines -->
     <path d="M 0,200 L 800,200 M 400,0 L 400,400" stroke="url(#gridGrad)" stroke-width="1" />
     <circle cx="400" cy="200" r="100" fill="none" stroke="hsl(${primaryColor})" stroke-width="2" stroke-dasharray="5,5" opacity="0.3" />
-    <!-- Dynamic visual abstract shapes -->
     <g transform="translate(400, 200)">
       <polygon points="0,-60 52,30 -52,30" fill="none" stroke="hsl(${secondaryColor})" stroke-width="2" opacity="0.6">
         <animateTransform attributeName="transform" type="rotate" from="0" to="360" dur="20s" repeatCount="indefinite" />
@@ -75,7 +71,6 @@ function createFallbackSvg(title, primaryColor = '200, 70%, 50%', secondaryColor
 export async function createCampaign({ genre, characterName, characterClass, apiConfig }) {
   const client = new AIClient(apiConfig);
 
-  // 1. Generate Campaign Outline with detailed NPC properties
   const outlineSystem = `You are a legendary RPG game designer and Dungeon Master.
 Your job is to draft a coherent, epic 2-4 hour single-player campaign outline for the genre: "${genre}".
 You MUST return a JSON object ONLY matching this schema, with no additional text:
@@ -141,47 +136,48 @@ You MUST return a JSON object ONLY matching this schema, with no additional text
   else if (characterClass === 'Rogue') inventory.push({ name: "Steel Daggers", type: "weapon", description: "Dual stealth blades.", stats: "+4 Agility Power", equipped: true });
   else if (characterClass === 'Cleric') inventory.push({ name: "Wooden Mace", type: "weapon", description: "Blunt force focus.", stats: "+3 Divine Power", equipped: true });
 
-  // 2. Insert campaign into DB
-  const campaignResult = await db.run(
-    `INSERT INTO campaigns (title, genre, summary) VALUES (?, ?, ?)`,
-    [outline.title, genre, outline.setting]
-  );
-  const campaignId = campaignResult.id;
+  // DB Transaction for creation
+  await db.run('BEGIN IMMEDIATE;');
+  let campaignId;
+  try {
+    // 2. Insert campaign into DB
+    const campaignResult = await db.run(
+      `INSERT INTO campaigns (title, genre, summary, current_act) VALUES (?, ?, ?, 1)`,
+      [outline.title, genre, outline.setting]
+    );
+    campaignId = campaignResult.id;
 
-  // Insert outline
-  await db.run(
-    `INSERT INTO campaign_outlines (campaign_id, outline_json) VALUES (?, ?)`,
-    [campaignId, JSON.stringify(outline)]
-  );
+    // Insert outline
+    await db.run(
+      `INSERT INTO campaign_outlines (campaign_id, outline_json) VALUES (?, ?)`,
+      [campaignId, JSON.stringify(outline)]
+    );
 
-  // Insert character
-  await db.run(
-    `INSERT INTO characters (campaign_id, name, class, health, max_health, mana, max_mana, xp, level, inventory_json, attributes_json)
-     VALUES (?, ?, ?, 100, 100, 50, 50, 0, 1, ?, ?)`,
-    [campaignId, characterName, characterClass, JSON.stringify(inventory), JSON.stringify(attributes)]
-  );
+    // Insert character
+    await db.run(
+      `INSERT INTO characters (campaign_id, name, class, health, max_health, mana, max_mana, xp, level, inventory_json, attributes_json)
+       VALUES (?, ?, ?, 100, 100, 50, 50, 0, 1, ?, ?)`,
+      [campaignId, characterName, characterClass, JSON.stringify(inventory), JSON.stringify(attributes)]
+    );
 
-  // Insert NPCs
-  const npcList = [];
-  if (outline.key_npcs && Array.isArray(outline.key_npcs)) {
-    for (const npc of outline.key_npcs) {
-      const npcResult = await db.run(
-        `INSERT INTO npcs (campaign_id, name, role, personality, quirks, relationship_value, notes, status)
-         VALUES (?, ?, ?, ?, ?, 0, ?, 'alive')`,
-        [campaignId, npc.name, npc.role, npc.personality, npc.quirks, `Created at campaign start. Role: ${npc.role}.`]
-      );
-      npcList.push({
-        id: npcResult.id,
-        name: npc.name,
-        role: npc.role,
-        personality: npc.personality,
-        quirks: npc.quirks,
-        relationship_value: 0,
-        notes: `Created at campaign start. Role: ${npc.role}.`,
-        status: 'alive'
-      });
+    // Insert NPCs
+    if (outline.key_npcs && Array.isArray(outline.key_npcs)) {
+      for (const npc of outline.key_npcs) {
+        await db.run(
+          `INSERT INTO npcs (campaign_id, name, role, personality, quirks, relationship_value, notes, status)
+           VALUES (?, ?, ?, ?, ?, 0, ?, 'alive')`,
+          [campaignId, npc.name, npc.role, npc.personality, npc.quirks, `Created at campaign start. Role: ${npc.role}.`]
+        );
+      }
     }
+    await db.run('COMMIT;');
+  } catch (err) {
+    await db.run('ROLLBACK;');
+    throw err;
   }
+
+  // Refetch initial NPCs
+  const npcList = await db.all(`SELECT * FROM npcs WHERE campaign_id = ?`, [campaignId]);
 
   // 3. Generate Turn 1 (Opening Narrative and Scene SVG)
   const dmSystem = getDMSystemInstruction(outline, {
@@ -195,7 +191,7 @@ You MUST return a JSON object ONLY matching this schema, with no additional text
     level: 1,
     inventory,
     attributes
-  }, npcList);
+  }, npcList, 1);
 
   const turn1Prompt = `Set the scene and begin the campaign.
 Start the story at the beginning of Act I. Introduce the starting quest: "${outline.starting_quest.title}".
@@ -210,24 +206,29 @@ Describe the starting location, atmosphere, and initial encounter. If you introd
 
   const turnData = parseJsonSafe(turn1Response);
 
-  // Fallback for SVG if LLM fails
   const svg = turnData.svg_illustration && turnData.svg_illustration.includes('<svg') 
     ? turnData.svg_illustration 
     : createFallbackSvg(outline.title, outline.theme_colors?.primary, outline.theme_colors?.secondary);
 
-  // Save Turn 1
-  await db.run(
-    `INSERT INTO turns (campaign_id, turn_number, player_action, narrative, state_changes_json, svg_illustration)
-     VALUES (?, 1, NULL, ?, ?, ?)`,
-    [campaignId, turnData.narrative, JSON.stringify(turnData.character_update || {}), svg]
-  );
-
-  // Add starting memory if provided
-  if (turnData.memory_summary) {
+  // Save Turn 1 in a transaction
+  await db.run('BEGIN IMMEDIATE;');
+  try {
     await db.run(
-      `INSERT INTO memories (campaign_id, importance, summary, keywords) VALUES (?, ?, ?, ?)`,
-      [campaignId, 3, turnData.memory_summary, outline.starting_quest.title]
+      `INSERT INTO turns (campaign_id, turn_number, player_action, narrative, state_changes_json, svg_illustration)
+       VALUES (?, 1, NULL, ?, ?, ?)`,
+      [campaignId, turnData.narrative, JSON.stringify(turnData.character_update || {}), svg]
     );
+
+    if (turnData.memory_summary) {
+      await db.run(
+        `INSERT INTO memories (campaign_id, importance, summary, keywords) VALUES (?, ?, ?, ?)`,
+        [campaignId, turnData.memory_importance || 3, turnData.memory_summary, outline.starting_quest.title]
+      );
+    }
+    await db.run('COMMIT;');
+  } catch (err) {
+    await db.run('ROLLBACK;');
+    throw err;
   }
 
   return {
@@ -265,7 +266,7 @@ Describe the starting location, atmosphere, and initial encounter. If you introd
 export async function takeTurn(campaignId, playerAction, apiConfig) {
   const client = new AIClient(apiConfig);
 
-  // 1. Fetch current campaign details
+  // 1. Fetch current campaign details (outside transaction for low lock overhead)
   const campaign = await db.get(`SELECT * FROM campaigns WHERE id = ?`, [campaignId]);
   if (!campaign) throw new Error(`Campaign ${campaignId} not found.`);
 
@@ -286,29 +287,30 @@ export async function takeTurn(campaignId, playerAction, apiConfig) {
     attributes: JSON.parse(characterRow.attributes_json)
   };
 
-  // Fetch all NPCs for this campaign
   const npcs = await db.all(`SELECT * FROM npcs WHERE campaign_id = ?`, [campaignId]);
 
-  // Fetch last 6 turns for immediate conversational context
+  // Fetch last 6 turns for immediate context
   const pastTurns = await db.all(
     `SELECT * FROM turns WHERE campaign_id = ? ORDER BY turn_number DESC LIMIT 6`,
     [campaignId]
   );
-  pastTurns.reverse(); // put back in chronological order
+  pastTurns.reverse();
 
-  // Fetch campaign memories for long term coherence
+  // Fetch campaign memories (Top importance + recency ranked)
   const memories = await db.all(
-    `SELECT * FROM memories WHERE campaign_id = ? ORDER BY id DESC LIMIT 15`,
+    `SELECT * FROM memories WHERE campaign_id = ? ORDER BY importance DESC, id DESC LIMIT 8`,
     [campaignId]
   );
 
-  // 2. Build the context prompt (including NPCs!)
-  const dmSystem = getDMSystemInstruction(outline, character, npcs);
+  const currentTurnNumber = pastTurns.length > 0 ? pastTurns[pastTurns.length - 1].turn_number + 1 : 1;
+  const currentAct = campaign.current_act || 1;
 
-  // Compile conversational history
+  // 2. Build the context prompt
+  const dmSystem = getDMSystemInstruction(outline, character, npcs, currentAct);
+
   let historyPrompt = `=== CAMPAIGN HISTORY ===\n`;
   if (memories.length > 0) {
-    historyPrompt += `Summary of key past events:\n` + memories.map(m => `- ${m.summary}`).join('\n') + `\n\n`;
+    historyPrompt += `Summary of key past events:\n` + memories.map(m => `- [Importance ${m.importance}] ${m.summary}`).join('\n') + `\n\n`;
   }
   historyPrompt += `Last active turns:\n`;
   pastTurns.forEach(turn => {
@@ -318,15 +320,11 @@ export async function takeTurn(campaignId, playerAction, apiConfig) {
     historyPrompt += `> DM: ${turn.narrative.substring(0, 500)}...\n`;
   });
   
-  const currentTurnNumber = pastTurns.length > 0 ? pastTurns[pastTurns.length - 1].turn_number + 1 : 1;
-  
-  // Extract active quest if details exist
+  // Extract active quest
   let activeQuestName = outline.starting_quest.title;
   let activeQuestDesc = outline.starting_quest.description;
-  let currentAct = 1;
 
   if (pastTurns.length > 0) {
-    // Look at last turn state changes for active quest updates
     for (const turn of [...pastTurns].reverse()) {
       if (turn.state_changes_json) {
         try {
@@ -339,10 +337,6 @@ export async function takeTurn(campaignId, playerAction, apiConfig) {
         } catch (e) {}
       }
     }
-    
-    // Estimate Act progress based on turn count / events
-    if (currentTurnNumber > 20) currentAct = 3;
-    else if (currentTurnNumber > 8) currentAct = 2;
   }
 
   const turnPrompt = `${historyPrompt}
@@ -364,27 +358,30 @@ Dungeon Master, process this action. Output the JSON object containing the narra
 
   const turnData = parseJsonSafe(aiResponse);
 
-  // 3. Apply state changes to character
+  // Apply state updates (Unify Level Up mechanics)
   const updates = turnData.character_update || {};
   
-  // Health updates
+  // Health
   if (typeof updates.health_change === 'number') {
     character.health = Math.max(0, Math.min(character.max_health, character.health + updates.health_change));
   }
-  // Mana updates
+  // Mana
   if (typeof updates.mana_change === 'number') {
     character.mana = Math.max(0, Math.min(character.max_mana, character.mana + updates.mana_change));
   }
-  // XP updates
+  
+  // XP & Level (XP is single source of truth: level = floor(xp/100)+1)
   if (typeof updates.xp_gain === 'number') {
+    const oldLevel = character.level;
     character.xp += updates.xp_gain;
-    // Check level up
-    const newLevel = Math.floor(character.xp / 100) + 1;
-    if (newLevel > character.level || updates.level_up) {
-      character.level = Math.max(character.level + 1, newLevel);
-      character.max_health += 15;
-      character.health = character.max_health;
-      character.max_mana += 10;
+    const computedLevel = Math.floor(character.xp / 100) + 1;
+    
+    if (computedLevel > oldLevel) {
+      const levelDiff = computedLevel - oldLevel;
+      character.level = computedLevel;
+      character.max_health += levelDiff * 15;
+      character.health = character.max_health; // full heal
+      character.max_mana += levelDiff * 10;
       character.mana = character.max_mana;
       turnData.narrative += `\n\n🎉 **LEVEL UP! You have reached Level ${character.level}! Your maximum Health and Mana have increased!**`;
     }
@@ -416,69 +413,95 @@ Dungeon Master, process this action. Output the JSON object containing the narra
     });
   }
 
-  // Save character changes in DB
-  await db.run(
-    `UPDATE characters SET health = ?, mana = ?, xp = ?, level = ?, inventory_json = ? WHERE campaign_id = ?`,
-    [character.health, character.mana, character.xp, character.level, JSON.stringify(character.inventory), campaignId]
-  );
+  const nextAct = turnData.quest_update?.current_act || currentAct;
 
-  // 4. Apply NPC relationship updates
-  if (turnData.npc_updates && Array.isArray(turnData.npc_updates)) {
-    for (const update of turnData.npc_updates) {
-      const existingNpc = npcs.find(n => n.name.toLowerCase() === update.name.toLowerCase());
-      if (existingNpc) {
-        const newRelation = Math.max(-100, Math.min(100, existingNpc.relationship_value + (update.relationship_change || 0)));
-        
-        let updatedNotes = existingNpc.notes || '';
-        if (update.note_update) {
-          updatedNotes += `\n[Turn ${currentTurnNumber}]: ${update.note_update}`;
-        }
-
-        await db.run(
-          `UPDATE npcs SET relationship_value = ?, notes = ?, status = ? WHERE id = ?`,
-          [newRelation, updatedNotes, update.status || existingNpc.status, existingNpc.id]
-        );
-      }
-    }
-  }
-
-  // Refetch updated NPCs to return to client
-  const updatedNpcs = await db.all(`SELECT * FROM npcs WHERE campaign_id = ?`, [campaignId]);
-
-  // Fallback for SVG if LLM fails
+  // Fallback for SVG
   const svg = turnData.svg_illustration && turnData.svg_illustration.includes('<svg') 
     ? turnData.svg_illustration 
     : createFallbackSvg(activeQuestName, outline.theme_colors?.primary, outline.theme_colors?.secondary);
 
-  // Save new turn to DB
-  await db.run(
-    `INSERT INTO turns (campaign_id, turn_number, player_action, narrative, state_changes_json, svg_illustration)
-     VALUES (?, ?, ?, ?, ?, ?)`,
-    [campaignId, currentTurnNumber, playerAction, turnData.narrative, JSON.stringify(turnData), svg]
-  );
-
-  // Insert memory if provided
-  if (turnData.memory_summary) {
-    await db.run(
-      `INSERT INTO memories (campaign_id, importance, summary, keywords) VALUES (?, ?, ?, ?)`,
-      [campaignId, 3, turnData.memory_summary, activeQuestName]
+  // 3. EXECUTE WRITE TRANSACTION (Immediate Transaction block to prevent interleaved concurrent mutations)
+  await db.run('BEGIN IMMEDIATE;');
+  try {
+    // A. Check unique constraint race conditions
+    const checkTurnExists = await db.get(
+      `SELECT 1 FROM turns WHERE campaign_id = ? AND turn_number = ?`,
+      [campaignId, currentTurnNumber]
     );
+    if (checkTurnExists) {
+      throw new Error(`Turn ${currentTurnNumber} has already been written. Transaction aborted.`);
+    }
+
+    // B. Save character updates
+    await db.run(
+      `UPDATE characters SET health = ?, mana = ?, xp = ?, level = ?, inventory_json = ? WHERE campaign_id = ?`,
+      [character.health, character.mana, character.xp, character.level, JSON.stringify(character.inventory), campaignId]
+    );
+
+    // C. Save campaign progress (current act)
+    await db.run(
+      `UPDATE campaigns SET current_act = ? WHERE id = ?`,
+      [nextAct, campaignId]
+    );
+
+    // D. Apply NPC updates
+    if (turnData.npc_updates && Array.isArray(turnData.npc_updates)) {
+      for (const update of turnData.npc_updates) {
+        const existingNpc = npcs.find(n => n.name.toLowerCase() === update.name.toLowerCase());
+        if (existingNpc) {
+          const newRelation = Math.max(-100, Math.min(100, existingNpc.relationship_value + (update.relationship_change || 0)));
+          
+          let updatedNotes = existingNpc.notes || '';
+          if (update.note_update) {
+            updatedNotes += `\n[Turn ${currentTurnNumber}]: ${update.note_update}`;
+          }
+
+          await db.run(
+            `UPDATE npcs SET relationship_value = ?, notes = ?, status = ? WHERE id = ?`,
+            [newRelation, updatedNotes, update.status || existingNpc.status, existingNpc.id]
+          );
+        }
+      }
+    }
+
+    // E. Save turn
+    await db.run(
+      `INSERT INTO turns (campaign_id, turn_number, player_action, narrative, state_changes_json, svg_illustration)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [campaignId, currentTurnNumber, playerAction, turnData.narrative, JSON.stringify(turnData), svg]
+    );
+
+    // F. Save memories with dynamic importance
+    if (turnData.memory_summary) {
+      await db.run(
+        `INSERT INTO memories (campaign_id, importance, summary, keywords) VALUES (?, ?, ?, ?)`,
+        [campaignId, turnData.memory_importance || 3, turnData.memory_summary, turnData.memory_keywords || activeQuestName]
+      );
+    }
+
+    // G. Update campaign summary
+    if (currentTurnNumber % 5 === 0 && turnData.memory_summary) {
+      await db.run(
+        `UPDATE campaigns SET summary = ? WHERE id = ?`,
+        [`Act ${nextAct}. Level ${character.level} ${character.class} pursuing: ${activeQuestName}. Last events: ${turnData.memory_summary}`, campaignId]
+      );
+    }
+
+    await db.run('COMMIT;');
+  } catch (err) {
+    await db.run('ROLLBACK;');
+    throw err;
   }
 
-  // Update campaign summary
-  if (currentTurnNumber % 5 === 0 && turnData.memory_summary) {
-    await db.run(
-      `UPDATE campaigns SET summary = ? WHERE id = ?`,
-      [`A level ${character.level} ${character.class} pursuing: ${activeQuestName}. Last events: ${turnData.memory_summary}`, campaignId]
-    );
-  }
+  // Refetch updated NPCs to return
+  const updatedNpcs = await db.all(`SELECT * FROM npcs WHERE campaign_id = ?`, [campaignId]);
 
   return {
     campaignId,
     character,
     npcs: updatedNpcs,
     currentQuest: turnData.quest_update || { active_quest: activeQuestName, quest_description: activeQuestDesc },
-    currentAct,
+    currentAct: nextAct,
     turn: {
       number: currentTurnNumber,
       playerAction,
@@ -519,7 +542,7 @@ export async function getCampaignState(campaignId) {
 
   let activeQuestName = outline.starting_quest.title;
   let activeQuestDesc = outline.starting_quest.description;
-  let currentAct = 1;
+  let currentAct = campaign.current_act || 1;
   let suggestedChoices = [];
 
   if (lastTurn) {
@@ -530,9 +553,6 @@ export async function getCampaignState(campaignId) {
         activeQuestDesc = turnData.quest_update.quest_description || '';
       }
       suggestedChoices = turnData.suggested_choices || [];
-      
-      if (lastTurn.turn_number > 20) currentAct = 3;
-      else if (lastTurn.turn_number > 8) currentAct = 2;
     } catch(e) {}
   }
 
@@ -560,7 +580,12 @@ export async function getCampaignState(campaignId) {
 /**
  * System Instruction Compiler for the Dungeon Master LLM.
  */
-function getDMSystemInstruction(outline, character, npcs = []) {
+function getDMSystemInstruction(outline, character, npcs = [], currentAct = 1) {
+  // Dynamically map acts array to prevent index boundary crashes on different counts
+  const actsOutlinePrompt = outline.acts && Array.isArray(outline.acts)
+    ? outline.acts.map(act => `* Act ${act.act}: "${act.title}" - Objective: "${act.objective}" (Key milestones: ${act.key_events?.join(', ') || 'none'})`).join('\n')
+    : 'No acts defined.';
+
   const npcSection = npcs.length > 0 
     ? `=== DYNAMIC NPCs & RELATIONSHIPS ===
 These characters populate the world. They have persistent personalities, specific speech quirks, and relationship levels with the player (range: -100 to +100).
@@ -582,10 +607,10 @@ Campaign Title: "${outline.title}"
 Genre & Atmosphere: "${outline.setting}"
 Theme Colors: Primary HSL: ${outline.theme_colors?.primary || '210, 100%, 50%'}, Secondary HSL: ${outline.theme_colors?.secondary || '300, 100%, 50%'}
 
-=== THE THREE-ACT CAMPAIGN PATH ===
-Act I: "${outline.acts[0].title}" - Objective: "${outline.acts[0].objective}"
-Act II: "${outline.acts[1].title}" - Objective: "${outline.acts[1].objective}"
-Act III: "${outline.acts[2].title}" - Objective: "${outline.acts[2].objective}"
+=== THE CAMPAIGN PATH ===
+Current Active Act: Act ${currentAct}
+Acts Blueprint:
+${actsOutlinePrompt}
 
 Major Locations in the World:
 ${outline.major_locations.map(loc => `- ${loc.name}: ${loc.description}`).join('\n')}
@@ -607,7 +632,8 @@ ${character.inventory.map(item => `- ${item.name} (${item.type}): ${item.descrip
 2. Coherence: Ensure you keep the story aligned with the current Act and Quest. Do not jump to the conclusion early. Let the player explore.
 3. Challenge & Rules: The player's actions can fail or succeed. If they try something dangerous, assess damage (-5 to -20 HP) or deduct mana for spells. Add useful loot to inventory, and reward XP (10-35 XP) for actions that advance the quest.
 4. Characters, Grudges & Crushes: NPCs react strongly to player dialogue and choices. If a player acts kindly, helps, or flirts with an NPC, increase their relationship value. If they betray, insult, or ignore them, decrease it. Grudges or Crushes should translate to future dialogue lines (blushing, stuttering, anger, refusal to cooperate, or helping them in battle).
-5. JSON Format: You MUST respond with a JSON object ONLY matching this schema, with no surrounding text or markdown formatting outside of JSON structure:
+5. Act Progress: If the objectives of the current Act have been fully met by the player's choices, increment the active Act in your quest_update output.
+6. JSON Format: You MUST respond with a JSON object ONLY matching this schema, with no surrounding text or markdown formatting outside of JSON structure:
 {
   "narrative": "Vivid narrative markdown description of what happens, ending in a hook.",
   "suggested_choices": [
@@ -627,10 +653,13 @@ ${character.inventory.map(item => `- ${item.name} (${item.type}): ${item.descrip
   },
   "quest_update": {
     "active_quest": "Current active quest title",
-    "quest_description": "Updated detail of what the player should do next"
+    "quest_description": "Updated detail of what the player should do next",
+    "current_act": ${currentAct} // Keep at ${currentAct} or increment if this act objectives are resolved
   },
   "svg_illustration": "<svg xmlns=\\\"http://www.w3.org/2000/svg\\\" viewBox=\\\"0 0 800 400\\\" class=\\\"w-full h-full rounded-lg shadow-2xl\\\">...beautiful stylized SVG illustration of the scene. Use dark tones, rich linearGradients reflecting HSL: primary ${outline.theme_colors?.primary} and secondary ${outline.theme_colors?.secondary}. Combine shapes like path, polygon, circle and g to make silhouette scenes. Keep it atmospheric and visually beautiful. Avoid text tags inside the SVG.</svg>",
   "memory_summary": "One sentence summary of any permanent story developments this turn (or null if none).",
+  "memory_importance": 3, // Rating from 1 (low importance) to 5 (high milestone importance)
+  "memory_keywords": "comma, separated, tags", // Tags describing this memory
   "npc_updates": [
     {
       "name": "NPC Name",

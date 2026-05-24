@@ -14,11 +14,14 @@ RUN apt-get update && apt-get install -y \
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies
-RUN npm ci --only=production
+# Install dependencies omitting dev dependencies
+RUN npm ci --omit=dev
 
-# Copy source code
-COPY . .
+# Copy source code and ensure it's owned by the node user
+COPY --chown=node:node . .
+
+# Set up data directory and ensure ownership
+RUN mkdir -p data && chown -R node:node data
 
 # Expose game server and MCP server ports
 EXPOSE 3000
@@ -26,6 +29,9 @@ EXPOSE 3000
 # Set environment variables defaults
 ENV PORT=3000
 ENV NODE_ENV=production
+
+# Switch to the rootless node user
+USER node
 
 # Run start script
 CMD [ "npm", "start" ]

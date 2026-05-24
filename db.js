@@ -46,8 +46,9 @@ export function all(sql, params = []) {
 
 // Initialize database schema
 export async function initDb() {
-  // Enable foreign keys
+  // Enable foreign keys & WAL mode for concurrency
   await run('PRAGMA foreign_keys = ON;');
+  await run('PRAGMA journal_mode = WAL;');
 
   // Create campaigns table
   await run(`
@@ -56,9 +57,17 @@ export async function initDb() {
       title TEXT NOT NULL,
       genre TEXT NOT NULL,
       summary TEXT,
+      current_act INTEGER DEFAULT 1,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
   `);
+
+  // Migrate campaigns table if current_act column doesn't exist
+  try {
+    await run('ALTER TABLE campaigns ADD COLUMN current_act INTEGER DEFAULT 1;');
+  } catch (e) {
+    // Ignore error if column already exists
+  }
 
   // Create campaign_outlines table
   await run(`
@@ -102,6 +111,11 @@ export async function initDb() {
     )
   `);
 
+  // Create unique index index on campaign_id + turn_number to prevent overlapping race conditions
+  await run(`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_turns_campaign_turn ON turns (campaign_id, turn_number)
+  `);
+
   // Create memories table
   await run(`
     CREATE TABLE IF NOT EXISTS memories (
@@ -129,6 +143,11 @@ export async function initDb() {
       status TEXT DEFAULT 'alive',
       FOREIGN KEY (campaign_id) REFERENCES campaigns(id) ON DELETE CASCADE
     )
+  `);
+
+  // Create index for fast NPC lookups
+  await run(`
+    CREATE INDEX IF NOT EXISTS idx_npcs_campaign ON npcs (campaign_id)
   `);
 
   console.log('Database initialized successfully at:', dbPath);
