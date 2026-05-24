@@ -89,6 +89,7 @@ function testJsonSchemaValidation() {
   console.log(' - Running JSON response validation and clamping tests...');
   
   const malformedData = {
+    input_kind: 'clarification',
     narrative: '  A quiet clearing. ',
     suggested_choices: [' choice 1', null, ''],
     character_update: {
@@ -108,11 +109,32 @@ function testJsonSchemaValidation() {
     },
     npc_updates: [
       { name: 'Garrick', relationship_change: 99, status: 'unknown' } // invalid values
+    ],
+    ability_updates: [
+      {
+        action: 'add',
+        ability: {
+          name: '  Neural Splice  ',
+          description: '  Interfaces with damaged machine minds. ',
+          tier: '',
+          source: 'dockside clinic'
+        },
+        note: 'Earned by repairing the courier drone.'
+      },
+      {
+        action: 'learn',
+        ability: { name: 'Invalid Action' }
+      },
+      {
+        action: 'add',
+        ability: { description: 'Missing name' }
+      }
     ]
   };
 
   const clean = validateTurnData(malformedData, 2);
 
+  assert.strictEqual(clean.input_kind, 'clarification', 'Should preserve valid input_kind');
   assert.strictEqual(clean.narrative, 'A quiet clearing.', 'Should trim narrative');
   assert.deepStrictEqual(clean.suggested_choices, ['choice 1'], 'Should filter empty or null choices');
   assert.strictEqual(clean.character_update.health_change, 100, 'Should clamp health_change to 100 max');
@@ -129,6 +151,13 @@ function testJsonSchemaValidation() {
   const npcUp = clean.npc_updates[0];
   assert.strictEqual(npcUp.relationship_change, 50, 'Should clamp npc relationship_change to 50 max');
   assert.strictEqual(npcUp.status, 'alive', 'Should fallback invalid status to alive');
+
+  assert.strictEqual(clean.ability_updates.length, 1, 'Should keep only valid ability updates');
+  assert.strictEqual(clean.ability_updates[0].ability.name, 'Neural Splice', 'Should trim ability names');
+  assert.strictEqual(clean.ability_updates[0].ability.tier, 'emerging', 'Should default empty ability tier');
+
+  const invalidKind = validateTurnData({ input_kind: 'monologue' }, 1);
+  assert.strictEqual(invalidKind.input_kind, 'committed_action', 'Should default invalid input_kind');
 }
 
 // -------------------------------------------------------------

@@ -1,6 +1,7 @@
 import net from 'net';
 import dns from 'dns';
 import { promisify } from 'util';
+import dotenv from 'dotenv';
 dotenv.config();
 
 const dnsLookup = promisify(dns.lookup);
@@ -121,25 +122,28 @@ async function validateUrlForSsrfAsync(urlString, allowedLocalUrl) {
     } catch (e) {}
   }
 
+  let lookupResult;
   try {
-    const { address } = await dnsLookup(hostname);
-    if (isPrivateIp(address)) {
-      throw new Error('Resolved host points to local/private network address.');
-    }
+    lookupResult = await dnsLookup(hostname);
   } catch (dnsErr) {
-    if (dnsErr.message.includes('Resolved host points')) {
-      throw dnsErr;
-    }
+    throw new Error(`SSRF Blocked: Unable to verify hostname "${hostname}". Reason: ${dnsErr.message}`);
+  }
+
+  if (isPrivateIp(lookupResult.address)) {
+    throw new Error('SSRF Blocked: Resolved host points to local/private network address.');
   }
 }
 
 /**
  * Fetch wrapper with timeout protection to prevent hung requests from blocking queues.
  */
-async function fetchWithTimeout(url, options = {}, timeoutMs = 60000) {
+async function fetchWithTimeout(url, options = {}, timeoutMs = 240000) {
   const controller = new AbortController();
   const id = setTimeout(() => controller.abort(), timeoutMs);
   try {
+    // The SSRF guard validates DNS before fetch. Node's fetch performs its own
+    // resolution afterward, so this reduces accidental/private endpoint access
+    // but is not a complete DNS-rebinding defense for untrusted domains.
     const response = await fetch(url, {
       ...options,
       signal: controller.signal
@@ -234,7 +238,7 @@ export class AIClient {
     if (!key) throw new Error('Gemini API key is not configured.');
 
     // Note: Gemini 1.5 flash uses v1beta endpoint
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${this.model}:generateContent?key=${key}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${this.model}:generateContent`;
     
     const requestBody = {
       contents: [
@@ -258,7 +262,10 @@ export class AIClient {
 
     const response = await fetchWithTimeout(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-goog-api-key': key
+      },
       body: JSON.stringify(requestBody)
     });
 

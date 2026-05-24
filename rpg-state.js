@@ -22,7 +22,6 @@ export function parseJsonSafe(text) {
   try {
     return JSON.parse(cleanText);
   } catch (error) {
-    console.error('Failed to parse JSON directly. Attempting extraction...', error);
     const firstBrace = cleanText.indexOf('{');
     const lastBrace = cleanText.lastIndexOf('}');
     if (firstBrace !== -1 && lastBrace !== -1) {
@@ -40,8 +39,9 @@ export function parseJsonSafe(text) {
  * Procedurally generates a placeholder SVG graphic if the LLM fails to output valid SVG.
  */
 export function createFallbackSvg(title, primaryColor = '200, 70%, 50%', secondaryColor = '300, 70%, 50%') {
-  const pColor = String(primaryColor || '200, 70%, 50%').replace(/%/g, '');
-  const sColor = String(secondaryColor || '300, 70%, 50%').replace(/%/g, '');
+  const pColor = normalizeHslColor(primaryColor, '200, 70%, 50%');
+  const sColor = normalizeHslColor(secondaryColor, '300, 70%, 50%');
+  const safeTitle = escapeXmlText(String(title || 'Aetheria').toUpperCase());
   
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 400" class="w-full h-full rounded-lg shadow-2xl">
     <defs>
@@ -63,9 +63,29 @@ export function createFallbackSvg(title, primaryColor = '200, 70%, 50%', seconda
         <animateTransform attributeName="transform" type="rotate" from="0" to="360" dur="20s" repeatCount="indefinite" />
       </polygon>
     </g>
-    <text x="400" y="210" font-family="'Outfit', 'Inter', sans-serif" font-size="24" fill="#ffffff" text-anchor="middle" font-weight="bold" letter-spacing="4" opacity="0.9">${String(title || 'Aetheria').toUpperCase()}</text>
+    <text x="400" y="210" font-family="'Outfit', 'Inter', sans-serif" font-size="24" fill="#ffffff" text-anchor="middle" font-weight="bold" letter-spacing="4" opacity="0.9">${safeTitle}</text>
     <text x="400" y="240" font-family="'Inter', sans-serif" font-size="14" fill="#a0a0b0" text-anchor="middle" opacity="0.6">AETHERIA RPG ENGINE</text>
   </svg>`;
+}
+
+function normalizeHslColor(value, fallback) {
+  const raw = String(value || fallback).trim();
+  const match = raw.match(/^(\d{1,3})\s*,\s*(\d{1,3})%\s*,\s*(\d{1,3})%$/);
+  if (!match) return fallback;
+
+  const h = Math.max(0, Math.min(360, Number(match[1])));
+  const s = Math.max(0, Math.min(100, Number(match[2])));
+  const l = Math.max(0, Math.min(100, Number(match[3])));
+  return `${h}, ${s}%, ${l}%`;
+}
+
+function escapeXmlText(value) {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
 }
 
 /**
@@ -74,6 +94,11 @@ export function createFallbackSvg(title, primaryColor = '200, 70%, 50%', seconda
 export function validateTurnData(raw, currentAct = 1) {
   const data = raw || {};
   const validated = {};
+
+  const inputKinds = ['clarification', 'dialogue', 'committed_action'];
+  validated.input_kind = inputKinds.includes(data.input_kind)
+    ? data.input_kind
+    : 'committed_action';
 
   // 1. Narrative Log
   validated.narrative = typeof data.narrative === 'string' && data.narrative.trim() !== ''
@@ -161,7 +186,38 @@ export function validateTurnData(raw, currentAct = 1) {
     ? data.memory_keywords.trim()
     : '';
 
-  // 7. NPC updates
+  // 7. Character ability progression
+  validated.ability_updates = [];
+  if (Array.isArray(data.ability_updates)) {
+    data.ability_updates.forEach(update => {
+      if (!update || typeof update !== 'object') return;
+      const action = update.action;
+      if (!['add', 'improve', 'remove'].includes(action)) return;
+
+      const ability = update.ability && typeof update.ability === 'object' ? update.ability : {};
+      const name = typeof ability.name === 'string' ? ability.name.trim() : '';
+      if (!name) return;
+
+      validated.ability_updates.push({
+        action,
+        ability: {
+          name,
+          description: typeof ability.description === 'string' && ability.description.trim() !== ''
+            ? ability.description.trim()
+            : 'A developing capability.',
+          tier: typeof ability.tier === 'string' && ability.tier.trim() !== ''
+            ? ability.tier.trim()
+            : 'emerging',
+          source: typeof ability.source === 'string' && ability.source.trim() !== ''
+            ? ability.source.trim()
+            : 'in-game development'
+        },
+        note: typeof update.note === 'string' ? update.note.trim() : ''
+      });
+    });
+  }
+
+  // 8. NPC updates
   validated.npc_updates = [];
   if (Array.isArray(data.npc_updates)) {
     data.npc_updates.forEach(update => {

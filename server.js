@@ -11,19 +11,122 @@ dotenv.config();
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 const PORT = process.env.PORT || 3000;
+const TRUST_PROXY = process.env.TRUST_PROXY;
 
-app.use(express.json());
+if (TRUST_PROXY) {
+  const parsedTrustProxy = TRUST_PROXY === 'true'
+    ? true
+    : Number.isInteger(Number(TRUST_PROXY))
+      ? Number(TRUST_PROXY)
+      : TRUST_PROXY;
+  app.set('trust proxy', parsedTrustProxy);
+}
+
+app.use((req, res, next) => {
+  res.setHeader(
+    'Content-Security-Policy',
+    [
+      "default-src 'self'",
+      "script-src 'self'",
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com",
+      "font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com data:",
+      "img-src 'self' data: blob:",
+      "media-src 'self' blob:",
+      "connect-src 'self'",
+      "object-src 'none'",
+      "base-uri 'self'",
+      "frame-ancestors 'none'"
+    ].join('; ')
+  );
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('Referrer-Policy', 'no-referrer');
+  next();
+});
+
+app.use(express.json({ limit: '64kb' }));
 // Serve static frontend files
 app.use(express.static(path.join(__dirname, 'public')));
 
 // Store active MCP connections
 const mcpConnections = new Map();
 
+const campaignTaskQueues = new Map();
+function queueCampaignTask(campaignId, taskFn) {
+  const queueKey = String(campaignId);
+  const current = campaignTaskQueues.get(queueKey) || Promise.resolve();
+  const next = current.catch(() => {}).then(taskFn);
+  const stored = next.catch(() => {});
+  campaignTaskQueues.set(queueKey, stored);
+  stored.finally(() => {
+    if (campaignTaskQueues.get(queueKey) === stored) {
+      campaignTaskQueues.delete(queueKey);
+    }
+  });
+  return next;
+}
+
+const MAX_GENRE_LENGTH = 200;
+const MAX_CHARACTER_FIELD_LENGTH = 80;
+const MAX_ACTION_LENGTH = 2000;
+const MAX_TITLE_LENGTH = 160;
+const MAX_NARRATION_LENGTH = 4000;
+const MAX_TTS_INSTRUCTIONS_LENGTH = 600;
+const TTS_MODELS = new Set(['gpt-4o-mini-tts', 'gpt-4o-mini-tts-2025-12-15', 'tts-1', 'tts-1-hd']);
+const TTS_VOICES = new Set(['alloy', 'ash', 'ballad', 'coral', 'echo', 'fable', 'marin', 'nova', 'onyx', 'sage', 'shimmer', 'verse', 'cedar']);
+
+function boundedString(value, fieldName, maxLength) {
+  if (typeof value !== 'string') {
+    throw new Error(`${fieldName} must be a string.`);
+  }
+  const trimmed = value.trim();
+  if (!trimmed) {
+    throw new Error(`${fieldName} is required.`);
+  }
+  if (trimmed.length > maxLength) {
+    throw new Error(`${fieldName} must be ${maxLength} characters or fewer.`);
+  }
+  return trimmed;
+}
+
+function parsePositiveInteger(value, fieldName) {
+  const parsed = typeof value === 'number'
+    ? value
+    : (typeof value === 'string' && /^[1-9]\d*$/.test(value.trim()) ? Number(value) : NaN);
+  if (!Number.isInteger(parsed) || parsed < 1) {
+    throw new Error(`Invalid ${fieldName}.`);
+  }
+  return parsed;
+}
+
+function optionalBoundedString(value, fieldName, maxLength, fallback = '') {
+  if (value === undefined || value === null || value === '') return fallback;
+  return boundedString(value, fieldName, maxLength);
+}
+
+function stripNarrationText(value) {
+  return String(value || '')
+    .replace(/<svg[\s\S]*?<\/svg>/gi, '')
+    .replace(/```[\s\S]*?```/g, '')
+    .replace(/!\[[^\]]*]\([^)]*\)/g, '')
+    .replace(/\[([^\]]+)]\([^)]*\)/g, '$1')
+    .replace(/[*_#>`~]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function timingSafeTokenEqual(token, secret) {
+  if (typeof token !== 'string' || typeof secret !== 'string') return false;
+  const tokenBuffer = Buffer.from(token);
+  const secretBuffer = Buffer.from(secret);
+  if (tokenBuffer.length !== secretBuffer.length) return false;
+  return crypto.timingSafeEqual(tokenBuffer, secretBuffer);
+}
+
 // Simple in-memory sliding-window IP rate limiter
 const rateLimits = new Map();
 function rateLimit(limitCount, windowMs) {
   return (req, res, next) => {
-    const ip = req.ip || req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+    const ip = req.ip || req.socket.remoteAddress || 'unknown';
     const now = Date.now();
     
     if (!rateLimits.has(ip)) {
@@ -32,12 +135,13 @@ function rateLimit(limitCount, windowMs) {
     
     // Filter timestamps older than the window
     const timestamps = rateLimits.get(ip).filter(time => now - time < windowMs);
-    timestamps.push(now);
-    rateLimits.set(ip, timestamps);
     
-    if (timestamps.length > limitCount) {
+    if (timestamps.length >= limitCount) {
+      rateLimits.set(ip, timestamps);
       return res.status(429).json({ error: 'Too many requests. Please slow down.' });
     }
+    timestamps.push(now);
+    rateLimits.set(ip, timestamps);
     next();
   };
 }
@@ -56,18 +160,6 @@ setInterval(() => {
   }
 }, 300000); // Clean up every 5 minutes
 
-// Concurrency protection: Single global queue for all database write operations
-let dbWriteQueue = Promise.resolve();
-function queueDbWrite(taskFn) {
-  const current = dbWriteQueue;
-  const next = current.then(async () => {
-    return await taskFn();
-  });
-  // Recover the queue from failures by catching and replacing the promise
-  dbWriteQueue = next.catch(() => {});
-  return next;
-}
-
 // -------------------------------------------------------------
 // AUTHENTICATION MIDDLEWARE
 // -------------------------------------------------------------
@@ -84,7 +176,7 @@ function authenticate(req, res, next) {
   }
 
   const token = authHeader.substring(7);
-  if (token !== secret) {
+  if (!timingSafeTokenEqual(token, secret)) {
     return res.status(401).json({ error: 'Unauthorized. Invalid access token.' });
   }
 
@@ -101,7 +193,7 @@ function authenticateMcpSse(req, res, next) {
     ? req.headers.authorization.substring(7) 
     : null);
 
-  if (token !== secret) {
+  if (!timingSafeTokenEqual(token, secret)) {
     return res.status(401).send('Unauthorized. Invalid token.');
   }
 
@@ -110,6 +202,8 @@ function authenticateMcpSse(req, res, next) {
 
 // Apply authentication to game and MCP APIs
 app.use('/api/campaigns', authenticate);
+app.use('/api/characters', authenticate);
+app.use('/api/audio', authenticate);
 
 // -------------------------------------------------------------
 // GAME API ENDPOINTS
@@ -118,27 +212,59 @@ app.use('/api/campaigns', authenticate);
 // List all campaigns
 app.get('/api/campaigns', async (req, res) => {
   try {
-    const campaigns = await db.all(`SELECT * FROM campaigns ORDER BY created_at DESC`);
+    const campaigns = await db.all(
+      `SELECT campaigns.*, characters.name AS character_name, characters.player_character_id
+       FROM campaigns
+       LEFT JOIN characters ON characters.campaign_id = campaigns.id
+       ORDER BY campaigns.created_at DESC`
+    );
     res.json(campaigns);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-// Create a new campaign (Rate limited: 5 campaigns per minute per IP, serialized)
+app.get('/api/characters', async (req, res) => {
+  try {
+    const characters = await rpg.listPlayerCharacters();
+    res.json(characters);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Create a new campaign (Rate limited: 5 campaigns per minute per IP)
 app.post('/api/campaigns', rateLimit(5, 60000), async (req, res) => {
   try {
-    const { genre, characterName, characterClass, apiConfig, rulesMode } = req.body;
-    if (!genre || !characterName || !characterClass) {
-      return res.status(400).json({ error: 'Missing required parameters.' });
+    const { genre, characterName, characterClass, characterProfileId, characterMode, apiConfig, rulesMode } = req.body;
+    const cleanGenre = boundedString(genre, 'genre', MAX_GENRE_LENGTH);
+    const mode = ['new', 'existing', 'copy'].includes(characterMode) ? characterMode : 'new';
+    const cleanCharacterProfileId = characterProfileId ? parsePositiveInteger(characterProfileId, 'characterProfileId') : null;
+    if ((mode === 'existing' || mode === 'copy') && !cleanCharacterProfileId) {
+      return res.status(400).json({ error: 'characterProfileId is required for existing or copied characters.' });
     }
-    const state = await queueDbWrite(() => 
-      rpg.createCampaign({ genre, characterName, characterClass, apiConfig, rulesMode })
-    );
+    const cleanCharacterName = cleanCharacterProfileId ? '' : boundedString(characterName, 'characterName', MAX_CHARACTER_FIELD_LENGTH);
+    const cleanCharacterClass = cleanCharacterProfileId ? '' : boundedString(characterClass, 'characterConcept', MAX_CHARACTER_FIELD_LENGTH);
+    const state = await rpg.createCampaign({
+      genre: cleanGenre,
+      characterName: cleanCharacterName,
+      characterClass: cleanCharacterClass,
+      characterProfileId: cleanCharacterProfileId,
+      characterMode: mode,
+      apiConfig,
+      rulesMode
+    });
     res.json(state);
   } catch (error) {
     console.error('Error creating campaign:', error);
-    res.status(500).json({ error: error.message });
+    const status = error.message.includes('checked out') || error.message.includes('no longer available')
+      ? 409
+      : error.message.includes('not found')
+        ? 404
+        : error.message.includes('API key') || error.message.includes('configured') || error.message.includes('Invalid') || error.message.includes('required') || error.message.includes('characters or fewer') || error.message.includes('must be a string')
+          ? 400
+          : 500;
+    res.status(status).json({ error: error.message });
   }
 });
 
@@ -159,7 +285,7 @@ app.get('/api/campaigns/:id', async (req, res) => {
   }
 });
 
-// Process a game turn (Serialized globally and rate limited)
+// Process a game turn (serialized per campaign and rate limited)
 app.post('/api/campaigns/:id/turn', rateLimit(10, 60000), async (req, res) => {
   try {
     const campaignId = parseInt(req.params.id, 10);
@@ -167,20 +293,19 @@ app.post('/api/campaigns/:id/turn', rateLimit(10, 60000), async (req, res) => {
       return res.status(400).json({ error: 'Invalid campaign ID.' });
     }
     const { playerAction, apiConfig } = req.body;
-    if (!playerAction) {
-      return res.status(400).json({ error: 'Missing playerAction' });
-    }
-    const state = await queueDbWrite(() => 
-      rpg.takeTurn(campaignId, playerAction, apiConfig)
+    const cleanPlayerAction = boundedString(playerAction, 'playerAction', MAX_ACTION_LENGTH);
+    const state = await queueCampaignTask(campaignId, () => 
+      rpg.takeTurn(campaignId, cleanPlayerAction, apiConfig)
     );
     res.json(state);
   } catch (error) {
     console.error('Error processing turn:', error);
-    res.status(500).json({ error: error.message });
+    const status = error.message.includes('required') || error.message.includes('characters or fewer') || error.message.includes('must be a string') ? 400 : 500;
+    res.status(status).json({ error: error.message });
   }
 });
 
-// Fork campaign at a specific turn number (Serialized globally)
+// Fork campaign at a specific turn number (serialized per campaign)
 app.post('/api/campaigns/:id/fork', async (req, res) => {
   try {
     const campaignId = parseInt(req.params.id, 10);
@@ -188,16 +313,16 @@ app.post('/api/campaigns/:id/fork', async (req, res) => {
       return res.status(400).json({ error: 'Invalid campaign ID.' });
     }
     const { turnNumber, newTitle } = req.body;
-    if (!turnNumber || !newTitle) {
-      return res.status(400).json({ error: 'Missing turnNumber or newTitle.' });
-    }
-    const state = await queueDbWrite(() => 
-      rpg.forkCampaign(campaignId, turnNumber, newTitle)
+    const cleanTurnNumber = parsePositiveInteger(turnNumber, 'turnNumber');
+    const cleanNewTitle = boundedString(newTitle, 'newTitle', MAX_TITLE_LENGTH);
+    const state = await queueCampaignTask(campaignId, () => 
+      rpg.forkCampaign(campaignId, cleanTurnNumber, cleanNewTitle)
     );
     res.json(state);
   } catch (error) {
     console.error('Error forking campaign:', error);
-    res.status(500).json({ error: error.message });
+    const status = error.message.startsWith('Invalid') || error.message.includes('required') || error.message.includes('characters or fewer') || error.message.includes('must be a string') ? 400 : 500;
+    res.status(status).json({ error: error.message });
   }
 });
 
@@ -213,7 +338,7 @@ app.get('/api/campaigns/:id/journal', async (req, res) => {
       [campaignId]
     );
     const memories = await db.all(
-      `SELECT importance, summary, keywords, created_at FROM memories WHERE campaign_id = ? ORDER BY id ASC`,
+      `SELECT turn_number, importance, summary, keywords, created_at FROM memories WHERE campaign_id = ? ORDER BY id ASC`,
       [campaignId]
     );
     res.json({ turns, memories });
@@ -223,19 +348,87 @@ app.get('/api/campaigns/:id/journal', async (req, res) => {
   }
 });
 
-// Delete a campaign (Serialized globally)
+// Delete a campaign (serialized per campaign)
 app.delete('/api/campaigns/:id', async (req, res) => {
   try {
     const campaignId = parseInt(req.params.id, 10);
     if (isNaN(campaignId)) {
       return res.status(400).json({ error: 'Invalid campaign ID.' });
     }
-    await queueDbWrite(() => 
-      db.run(`DELETE FROM campaigns WHERE id = ?`, [campaignId])
-    );
+    await queueCampaignTask(campaignId, async () => {
+      await rpg.releaseCampaignCharacters(campaignId);
+      await db.run(`DELETE FROM campaigns WHERE id = ?`, [campaignId]);
+    });
     res.json({ success: true });
   } catch (error) {
     res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/campaigns/:id/release-character', async (req, res) => {
+  try {
+    const campaignId = parseInt(req.params.id, 10);
+    if (isNaN(campaignId)) {
+      return res.status(400).json({ error: 'Invalid campaign ID.' });
+    }
+    await queueCampaignTask(campaignId, () => rpg.releaseCampaignCharacters(campaignId, { detachCampaign: true }));
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/audio/narrate', rateLimit(20, 60000), async (req, res) => {
+  try {
+    const { text, audioConfig = {}, apiConfig = {} } = req.body;
+    const narrationText = boundedString(stripNarrationText(text), 'text', MAX_NARRATION_LENGTH);
+    const requestedModel = audioConfig.model || process.env.TTS_MODEL;
+    const requestedVoice = audioConfig.voice || process.env.TTS_VOICE;
+    const model = TTS_MODELS.has(requestedModel) ? requestedModel : 'gpt-4o-mini-tts';
+    const voice = TTS_VOICES.has(requestedVoice) ? requestedVoice : 'marin';
+    const instructions = optionalBoundedString(
+      audioConfig.instructions,
+      'instructions',
+      MAX_TTS_INSTRUCTIONS_LENGTH,
+      'Narrate as an atmospheric game master. Keep the delivery clear, tense, and cinematic without overacting.'
+    );
+    const apiKey = audioConfig.apiKey || (apiConfig.provider === 'openai' ? apiConfig.apiKey : '') || process.env.OPENAI_API_KEY;
+
+    if (!apiKey) {
+      return res.status(400).json({ error: 'OpenAI API key is required for voice narration.' });
+    }
+
+    const requestBody = {
+      model,
+      voice,
+      input: narrationText,
+      response_format: 'mp3'
+    };
+    if (model.startsWith('gpt-4o-mini-tts') && instructions) {
+      requestBody.instructions = instructions;
+    }
+
+    const response = await fetch('https://api.openai.com/v1/audio/speech', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(requestBody)
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      return res.status(response.status).json({ error: `OpenAI speech error: ${response.statusText} - ${errorText}` });
+    }
+
+    const audioBuffer = Buffer.from(await response.arrayBuffer());
+    res.setHeader('Content-Type', 'audio/mpeg');
+    res.setHeader('Cache-Control', 'no-store');
+    res.send(audioBuffer);
+  } catch (error) {
+    const status = error.message.includes('required') || error.message.includes('characters or fewer') || error.message.includes('must be a string') ? 400 : 500;
+    res.status(status).json({ error: error.message });
   }
 });
 
@@ -253,12 +446,13 @@ app.get('/api/mcp/sse', authenticateMcpSse, (req, res) => {
   });
 
   const connectionId = crypto.randomUUID();
-  console.log(`MCP client connected. Connection ID: ${connectionId}`);
+  const messageToken = crypto.randomUUID();
+  console.log('MCP client connected.');
 
-  mcpConnections.set(connectionId, res);
+  mcpConnections.set(connectionId, { stream: res, messageToken });
 
   // Send SSE initial message endpoint link
-  const messageUrl = `/api/mcp/message?connection_id=${connectionId}`;
+  const messageUrl = `/api/mcp/message?connection_id=${connectionId}&message_token=${messageToken}`;
   res.write(`event: endpoint\ndata: ${messageUrl}\n\n`);
 
   // Start a periodic heartbeat to prevent network dropouts
@@ -267,23 +461,27 @@ app.get('/api/mcp/sse', authenticateMcpSse, (req, res) => {
   }, 30000);
 
   req.on('close', () => {
-    console.log(`MCP client disconnected. Connection ID: ${connectionId}`);
+    console.log('MCP client disconnected.');
     clearInterval(heartbeatInterval);
     mcpConnections.delete(connectionId);
   });
 });
 
-// MCP Client Message Endpoint (Authenticated via connection lookup)
+// MCP Client Message Endpoint (authenticated via per-SSE capability token)
 app.post('/api/mcp/message', async (req, res) => {
   const connectionId = req.query.connection_id;
-  const clientResponseStream = mcpConnections.get(connectionId);
+  const messageToken = req.query.message_token;
+  const connection = mcpConnections.get(connectionId);
 
-  if (!clientResponseStream) {
+  if (!connection) {
     return res.status(400).json({ error: 'Connection expired or invalid.' });
+  }
+  if (!timingSafeTokenEqual(String(messageToken || ''), connection.messageToken)) {
+    return res.status(401).json({ error: 'Unauthorized. Invalid MCP message token.' });
   }
 
   const rpcRequest = req.body;
-  console.log(`Received MCP RPC request on ${connectionId}:`, rpcRequest.method);
+  console.log('Received MCP RPC request:', rpcRequest.method);
 
   let rpcResponse = {
     jsonrpc: '2.0',
@@ -311,6 +509,11 @@ app.post('/api/mcp/message', async (req, res) => {
             {
               name: 'list_campaigns',
               description: 'Retrieve a list of all active and completed campaigns in the RPG engine database.',
+              inputSchema: { type: 'object', properties: {} }
+            },
+            {
+              name: 'list_characters',
+              description: 'List reusable player character profiles, checkout status, current campaign, stats, and known abilities.',
               inputSchema: { type: 'object', properties: {} }
             },
             {
@@ -380,7 +583,7 @@ app.post('/api/mcp/message', async (req, res) => {
     };
   }
 
-  clientResponseStream.write(`event: message\ndata: ${JSON.stringify(rpcResponse)}\n\n`);
+  connection.stream.write(`event: message\ndata: ${JSON.stringify(rpcResponse)}\n\n`);
   res.status(202).send('Accepted');
 });
 
@@ -393,6 +596,12 @@ async function handleToolCall(toolName, args) {
       case 'list_campaigns': {
         const campaigns = await db.all(`SELECT * FROM campaigns`);
         contentText = JSON.stringify(campaigns, null, 2);
+        break;
+      }
+
+      case 'list_characters': {
+        const characters = await rpg.listPlayerCharacters();
+        contentText = JSON.stringify(characters, null, 2);
         break;
       }
 
@@ -425,12 +634,16 @@ async function handleToolCall(toolName, args) {
           contentText = JSON.stringify({
             name: row.name,
             class: row.class,
+            archetype: row.class,
+            player_character_id: row.player_character_id,
             health: `${row.health}/${row.max_health}`,
             mana: `${row.mana}/${row.max_mana}`,
             level: row.level,
             xp: row.xp,
             inventory: JSON.parse(row.inventory_json),
-            attributes: JSON.parse(row.attributes_json)
+            attributes: JSON.parse(row.attributes_json),
+            abilities: JSON.parse(row.abilities_json || '[]'),
+            progression_notes: row.progression_notes || ''
           }, null, 2);
         }
         break;

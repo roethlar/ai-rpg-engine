@@ -72,7 +72,7 @@
           <!-- Dynamic choice buttons -->
         </div>
         <form id="action-form" class="action-form">
-          <input type="text" id="action-input" placeholder="Type your action (e.g., 'Examine the rune-carved door', 'Cast light spell')..." autocomplete="off" required>
+          <input type="text" id="action-input" placeholder="Act or ask the DM (e.g., 'Scan the corridor', 'Do I know this symbol?', 'Take cover')..." autocomplete="off" required>
           <button type="submit" class="btn btn-primary send-btn" id="btn-send-action">
             <span>Send</span> <i class="fa-solid fa-paper-plane"></i>
           </button>
@@ -95,7 +95,7 @@
         <div class="character-header">
           <div>
             <h3 id="char-name">Character Name</h3>
-            <span class="char-class-badge" id="char-class">Warrior</span>
+            <span class="char-class-badge" id="char-class">Character Concept</span>
           </div>
           <div class="char-level-badge">
             <span class="lvl-label">Level</span>
@@ -151,6 +151,15 @@
             <span id="attr-wil" class="attr-val">10</span>
           </div>
         </div>
+
+        <div class="abilities-block">
+          <div class="section-mini-title">
+            <i class="fa-solid fa-sparkles"></i> Abilities
+          </div>
+          <div class="abilities-list" id="char-abilities">
+            <!-- Populated dynamically -->
+          </div>
+        </div>
       </div>
 
       <!-- INVENTORY / JOURNAL / CODEX TABBED SECTION -->
@@ -201,9 +210,14 @@
     <div class="menu-container glass-card">
       <div class="menu-header">
         <h2>Your Campaigns</h2>
-        <button id="btn-new-campaign-trigger" class="btn btn-primary">
-          <i class="fa-solid fa-plus"></i> Create Campaign
-        </button>
+        <div class="menu-actions">
+          <button id="btn-menu-settings" class="btn btn-secondary">
+            <i class="fa-solid fa-sliders"></i> AI Settings
+          </button>
+          <button id="btn-new-campaign-trigger" class="btn btn-primary">
+            <i class="fa-solid fa-plus"></i> Create Campaign
+          </button>
+        </div>
       </div>
 
       <div class="campaign-list" id="campaign-list-container">
@@ -230,20 +244,29 @@
             <span class="form-tip">Describe any setting you want. The AI Dungeon Master will dynamically construct the entire storyline, atmosphere, acts outline, and custom visual themes.</span>
           </div>
 
-          <div class="form-row">
+          <div class="form-group">
+            <label for="select-character-mode">Player Character</label>
+            <select id="select-character-mode">
+              <option value="new">Create a new character</option>
+              <option value="existing">Use an available saved character</option>
+              <option value="copy">Copy a saved character into this campaign</option>
+            </select>
+          </div>
+
+          <div class="form-group" id="saved-character-group" style="display: none;">
+            <label for="select-saved-character">Saved Character</label>
+            <select id="select-saved-character"></select>
+            <div class="saved-character-summary" id="saved-character-summary"></div>
+          </div>
+
+          <div class="form-row" id="new-character-fields">
             <div class="form-group flex-1">
               <label for="input-char-name">Character Name</label>
               <input type="text" id="input-char-name" placeholder="e.g. Jax Sterling, Alistair Thorne, Seraphina" required>
             </div>
             <div class="form-group flex-1">
-              <label for="select-char-class">Character Class</label>
-              <select id="select-char-class" required>
-                <option value="Warrior">Warrior (Melee, Durable, Strength-based)</option>
-                <option value="Mage">Mage (Spells, Magical Focus, Intellect-based)</option>
-                <option value="Rogue">Rogue (Stealth, Dual Blades, Agility-based)</option>
-                <option value="Cleric">Cleric (Healing, Divine blunt attacks, Willpower-focused)</option>
-                <option value="Custom">Custom Adventurer (Balanced attributes)</option>
-              </select>
+              <label for="input-char-concept">Character Concept / Archetype</label>
+              <input type="text" id="input-char-concept" placeholder="e.g. Exiled station medic, noir detective, desert courier" required>
             </div>
           </div>
 
@@ -310,6 +333,50 @@
             <span class="form-tip">To run Ollama from the browser, make sure Ollama runs with CORS enabled (set environment variable `OLLAMA_ORIGINS="*"`).</span>
           </div>
 
+          <div class="form-group" style="margin-top: 16px; padding-top: 16px; border-top: 1px solid hsl(var(--theme-border));">
+            <label class="checkbox-container" style="display: flex; align-items: center; gap: 10px; cursor: pointer; text-transform: none; font-size: 13px; font-weight: 600;">
+              <input type="checkbox" id="input-enable-voice-narration" style="width: auto; cursor: pointer;">
+              <span>Enable Voice Narration</span>
+            </label>
+            <span class="form-tip">Uses an AI-generated voice for the final player-facing DM narration only.</span>
+          </div>
+
+          <div id="voice-settings-group" style="display: none;">
+            <div class="form-row">
+              <div class="form-group flex-1">
+                <label for="input-voice-model">Voice Model</label>
+                <input type="text" id="input-voice-model" placeholder="gpt-4o-mini-tts">
+              </div>
+              <div class="form-group flex-1">
+                <label for="select-voice-name">Voice</label>
+                <select id="select-voice-name">
+                  <option value="marin">Marin</option>
+                  <option value="cedar">Cedar</option>
+                  <option value="alloy">Alloy</option>
+                  <option value="ash">Ash</option>
+                  <option value="ballad">Ballad</option>
+                  <option value="coral">Coral</option>
+                  <option value="echo">Echo</option>
+                  <option value="fable">Fable</option>
+                  <option value="nova">Nova</option>
+                  <option value="onyx">Onyx</option>
+                  <option value="sage">Sage</option>
+                  <option value="shimmer">Shimmer</option>
+                  <option value="verse">Verse</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="input-voice-api-key">Voice API Key</label>
+              <input type="password" id="input-voice-api-key" placeholder="Optional if OPENAI_API_KEY is set on the server">
+            </div>
+            <div class="form-group">
+              <label for="input-voice-instructions">Voice Direction</label>
+              <input type="text" id="input-voice-instructions" placeholder="Atmospheric, clear, tense, cinematic">
+              <span class="form-tip">OpenAI requires clear disclosure that generated speech is AI-generated; this app labels the feature as AI voice narration.</span>
+            </div>
+          </div>
+
           <!-- ACCESS TOKEN FIELD -->
           <div class="form-group" id="group-access-token" style="margin-top: 16px; padding-top: 16px; border-top: 1px solid hsl(var(--theme-border));">
             <label for="input-access-token">Server Access Token</label>
@@ -340,7 +407,7 @@
     <div class="loading-box glass-card">
       <i class="fa-solid fa-dice-d20 fa-spin loading-spinner"></i>
       <h3 id="loading-message">Dungeon Master is drafting campaign details...</h3>
-      <p>This may take up to a minute depending on the AI model.</p>
+      <p>This can take several minutes with local models.</p>
     </div>
   </div>
 

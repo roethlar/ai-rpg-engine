@@ -5,15 +5,25 @@
 // Application state
 let currentCampaignId = null;
 let currentCampaignTitle = '';
-let apiConfig = {
+let savedCharacters = [];
+const DEFAULT_API_CONFIG = {
   provider: 'gemini',
   model: '',
   apiKey: '',
   baseUrl: '',
   ollamaUrl: '',
   accessToken: '', // Authentication token
-  enableDiagnostics: false // Dev mode flag
+  enableDiagnostics: false, // Dev mode flag
+  voiceNarration: false,
+  voiceModel: 'gpt-4o-mini-tts',
+  voiceName: 'marin',
+  voiceApiKey: '',
+  voiceInstructions: 'Narrate as an atmospheric game master. Keep the delivery clear, tense, and cinematic without overacting.'
 };
+let apiConfig = { ...DEFAULT_API_CONFIG };
+
+const CAMPAIGN_CREATE_TIMEOUT_MS = 300000;
+const TURN_TIMEOUT_MS = 420000;
 
 // DOM Elements
 const mainGameScreen = document.getElementById('main-game-screen');
@@ -27,6 +37,14 @@ const settingsModal = document.getElementById('settings-modal');
 const settingsForm = document.getElementById('settings-form');
 const campaignWizardModal = document.getElementById('campaign-wizard-modal');
 const campaignCreateForm = document.getElementById('campaign-create-form');
+const btnMenuSettings = document.getElementById('btn-menu-settings');
+const selectCharacterMode = document.getElementById('select-character-mode');
+const savedCharacterGroup = document.getElementById('saved-character-group');
+const selectSavedCharacter = document.getElementById('select-saved-character');
+const savedCharacterSummary = document.getElementById('saved-character-summary');
+const newCharacterFields = document.getElementById('new-character-fields');
+const inputCharName = document.getElementById('input-char-name');
+const inputCharConcept = document.getElementById('input-char-concept');
 
 // Settings Inputs
 const selectProvider = document.getElementById('select-provider');
@@ -36,6 +54,12 @@ const inputCustomUrl = document.getElementById('input-custom-url');
 const inputOllamaUrl = document.getElementById('input-ollama-url');
 const inputAccessToken = document.getElementById('input-access-token');
 const checkboxDiagnostics = document.getElementById('input-enable-diagnostics');
+const checkboxVoiceNarration = document.getElementById('input-enable-voice-narration');
+const voiceSettingsGroup = document.getElementById('voice-settings-group');
+const inputVoiceModel = document.getElementById('input-voice-model');
+const selectVoiceName = document.getElementById('select-voice-name');
+const inputVoiceApiKey = document.getElementById('input-voice-api-key');
+const inputVoiceInstructions = document.getElementById('input-voice-instructions');
 
 // Game Panel DOM Elements
 const activeQuestTitle = document.getElementById('active-quest-title');
@@ -60,6 +84,7 @@ const xpText = document.getElementById('xp-text');
 const xpFill = document.getElementById('xp-fill');
 const inventoryContainer = document.getElementById('inventory-container');
 const codexContainer = document.getElementById('codex-container');
+const charAbilities = document.getElementById('char-abilities');
 
 // Tab Switchers
 const rightTabsHeader = document.getElementById('right-tabs-header');
@@ -81,6 +106,8 @@ const attrWil = document.getElementById('attr-wil');
 
 // Illustration
 const visualizerFrame = document.getElementById('visualizer-frame');
+let currentNarrationAudio = null;
+let voiceErrorShown = false;
 
 // Init application on load
 window.addEventListener('DOMContentLoaded', () => {
@@ -100,13 +127,15 @@ window.addEventListener('DOMContentLoaded', () => {
 // Load config from localStorage
 function loadSettings() {
   const saved = localStorage.getItem('aetheria_settings');
+  let savedConfig = {};
   if (saved) {
     try {
-      apiConfig = JSON.parse(saved);
+      savedConfig = JSON.parse(saved);
     } catch (e) {
       console.error('Error parsing settings', e);
     }
   }
+  apiConfig = normalizeApiConfig(savedConfig);
 
   // Populate form elements
   selectProvider.value = apiConfig.provider || 'gemini';
@@ -116,8 +145,14 @@ function loadSettings() {
   inputOllamaUrl.value = apiConfig.ollamaUrl || '';
   inputAccessToken.value = apiConfig.accessToken || '';
   checkboxDiagnostics.checked = !!apiConfig.enableDiagnostics;
+  checkboxVoiceNarration.checked = !!apiConfig.voiceNarration;
+  inputVoiceModel.value = apiConfig.voiceModel || 'gpt-4o-mini-tts';
+  selectVoiceName.value = apiConfig.voiceName || 'marin';
+  inputVoiceApiKey.value = apiConfig.voiceApiKey || '';
+  inputVoiceInstructions.value = apiConfig.voiceInstructions || '';
 
   toggleSettingsFields(selectProvider.value);
+  toggleVoiceSettings();
 }
 
 // Save config to localStorage
@@ -129,12 +164,24 @@ function saveSettings() {
   apiConfig.ollamaUrl = inputOllamaUrl.value.trim();
   apiConfig.accessToken = inputAccessToken.value.trim();
   apiConfig.enableDiagnostics = checkboxDiagnostics.checked;
+  apiConfig.voiceNarration = checkboxVoiceNarration.checked;
+  apiConfig.voiceModel = inputVoiceModel.value.trim() || 'gpt-4o-mini-tts';
+  apiConfig.voiceName = selectVoiceName.value || 'marin';
+  apiConfig.voiceApiKey = inputVoiceApiKey.value.trim();
+  apiConfig.voiceInstructions = inputVoiceInstructions.value.trim();
 
   localStorage.setItem('aetheria_settings', JSON.stringify(apiConfig));
   
   if (currentCampaignId) {
     applyLayoutMode();
   }
+}
+
+function normalizeApiConfig(raw = {}) {
+  return {
+    ...DEFAULT_API_CONFIG,
+    ...raw
+  };
 }
 
 // Show/Hide provider fields
@@ -159,6 +206,30 @@ function toggleSettingsFields(provider) {
   } else if (provider === 'claude') {
     inputModel.placeholder = 'e.g. claude-3-5-sonnet-20241022';
   }
+}
+
+function toggleVoiceSettings() {
+  voiceSettingsGroup.style.display = checkboxVoiceNarration.checked ? 'block' : 'none';
+}
+
+function openSettingsModal() {
+  loadSettings();
+  settingsModal.style.display = 'flex';
+}
+
+async function getResponseErrorMessage(response, fallbackMessage) {
+  const errorText = await response.text();
+  if (!errorText) return fallbackMessage;
+  try {
+    const parsed = JSON.parse(errorText);
+    return parsed.error || fallbackMessage;
+  } catch (e) {
+    return errorText;
+  }
+}
+
+function shouldOpenSettingsForError(message) {
+  return /api key|authorization key|access token|configured|unauthorized/i.test(message || '');
 }
 
 // Helper to compile authorization headers
@@ -245,16 +316,15 @@ function setActiveTab(tab) {
 // Bind UI triggers
 function setupEventListeners() {
   // Settings buttons
-  document.getElementById('btn-show-settings').addEventListener('click', () => {
-    loadSettings();
-    settingsModal.style.display = 'flex';
-  });
+  document.getElementById('btn-show-settings').addEventListener('click', openSettingsModal);
+  btnMenuSettings.addEventListener('click', openSettingsModal);
   document.getElementById('btn-close-settings').addEventListener('click', () => settingsModal.style.display = 'none');
   document.getElementById('btn-cancel-settings').addEventListener('click', () => settingsModal.style.display = 'none');
 
   selectProvider.addEventListener('change', (e) => {
     toggleSettingsFields(e.target.value);
   });
+  checkboxVoiceNarration.addEventListener('change', toggleVoiceSettings);
 
   settingsForm.addEventListener('submit', (e) => {
     e.preventDefault();
@@ -281,45 +351,66 @@ function setupEventListeners() {
 
   // Campaign create wizard
   document.getElementById('btn-new-campaign-trigger').addEventListener('click', () => {
-    campaignWizardModal.style.display = 'flex';
+    openCampaignWizard();
   });
-  document.getElementById('btn-close-wizard').addEventListener('click', () => campaignWizardModal.style.display = 'none');
-  document.getElementById('btn-cancel-wizard').addEventListener('click', () => campaignWizardModal.style.display = 'none');
+  selectCharacterMode.addEventListener('change', updateCharacterModeUi);
+  selectSavedCharacter.addEventListener('change', renderSavedCharacterSummary);
+  document.getElementById('btn-close-wizard').addEventListener('click', closeCampaignWizard);
+  document.getElementById('btn-cancel-wizard').addEventListener('click', closeCampaignWizard);
 
   campaignCreateForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     const genre = document.getElementById('input-genre').value.trim();
-    const charNameVal = document.getElementById('input-char-name').value.trim();
-    const charClassVal = document.getElementById('select-char-class').value;
+    const characterMode = selectCharacterMode.value;
+    const selectedProfileId = Number(selectSavedCharacter.value || 0);
     const rulesMode = document.getElementById('input-rules-mode').checked;
+    const body = {
+      genre,
+      characterMode,
+      apiConfig,
+      rulesMode
+    };
 
-    campaignWizardModal.style.display = 'none';
-    showLoadingOverlay(`Dungeon Master is crafting your campaign...\nCreating outline, acts, NPCs, and initial scene.`);
+    if (characterMode === 'new') {
+      body.characterName = inputCharName.value.trim();
+      body.characterClass = inputCharConcept.value.trim();
+      if (!body.characterName || !body.characterClass) {
+        showToast('Enter a character name and concept.', 'error');
+        return;
+      }
+    } else {
+      if (!selectedProfileId) {
+        showToast('Choose a saved character profile.', 'error');
+        return;
+      }
+      body.characterProfileId = selectedProfileId;
+    }
+
+    closeCampaignWizard();
+    showLoadingOverlay(`Dungeon Master is crafting your campaign...\nCreating outline, character state, acts, NPCs, and initial scene.`);
 
     try {
       const response = await fetchWithTimeout('/api/campaigns', {
         method: 'POST',
-        body: JSON.stringify({
-          genre,
-          characterName: charNameVal,
-          characterClass: charClassVal,
-          apiConfig,
-          rulesMode
-        })
-      });
+        body: JSON.stringify(body)
+      }, CAMPAIGN_CREATE_TIMEOUT_MS);
 
       if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(errorText || 'Server failed to start campaign');
+        const message = await getResponseErrorMessage(response, 'Server failed to start campaign');
+        throw new Error(message);
       }
 
       const gameState = await response.json();
       currentCampaignId = gameState.campaignId;
-      renderGame(gameState, true);
+      renderGame(gameState, true, { narrate: true });
       campaignMenuScreen.style.display = 'none';
     } catch (error) {
       console.error(error);
       showToast(`Initialization Error: ${error.message}`, 'error');
+      if (shouldOpenSettingsForError(error.message)) {
+        openSettingsModal();
+      }
+      loadCampaignsMenu();
     } finally {
       hideLoadingOverlay();
     }
@@ -343,22 +434,132 @@ function setupEventListeners() {
           playerAction: actionText,
           apiConfig
         })
-      });
+      }, TURN_TIMEOUT_MS);
 
       if (!response.ok) {
-        const errText = await response.text();
-        throw new Error(errText || 'Failed to submit action');
+        const message = await getResponseErrorMessage(response, 'Failed to submit action');
+        throw new Error(message);
       }
 
       const gameState = await response.json();
-      renderGame(gameState, false);
+      renderGame(gameState, false, { narrate: true });
     } catch (error) {
       console.error(error);
-      appendDMDialogue(`❌ **Error from Dungeon Master:** ${error.message}\n\nPlease check server logs, network, or your API key settings.`);
+      appendDMDialogue(`**Error from Dungeon Master:** ${error.message}\n\nPlease check server logs, network, or your API key settings.`);
+      if (shouldOpenSettingsForError(error.message)) {
+        openSettingsModal();
+      }
     } finally {
       setActionInputState(true);
     }
   });
+}
+
+function openCampaignWizard() {
+  selectCharacterMode.value = 'new';
+  updateCharacterModeUi();
+  loadCharactersForWizard();
+  campaignWizardModal.style.display = 'flex';
+}
+
+function closeCampaignWizard() {
+  campaignWizardModal.style.display = 'none';
+}
+
+async function loadCharactersForWizard() {
+  savedCharacterSummary.textContent = '';
+  if (selectCharacterMode.value !== 'new') {
+    savedCharacterSummary.textContent = 'Loading saved characters...';
+  }
+
+  try {
+    const response = await fetchWithTimeout('/api/characters', {}, 15000);
+    if (!response.ok) {
+      const message = await getResponseErrorMessage(response, 'Could not load saved characters');
+      throw new Error(message);
+    }
+    savedCharacters = await response.json();
+    updateCharacterModeUi();
+  } catch (error) {
+    console.error(error);
+    savedCharacters = [];
+    if (selectCharacterMode.value !== 'new') {
+      savedCharacterSummary.textContent = `Could not load saved characters: ${error.message}`;
+    }
+  }
+}
+
+function updateCharacterModeUi() {
+  const mode = selectCharacterMode.value;
+  const isNew = mode === 'new';
+
+  newCharacterFields.style.display = isNew ? 'flex' : 'none';
+  savedCharacterGroup.style.display = isNew ? 'none' : 'block';
+  inputCharName.disabled = !isNew;
+  inputCharConcept.disabled = !isNew;
+  inputCharName.required = isNew;
+  inputCharConcept.required = isNew;
+
+  if (!isNew) {
+    populateSavedCharacterSelect(mode);
+  }
+}
+
+function populateSavedCharacterSelect(mode) {
+  selectSavedCharacter.innerHTML = '';
+
+  if (savedCharacters.length === 0) {
+    const option = document.createElement('option');
+    option.value = '';
+    option.textContent = 'No saved characters yet';
+    option.disabled = true;
+    option.selected = true;
+    selectSavedCharacter.appendChild(option);
+    savedCharacterSummary.textContent = 'Create a new character first, then future campaigns can reuse or copy them.';
+    return;
+  }
+
+  let firstUsableValue = '';
+  savedCharacters.forEach(character => {
+    const option = document.createElement('option');
+    const unavailable = mode === 'existing' && character.status !== 'available';
+    option.value = String(character.id);
+    option.disabled = unavailable;
+    option.textContent = formatCharacterOption(character, unavailable);
+    selectSavedCharacter.appendChild(option);
+
+    if (!unavailable && !firstUsableValue) {
+      firstUsableValue = option.value;
+    }
+  });
+
+  selectSavedCharacter.value = firstUsableValue;
+  renderSavedCharacterSummary();
+}
+
+function formatCharacterOption(character, unavailable) {
+  const status = unavailable
+    ? `checked out: ${character.active_campaign_title || 'active campaign'}`
+    : character.status;
+  return `${character.name} - ${character.archetype} (Level ${character.level}, ${status})`;
+}
+
+function renderSavedCharacterSummary() {
+  const selected = savedCharacters.find(character => String(character.id) === selectSavedCharacter.value);
+  if (!selected) {
+    savedCharacterSummary.textContent = selectCharacterMode.value === 'existing'
+      ? 'No available saved character can be checked out right now. Use copy to branch one.'
+      : 'Choose a character profile to copy.';
+    return;
+  }
+
+  const abilityText = selected.abilities && selected.abilities.length > 0
+    ? selected.abilities.map(ability => ability.name).join(', ')
+    : 'No established abilities yet';
+  const statusText = selected.status === 'available'
+    ? 'Available'
+    : `Checked out to ${selected.active_campaign_title || 'an active campaign'}`;
+  savedCharacterSummary.textContent = `${statusText}. HP ${selected.health}/${selected.max_health}, Energy ${selected.mana}/${selected.max_mana}, XP ${selected.xp}. Abilities: ${abilityText}.`;
 }
 
 // Fetch list from DB and show in overlay menu
@@ -396,19 +597,40 @@ async function loadCampaignsMenu() {
       const safeTitle = escapeHtml(camp.title);
       const safeGenre = escapeHtml(camp.genre);
       const safeSummary = escapeHtml(camp.summary || 'Setting up adventure...');
+      const safeCharacterName = escapeHtml(camp.character_name || '');
+      const characterLine = camp.character_name
+        ? `<div class="camp-character"><i class="fa-solid fa-user"></i> ${safeCharacterName}${camp.player_character_id ? '' : ' (released)'}</div>`
+        : '';
+      const releaseButton = camp.player_character_id
+        ? `<button class="btn btn-secondary btn-sm release-camp-btn" title="Release character profile">
+             <i class="fa-solid fa-person-walking-arrow-right"></i>
+           </button>`
+        : '';
       
       card.innerHTML = DOMPurify.sanitize(`
         <div>
           <div class="camp-genre">${safeGenre}</div>
           <h3 class="camp-title">${safeTitle}</h3>
           <p class="camp-summary">${safeSummary}</p>
+          ${characterLine}
         </div>
         <div class="camp-footer">
           <span>Created: ${dateStr}</span>
-          <button class="btn btn-danger btn-sm delete-camp-btn">
-            <i class="fa-solid fa-trash"></i>
-          </button>
+          <div class="camp-actions">
+            ${releaseButton}
+            <button class="btn btn-danger btn-sm delete-camp-btn" title="Delete campaign">
+              <i class="fa-solid fa-trash"></i>
+            </button>
+          </div>
         </div>`);
+
+      const releaseBtn = card.querySelector('.release-camp-btn');
+      if (releaseBtn) {
+        releaseBtn.addEventListener('click', (event) => {
+          event.stopPropagation();
+          releaseCampaignCharacter(camp.id);
+        });
+      }
 
       const deleteBtn = card.querySelector('.delete-camp-btn');
       deleteBtn.addEventListener('click', (event) => {
@@ -460,8 +682,26 @@ window.deleteCampaign = async function (campaignId) {
   }
 };
 
+window.releaseCampaignCharacter = async function (campaignId) {
+  if (!confirm('Release this campaign character profile for use in new campaigns? The current campaign keeps a local snapshot.')) return;
+
+  try {
+    const response = await fetchWithTimeout(`/api/campaigns/${campaignId}/release-character`, {
+      method: 'POST'
+    });
+    if (!response.ok) {
+      const message = await getResponseErrorMessage(response, 'Release request failed');
+      throw new Error(message);
+    }
+    loadCampaignsMenu();
+    showToast('Character profile released.', 'success');
+  } catch (err) {
+    showToast(`Release Error: ${err.message}`, 'error');
+  }
+};
+
 // Render whole UI from state response
-function renderGame(gameState, resetNarrative = false) {
+function renderGame(gameState, resetNarrative = false, options = {}) {
   mainGameScreen.style.display = 'grid';
 
   currentCampaignTitle = gameState.title || 'Adventure';
@@ -485,7 +725,7 @@ function renderGame(gameState, resetNarrative = false) {
   // Update Character Sheet (Sanitized)
   const char = gameState.character;
   charName.textContent = char.name;
-  charClass.textContent = char.class;
+  charClass.textContent = char.class || char.archetype || 'Developing concept';
   charLevel.textContent = char.level;
 
   healthText.textContent = `${char.health}/${char.max_health}`;
@@ -508,6 +748,7 @@ function renderGame(gameState, resetNarrative = false) {
 
   // Inventory
   renderInventory(char.inventory);
+  renderAbilities(char.abilities || []);
 
   // Render Codex (NPC Dossiers)
   renderCodex(gameState.npcs || []);
@@ -526,6 +767,9 @@ function renderGame(gameState, resetNarrative = false) {
     appendRollResultBubble(gameState.turn.rollResult);
   }
   appendDMDialogue(gameState.turn.narrative);
+  if (options.narrate) {
+    narrateDmResponse(gameState.turn.narrative);
+  }
 
   // If the active tab is Journal, refresh the timeline
   if (tabJournalBtn.classList.contains('active')) {
@@ -534,6 +778,68 @@ function renderGame(gameState, resetNarrative = false) {
 
   // Suggested choices
   renderChoices(gameState.turn.suggestedChoices || []);
+}
+
+function stripNarrationText(markdownText) {
+  return String(markdownText || '')
+    .replace(/<svg[\s\S]*?<\/svg>/gi, '')
+    .replace(/```[\s\S]*?```/g, '')
+    .replace(/!\[[^\]]*]\([^)]*\)/g, '')
+    .replace(/\[([^\]]+)]\([^)]*\)/g, '$1')
+    .replace(/[*_#>`~]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 4000);
+}
+
+async function narrateDmResponse(markdownText) {
+  if (!apiConfig.voiceNarration) return;
+
+  const text = stripNarrationText(markdownText);
+  if (!text) return;
+
+  if (currentNarrationAudio) {
+    currentNarrationAudio.pause();
+    URL.revokeObjectURL(currentNarrationAudio.src);
+    currentNarrationAudio = null;
+  }
+
+  try {
+    const response = await fetchWithTimeout('/api/audio/narrate', {
+      method: 'POST',
+      body: JSON.stringify({
+        text,
+        apiConfig,
+        audioConfig: {
+          model: apiConfig.voiceModel,
+          voice: apiConfig.voiceName,
+          apiKey: apiConfig.voiceApiKey,
+          instructions: apiConfig.voiceInstructions
+        }
+      })
+    }, 90000);
+
+    if (!response.ok) {
+      const message = await getResponseErrorMessage(response, 'Voice narration failed');
+      throw new Error(message);
+    }
+
+    const blob = await response.blob();
+    const objectUrl = URL.createObjectURL(blob);
+    currentNarrationAudio = new Audio(objectUrl);
+    currentNarrationAudio.addEventListener('ended', () => {
+      URL.revokeObjectURL(objectUrl);
+      currentNarrationAudio = null;
+    }, { once: true });
+    await currentNarrationAudio.play();
+    voiceErrorShown = false;
+  } catch (error) {
+    console.error(error);
+    if (!voiceErrorShown) {
+      showToast(`Voice Error: ${error.message}`, 'error');
+      voiceErrorShown = true;
+    }
+  }
 }
 
 // Generate HSL styles and apply class theme
@@ -640,6 +946,33 @@ function renderInventory(items) {
     });
 
     inventoryContainer.appendChild(div);
+  });
+}
+
+function renderAbilities(abilities) {
+  charAbilities.innerHTML = '';
+  if (!abilities || abilities.length === 0) {
+    charAbilities.innerHTML = `<div class="ability-empty">No abilities established yet.</div>`;
+    return;
+  }
+
+  abilities.forEach(ability => {
+    const div = document.createElement('div');
+    div.className = 'ability-item';
+    const safeName = escapeHtml(ability.name || 'Unnamed Ability');
+    const safeTier = escapeHtml(ability.tier || 'emerging');
+    const safeDescription = escapeHtml(ability.description || 'A developing capability.');
+    const safeSource = escapeHtml(ability.source || 'in-game development');
+
+    div.innerHTML = DOMPurify.sanitize(`
+      <div class="ability-head">
+        <span class="ability-name">${safeName}</span>
+        <span class="ability-tier">${safeTier}</span>
+      </div>
+      <div class="ability-desc">${safeDescription}</div>
+      <div class="ability-source">${safeSource}</div>
+    `);
+    charAbilities.appendChild(div);
   });
 }
 
