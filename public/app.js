@@ -82,6 +82,14 @@ window.addEventListener('DOMContentLoaded', () => {
   loadSettings();
   setupEventListeners();
   loadCampaignsMenu();
+  
+  // Close modals on Escape key press
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      settingsModal.style.display = 'none';
+      campaignWizardModal.style.display = 'none';
+    }
+  });
 });
 
 // Load config from localStorage
@@ -714,7 +722,8 @@ function appendDMDialogue(markdownText) {
   const el = document.createElement('div');
   el.className = 'log-entry log-dm';
 
-  const htmlContent = marked.parse(markdownText);
+  // Guard against undefined or null narrative string inputs
+  const htmlContent = marked.parse(markdownText || '*The scene progresses in silence...*');
   const cleanHtml = DOMPurify.sanitize(htmlContent);
 
   el.innerHTML = `
@@ -726,11 +735,13 @@ function appendDMDialogue(markdownText) {
 }
 
 function escapeHtml(str) {
-  return str.replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;')
-            .replace(/'/g, '&#039;');
+  // String guard to cast numbers/booleans and prevent throws on null/undefined
+  const safeStr = typeof str === 'string' ? str : String(str ?? '');
+  return safeStr.replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
 }
 
 function scrollToBottom() {

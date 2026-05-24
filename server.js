@@ -19,6 +19,29 @@ app.use(express.static(path.join(__dirname, 'public')));
 // Store active MCP connections
 const mcpConnections = new Map();
 
+// Simple in-memory sliding-window IP rate limiter
+const rateLimits = new Map();
+function rateLimit(limitCount, windowMs) {
+  return (req, res, next) => {
+    const ip = req.ip || req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+    const now = Date.now();
+    
+    if (!rateLimits.has(ip)) {
+      rateLimits.set(ip, []);
+    }
+    
+    // Filter timestamps older than the window
+    const timestamps = rateLimits.get(ip).filter(time => now - time < windowMs);
+    timestamps.push(now);
+    rateLimits.set(ip, timestamps);
+    
+    if (timestamps.length > limitCount) {
+      return res.status(429).json({ error: 'Too many requests. Please slow down.' });
+    }
+    next();
+  };
+}
+
 // -------------------------------------------------------------
 // AUTHENTICATION MIDDLEWARE
 // -------------------------------------------------------------
@@ -81,8 +104,8 @@ app.get('/api/campaigns', async (req, res) => {
   }
 });
 
-// Create a new campaign
-app.post('/api/campaigns', async (req, res) => {
+// Create a new campaign (Rate limited: 5 campaigns per minute per IP)
+app.post('/api/campaigns', rateLimit(5, 60000), async (req, res) => {
   try {
     const { genre, characterName, characterClass, apiConfig } = req.body;
     if (!genre || !characterName || !characterClass) {
@@ -113,8 +136,8 @@ app.get('/api/campaigns/:id', async (req, res) => {
   }
 });
 
-// Process a game turn
-app.post('/api/campaigns/:id/turn', async (req, res) => {
+// Process a game turn (Rate limited: 10 turns per minute per IP to prevent financial DoS abuses)
+app.post('/api/campaigns/:id/turn', rateLimit(10, 60000), async (req, res) => {
   try {
     const campaignId = parseInt(req.params.id, 10);
     if (isNaN(campaignId)) {
@@ -310,7 +333,8 @@ async function handleToolCall(toolName, args) {
       }
 
       case 'get_campaign_history': {
-        const limit = args.limit ? parseInt(args.limit) : 1000;
+        const rawLimit = args.limit !== undefined ? parseInt(args.limit, 10) : 1000;
+        const limit = isNaN(rawLimit) ? 1000 : rawLimit;
         const rows = await db.all(
           `SELECT turn_number, player_action, narrative FROM turns WHERE campaign_id = ? ORDER BY turn_number ASC LIMIT ?`,
           [args.campaign_id, limit]
@@ -380,7 +404,11 @@ app.listen(PORT, () => {
   if (process.env.ACCESS_SECRET) {
     console.log(`   Authentication: ENABLED (Secret token configured)`);
   } else {
-    console.log(`   Authentication: DISABLED (Configure ACCESS_SECRET in .env to enable)`);
+    console.log(`\n   ⚠️  WARNING: ACCESS_SECRET IS NOT CONFIGURED IN .env!`);
+    console.log(`   ----------------------------------------------------`);
+    console.log(`   API endpoints and MCP tools are running in open mode.`);
+    console.log(`   If deploying to a public server, configure ACCESS_SECRET`);
+    console.log(`   to protect from unauthorized requests & financial DoS.\n`);
   }
   console.log(`--------------------------------------------------------`);
 });
