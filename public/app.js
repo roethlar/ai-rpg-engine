@@ -4,6 +4,7 @@
 
 // Application state
 let currentCampaignId = null;
+let currentCampaignTitle = '';
 let apiConfig = {
   provider: 'gemini',
   model: '',
@@ -64,9 +65,13 @@ const codexContainer = document.getElementById('codex-container');
 const rightTabsHeader = document.getElementById('right-tabs-header');
 const rightPanelHeading = document.getElementById('right-panel-heading');
 const tabInventoryBtn = document.getElementById('tab-inventory-btn');
+const tabJournalBtn = document.getElementById('tab-journal-btn');
 const tabCodexBtn = document.getElementById('tab-codex-btn');
 const tabContentInventory = document.getElementById('tab-content-inventory');
+const tabContentJournal = document.getElementById('tab-content-journal');
 const tabContentCodex = document.getElementById('tab-content-codex');
+const journalSearchInput = document.getElementById('journal-search-input');
+const journalTimelineContainer = document.getElementById('journal-timeline-container');
 
 // Attributes
 const attrStr = document.getElementById('attr-str');
@@ -194,22 +199,46 @@ async function fetchWithTimeout(url, options = {}, timeoutMs = 60000) {
 function applyLayoutMode() {
   const leftPanel = document.getElementById('left-diagnostics-panel');
 
+  // Keep rightTabsHeader always visible in our new layout
+  rightTabsHeader.style.display = 'flex';
+  rightPanelHeading.style.display = 'none';
+
   if (apiConfig.enableDiagnostics) {
     mainGameScreen.classList.remove('immersive-layout');
     leftPanel.style.display = 'flex';
-    rightTabsHeader.style.display = 'flex';
-    rightPanelHeading.style.display = 'none';
+    tabCodexBtn.style.display = 'block';
   } else {
     mainGameScreen.classList.add('immersive-layout');
     leftPanel.style.display = 'none';
-    rightTabsHeader.style.display = 'none';
-    rightPanelHeading.style.display = 'block';
+    tabCodexBtn.style.display = 'none';
     
-    // Fallback active right-tab content back to Inventory
-    tabContentInventory.style.display = 'flex';
-    tabContentCodex.style.display = 'none';
+    // Fallback active right-tab content back to Inventory if Codex was active
+    if (tabCodexBtn.classList.contains('active')) {
+      setActiveTab('inventory');
+    }
+  }
+}
+
+// Helper to swap active tab content in the right sidebar
+function setActiveTab(tab) {
+  tabInventoryBtn.classList.remove('active');
+  tabJournalBtn.classList.remove('active');
+  tabCodexBtn.classList.remove('active');
+
+  tabContentInventory.style.display = 'none';
+  tabContentJournal.style.display = 'none';
+  tabContentCodex.style.display = 'none';
+
+  if (tab === 'inventory') {
     tabInventoryBtn.classList.add('active');
-    tabCodexBtn.classList.remove('active');
+    tabContentInventory.style.display = 'flex';
+  } else if (tab === 'journal') {
+    tabJournalBtn.classList.add('active');
+    tabContentJournal.style.display = 'flex';
+    loadJournalTimeline();
+  } else if (tab === 'codex') {
+    tabCodexBtn.classList.add('active');
+    tabContentCodex.style.display = 'flex';
   }
 }
 
@@ -235,18 +264,13 @@ function setupEventListeners() {
   });
 
   // Right Panel tab swapping
-  tabInventoryBtn.addEventListener('click', () => {
-    tabInventoryBtn.classList.add('active');
-    tabCodexBtn.classList.remove('active');
-    tabContentInventory.style.display = 'flex';
-    tabContentCodex.style.display = 'none';
-  });
+  tabInventoryBtn.addEventListener('click', () => setActiveTab('inventory'));
+  tabJournalBtn.addEventListener('click', () => setActiveTab('journal'));
+  tabCodexBtn.addEventListener('click', () => setActiveTab('codex'));
 
-  tabCodexBtn.addEventListener('click', () => {
-    tabCodexBtn.classList.add('active');
-    tabInventoryBtn.classList.remove('active');
-    tabContentCodex.style.display = 'flex';
-    tabContentInventory.style.display = 'none';
+  // Journal Timeline search filter
+  journalSearchInput.addEventListener('input', () => {
+    filterJournalTimeline();
   });
 
   // Campaigns lists buttons
@@ -267,6 +291,7 @@ function setupEventListeners() {
     const genre = document.getElementById('input-genre').value.trim();
     const charNameVal = document.getElementById('input-char-name').value.trim();
     const charClassVal = document.getElementById('select-char-class').value;
+    const rulesMode = document.getElementById('input-rules-mode').checked;
 
     campaignWizardModal.style.display = 'none';
     showLoadingOverlay(`Dungeon Master is crafting your campaign...\nCreating outline, acts, NPCs, and initial scene.`);
@@ -278,7 +303,8 @@ function setupEventListeners() {
           genre,
           characterName: charNameVal,
           characterClass: charClassVal,
-          apiConfig
+          apiConfig,
+          rulesMode
         })
       });
 
@@ -379,10 +405,16 @@ async function loadCampaignsMenu() {
         </div>
         <div class="camp-footer">
           <span>Created: ${dateStr}</span>
-          <button class="btn btn-danger btn-sm delete-camp-btn" data-id="${camp.id}" onclick="event.stopPropagation(); deleteCampaign(${camp.id})">
+          <button class="btn btn-danger btn-sm delete-camp-btn">
             <i class="fa-solid fa-trash"></i>
           </button>
         </div>`);
+
+      const deleteBtn = card.querySelector('.delete-camp-btn');
+      deleteBtn.addEventListener('click', (event) => {
+        event.stopPropagation();
+        deleteCampaign(camp.id);
+      });
 
       card.addEventListener('click', () => loadCampaign(camp.id));
       campaignListContainer.appendChild(card);
@@ -431,6 +463,8 @@ window.deleteCampaign = async function (campaignId) {
 // Render whole UI from state response
 function renderGame(gameState, resetNarrative = false) {
   mainGameScreen.style.display = 'grid';
+
+  currentCampaignTitle = gameState.title || 'Adventure';
 
   // Apply layout diagnostics toggle
   applyLayoutMode();
@@ -484,12 +518,18 @@ function renderGame(gameState, resetNarrative = false) {
     visualizerFrame.innerHTML = cleanSvg;
   }
 
-  // Text narrative
+  // Text narrative & roll checks
   if (resetNarrative) {
     narrativeContainer.innerHTML = '';
-    appendDMDialogue(gameState.turn.narrative);
-  } else {
-    appendDMDialogue(gameState.turn.narrative);
+  }
+  if (gameState.turn.rollResult) {
+    appendRollResultBubble(gameState.turn.rollResult);
+  }
+  appendDMDialogue(gameState.turn.narrative);
+
+  // If the active tab is Journal, refresh the timeline
+  if (tabJournalBtn.classList.contains('active')) {
+    loadJournalTimeline();
   }
 
   // Suggested choices
@@ -500,9 +540,9 @@ function renderGame(gameState, resetNarrative = false) {
 function applyCampaignTheme(genre, colors) {
   document.body.className = '';
   
-  const primary = colors.primary.trim();
-  const secondary = colors.secondary.trim();
-  const background = colors.background.trim();
+  const primary = (typeof colors?.primary === 'string') ? colors.primary.trim() : '210, 100%, 50%';
+  const secondary = (typeof colors?.secondary === 'string') ? colors.secondary.trim() : '330, 100%, 50%';
+  const background = (typeof colors?.background === 'string') ? colors.background.trim() : '220, 30%, 8%';
 
   document.documentElement.style.setProperty('--theme-primary', primary);
   document.documentElement.style.setProperty('--theme-secondary', secondary);
@@ -788,3 +828,215 @@ function showToast(msg, type = 'info') {
     setTimeout(() => toast.remove(), 500);
   }, 4000);
 }
+
+// Append a dice roll card in the narrative log (Rules Mode check results)
+function appendRollResultBubble(roll) {
+  const el = document.createElement('div');
+  el.className = 'log-entry log-roll';
+  const outcomeText = roll.success ? 'SUCCESS' : 'FAILURE';
+  const outcomeClass = roll.success ? 'roll-success' : 'roll-failure';
+  
+  el.innerHTML = DOMPurify.sanitize(`
+    <div class="roll-badge-container">
+      <span class="roll-d20-icon"><i class="fa-solid fa-dice-d20"></i></span>
+      <div class="roll-details">
+        <div class="roll-calculation">
+          <strong>${(roll.attribute || 'stat').toUpperCase()} CHECK:</strong> 
+          Roll ${roll.roll} + Mod ${roll.modifier >= 0 ? '+' : ''}${roll.modifier} = <strong>${roll.total}</strong> vs DC ${roll.dc}
+        </div>
+        <div class="roll-outcome ${outcomeClass}">${outcomeText}</div>
+      </div>
+    </div>
+  `);
+  narrativeContainer.appendChild(el);
+  scrollToBottom();
+}
+
+// In-memory cache for timeline filtering
+let activeTimelineData = [];
+
+// Fetch journal chronology and render it
+async function loadJournalTimeline() {
+  if (!currentCampaignId) return;
+  journalTimelineContainer.innerHTML = `<div style="font-size: 12px; opacity: 0.6; padding: 8px;"><i class="fa-solid fa-spinner fa-spin"></i> Fetching journal history...</div>`;
+
+  try {
+    const response = await fetchWithTimeout(`/api/campaigns/${currentCampaignId}/journal`);
+    if (!response.ok) throw new Error('Could not retrieve timeline data');
+
+    const data = await response.json();
+    
+    // Unify turns and memories
+    const chronology = [];
+    if (data.turns && Array.isArray(data.turns)) {
+      data.turns.forEach(t => {
+        chronology.push({
+          type: 'turn',
+          timestamp: new Date(t.created_at),
+          data: t
+        });
+      });
+    }
+    if (data.memories && Array.isArray(data.memories)) {
+      data.memories.forEach(m => {
+        chronology.push({
+          type: 'memory',
+          timestamp: new Date(m.created_at),
+          data: m
+        });
+      });
+    }
+
+    // Sort ascending
+    chronology.sort((a, b) => a.timestamp - b.timestamp);
+    activeTimelineData = chronology;
+
+    renderChronologyTimeline(activeTimelineData);
+  } catch (error) {
+    console.error(error);
+    journalTimelineContainer.innerHTML = `<div style="font-size: 12px; color: hsl(0, 70%, 65%); padding: 8px;"><i class="fa-solid fa-triangle-exclamation"></i> Error: ${error.message}</div>`;
+  }
+}
+
+// Render the Unified Chronology timeline
+function renderChronologyTimeline(items) {
+  journalTimelineContainer.innerHTML = '';
+  if (items.length === 0) {
+    journalTimelineContainer.innerHTML = `<div style="font-size: 11px; opacity: 0.5; padding: 8px;">No chronology events found matching criteria.</div>`;
+    return;
+  }
+
+  items.forEach(item => {
+    const card = document.createElement('div');
+    card.className = `timeline-node timeline-${item.type}`;
+    
+    const timeStr = item.timestamp.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+
+    if (item.type === 'turn') {
+      const turn = item.data;
+      const turnText = turn.player_action 
+        ? `<strong>Player:</strong> "${escapeHtml(turn.player_action)}"`
+        : `<em>Campaign started</em>`;
+      const narrativeSample = marked.parse(turn.narrative.substring(0, 180) + (turn.narrative.length > 180 ? '...' : ''));
+      
+      let stateChanges = {};
+      try { stateChanges = JSON.parse(turn.state_changes_json || '{}'); } catch(e) {}
+      
+      const roll = stateChanges.roll_result;
+      const rollBadgeHtml = roll 
+        ? `<div class="timeline-roll-badge ${roll.success ? 'success' : 'fail'}">
+             <i class="fa-solid fa-dice-d20"></i> ${(roll.attribute || 'stat').toUpperCase()} check: ${roll.total} vs DC ${roll.dc}
+           </div>`
+        : '';
+
+      const safeHtml = DOMPurify.sanitize(`
+        <div class="timeline-node-header">
+          <span class="timeline-node-badge badge-turn">Turn ${turn.turn_number}</span>
+          <span class="timeline-node-time">${timeStr}</span>
+        </div>
+        <div class="timeline-node-action">${turnText}</div>
+        <div class="timeline-node-summary">${narrativeSample}</div>
+        ${rollBadgeHtml}
+        <div class="timeline-node-footer">
+          <button class="btn btn-secondary btn-sm timeline-fork-btn">
+            <i class="fa-solid fa-code-fork"></i> Fork Timeline
+          </button>
+        </div>
+      `);
+      card.innerHTML = safeHtml;
+
+      const forkBtn = card.querySelector('.timeline-fork-btn');
+      if (forkBtn) {
+        forkBtn.addEventListener('click', () => {
+          forkCampaignTimeline(turn.turn_number);
+        });
+      }
+    } else if (item.type === 'memory') {
+      const memory = item.data;
+      const keywordsHtml = memory.keywords 
+        ? `<span class="timeline-keywords"><i class="fa-solid fa-tags"></i> ${escapeHtml(memory.keywords)}</span>`
+        : '';
+      const safeHtml = DOMPurify.sanitize(`
+        <div class="timeline-node-header">
+          <span class="timeline-node-badge badge-memory">Memory (Imp: ${memory.importance})</span>
+          <span class="timeline-node-time">${timeStr}</span>
+        </div>
+        <div class="timeline-node-summary"><i class="fa-solid fa-sparkles text-warning" style="margin-right: 4px;"></i> ${escapeHtml(memory.summary)}</div>
+        ${keywordsHtml}
+      `);
+      card.innerHTML = safeHtml;
+    }
+    
+    journalTimelineContainer.appendChild(card);
+  });
+}
+
+// Filter the timeline by search text
+function filterJournalTimeline() {
+  const query = journalSearchInput.value.toLowerCase().trim();
+  if (!query) {
+    renderChronologyTimeline(activeTimelineData);
+    return;
+  }
+
+  const filtered = activeTimelineData.filter(item => {
+    if (item.type === 'turn') {
+      const turn = item.data;
+      return (turn.player_action && turn.player_action.toLowerCase().includes(query)) ||
+             (turn.narrative && turn.narrative.toLowerCase().includes(query));
+    } else if (item.type === 'memory') {
+      const memory = item.data;
+      return (memory.summary && memory.summary.toLowerCase().includes(query)) ||
+             (memory.keywords && memory.keywords.toLowerCase().includes(query));
+    }
+    return false;
+  });
+
+  renderChronologyTimeline(filtered);
+}
+
+// Fork the campaign branch from timeline click
+let forkInFlight = false;
+window.forkCampaignTimeline = async function(turnNumber) {
+  if (forkInFlight) return;
+  forkInFlight = true;
+  const newTitle = prompt(
+    `Branch timeline from Turn ${turnNumber}?\nThis creates a new campaign fork without modifying the current run.\n\nEnter new campaign name:`,
+    `${currentCampaignTitle} [Fork - Turn ${turnNumber}]`
+  );
+  if (!newTitle) {
+    forkInFlight = false;
+    return;
+  }
+
+  showLoadingOverlay(`Dungeon Master is forking timeline...\nReconstructing character and NPC relationships at Turn ${turnNumber}.`);
+
+  try {
+    const response = await fetchWithTimeout(`/api/campaigns/${currentCampaignId}/fork`, {
+      method: 'POST',
+      body: JSON.stringify({
+        turnNumber,
+        newTitle: newTitle.trim()
+      })
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(errorText || 'Fork request failed');
+    }
+
+    const newCampaignState = await response.json();
+    currentCampaignId = newCampaignState.campaignId;
+    
+    // Switch to the newly created branched campaign!
+    renderGame(newCampaignState, true);
+    setActiveTab('inventory'); // return tab focus to inventory
+    showToast(`Successfully branched campaign: "${newTitle}"`, 'success');
+  } catch (error) {
+    console.error(error);
+    showToast(`Fork Error: ${error.message}`, 'error');
+  } finally {
+    forkInFlight = false;
+    hideLoadingOverlay();
+  }
+};

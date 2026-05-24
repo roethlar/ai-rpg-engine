@@ -15,7 +15,7 @@ RUN apt-get update && apt-get install -y \
 COPY package*.json ./
 
 # Install dependencies omitting dev dependencies
-RUN npm ci --omit=dev
+RUN npm install --omit=dev
 
 # Copy source code and ensure it's owned by the node user
 COPY --chown=node:node . .

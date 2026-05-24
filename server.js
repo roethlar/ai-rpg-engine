@@ -42,6 +42,32 @@ function rateLimit(limitCount, windowMs) {
   };
 }
 
+// Periodically clean up stale rate limit entries to prevent memory leak
+setInterval(() => {
+  const now = Date.now();
+  for (const [ip, timestamps] of rateLimits.entries()) {
+    // Evict entries where all timestamps are older than 60 seconds (max rateLimit window in use)
+    const validTimestamps = timestamps.filter(time => now - time < 60000);
+    if (validTimestamps.length === 0) {
+      rateLimits.delete(ip);
+    } else {
+      rateLimits.set(ip, validTimestamps);
+    }
+  }
+}, 300000); // Clean up every 5 minutes
+
+// Concurrency protection: Single global queue for all database write operations
+let dbWriteQueue = Promise.resolve();
+function queueDbWrite(taskFn) {
+  const current = dbWriteQueue;
+  const next = current.then(async () => {
+    return await taskFn();
+  });
+  // Recover the queue from failures by catching and replacing the promise
+  dbWriteQueue = next.catch(() => {});
+  return next;
+}
+
 // -------------------------------------------------------------
 // AUTHENTICATION MIDDLEWARE
 // -------------------------------------------------------------
@@ -85,11 +111,6 @@ function authenticateMcpSse(req, res, next) {
 // Apply authentication to game and MCP APIs
 app.use('/api/campaigns', authenticate);
 
-// Initialize database schema
-db.initDb().catch(err => {
-  console.error('Failed to initialize database:', err);
-});
-
 // -------------------------------------------------------------
 // GAME API ENDPOINTS
 // -------------------------------------------------------------
@@ -104,14 +125,16 @@ app.get('/api/campaigns', async (req, res) => {
   }
 });
 
-// Create a new campaign (Rate limited: 5 campaigns per minute per IP)
+// Create a new campaign (Rate limited: 5 campaigns per minute per IP, serialized)
 app.post('/api/campaigns', rateLimit(5, 60000), async (req, res) => {
   try {
-    const { genre, characterName, characterClass, apiConfig } = req.body;
+    const { genre, characterName, characterClass, apiConfig, rulesMode } = req.body;
     if (!genre || !characterName || !characterClass) {
       return res.status(400).json({ error: 'Missing required parameters.' });
     }
-    const state = await rpg.createCampaign({ genre, characterName, characterClass, apiConfig });
+    const state = await queueDbWrite(() => 
+      rpg.createCampaign({ genre, characterName, characterClass, apiConfig, rulesMode })
+    );
     res.json(state);
   } catch (error) {
     console.error('Error creating campaign:', error);
@@ -136,7 +159,7 @@ app.get('/api/campaigns/:id', async (req, res) => {
   }
 });
 
-// Process a game turn (Rate limited: 10 turns per minute per IP to prevent financial DoS abuses)
+// Process a game turn (Serialized globally and rate limited)
 app.post('/api/campaigns/:id/turn', rateLimit(10, 60000), async (req, res) => {
   try {
     const campaignId = parseInt(req.params.id, 10);
@@ -147,7 +170,9 @@ app.post('/api/campaigns/:id/turn', rateLimit(10, 60000), async (req, res) => {
     if (!playerAction) {
       return res.status(400).json({ error: 'Missing playerAction' });
     }
-    const state = await rpg.takeTurn(campaignId, playerAction, apiConfig);
+    const state = await queueDbWrite(() => 
+      rpg.takeTurn(campaignId, playerAction, apiConfig)
+    );
     res.json(state);
   } catch (error) {
     console.error('Error processing turn:', error);
@@ -155,14 +180,59 @@ app.post('/api/campaigns/:id/turn', rateLimit(10, 60000), async (req, res) => {
   }
 });
 
-// Delete a campaign
+// Fork campaign at a specific turn number (Serialized globally)
+app.post('/api/campaigns/:id/fork', async (req, res) => {
+  try {
+    const campaignId = parseInt(req.params.id, 10);
+    if (isNaN(campaignId)) {
+      return res.status(400).json({ error: 'Invalid campaign ID.' });
+    }
+    const { turnNumber, newTitle } = req.body;
+    if (!turnNumber || !newTitle) {
+      return res.status(400).json({ error: 'Missing turnNumber or newTitle.' });
+    }
+    const state = await queueDbWrite(() => 
+      rpg.forkCampaign(campaignId, turnNumber, newTitle)
+    );
+    res.json(state);
+  } catch (error) {
+    console.error('Error forking campaign:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Fetch journal history for timeline
+app.get('/api/campaigns/:id/journal', async (req, res) => {
+  try {
+    const campaignId = parseInt(req.params.id, 10);
+    if (isNaN(campaignId)) {
+      return res.status(400).json({ error: 'Invalid campaign ID.' });
+    }
+    const turns = await db.all(
+      `SELECT turn_number, player_action, narrative, state_changes_json, created_at FROM turns WHERE campaign_id = ? ORDER BY turn_number ASC`,
+      [campaignId]
+    );
+    const memories = await db.all(
+      `SELECT importance, summary, keywords, created_at FROM memories WHERE campaign_id = ? ORDER BY id ASC`,
+      [campaignId]
+    );
+    res.json({ turns, memories });
+  } catch (error) {
+    console.error('Error fetching journal:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Delete a campaign (Serialized globally)
 app.delete('/api/campaigns/:id', async (req, res) => {
   try {
     const campaignId = parseInt(req.params.id, 10);
     if (isNaN(campaignId)) {
       return res.status(400).json({ error: 'Invalid campaign ID.' });
     }
-    await db.run(`DELETE FROM campaigns WHERE id = ?`, [campaignId]);
+    await queueDbWrite(() => 
+      db.run(`DELETE FROM campaigns WHERE id = ?`, [campaignId])
+    );
     res.json({ success: true });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -395,20 +465,34 @@ async function handleToolCall(toolName, args) {
   };
 }
 
-// Start server
-app.listen(PORT, () => {
-  console.log(`--------------------------------------------------------`);
-  console.log(`   Aetheria DM Game & MCP Server running on port ${PORT}`);
-  console.log(`   Local URL: http://localhost:${PORT}`);
-  console.log(`   MCP SSE Endpoint: http://localhost:${PORT}/api/mcp/sse`);
-  if (process.env.ACCESS_SECRET) {
-    console.log(`   Authentication: ENABLED (Secret token configured)`);
-  } else {
-    console.log(`\n   ⚠️  WARNING: ACCESS_SECRET IS NOT CONFIGURED IN .env!`);
-    console.log(`   ----------------------------------------------------`);
-    console.log(`   API endpoints and MCP tools are running in open mode.`);
-    console.log(`   If deploying to a public server, configure ACCESS_SECRET`);
-    console.log(`   to protect from unauthorized requests & financial DoS.\n`);
-  }
-  console.log(`--------------------------------------------------------`);
-});
+// Production safety checks: fail closed if production is active without ACCESS_SECRET configured
+if (process.env.NODE_ENV === 'production' && !process.env.ACCESS_SECRET) {
+  console.error('\n❌ CRITICAL STARTUP ERROR: ACCESS_SECRET is not configured in .env!');
+  console.error('In a production environment, you must set ACCESS_SECRET to secure your database and API endpoints.\n');
+  process.exit(1);
+}
+
+// Start server after successful database initialization
+db.initDb()
+  .then(() => {
+    app.listen(PORT, () => {
+      console.log(`--------------------------------------------------------`);
+      console.log(`   Aetheria DM Game & MCP Server running on port ${PORT}`);
+      console.log(`   Local URL: http://localhost:${PORT}`);
+      console.log(`   MCP SSE Endpoint: http://localhost:${PORT}/api/mcp/sse`);
+      if (process.env.ACCESS_SECRET) {
+        console.log(`   Authentication: ENABLED (Secret token configured)`);
+      } else {
+        console.log(`\n   ⚠️  WARNING: ACCESS_SECRET IS NOT CONFIGURED IN .env!`);
+        console.log(`   ----------------------------------------------------`);
+        console.log(`   API endpoints and MCP tools are running in open mode.`);
+        console.log(`   If deploying to a public server, configure ACCESS_SECRET`);
+        console.log(`   to protect from unauthorized requests & financial DoS.\n`);
+      }
+      console.log(`--------------------------------------------------------`);
+    });
+  })
+  .catch(err => {
+    console.error('\n❌ CRITICAL: Failed to initialize SQLite database:', err);
+    process.exit(1);
+  });

@@ -58,6 +58,7 @@ export async function initDb() {
       genre TEXT NOT NULL,
       summary TEXT,
       current_act INTEGER DEFAULT 1,
+      rules_mode INTEGER DEFAULT 0,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
   `);
@@ -65,6 +66,13 @@ export async function initDb() {
   // Migrate campaigns table if current_act column doesn't exist
   try {
     await run('ALTER TABLE campaigns ADD COLUMN current_act INTEGER DEFAULT 1;');
+  } catch (e) {
+    // Ignore error if column already exists
+  }
+
+  // Migrate campaigns table if rules_mode column doesn't exist
+  try {
+    await run('ALTER TABLE campaigns ADD COLUMN rules_mode INTEGER DEFAULT 0;');
   } catch (e) {
     // Ignore error if column already exists
   }

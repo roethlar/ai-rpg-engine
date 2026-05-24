@@ -11,6 +11,8 @@ services:
     environment:
       - PORT=3000
       - NODE_ENV=production
+      # ACCESS_SECRET is required to fail closed in production deployments
+      - ACCESS_SECRET=${ACCESS_SECRET:?Please set ACCESS_SECRET in your environment or .env file to secure this container}
       # Configure keys directly or via .env file placed in this folder
       - GEMINI_API_KEY=${GEMINI_API_KEY:-}
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}

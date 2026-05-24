@@ -8,12 +8,12 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@300;400;600;700;800&family=Playfair+Display:ital,wght@0,600;0,700;1,400&display=swap" rel="stylesheet">
-  <!-- Marked Markdown Parser -->
-  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-  <!-- DOMPurify Sanitization Parser -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
+  <!-- Localized Marked Markdown Parser (Secures script trust boundary) -->
+  <script src="lib/marked.min.js"></script>
+  <!-- Localized DOMPurify Sanitization Parser (Secures script trust boundary) -->
+  <script src="lib/purify.min.js"></script>
   <!-- FontAwesome Icons -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw==" crossorigin="anonymous" referrerpolicy="no-referrer">
   <!-- Stylesheets -->
   <link rel="stylesheet" href="styles.css">
 </head>
@@ -153,22 +153,36 @@
         </div>
       </div>
 
-      <!-- INVENTORY / CODEX TABBED SECTION -->
+      <!-- INVENTORY / JOURNAL / CODEX TABBED SECTION -->
       <div class="panel-section inventory-section flex-1">
-        <div class="tabs-header" id="right-tabs-header" style="display: none;">
+        <div class="tabs-header" id="right-tabs-header">
           <button class="tab-btn active" id="tab-inventory-btn">
             <i class="fa-solid fa-briefcase"></i> Inventory
           </button>
-          <button class="tab-btn" id="tab-codex-btn">
+          <button class="tab-btn" id="tab-journal-btn">
+            <i class="fa-solid fa-book-open"></i> Journal
+          </button>
+          <button class="tab-btn" id="tab-codex-btn" style="display: none;">
             <i class="fa-solid fa-address-book"></i> DM Codex
           </button>
         </div>
-        <h3 id="right-panel-heading"><i class="fa-solid fa-briefcase"></i> Inventory</h3>
+        <h3 id="right-panel-heading" style="display: none;"><i class="fa-solid fa-briefcase"></i> Inventory</h3>
         
         <!-- Inventory content -->
         <div class="tab-content" id="tab-content-inventory">
           <div class="inventory-grid" id="inventory-container">
             <!-- Populated dynamically with items -->
+          </div>
+        </div>
+
+        <!-- Journal Timeline content -->
+        <div class="tab-content" id="tab-content-journal" style="display: none; flex-direction: column;">
+          <div class="journal-search-bar" style="margin-bottom: 12px; display: flex; gap: 8px; align-items: center; background: rgba(255,255,255,0.03); border: 1px solid hsl(var(--theme-border)); border-radius: 8px; padding: 4px 10px;">
+            <i class="fa-solid fa-magnifying-glass" style="opacity: 0.6; font-size: 11px;"></i>
+            <input type="text" id="journal-search-input" placeholder="Search turns & memories..." style="flex: 1; border: none; background: transparent; color: #fff; font-size: 12px; outline: none; padding: 4px 0;">
+          </div>
+          <div class="journal-timeline" id="journal-timeline-container" style="display: flex; flex-direction: column; gap: 12px; overflow-y: auto; flex: 1; padding-right: 4px; max-height: 400px;">
+            <!-- Timeline nodes -->
           </div>
         </div>
 
@@ -233,6 +247,14 @@
             </div>
           </div>
 
+          <div class="form-group" style="margin-top: 12px;">
+            <label class="checkbox-container" style="display: flex; align-items: center; gap: 10px; cursor: pointer; text-transform: none; font-size: 13px; font-weight: 600;">
+              <input type="checkbox" id="input-rules-mode" style="width: auto; cursor: pointer;">
+              <span>Enable Rules Mode (Stat Dice Checks)</span>
+            </label>
+            <span class="form-tip">Performs stat checks (d20 + mod vs DC) on active actions. Fails can result in HP damage. Conversation turns do not require rolls.</span>
+          </div>
+
           <div class="form-actions">
             <button type="button" class="btn btn-secondary" id="btn-cancel-wizard">Cancel</button>
             <button type="submit" class="btn btn-primary" id="btn-submit-wizard">
@@ -274,6 +296,7 @@
           <div class="form-group" id="group-api-key">
             <label for="input-api-key">API Authorization Key</label>
             <input type="password" id="input-api-key" placeholder="Enter API Key (Optional if configured in .env)">
+            <span class="form-tip" style="color: hsl(35, 80%, 65%); font-size: 11px; margin-top: 4px; display: block;"><i class="fa-solid fa-triangle-exclamation"></i> Warning: Keys entered here are saved in your browser's localStorage. For public production environments, we recommend keeping this field blank and configuring keys securely on the server via environment variables.</span>
           </div>
 
           <div class="form-group" id="group-custom-endpoint" style="display: none;">
