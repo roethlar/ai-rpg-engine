@@ -461,6 +461,7 @@ Produce the final canonical JSON response now. The player must experience one co
       refereeDecision.referee_status !== 'approved';
 
     if (noStateChange) {
+      console.log('[CLARIFICATION] Council path: noStateChange true (clarification or policy=none) — forcing strict no-op. scene_grounding + direct answer expected from final narration.');
       finalData.input_kind = continuityFinal.final_input_kind || refereeDecision.input_kind || 'clarification';
       finalData.character_update = {
         health_change: 0,
@@ -477,6 +478,7 @@ Produce the final canonical JSON response now. The player must experience one co
       finalData.npc_updates = [];
       finalData.memory_summary = null;
       finalData.memory_keywords = '';
+      finalData.dice_rolls = [];
     }
 
     if (continuityFinal.archive_log && !finalData.memory_summary && !noStateChange) {
@@ -958,6 +960,7 @@ Output the JSON object containing the narrative response, scene_grounding, sugge
   const turnData = validateTurnData(parsedRaw, currentAct);
 
   if (turnData.input_kind === 'clarification') {
+    console.log('[CLARIFICATION] Single-model path: forcing strict no-op (character/quest/ability/NPC/memory cleared, no dice). scene_grounding + narrative answer preserved for tabletop-style table talk.');
     turnData.character_update = {
       health_change: 0,
       mana_change: 0,
@@ -973,6 +976,7 @@ Output the JSON object containing the narrative response, scene_grounding, sugge
     turnData.npc_updates = [];
     turnData.memory_summary = null;
     turnData.memory_keywords = '';
+    turnData.dice_rolls = [];
     rollResult = null;
   }
 
