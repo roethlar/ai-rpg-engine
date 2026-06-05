@@ -250,6 +250,7 @@ async function runMultiAgentTurn({ apiConfig, dmSystem, turnContext, turnPrompt 
   const contextJson = compactJson(turnContext);
 
   const interactionProposalSystem = `You are the interaction context call for a single-player RPG.
+You are extremely conservative and precise when classifying player input.
 You interpret the player's exact table input and propose what it means.
 You do not advance time, adjudicate outcomes, or write canonical state.
 Return JSON only.`;
@@ -259,6 +260,13 @@ ${contextJson}
 
 The player input is: "${turnContext.player_input}"
 
+=== CLASSIFICATION RULES (BE VERY STRICT) ===
+- "clarification": The player is asking a question, seeking information, checking their situation, or engaging in table-talk. Examples: "Which goblin is closer?", "Can I see the door from here?", "What's the orc carrying?", "How far away is the ledge?", "Do I recognize this symbol?", "What do I know about goblins?", "Can I throw my dagger at it?", "Which way is north?", asking about their own stats/gear/abilities, or any "what/where/can I see" question.
+- "dialogue": The player is speaking in-character to an NPC or the world ("I say to the guard...", "I yell at the goblins").
+- "committed_action": The player states a clear, immediate intention to do something specific in the fiction right now ("I draw my sword and attack the closest goblin", "I climb the wall", "I cast magic missile at the leader", "I run toward the exit").
+
+When the input is even slightly ambiguous (a question that could lead to an action later), classify as "clarification". A real tabletop DM would answer the question first and let the player decide what to do.
+
 Return JSON matching:
 {
   "input_kind": "clarification|dialogue|committed_action",
@@ -267,9 +275,7 @@ Return JSON matching:
   "clarification_answer": "Direct answer if this is table-talk or clarification, otherwise null",
   "stakes": "Relevant risks, costs, or uncertainty",
   "suggested_next_actions": ["option 1", "option 2", "option 3"]
-}
-
-Use "clarification" when the player is asking what they know, what they have, what is possible, or how the scene works. Use "committed_action" only when they actually attempt something in the fiction.`;
+}`;
 
   const interactionProposal = await callJsonAgent(interactionClient, interactionProposalSystem, interactionProposalPrompt, {
     input_kind: 'committed_action',
@@ -324,6 +330,17 @@ ${compactJson(interactionProposal)}
 === CONTINUITY REVIEW ===
 ${compactJson(continuityReview)}
 
+=== REFEREE RULES (STRICT) ===
+Your primary job is to prevent the game from feeling like a video game that forces action.
+
+- If the Interaction Proposal has input_kind "clarification" (or the player's words are a question about the current situation), you MUST set:
+  * referee_status: "approved" (or "needs_clarification" only if the question is impossible to answer)
+  * input_kind: "clarification"
+  * approved_state_policy: "none"
+  * All allowed_*_update fields must be complete no-ops (0 changes, empty arrays)
+- A clarification turn is pure information exchange. The player is trying to understand the scene so they can make a good decision later. This is normal and desirable tabletop play.
+- Only treat something as "committed_action" if the player has clearly stated an immediate intention to do a specific thing.
+
 Return JSON matching:
 {
   "referee_status": "approved|denied|needs_clarification",
@@ -345,7 +362,7 @@ Return JSON matching:
   }
 }
 
-For clarification, denial, or needs_clarification, approved_state_policy must be "none" and all state changes must be no-op values.`;
+For clarification, denial, or needs_clarification, approved_state_policy must be "none" and all state changes must be no-op values. The final narration will still give the player a rich answer and scene_grounding on clarification turns.`;
 
   const refereeDecision = await callJsonAgent(refereeClient, refereeSystem, refereePrompt, {
     referee_status: 'needs_clarification',
@@ -403,6 +420,13 @@ Return JSON matching:
 You are the single DM voice the player sees.
 You must relay the final approved result in in-world terms while preserving the referee and continuity decisions.
 You are the last context call, and your JSON is the only response persisted to the database.
+
+CLARIFICATION BEHAVIOR (VERY IMPORTANT):
+- If final_input_kind is "clarification", you are answering a question or providing scene information.
+- Write like a good tabletop DM: clear, direct, atmospheric, and informative.
+- Always produce a useful "scene_grounding" field so the player understands the current physical situation.
+- Never advance time or apply state changes on clarification turns.
+
 If final_status is denied or needs_clarification, explain the issue in-world and set all state changes to no-op values.
 If final_input_kind is clarification, answer directly and set all state changes to no-op values.
 If final_input_kind is committed_action, include only state changes approved by the referee and final continuity check.`;
@@ -571,7 +595,9 @@ You MUST return a JSON object ONLY matching this schema, with no additional text
 
   const turn1Prompt = `Set the scene and begin the campaign.
 Start the story at the beginning of Act I. Introduce the starting quest: "${outline.starting_quest.title}".
-Describe the starting location, atmosphere, and initial encounter. If you introduce any of the NPCs now, write them fully in character with their described personality and quirks. Output the JSON object containing the opening narrative, suggested choices, state updates, and an SVG illustration of the scene.`;
+Describe the starting location, atmosphere, and initial situation in rich detail. Provide a clear "scene_grounding" describing positions, distances, lighting, and what the character can immediately perceive.
+If you introduce any of the NPCs now, write them fully in character with their described personality and quirks.
+Output the JSON object containing the opening narrative, scene_grounding, suggested choices, state updates, and an SVG illustration of the scene.`;
 
   console.log(`Generating opening turn for campaign...`);
   const turn1Response = await client.sendPrompt({
@@ -785,9 +811,11 @@ Describe the starting location, atmosphere, and initial encounter. If you introd
       number: 1,
       playerAction: null,
       narrative: turnData.narrative,
+      sceneGrounding: turnData.scene_grounding || null,
       svg,
       suggestedChoices: turnData.suggested_choices || [],
-      rollResult: null
+      rollResult: null,
+      inputKind: turnData.input_kind || 'dialogue'
     }
   };
 }
@@ -885,14 +913,22 @@ Active Quest: "${activeQuestName}" (${activeQuestDesc})
 
 PLAYER INPUT: "${finalPlayerAction}"
 
-First decide input_kind in your JSON:
-- "clarification" if the player is asking what they know, what they have, what is possible, or how the scene works.
-- "dialogue" if the player speaks in-character to an NPC or entity.
-- "committed_action" if the player attempts a concrete action in the fiction.
+=== FINAL RESPONSE RULES ===
+First decide input_kind:
+- "clarification" — player asked a question or wants to understand the current situation better. Answer fully and naturally. Provide rich "scene_grounding".
+- "dialogue" — player is talking to someone.
+- "committed_action" — player has clearly stated they are doing something specific right now.
 
-For clarification, answer directly using the character's known state, visible scene details, and reasonable in-world knowledge. Do not advance the scene clock, resolve attacks, spend resources, award XP, change inventory, change HP/mana, or move the quest forward unless the player also commits to an action. End by presenting concrete actions they could take next.
+CRITICAL FOR CLARIFICATION TURNS:
+- Speak like a patient, helpful tabletop DM at the table.
+- Give a direct, informative answer in the "narrative" field.
+- Always include a detailed "scene_grounding" so the player has a clear mental picture (positions, distances, cover, lighting, what they can and cannot see).
+- Do not describe the player doing anything. Do not resolve any action. Do not advance the clock.
+- End by giving the player good information and 2–4 natural things they could choose to do next (suggested_choices). Do not pressure them.
 
-Output the JSON object containing the narrative response, suggested choices, player state updates, active quest, a beautiful SVG matching HSL guidelines, and any relationship/interaction updates for NPCs.`;
+For committed_action turns, write vivid narrative of what happens as a result.
+
+Output the JSON object containing the narrative response, scene_grounding, suggested_choices, player state updates, active quest, and any NPC updates.`;
 
   console.log(`Processing Turn ${currentTurnNumber} for Campaign ${campaignId}...`);
   const turnContext = buildTurnContext({
@@ -1122,6 +1158,7 @@ Output the JSON object containing the narrative response, suggested choices, pla
       playerAction,
       inputKind: turnData.input_kind,
       narrative: turnData.narrative,
+      sceneGrounding: turnData.scene_grounding || null,
       svg,
       suggestedChoices: turnData.suggested_choices || [],
       rollResult
@@ -1168,17 +1205,18 @@ export async function getCampaignState(campaignId) {
   let suggestedChoices = [];
   let rollResult = null;
   let inputKind = 'committed_action';
+  let lastTurnData = null;
 
   if (lastTurn) {
     try {
-      const turnData = JSON.parse(lastTurn.state_changes_json || '{}');
-      if (turnData.quest_update?.active_quest) {
-        activeQuestName = turnData.quest_update.active_quest;
-        activeQuestDesc = turnData.quest_update.quest_description || '';
+      lastTurnData = JSON.parse(lastTurn.state_changes_json || '{}');
+      if (lastTurnData.quest_update?.active_quest) {
+        activeQuestName = lastTurnData.quest_update.active_quest;
+        activeQuestDesc = lastTurnData.quest_update.quest_description || '';
       }
-      suggestedChoices = turnData.suggested_choices || [];
-      rollResult = turnData.roll_result || null;
-      inputKind = turnData.input_kind || inputKind;
+      suggestedChoices = lastTurnData.suggested_choices || [];
+      rollResult = lastTurnData.roll_result || null;
+      inputKind = lastTurnData.input_kind || inputKind;
     } catch(e) {}
   }
 
@@ -1199,6 +1237,7 @@ export async function getCampaignState(campaignId) {
       playerAction: lastTurn ? lastTurn.player_action : null,
       inputKind,
       narrative: lastTurn ? lastTurn.narrative : 'Beginning campaign...',
+      sceneGrounding: lastTurnData ? lastTurnData.scene_grounding || null : null,
       svg: lastTurn ? lastTurn.svg_illustration : createFallbackSvg(campaign.title),
       suggestedChoices,
       rollResult

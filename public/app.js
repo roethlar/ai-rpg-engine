@@ -771,6 +771,11 @@ function renderGame(gameState, resetNarrative = false, options = {}) {
     narrateDmResponse(gameState.turn.narrative);
   }
 
+  // Scene grounding — especially valuable on clarification turns
+  if (gameState.turn.sceneGrounding) {
+    appendSceneGrounding(gameState.turn.sceneGrounding);
+  }
+
   // If the active tab is Journal, refresh the timeline
   if (tabJournalBtn.classList.contains('active')) {
     loadJournalTimeline();
@@ -1115,6 +1120,19 @@ function escapeHtml(str) {
                 .replace(/>/g, '&gt;')
                 .replace(/"/g, '&quot;')
                 .replace(/'/g, '&#039;');
+}
+
+function appendSceneGrounding(groundingText) {
+  if (!groundingText || !narrativeContainer) return;
+  const el = document.createElement('div');
+  el.className = 'log-entry log-scene';
+  const safeText = escapeHtml(groundingText);
+  el.innerHTML = `
+    <div class="speaker"><i class="fa-solid fa-eye"></i> Current Situation</div>
+    <div class="content scene-grounding">${safeText}</div>
+  `;
+  narrativeContainer.appendChild(el);
+  scrollToBottom();
 }
 
 function scrollToBottom() {

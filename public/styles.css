@@ -432,6 +432,35 @@ body {
   color: #fff;
 }
 
+.log-scene {
+  align-self: flex-start;
+  max-width: 92%;
+  background: rgba(var(--theme-secondary), 0.08);
+  border: 1px solid rgba(var(--theme-secondary), 0.3);
+  border-radius: 10px;
+  padding: 10px 14px;
+  margin: 6px 0 10px;
+}
+.log-scene .speaker {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  font-weight: 700;
+  color: hsl(var(--theme-secondary));
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  opacity: 0.9;
+}
+.log-scene .content.scene-grounding {
+  font-family: var(--font-body);
+  font-size: 14px;
+  line-height: 1.5;
+  color: hsl(var(--theme-text));
+  font-style: italic;
+}
+
 .input-area {
   padding: 16px;
   background: rgba(var(--theme-panel), 0.8);

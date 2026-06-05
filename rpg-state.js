@@ -173,6 +173,11 @@ export function validateTurnData(raw, currentAct = 1) {
     ? data.svg_illustration.trim()
     : null;
 
+  // 5b. Scene grounding (new — critical for good clarification/table-talk experience)
+  validated.scene_grounding = typeof data.scene_grounding === 'string' && data.scene_grounding.trim() !== ''
+    ? data.scene_grounding.trim()
+    : null;
+
   // 6. Memory logs
   validated.memory_summary = typeof data.memory_summary === 'string' && data.memory_summary.trim() !== ''
     ? data.memory_summary.trim()

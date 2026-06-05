@@ -50,3 +50,24 @@
 **Current Priority**: Begin with **Phase 0 (Clarification/Table-Talk)** as it is the foundation everything else rests on.
 
 This plan will be updated as we learn from implementation and playtesting.
+
+---
+
+## Progress Log
+
+**Phase 0 — Initial Prompt & Data Changes (completed first pass)**
+- Strengthened "Interactivity" rule in `rpg-prompts.js` with explicit table-conversation priority, strict classification guidance, and mandatory scene_grounding behavior on clarification turns.
+- Added `scene_grounding` field to the expected JSON schema in the main DM prompt.
+- Rewrote the Interaction Agent prompt in `rpg-engine.js` to be extremely conservative (default to clarification on any ambiguity, with many concrete examples).
+- Strengthened Referee prompt and final narration instructions (both single-model and Council paths) to protect clarification turns.
+- Added `scene_grounding` support to `validateTurnData` (`rpg-state.js`).
+- Wired `sceneGrounding` through all response paths (initial campaign, takeTurn, getCampaignState) and fork (via state_changes_json).
+- Updated frontend (`public/app.js` + `styles.css`):
+  - `renderTurnState` now calls `appendSceneGrounding` when present.
+  - Added `appendSceneGrounding` helper that renders a distinct "Current Situation" block (italic, secondary color).
+  - Added supporting CSS for `.log-scene`.
+- Updated opening turn prompt to request good `scene_grounding` on campaign start.
+- All existing tests continue to pass.
+- Committed the plan + initial changes earlier; these Phase 0 edits are ready for playtesting.
+
+**Next step**: Playtest a short campaign (ideally with Council mode + local or strong model) and observe whether clarification questions now receive proper, non-advancing answers + useful scene grounding. Then iterate on the prompts based on real output.
