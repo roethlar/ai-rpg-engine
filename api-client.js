@@ -82,7 +82,8 @@ function validateUrlForSsrfSync(urlString, allowedLocalUrl) {
     const trustedHosts = [
       'generativelanguage.googleapis.com',
       'api.openai.com',
-      'api.anthropic.com'
+      'api.anthropic.com',
+      'api.x.ai'
     ];
 
     if (trustedHosts.includes(hostname)) {
@@ -111,7 +112,8 @@ async function validateUrlForSsrfAsync(urlString, allowedLocalUrl) {
   const trustedHosts = [
     'generativelanguage.googleapis.com',
     'api.openai.com',
-    'api.anthropic.com'
+    'api.anthropic.com',
+    'api.x.ai'
   ];
   if (trustedHosts.includes(hostname)) return;
 
@@ -160,7 +162,7 @@ async function fetchWithTimeout(url, options = {}, timeoutMs = 240000) {
 }
 
 /**
- * AI client class to unify API calls across Gemini, OpenAI, Claude, Ollama, and custom endpoints.
+ * AI client class to unify API calls across Gemini, OpenAI, Claude, xAI Grok, Ollama, and custom endpoints.
  */
 export class AIClient {
   constructor(config = {}) {
@@ -192,6 +194,9 @@ export class AIClient {
         case 'claude':
           this.model = 'claude-3-5-sonnet-20241022';
           break;
+        case 'grok':
+          this.model = 'grok-3';
+          break;
         case 'ollama':
           this.model = 'llama3';
           break;
@@ -206,6 +211,7 @@ export class AIClient {
       case 'gemini': return process.env.GEMINI_API_KEY;
       case 'openai': return process.env.OPENAI_API_KEY;
       case 'claude': return process.env.ANTHROPIC_API_KEY;
+      case 'grok': return process.env.XAI_API_KEY || process.env.GROK_API_KEY;
       default: return null;
     }
   }
@@ -224,6 +230,8 @@ export class AIClient {
       return this.callOpenAI(systemInstruction, prompt, jsonMode);
     } else if (this.provider === 'claude') {
       return this.callClaude(systemInstruction, prompt, jsonMode);
+    } else if (this.provider === 'grok') {
+      return this.callGrok(systemInstruction, prompt, jsonMode);
     } else if (this.provider === 'ollama') {
       return this.callOllama(systemInstruction, prompt, jsonMode);
     } else if (this.provider === 'custom') {
@@ -313,6 +321,45 @@ export class AIClient {
     if (!response.ok) {
       const errText = await response.text();
       throw new Error(`OpenAI API error: ${response.status} ${response.statusText} - ${errText}`);
+    }
+
+    const data = await response.json();
+    return data.choices[0].message.content;
+  }
+
+  async callGrok(system, prompt, jsonMode) {
+    const key = this.apiKey;
+    if (!key) throw new Error('xAI Grok API key is not configured (set XAI_API_KEY or provide in UI).');
+
+    // Allow baseUrl override (useful for proxies, OpenRouter with Grok models, etc.)
+    // When using the native 'grok' provider the official endpoint is used by default.
+    const url = this.baseUrl || 'https://api.x.ai/v1/chat/completions';
+    
+    const messages = [];
+    if (system) messages.push({ role: 'system', content: system });
+    messages.push({ role: 'user', content: prompt });
+
+    const requestBody = {
+      model: this.model,
+      messages,
+    };
+
+    if (jsonMode) {
+      requestBody.response_format = { type: 'json_object' };
+    }
+
+    const response = await fetchWithTimeout(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${key}`
+      },
+      body: JSON.stringify(requestBody)
+    });
+
+    if (!response.ok) {
+      const errText = await response.text();
+      throw new Error(`xAI Grok API error: ${response.status} ${response.statusText} - ${errText}`);
     }
 
     const data = await response.json();

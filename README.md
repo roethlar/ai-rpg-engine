@@ -32,6 +32,7 @@ The engine stores all events in a persistent SQLite database, which double-funct
 - **Google Gemini** (Recommended, default: `gemini-1.5-flash` or `gemini-2.5-flash`)
 - **OpenAI GPT** (`gpt-4o-mini`, `gpt-4o`)
 - **Anthropic Claude** (`claude-3-5-sonnet-20241022`)
+- **xAI Grok** (`grok-3`, `grok-3-mini` — excellent structured/JSON output for the Council agents)
 - **Ollama** (Local models like `llama3`, `mistral`, `gemma`)
 - **Custom OpenAI-Compatible** (LM Studio, OpenRouter, Groq, etc.)
 
@@ -52,7 +53,7 @@ Create a `.env` file from the template:
 ```bash
 cp .env.example .env
 ```
-Fill in your API Keys (e.g. `GEMINI_API_KEY`, `OPENAI_API_KEY`, or `ANTHROPIC_API_KEY`). 
+Fill in your API Keys (e.g. `GEMINI_API_KEY`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, or `XAI_API_KEY`). 
 
 #### Setting Up Access Authentication (Optional)
 To lock the server endpoints from unauthorized third-party users, add a secret token in your `.env` file:

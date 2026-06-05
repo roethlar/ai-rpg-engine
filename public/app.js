@@ -205,6 +205,8 @@ function toggleSettingsFields(provider) {
     inputModel.placeholder = 'e.g. gpt-4o-mini, gpt-4o';
   } else if (provider === 'claude') {
     inputModel.placeholder = 'e.g. claude-3-5-sonnet-20241022';
+  } else if (provider === 'grok') {
+    inputModel.placeholder = 'e.g. grok-3, grok-3-mini';
   }
 }
 
