@@ -71,3 +71,9 @@ This plan will be updated as we learn from implementation and playtesting.
 - Committed the plan + initial changes earlier; these Phase 0 edits are ready for playtesting.
 
 **Next step**: Playtest a short campaign (ideally with Council mode + local or strong model) and observe whether clarification questions now receive proper, non-advancing answers + useful scene grounding. Then iterate on the prompts based on real output.
+
+**Interactive verification in progress** (started 2026-06-05):
+- Live server running on http://localhost:3001 with persistent log monitor active in this session.
+- Awaiting user to open the UI, configure an AI provider + key in Settings, start a fantasy campaign with an ambiguous multi-creature scene, and submit the exact test inputs from the original complaint: "which goblin is closer?" and "can I throw my dagger at it?" (plus 1-2 follow-ups).
+- Will capture outputs, check for `sceneGrounding` "Current Situation" block, direct non-advancing answers, zero state mutations on clarification turns, and correct `input_kind`.
+- If good for several back-and-forths, mark Phase 0 complete + commit. If not, refine prompts + re-test immediately per the "review after each phase" rule.
