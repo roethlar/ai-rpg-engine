@@ -238,6 +238,24 @@ export function validateTurnData(raw, currentAct = 1) {
     });
   }
 
+  // Phase 0 safety net: if the model (or any upstream) marked this turn clarification,
+  // force zero state mutations here. The engine post-processing (rpg-engine.js) does
+  // the same, but this makes the guarantee hold even for direct DB consumers or partial responses.
+  if (validated.input_kind === 'clarification') {
+    validated.character_update = { health_change: 0, mana_change: 0, xp_gain: 0, inventory_changes: [] };
+    validated.quest_update = {
+      active_quest: validated.quest_update?.active_quest || 'Explore the world',
+      quest_description: validated.quest_update?.quest_description || '',
+      current_act: validated.quest_update?.current_act || currentAct
+    };
+    validated.ability_updates = [];
+    validated.npc_updates = [];
+    validated.memory_summary = null;
+    validated.memory_keywords = '';
+    validated.dice_rolls = [];
+    validated.roll_result = null;
+  }
+
   return validated;
 }
 

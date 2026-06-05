@@ -89,7 +89,7 @@ function testJsonSchemaValidation() {
   console.log(' - Running JSON response validation and clamping tests...');
   
   const malformedData = {
-    input_kind: 'clarification',
+    input_kind: 'committed_action', // use non-clarification so clamping assertions run
     narrative: '  A quiet clearing. ',
     suggested_choices: [' choice 1', null, ''],
     character_update: {
@@ -134,7 +134,7 @@ function testJsonSchemaValidation() {
 
   const clean = validateTurnData(malformedData, 2);
 
-  assert.strictEqual(clean.input_kind, 'clarification', 'Should preserve valid input_kind');
+  assert.strictEqual(clean.input_kind, 'committed_action', 'Should preserve valid input_kind');
   assert.strictEqual(clean.narrative, 'A quiet clearing.', 'Should trim narrative');
   assert.deepStrictEqual(clean.suggested_choices, ['choice 1'], 'Should filter empty or null choices');
   assert.strictEqual(clean.character_update.health_change, 100, 'Should clamp health_change to 100 max');
@@ -151,6 +151,30 @@ function testJsonSchemaValidation() {
   const npcUp = clean.npc_updates[0];
   assert.strictEqual(npcUp.relationship_change, 50, 'Should clamp npc relationship_change to 50 max');
   assert.strictEqual(npcUp.status, 'alive', 'Should fallback invalid status to alive');
+
+  // Phase 0: clarification safety net in validateTurnData — even wild state must be forced to no-op
+  const clarificationInput = {
+    input_kind: 'clarification',
+    narrative: 'The left goblin is closer, about 10 feet, with a rusty axe.',
+    scene_grounding: 'Two goblins near the cart. Left one 10 ft, right one 20 ft back by the door.',
+    suggested_choices: ['Attack the closer goblin', 'Duck behind crates'],
+    character_update: { health_change: 50, mana_change: -20, xp_gain: 25, inventory_changes: [{ action: 'add', item: { name: 'Sword' } }] },
+    quest_update: { active_quest: 'Kill all goblins', current_act: 2 },
+    ability_updates: [{ action: 'add', ability: { name: 'Super Power' } }],
+    npc_updates: [{ name: 'Goblin', relationship_change: -10 }],
+    memory_summary: 'We fought',
+    dice_rolls: [{ type: 'attack', total: 17 }]
+  };
+  const clar = validateTurnData(clarificationInput, 1);
+  assert.strictEqual(clar.input_kind, 'clarification');
+  assert.strictEqual(clar.scene_grounding, 'Two goblins near the cart. Left one 10 ft, right one 20 ft back by the door.');
+  assert.strictEqual(clar.character_update.health_change, 0);
+  assert.strictEqual(clar.character_update.xp_gain, 0);
+  assert.deepStrictEqual(clar.ability_updates, []);
+  assert.deepStrictEqual(clar.npc_updates, []);
+  assert.strictEqual(clar.memory_summary, null);
+  assert.deepStrictEqual(clar.dice_rolls || [], []);
+  assert.strictEqual(clar.quest_update.active_quest, 'Kill all goblins'); // description can stay but no act change side effects
 
   assert.strictEqual(clean.ability_updates.length, 1, 'Should keep only valid ability updates');
   assert.strictEqual(clean.ability_updates[0].ability.name, 'Neural Splice', 'Should trim ability names');
