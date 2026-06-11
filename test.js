@@ -173,7 +173,7 @@ function testJsonSchemaValidation() {
   assert.deepStrictEqual(clar.ability_updates, []);
   assert.deepStrictEqual(clar.npc_updates, []);
   assert.strictEqual(clar.memory_summary, null);
-  assert.deepStrictEqual(clar.dice_rolls || [], []);
+  assert.deepStrictEqual(clar.dice_rolls, [], 'Safety net must explicitly clear dice_rolls on clarification turns');
   assert.strictEqual(clar.quest_update.active_quest, 'Kill all goblins'); // quest text passthrough is corrected engine-side from DB truth
   assert.strictEqual(clar.quest_update.current_act, 1, 'Clarification must not advance the act even if the model says otherwise');
 
