@@ -33,6 +33,36 @@ Prevents feature creep and video-gamey rushed mechanics. Ensures every change is
 Supersedes:
 Initial plan.md process notes (now captured here as durable decision; plan.md remains the living roadmap for Phase details and progress log).
 
+### 2026-06-11 - AI provider configuration is server-owned; players never supply API keys or AI config
+
+Status: Active
+
+Decision:
+API keys, AI provider, and model selection are the server operator's responsibility,
+configured server-side (environment / `.env`). Players must never need to — and must
+ultimately not be able to — supply their own API keys, provider, model, or endpoint
+configuration through the game UI. The current browser AI Settings panel, which sends a
+per-request `apiConfig` (provider/model/key/baseUrl) that overrides server environment
+configuration in `AIClient`, is a legacy convenience from the single-user localhost
+origin of the app. It is recorded drift, acceptable only while operator and player are
+the same person. The future enforcement change (make server config authoritative;
+reduce the UI panel to player-appropriate settings such as the access token and voice
+preferences, or gate AI config behind an operator-only mechanism) must be promoted into
+a concrete phase per the phased-development decision before implementation.
+
+Reason:
+The product vision (multiplayer end state in plan.md: players join via shared URL +
+access token) assumes players are guests of a hosted game, not key-holders. The current
+override path lets any client both bring an arbitrary key and — worse — switch the
+server onto a different provider/model billed to the server's own environment keys
+(client `apiConfig` takes precedence in `api-client.js`; only baseUrl/ollamaUrl are
+guarded in production). Server-owned AI config closes a cost/abuse hole and matches the
+documented Docker/production deployment story.
+
+Supersedes:
+Nothing recorded; documents previously-unrecorded intent. README's presentation of the
+UI key slot as a coequal configuration path should be read in light of this decision.
+
 ### 2026-06-05 - Council DM pipeline is canonical; clarification turns must not advance state (from plan.md + code)
 
 Status: Active
