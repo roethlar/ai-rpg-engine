@@ -1064,7 +1064,10 @@ function renderChoices(choices) {
     btn.title = choice;
     btn.addEventListener('click', () => {
       actionInput.value = choice;
-      actionForm.dispatchEvent(new Event('submit'));
+      // requestSubmit fires a cancelable submit event; dispatchEvent(new Event('submit'))
+      // is non-cancelable, so preventDefault was ignored and Firefox performed the native
+      // form submission (full page reload back to the campaign menu).
+      actionForm.requestSubmit();
     });
     suggestedChoicesContainer.appendChild(btn);
   });
