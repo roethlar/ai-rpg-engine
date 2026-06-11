@@ -1,0 +1,63 @@
+{
+  "validated_against": {
+    "commit": "bac5e9a5324e3f9180f5c40ef0e9086d22d0169a",
+    "date": "2026-06-11"
+  },
+  "artifacts": [
+    {
+      "path": "AGENTS.md",
+      "purpose": "Canonical agent guidance (includes universal invariants, Bootstrap Handoff, Development Process rules from plan.md, Verification, Git Safety, Operator Requests)",
+      "custody": "tracked"
+    },
+    {
+      "path": ".agents/state.md",
+      "purpose": "Current repo state, active work (Phase 0 playtest), blockers, next actions, verification commands, and unrecorded repo memory",
+      "custody": "tracked"
+    },
+    {
+      "path": ".agents/decisions.md",
+      "purpose": "Durable decisions and supersessions (phased dev + review gates; Council as canonical pipeline)",
+      "custody": "tracked"
+    },
+    {
+      "path": ".agents/repo-map.json",
+      "purpose": "Verification config, fact-bearing paths, guidance paths, and notes about local verification + ignore rules (evidence-backed)",
+      "custody": "tracked"
+    },
+    {
+      "path": ".agents/artifact-manifest.json",
+      "purpose": "Inventory of all durable artifacts with purposes and custody at time of approval commit",
+      "custody": "tracked"
+    },
+    {
+      "path": "CLAUDE.md",
+      "purpose": "Thin root shim pointing Claude-family harnesses at AGENTS.md (canonical lives in AGENTS.md)",
+      "custody": "tracked"
+    },
+    {
+      "path": ".claude/commands/catchup.md",
+      "purpose": "Claude Code slash-command shim for the 'catchup' operator request (pointer only, per AGENTS.md)",
+      "custody": "tracked"
+    },
+    {
+      "path": ".claude/commands/handoff.md",
+      "purpose": "Claude Code slash-command shim for the 'handoff' operator request (pointer only)",
+      "custody": "tracked"
+    },
+    {
+      "path": ".claude/commands/drift.md",
+      "purpose": "Claude Code slash-command shim for the 'drift' operator request (pointer only)",
+      "custody": "tracked"
+    },
+    {
+      "path": ".claude/commands/decision.md",
+      "purpose": "Claude Code slash-command shim for the 'decision' operator request (pointer only)",
+      "custody": "tracked"
+    },
+    {
+      "path": ".claude/commands/plan.md",
+      "purpose": "Claude Code slash-command shim for the 'plan' operator request (pointer only)",
+      "custody": "tracked"
+    }
+  ]
+}

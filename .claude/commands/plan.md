@@ -1,0 +1,3 @@
+# plan
+
+Read the "Operator Requests", "Development Process", and "Source Of Truth" sections of `AGENTS.md`. For broad implementation work, first draft or update a durable plan (typically in plan.md) that includes phases, success metrics, files, and review gates before writing code. Tie to the project's core principle and phase-promotion rule. Record major plan updates via `decision` if they become durable rules.

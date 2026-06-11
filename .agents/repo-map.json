@@ -1,0 +1,51 @@
+{
+  "validated_against": {
+    "commit": "bac5e9a5324e3f9180f5c40ef0e9086d22d0169a",
+    "date": "2026-06-11"
+  },
+  "projects": [],
+  "verification": {
+    "status": "local",
+    "commands": [
+      "node test.js"
+    ],
+    "policy": {
+      "code_changes": "Run current automated verification before claiming completion.",
+      "docs_only": "Code verification is not required unless docs affect setup, commands, runtime behavior, generated files, or user-visible behavior.",
+      "manual_behavior": "Run the relevant manual check, smoke test, or playtest for behavior not covered by automation, or state clearly that it was not run."
+    }
+  },
+  "fact_bearing_paths": [
+    "README.md",
+    "plan.md",
+    "package.json",
+    "test.js",
+    ".env.example",
+    "Dockerfile",
+    "docker-compose.yml",
+    "rpg-engine.js",
+    "rpg-state.js",
+    "rpg-prompts.js",
+    "server.js",
+    "public/app.js"
+  ],
+  "guidance_paths": [
+    "AGENTS.md",
+    ".agents/state.md",
+    ".agents/decisions.md",
+    ".agents/repo-map.json",
+    ".agents/artifact-manifest.json",
+    ".claude/commands/catchup.md",
+    ".claude/commands/handoff.md",
+    ".claude/commands/drift.md",
+    ".claude/commands/decision.md",
+    ".claude/commands/plan.md",
+    "CLAUDE.md"
+  ],
+  "notes": [
+    "No CI / workflow files detected (confirmed by review packet 'CI / Build Markers: None', 'Suspected Misplaced CI Files: None', and explicit filesystem scan for .github, *.yml workflows, Makefile outside node_modules). Verification command is local-only (node test.js from package.json scripts.test).",
+    "Global gitignore rule **/.claude/settings.local.json (from ~/.config/git/ignore) keeps only the machine-specific permissions file untracked; .claude/commands/ shims and other .claude/ content are committable (git check-ignore exits 1).",
+    "Verification candidates from discovery (package.json) were confirmed by direct read of package.json and test.js (unit tests only; no server integration or full-play in the automated suite). Playtests are manual per project process.",
+    "Current active work and process rules migrated/generalized from plan.md (read directly); plan.md remains the detailed living roadmap until its content is fully superseded or archived."
+  ]
+}
