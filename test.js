@@ -174,7 +174,8 @@ function testJsonSchemaValidation() {
   assert.deepStrictEqual(clar.npc_updates, []);
   assert.strictEqual(clar.memory_summary, null);
   assert.deepStrictEqual(clar.dice_rolls || [], []);
-  assert.strictEqual(clar.quest_update.active_quest, 'Kill all goblins'); // description can stay but no act change side effects
+  assert.strictEqual(clar.quest_update.active_quest, 'Kill all goblins'); // quest text passthrough is corrected engine-side from DB truth
+  assert.strictEqual(clar.quest_update.current_act, 1, 'Clarification must not advance the act even if the model says otherwise');
 
   assert.strictEqual(clean.ability_updates.length, 1, 'Should keep only valid ability updates');
   assert.strictEqual(clean.ability_updates[0].ability.name, 'Neural Splice', 'Should trim ability names');

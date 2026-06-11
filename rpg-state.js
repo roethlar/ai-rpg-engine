@@ -246,7 +246,9 @@ export function validateTurnData(raw, currentAct = 1) {
     validated.quest_update = {
       active_quest: validated.quest_update?.active_quest || 'Explore the world',
       quest_description: validated.quest_update?.quest_description || '',
-      current_act: validated.quest_update?.current_act || currentAct
+      // Pin the act: a clarification turn must never advance (or rewind) the act,
+      // even when the model emits a different valid current_act.
+      current_act: currentAct
     };
     validated.ability_updates = [];
     validated.npc_updates = [];
