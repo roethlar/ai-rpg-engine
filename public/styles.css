@@ -435,8 +435,8 @@ body {
 .log-scene {
   align-self: flex-start;
   max-width: 92%;
-  background: rgba(var(--theme-secondary), 0.08);
-  border: 1px solid rgba(var(--theme-secondary), 0.3);
+  background: hsla(var(--theme-secondary), 0.08);
+  border: 1px solid hsla(var(--theme-secondary), 0.3);
   border-radius: 10px;
   padding: 10px 14px;
   margin: 6px 0 10px;
