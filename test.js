@@ -1,6 +1,6 @@
 import assert from 'assert';
 import { parseJsonSafe, validateTurnData, performDiceCheck } from './rpg-state.js';
-import { AIClient } from './api-client.js';
+import { AIClient, resolveAgentConfig } from './api-client.js';
 
 console.log('🧪 Starting Aetheria RPG Engine tests...');
 
@@ -77,9 +77,10 @@ function testProductionSsrfBlock() {
   assert.strictEqual(client.ollamaUrl, 'http://trusted-ollama.internal:11434', 'Should ignore custom ollamaUrl override in production');
 
   // Reset env
-  process.env.NODE_ENV = oldNodeEnv;
-  process.env.CUSTOM_ENDPOINT_URL = oldCustomUrl;
-  process.env.OLLAMA_URL = oldOllamaUrl;
+  // Assigning undefined to process.env coerces to the string "undefined" — delete instead.
+  if (oldNodeEnv === undefined) delete process.env.NODE_ENV; else process.env.NODE_ENV = oldNodeEnv;
+  if (oldCustomUrl === undefined) delete process.env.CUSTOM_ENDPOINT_URL; else process.env.CUSTOM_ENDPOINT_URL = oldCustomUrl;
+  if (oldOllamaUrl === undefined) delete process.env.OLLAMA_URL; else process.env.OLLAMA_URL = oldOllamaUrl;
 }
 
 // -------------------------------------------------------------
@@ -248,6 +249,52 @@ async function testTaskQueueSerialization() {
   assert.deepStrictEqual(executionOrder, [1, 2], 'Queue must execute tasks sequentially in order of entry, despite delay duration');
 }
 
+// -------------------------------------------------------------
+// Test: per-role Council config resolution (provider-scoped inheritance)
+// -------------------------------------------------------------
+function testResolveAgentConfig() {
+  console.log(' - Running per-role agent config resolution tests...');
+
+  const uiConfig = {
+    provider: 'gemini',
+    apiKey: 'ui-gemini-key',
+    model: 'gemini-1.5-flash',
+    baseUrl: 'http://custom.example/v1'
+  };
+
+  // Role env switches provider, no role key set: must NOT inherit the UI
+  // provider's key/model/urls — AIClient should fall through to the role
+  // provider's own env key instead.
+  process.env.INTERACTION_AI_PROVIDER = 'grok';
+  const cross = resolveAgentConfig(uiConfig, 'interaction');
+  assert.strictEqual(cross.provider, 'grok');
+  assert.strictEqual(cross.apiKey, undefined, 'Must not send the UI provider key to a different role provider');
+  assert.strictEqual(cross.model, undefined, 'Must not send the UI provider model name to a different role provider');
+  assert.strictEqual(cross.baseUrl, undefined, 'Must not carry the UI custom endpoint across providers');
+
+  // Downstream: AIClient falls back to the role provider's env key.
+  process.env.XAI_API_KEY = 'env-xai-key';
+  assert.strictEqual(new AIClient(cross).apiKey, 'env-xai-key', 'AIClient must resolve the role provider env key');
+  delete process.env.XAI_API_KEY;
+
+  // Explicit role key always wins.
+  process.env.INTERACTION_API_KEY = 'role-key';
+  assert.strictEqual(resolveAgentConfig(uiConfig, 'interaction').apiKey, 'role-key');
+  delete process.env.INTERACTION_API_KEY;
+
+  // Same provider for the role: inherit the UI config.
+  process.env.INTERACTION_AI_PROVIDER = 'gemini';
+  const same = resolveAgentConfig(uiConfig, 'interaction');
+  assert.strictEqual(same.apiKey, 'ui-gemini-key');
+  assert.strictEqual(same.model, 'gemini-1.5-flash');
+  delete process.env.INTERACTION_AI_PROVIDER;
+
+  // No role env at all: role runs the UI config unchanged.
+  const plain = resolveAgentConfig(uiConfig, 'interaction');
+  assert.strictEqual(plain.provider, 'gemini');
+  assert.strictEqual(plain.apiKey, 'ui-gemini-key');
+}
+
 // Run all test functions
 async function runAll() {
   try {
@@ -256,6 +303,7 @@ async function runAll() {
     testProductionSsrfBlock();
     testJsonSchemaValidation();
     testDiceCheckMath();
+    testResolveAgentConfig();
     await testTaskQueueSerialization();
     console.log('✅ All unit tests completed successfully!');
   } catch (error) {

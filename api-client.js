@@ -162,6 +162,37 @@ async function fetchWithTimeout(url, options = {}, timeoutMs = 240000) {
 }
 
 /**
+ * Resolves the effective AI config for a Council role from per-role environment
+ * variables (e.g. INTERACTION_AI_PROVIDER / INTERACTION_API_KEY) over the
+ * request-supplied base config.
+ *
+ * The base apiConfig belongs to its own provider: its key, model, and endpoint
+ * URLs are inherited only when the role resolves to that same provider. When a
+ * role env var switches the provider, unset fields stay unset so AIClient falls
+ * back to that provider's own env key (e.g. XAI_API_KEY) instead of sending
+ * another provider's credentials to the wrong API.
+ */
+export function resolveAgentConfig(apiConfig = {}, role) {
+  const prefixes = {
+    interaction: 'INTERACTION',
+    continuity: 'CONTINUITY',
+    referee: 'REFEREE'
+  };
+  const prefix = prefixes[role] || String(role).toUpperCase();
+
+  const provider = process.env[`${prefix}_AI_PROVIDER`] || apiConfig.provider;
+  const inherit = provider === apiConfig.provider;
+
+  return {
+    provider,
+    model: process.env[`${prefix}_AI_MODEL`] || (inherit ? apiConfig.model : undefined),
+    apiKey: process.env[`${prefix}_API_KEY`] || (inherit ? apiConfig.apiKey : undefined),
+    baseUrl: process.env[`${prefix}_CUSTOM_ENDPOINT_URL`] || (inherit ? apiConfig.baseUrl : undefined),
+    ollamaUrl: process.env[`${prefix}_OLLAMA_URL`] || (inherit ? apiConfig.ollamaUrl : undefined)
+  };
+}
+
+/**
  * AI client class to unify API calls across Gemini, OpenAI, Claude, xAI Grok, Ollama, and custom endpoints.
  */
 export class AIClient {

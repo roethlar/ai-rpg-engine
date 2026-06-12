@@ -1,5 +1,5 @@
 import * as db from './db.js';
-import { AIClient } from './api-client.js';
+import { AIClient, resolveAgentConfig } from './api-client.js';
 import { 
   parseJsonSafe, 
   createFallbackSvg, 
@@ -147,23 +147,6 @@ async function syncPlayerCharacter(profileId, campaignId, character, status = 'c
 
 function isMultiAgentModeEnabled() {
   return true;
-}
-
-function resolveAgentConfig(apiConfig = {}, role) {
-  const prefixes = {
-    interaction: 'INTERACTION',
-    continuity: 'CONTINUITY',
-    referee: 'REFEREE'
-  };
-  const prefix = prefixes[role] || role.toUpperCase();
-
-  return {
-    provider: process.env[`${prefix}_AI_PROVIDER`] || apiConfig.provider,
-    model: process.env[`${prefix}_AI_MODEL`] || apiConfig.model,
-    apiKey: process.env[`${prefix}_API_KEY`] || apiConfig.apiKey,
-    baseUrl: process.env[`${prefix}_CUSTOM_ENDPOINT_URL`] || apiConfig.baseUrl,
-    ollamaUrl: process.env[`${prefix}_OLLAMA_URL`] || apiConfig.ollamaUrl
-  };
 }
 
 function compactJson(value) {
