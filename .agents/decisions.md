@@ -33,6 +33,45 @@ Prevents feature creep and video-gamey rushed mechanics. Ensures every change is
 Supersedes:
 Initial plan.md process notes (now captured here as durable decision; plan.md remains the living roadmap for Phase details and progress log).
 
+### 2026-06-11 - DM omniscience with canon commitment: the DM never says "I don't know"
+
+Status: Active
+
+Decision:
+The Council presents to players as one DM persona, and that persona is omniscient about
+its own game. It must never answer a player question about in-game events with "I don't
+know" or any equivalent fourth-wall break. The legitimate answers are exactly three:
+(a) the in-fiction answer, drawn from the recorded game state (rules, dice rolls and
+their consequences, outline, archive, NPC/world state); (b) knowledge gating — "your
+character doesn't know"; (c) dramatic gating — "you don't get to find out yet."
+
+This must NOT be implemented as a loose "answer confidently / make it up if unsure"
+instruction. That is the hallucination ground state for LLM agents and is exactly what
+the Council's continuity gate exists to prevent. When the DM improvises a fact that is
+not yet in the record (as real GMs legitimately do), the improvised fact must pass the
+continuity check and be committed to durable campaign state as new canon in the same
+turn, so every future answer stays consistent with it. Improvisation that bypasses the
+record is a defect, not flexibility.
+
+Corollary: omniscience is a data requirement before it is a prompt requirement. The
+full mechanical and narrative record — dice rolls, applied damage and its causes, the
+campaign's rules, hidden/world state — must be available to the model on clarification
+turns. A rule or consequence applied by engine code that no agent can see (the state
+observed in the first Phase 0 playtest, where hardcoded failed-check damage was
+invisible to the Council and the DM shrugged) violates this decision.
+
+Reason:
+First Phase 0 playtest: the player took engine-applied damage from a failed check and
+asked why; the DM answered "I don't know" because the damage rule and roll record never
+reached any agent's context. A DM that admits ignorance of its own game breaks the core
+"feel like a real GM" principle. The safe form of the fix is record-backed omniscience
+with improvisation captured as canon — not blanket confidence, which licenses
+confabulation.
+
+Supersedes:
+Nothing; refines the 2026-06-05 Council-pipeline decision (single DM voice,
+continuity-gated state) by adding the player-facing knowledge contract.
+
 ### 2026-06-11 - AI provider configuration is server-owned; players never supply API keys or AI config
 
 Status: Active
