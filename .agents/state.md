@@ -5,13 +5,17 @@ short and update it when important repo facts change.
 
 ## Now
 
-- Phase 0 (Clarification & Table-Talk, highest priority per plan.md) initial implementation complete. Interactive verification in progress: awaiting play session with ambiguous inputs ("Which goblin is closer? Can I throw my dagger at it?") plus follow-ups to validate non-advancing clarification turns, useful scene_grounding blocks, and zero unintended state mutations.
-- Council DM pipeline is the active/only path; single-model branches are dead code (plan notes pending refactor).
-- No open campaigns or persistent data issues noted in current evidence.
+- Phase 0 first playtest session completed 2026-06-11 (campaign 1, Gemini, rules_mode on). Results: clarification metric PASSED mechanically — DB audit of turns table shows zero state mutation on both clarification turns (6, 9), Council no-op forcing fired correctly; qualitative clarification behavior strong (layered conditional answers, character-knowledge gating, scene grounding rendered styled). Rules_mode dice layer produced bad play (checks rolled for trivial actions via keyword matching, 5 failed checks → 33 HP loss; GM could not explain damage) — recorded as design evidence on the Council refactor entry in plan.md, not a Phase 0 fault.
+- Owner is reviewing plan.md: the playtest may have shifted goal priorities. Do not start new implementation until that review lands.
+- Pre-playtest code review fixed 3 findings (act-pin in clarification safety net, non-vacuous dice test, .log-scene hsla CSS) + a Firefox-only suggested-choice page-reload bug (requestSubmit). Seven review findings remain queued below.
+- Four durable decisions recorded 2026-06-11 in `.agents/decisions.md`: server-owned AI config, GM omniscience with canon commitment, GM authority final (player not in control), GM-not-DM terminology.
+- Council pipeline is the active/only path; single-model branches are dead code (plan notes pending refactor).
+- Local server not running (shut down at end of 2026-06-11 session; start with `npm start`, port 3000, no .env — provider/key entered in UI by owner).
 
 ## Next
 
-- Complete Phase 0: user performs targeted playtest in UI (with AI provider configured, preferably Council + strong model like grok or gemini), observe outputs for clarification behavior + scene grounding, refine prompts in rpg-prompts.js / rpg-engine.js / rpg-state.js if needed, then mark Phase 0 complete per review gate (full session test + demonstrated improvement) before commit.
+- Owner reviews/reshuffles plan.md after playtest learnings.
+- Remaining Phase 0 gate evidence: over-conservatism check — confirm an unambiguous committed action still resolves crisply without clarification hedging (one playtest probe; the magic-missile turn partially covers it). Then owner judgment on real-GM feel → mark Phase 0 complete.
 - After Phase 0 lands: evaluate and potentially implement the Council efficiency refactor noted in plan.md (branch on input_kind post-Interaction to halve calls on clarification/dialogue turns; delete dead single-model path).
 - Unscheduled: GM/DM rename sweep per the 2026-06-11 terminology decision (UI strings, prompts, README, identifiers like dmSystem) — mixed usage until then is known drift.
 - Unscheduled (needs phase promotion): enforce server-owned AI config per the 2026-06-11 decision in `.agents/decisions.md` — client `apiConfig` currently overrides server env keys/provider/model. Also unscheduled: remaining 2026-06-11 code-review findings (denied-action dice damage in rules_mode, Grok key routing via CUSTOM_ENDPOINT_URL and per-role fallback, turn-1 clarification wipe, removed SVG quote-escape prompt rule, SVG omitted from turn prompt output list, triplicated clarification zeroing).
