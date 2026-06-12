@@ -331,9 +331,11 @@ export class AIClient {
     const key = this.apiKey;
     if (!key) throw new Error('xAI Grok API key is not configured (set XAI_API_KEY or provide in UI).');
 
-    // Allow baseUrl override (useful for proxies, OpenRouter with Grok models, etc.)
-    // When using the native 'grok' provider the official endpoint is used by default.
-    const url = this.baseUrl || 'https://api.x.ai/v1/chat/completions';
+    // Pinned to the official endpoint: this.baseUrl carries CUSTOM_ENDPOINT_URL (or a
+    // saved UI custom URL), which is config for the 'custom' provider — honoring it here
+    // would send the xAI bearer key to an unrelated host. Proxy/OpenRouter setups that
+    // serve Grok models should use the 'custom' provider instead.
+    const url = 'https://api.x.ai/v1/chat/completions';
     
     const messages = [];
     if (system) messages.push({ role: 'system', content: system });
