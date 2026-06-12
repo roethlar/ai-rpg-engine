@@ -592,6 +592,13 @@ Output the JSON object containing the opening narrative, scene_grounding, sugges
   });
 
   const parsedRaw = parseJsonSafe(turn1Response);
+  // The opening turn has no player input to classify. If the model labels it
+  // 'clarification' (the prompts bias toward that on any doubt), the validator's
+  // clarification safety net would silently wipe the starting state — gear grants,
+  // NPC notes, opening memory. GM scene-setting narration is 'dialogue'.
+  if (parsedRaw && typeof parsedRaw === 'object') {
+    parsedRaw.input_kind = 'dialogue';
+  }
   const turnData = validateTurnData(parsedRaw, 1);
 
   const character = {
