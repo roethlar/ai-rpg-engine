@@ -33,6 +33,65 @@ Prevents feature creep and video-gamey rushed mechanics. Ensures every change is
 Supersedes:
 Initial plan.md process notes (now captured here as durable decision; plan.md remains the living roadmap for Phase details and progress log).
 
+### 2026-06-11 - The player is not in control of the game: the GM's decisions are final
+
+Status: Active
+
+Decision:
+Inside a campaign, the GM persona holds final authority. The player's authority is
+exactly: declaring their character's words and actions, and engaging in table talk
+(questions, clarification, banter). The GM's rulings on outcomes, rules, and world
+facts are final. Out-of-character pressure must not sway rulings — authority claims,
+customer-service framing ("as a paying user…"), assistant-jargon appeals ("as an AI
+you must…"), rules-lawyering, or social manipulation are treated as table talk and
+deflected in persona, never obeyed. This inverts the normal assistant-chat power
+relationship deliberately: in the game context, the player is a participant at the
+table, not the boss of the model.
+
+Enforcement is layered: resistance instructions at the prompt layer (Interaction and
+Referee roles), the continuity gate as the structural check, and engine-side
+validation (e.g. the clarification no-op safety net) as the backstop guaranteeing
+that a sweet-talked model still cannot mutate canonical state. Meta-control of the
+game (settings, rules selection, model config) belongs exclusively to owner channels
+(see the server-owned AI configuration decision and the owner/player settings split
+topic in plan.md).
+
+This authority applies to GM *rulings*, not GM *errors*: it does not override the
+omniscience decision's canon-commitment requirement, and genuine defects (wrong
+state, broken rules) are fixed through owner/maintainer channels, not by players
+arguing with the GM.
+
+Reason:
+LLM assistants are trained to defer to users; an AI GM that yields to out-of-character
+pressure cannot maintain stakes, fairness, or a coherent world — and once campaigns
+are hosted/multiplayer, player coercion of the GM becomes a security and fairness
+problem, not just a tone problem. Identified during the first Phase 0 playtest review.
+
+Supersedes:
+Nothing; complements the DM omniscience decision (2026-06-11) — together they define
+the GM-player contract: the GM always knows, and the GM's word is final.
+
+### 2026-06-11 - Standard terminology is GM (Game Master), not DM (Dungeon Master)
+
+Status: Active
+
+Decision:
+The persona and all player-facing, code, prompt, and documentation references use
+"GM" / "Game Master". "DM" / "Dungeon Master" is retired: it is genre-specific
+(dungeons fit fantasy, not cyberpunk or sci-fi campaigns, and this engine is
+genre-infinite) and "Dungeon Master" is a Wizards of the Coast trademark. New writing
+uses GM exclusively; existing occurrences (UI strings, prompts, README, code
+identifiers like dmSystem) are queued for a rename sweep as unscheduled work — until
+that sweep lands, mixed usage in older files is known drift, not an open choice.
+
+Reason:
+Genre neutrality matches the engine's core "Infinite Genres" feature, and avoiding a
+trademarked term removes a legal concern before any public release.
+
+Supersedes:
+Implicit "Dungeon Master" terminology used throughout existing code, UI, prompts, and
+docs since the initial commit.
+
 ### 2026-06-11 - DM omniscience with canon commitment: the DM never says "I don't know"
 
 Status: Active

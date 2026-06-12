@@ -13,6 +13,7 @@ short and update it when important repo facts change.
 
 - Complete Phase 0: user performs targeted playtest in UI (with AI provider configured, preferably Council + strong model like grok or gemini), observe outputs for clarification behavior + scene grounding, refine prompts in rpg-prompts.js / rpg-engine.js / rpg-state.js if needed, then mark Phase 0 complete per review gate (full session test + demonstrated improvement) before commit.
 - After Phase 0 lands: evaluate and potentially implement the Council efficiency refactor noted in plan.md (branch on input_kind post-Interaction to halve calls on clarification/dialogue turns; delete dead single-model path).
+- Unscheduled: GM/DM rename sweep per the 2026-06-11 terminology decision (UI strings, prompts, README, identifiers like dmSystem) — mixed usage until then is known drift.
 - Unscheduled (needs phase promotion): enforce server-owned AI config per the 2026-06-11 decision in `.agents/decisions.md` — client `apiConfig` currently overrides server env keys/provider/model. Also unscheduled: remaining 2026-06-11 code-review findings (denied-action dice damage in rules_mode, Grok key routing via CUSTOM_ENDPOINT_URL and per-role fallback, turn-1 clarification wipe, removed SVG quote-escape prompt rule, SVG omitted from turn prompt output list, triplicated clarification zeroing).
 
 ## Blockers
