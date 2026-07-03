@@ -15,6 +15,10 @@ data/
 *.db-shm
 *.db-wal
 
+# Tauri desktop shell build artifacts
+desktop/src-tauri/target/
+desktop/src-tauri/gen/
+
 # OS files
 .DS_Store
 Thumbs.db

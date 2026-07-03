@@ -6,7 +6,8 @@
   "type": "module",
   "scripts": {
     "start": "node server.js",
-    "test": "node test.js"
+    "test": "node test.js",
+    "desktop": "npm --prefix desktop run dev"
   },
   "dependencies": {
     "dotenv": "^16.4.5",
@@ -16,7 +17,7 @@
   "keywords": [
     "ai",
     "rpg",
-    "dungeon-master",
+    "game-master",
     "sqlite",
     "mcp-server"
   ],

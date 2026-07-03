@@ -1,0 +1,14 @@
+{
+  "name": "aetheria-desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Standalone desktop shell for the Aetheria GM dev server (see plan.md Dev Tooling)",
+  "scripts": {
+    "tauri": "tauri",
+    "dev": "tauri dev",
+    "build": "tauri build"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2"
+  }
+}

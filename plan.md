@@ -88,6 +88,20 @@ Raised during planning but deliberately deferred. **Per project rule, nothing he
 
 - **Portable characters & campaigns (export / import across instances).** Open question raised 2026-06-15. Goal: a character and/or a full campaign should be exportable as a self-contained, restorable artifact that can move between deployments — backup, host migration, handing a save to another player/operator, resuming elsewhere — with continuity intact. **Distinct from the cross-campaign persistence topic above:** that one is about reusing a character across campaigns *within a single deployment* (the check-in/out lock); this one is about crossing the deployment boundary. For continuity to survive a move, the artifact must carry the *structured* state the Council consults, not transient prompt text — campaign outline, turn/state history, memories, NPCs (relationship + accumulated notes), character sheets, ruleset/known-abilities facts, and (once they exist) location state and voice/visual identity anchors. A portable artifact is therefore a versioned serialization of that structured state. Open questions: artifact format (single-file bundle vs. DB dump) and how it tracks the SQLite→Postgres direction; **schema versioning / migration** so an export from an older engine still imports (this is the load-bearing hard part, and it couples to every state-shape change made by other topics); scope (character-only vs. whole-campaign export); interaction with user ownership/auth and the one-active-campaign-per-character lock (who may import, and how to avoid duplicate "live" copies of the same character); and **trust posture for imported artifacts** — externally supplied campaign/character data is untrusted input and must be treated as data, never as instructions to the Council or engine (same boundary as the bootstrap-packet rule in AGENTS.md and the player-chat-never-to-GM rule above). Provenance: surfaced while scouting an external agent-identity project (`ethagent`, an Ethereum/ERC-8004 system for owning AI agents as wallet-held tokens with encrypted IPFS-backed memory). Nothing from it was adopted — its on-chain ownership / encryption / IPFS / ENS stack is irrelevant to narrative coherence, and the engine's structured DB state already does the memory job far better — but it prompted the portability idea, which would be built natively against the engine's own state store, not borrowed.
 
+## Dev Tooling (not a game phase — no playtest gate, but still plan-backed)
+
+- **Tauri desktop shell (approved 2026-07-03, owner request).** A standalone native
+  window for quicker local testing. Explicitly does NOT replace the browser UI — the
+  web path stays canonical (multiplayer/external-facing end state). Design:
+  self-launching shell under `desktop/` — on startup it reuses an already-running
+  server on port 3000 (`npm start` workflow) or spawns `node server.js` itself, waits
+  for the port, opens a native WebKitGTK window on http://localhost:3000, and kills
+  its spawned server on exit. Same server, same UI assets, same SQLite data. No
+  gameplay code changes. Launch via `npm run desktop`. Caveat: Tauri on Linux renders
+  in WebKitGTK (a third engine besides Firefox/Chromium) — rendering quirks seen only
+  in the shell are not automatically product bugs. Success check: launches, creates or
+  loads a campaign, plays a turn, exits cleanly leaving no orphan server process.
+
 **Review Process**: After completing each phase, we will test a full play session together, gather feedback, and only then move to the next phase. No code will be merged until it demonstrably improves the playing experience.
 
 **Current Priority**: Begin with **Phase 0 (Clarification/Table-Talk)** as it is the foundation everything else rests on.

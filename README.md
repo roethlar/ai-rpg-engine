@@ -77,6 +77,26 @@ npm start
 ```
 Open your browser to: **`http://localhost:3000`**
 
+### Optional: Desktop Shell (dev tooling)
+
+A standalone Tauri window for quicker local testing — same server, same UI, same
+database; the browser path stays canonical. One-time setup (needs the Rust
+toolchain and `webkit2gtk-4.1`):
+
+```bash
+npm install --prefix desktop
+```
+
+Then launch with:
+
+```bash
+npm run desktop
+```
+
+The shell reuses a server already running on port 3000, or starts `node server.js`
+itself and shuts it down again on exit (a reused server is left running). Set
+`AETHERIA_SERVER_DIR` if the shell binary is run from outside the repo.
+
 ---
 
 ## Docker Installation (Optional)
