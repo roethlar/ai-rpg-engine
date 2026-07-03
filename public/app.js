@@ -164,6 +164,20 @@ function toggleVoiceSettings() {
   voiceSettingsGroup.style.display = checkboxVoiceNarration.checked ? 'block' : 'none';
 }
 
+// Dynamic spotlight (Phase 1 slice, Layout D): promote one surface to the
+// stage; the rest demote to a compact rail. Same target toggles off; Esc restores.
+function setSpotlight(target) {
+  const next = mainGameScreen.dataset.focus === target ? null : target;
+  if (next) {
+    mainGameScreen.dataset.focus = next;
+  } else {
+    delete mainGameScreen.dataset.focus;
+  }
+  document.querySelectorAll('.spotlight-btn').forEach(btn => {
+    btn.setAttribute('aria-pressed', String(btn.dataset.spotlight === next));
+  });
+}
+
 function openSettingsModal() {
   loadSettings();
   settingsModal.style.display = 'flex';
@@ -274,6 +288,16 @@ function setupEventListeners() {
   document.getElementById('btn-cancel-settings').addEventListener('click', () => settingsModal.style.display = 'none');
 
   checkboxVoiceNarration.addEventListener('change', toggleVoiceSettings);
+
+  // Spotlight controls
+  document.querySelectorAll('.spotlight-btn').forEach(btn => {
+    btn.addEventListener('click', () => setSpotlight(btn.dataset.spotlight));
+  });
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && mainGameScreen.dataset.focus) {
+      setSpotlight(mainGameScreen.dataset.focus);
+    }
+  });
 
   settingsForm.addEventListener('submit', (e) => {
     e.preventDefault();

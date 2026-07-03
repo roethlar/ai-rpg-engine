@@ -21,6 +21,18 @@
 
 ## Phase 1: Narration & Scene Quality
 
+**Promoted slice — Dynamic spotlight layout (approved 2026-07-03, owner picked
+Layout D from `docs/mockups/heroic-layouts.html`):** one info rail (quest +
+character), narrative log + visualizer sharing the main field; every major
+surface (visualizer, log, character rail, right tabs panel) gets a spotlight
+control that promotes it to the main stage and demotes the rest to a compact
+rail; Esc restores. Pure frontend (CSS grid-area swaps + small JS) — no engine
+or prompt changes, so its gate is functional: owner opens the app and clicks
+through, no play session required. The current SVG visualizer occupies the
+heroic slot; the future heroic render and conditional map drop into slots this
+layout already provides. Files: public/index.html, public/styles.css,
+public/app.js.
+
 - Make narration richer, more atmospheric, and less mechanical.
 - Improve scene visualization (owner direction recorded under "Maps & Character Miniatures" in Future Topics: overhead map + tokens replaces the per-turn scene SVG; image-gen hero renders for notable encounters come in a later phase — concrete scoping deferred until after Phase 0).
 - Better handling of NPC voices and relationships in narration.

@@ -1111,6 +1111,74 @@ body {
   transition: grid-template-columns 0.3s ease;
 }
 
+/* ==========================================================================
+   DYNAMIC SPOTLIGHT (Phase 1 slice — Layout D from docs/mockups)
+   One surface promotes to the main stage; the rest demote to a compact rail.
+   Esc restores. Pure layout state: no engine or content changes.
+   ========================================================================== */
+.spotlight-btn {
+  flex: 0 0 auto;
+  margin-left: auto;
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid hsl(var(--theme-border));
+  border-radius: 6px;
+  color: hsl(var(--theme-text-dim));
+  font-size: 10px;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+.spotlight-btn:hover { color: hsl(var(--theme-primary)); border-color: hsl(var(--theme-primary)); }
+.spotlight-btn:focus-visible { outline: 2px solid hsl(var(--theme-primary)); outline-offset: 1px; }
+.spotlight-btn[aria-pressed="true"] { color: hsl(var(--theme-secondary)); border-color: hsl(var(--theme-secondary)); }
+
+.narrative-panel { position: relative; }
+.narrative-spotlight { position: absolute; top: 10px; right: 10px; z-index: 5; }
+
+.right-panel .panel-section {
+  transition: flex-basis 0.25s ease, max-height 0.25s ease, opacity 0.25s ease;
+}
+
+/* Right-side spotlights: the story becomes the rail, the right column the stage */
+.main-layout.immersive-layout[data-focus="visualizer"],
+.main-layout.immersive-layout[data-focus="character"],
+.main-layout.immersive-layout[data-focus="tabs"] {
+  grid-template-columns: 340px 1fr;
+}
+/* Diagnostics (3-column) mode keeps its outline rail */
+.main-layout:not(.immersive-layout)[data-focus="visualizer"],
+.main-layout:not(.immersive-layout)[data-focus="character"],
+.main-layout:not(.immersive-layout)[data-focus="tabs"] {
+  grid-template-columns: 280px 340px 1fr;
+}
+
+/* Demoted sections collapse to their header strip */
+[data-focus="visualizer"] .right-panel .character-section,
+[data-focus="visualizer"] .right-panel .inventory-section,
+[data-focus="character"] .right-panel .illustration-section,
+[data-focus="character"] .right-panel .inventory-section,
+[data-focus="tabs"] .right-panel .illustration-section,
+[data-focus="tabs"] .right-panel .character-section {
+  flex: 0 0 auto;
+  max-height: 56px;
+  overflow: hidden;
+  opacity: 0.65;
+}
+
+/* The promoted section takes the stage */
+[data-focus="visualizer"] .right-panel .illustration-section { flex: 1 1 auto; }
+[data-focus="character"] .right-panel .character-section { flex: 1 1 auto; overflow-y: auto; }
+[data-focus="tabs"] .right-panel .inventory-section { flex: 1 1 auto; }
+
+/* Story spotlight: widen the narrative, tighten the rail */
+.main-layout.immersive-layout[data-focus="narrative"] { grid-template-columns: 1fr 240px; }
+.main-layout:not(.immersive-layout)[data-focus="narrative"] { grid-template-columns: 280px 1fr 240px; }
+[data-focus="narrative"] .right-panel .illustration-section { flex: 0 0 150px; }
+
 /* RIGHT PANEL TABS HEADER */
 .tabs-header {
   display: flex;
