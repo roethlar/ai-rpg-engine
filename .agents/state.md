@@ -29,6 +29,9 @@ short and update it when important repo facts change.
 
 - Design-questions backlog recorded 2026-06-13 in `plan.md` "Future Topics" (and a Phase 2 note): heroic/tactical-visual split + persistence-as-visual-identity; data store SQLite→Postgres driven by cross-campaign character ownership + check-in/out; player-only comms channel (never routed to the GM); provider/model-selection strategy (no hard-coded vendor model names; media-gen behind a provider seam); persistent NPC/GM voices. Owner explicitly not ready to decide any of these — pending discussion, nothing promoted to a phase. Also recorded: deployment is native (owner does not use Docker; the repo's Docker files were a prior-model addition).
 
+- MULTI-VOICE SHIPPED 2026-07-03 (Phase 2 first cut, owner green-lit ahead of Phase 0 verdict): sticky NPC voice profiles (npcs.voice_json, assigned at creation + backfilled for existing campaigns), narrator emits speaker/tone-tagged narration_lines, engine resolves to turn.voiceLines, frontend plays sequentially with skip. Live-smoked on campaign 2 (Vera line → her cedar voice). Owner's playtest gate: voices distinct + consistent, narrator stays player-chosen, graceful fallback. Known refinement candidate: the player's own quoted words currently voice as narrator lines.
+- Remotes: owner added public github remote 2026-07-03 (pushes it himself); origin (gitea) accumulating unpushed commits pending owner go.
+
 ## Blockers
 
 - None recorded. (Depends on human starting a test campaign in the running server UI at http://localhost:3000 or 3001 and submitting the exact clarification test inputs.)
