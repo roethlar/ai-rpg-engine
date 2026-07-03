@@ -76,6 +76,13 @@ ${character.progression_notes || 'No long-term progression notes yet.'}
 {
   "input_kind": "clarification|dialogue|committed_action",
   "narrative": "If clarification: directly answer the player's question in a natural, conversational way, grounded in what the character knows or can perceive. If dialogue or committed_action: vivid narrative markdown description of what happens, ending in a hook or prompt for response.",
+  "narration_lines": [
+    // Voice-acting script: mirror the FULL narrative above, in order, split into segments.
+    // Each NPC's spoken dialogue is its own line with speaker set to their EXACT name;
+    // all description and unspoken text uses speaker "narrator". tone is a brief vocal direction.
+    { "speaker": "narrator", "tone": "hushed, building tension", "text": "Verbatim narrative segment." },
+    { "speaker": "Exact NPC Name", "tone": "amused contempt", "text": "Only the words the NPC speaks aloud." }
+  ],
   "scene_grounding": "A concise but specific description of the immediate physical situation the player character can perceive right now. Include positions and distances of visible creatures or objects, lighting, cover, exits, sounds/smells, and immediate tactical details. Always provide this, but make it especially detailed and useful on clarification turns. Example: 'The two goblins are 15 feet away near the broken cart. The larger one has a rusty axe and is slightly closer. There is a stack of crates to your left you could duck behind. The alley continues north into darkness.'",
   "suggested_choices": [
     "Suggested action 1",

@@ -205,6 +205,26 @@ export function validateTurnData(raw, currentAct = 1) {
     });
   }
 
+  // 5d. Voice script (Phase 2): speaker+tone-tagged segments mirroring the
+  // narrative, emitted at generation time so dialogue attribution comes from
+  // the narrator, not post-hoc parsing. Presentation data, not game state —
+  // survives the table-talk no-op net.
+  validated.narration_lines = [];
+  if (Array.isArray(data.narration_lines)) {
+    data.narration_lines.slice(0, 40).forEach(line => {
+      if (!line || typeof line !== 'object') return;
+      const text = typeof line.text === 'string' ? line.text.trim() : '';
+      if (!text) return;
+      validated.narration_lines.push({
+        speaker: typeof line.speaker === 'string' && line.speaker.trim() !== ''
+          ? line.speaker.trim().slice(0, 80)
+          : 'narrator',
+        tone: typeof line.tone === 'string' ? line.tone.trim().slice(0, 120) : '',
+        text: text.slice(0, 2000)
+      });
+    });
+  }
+
   // 6. Memory logs
   validated.memory_summary = typeof data.memory_summary === 'string' && data.memory_summary.trim() !== ''
     ? data.memory_summary.trim()
@@ -318,6 +338,35 @@ export function forceNoOpTurnState(finalData, turnContext, inputKind) {
   finalData.memory_keywords = '';
   finalData.dice_rolls = [];
   return finalData;
+}
+
+/**
+ * Resolves a validated voice script against the campaign's NPCs: each line's
+ * speaker is matched (case-insensitively) to a stored voice profile
+ * (npcs.voice_json). Narrator/unknown speakers get null voice/instructions so
+ * the client falls back to the player's narrator settings. Tone directions
+ * ride along as instruction suffixes.
+ */
+export function buildVoiceScript(narrationLines, npcs = []) {
+  if (!Array.isArray(narrationLines)) return [];
+  return narrationLines.map(line => {
+    const npc = npcs.find(n => n.name && line.speaker && n.name.toLowerCase() === line.speaker.toLowerCase());
+    let profile = null;
+    if (npc && npc.voice_json) {
+      try {
+        profile = JSON.parse(npc.voice_json);
+      } catch (e) {}
+    }
+    const toneSuffix = line.tone ? `Tone: ${line.tone}.` : '';
+    return {
+      speaker: line.speaker,
+      text: line.text,
+      voice: profile?.voice || null,
+      instructions: profile
+        ? [profile.instructions || '', toneSuffix].filter(Boolean).join(' ')
+        : (toneSuffix || null)
+    };
+  });
 }
 
 /**

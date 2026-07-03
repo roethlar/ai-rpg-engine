@@ -10,8 +10,10 @@ import {
   forceNoOpTurnState,
   applyCharacterUpdate,
   applyDiceConsequences,
+  buildVoiceScript,
   TABLE_TALK_KINDS
 } from './rpg-state.js';
+import { assignNpcVoiceProfile } from './tts-providers.js';
 import { getGMSystemInstruction } from './rpg-prompts.js';
 
 // Export these so index/test scripts still have direct access
@@ -816,11 +818,13 @@ Output the JSON object containing the opening narrative, scene_grounding, sugges
     );
 
     // Insert NPCs
-    for (const npc of npcList) {
+    for (const [npcIndex, npc] of npcList.entries()) {
+      // Sticky voice identity (Phase 2): assigned once at creation, stored as state.
       await db.run(
-        `INSERT INTO npcs (campaign_id, name, role, personality, quirks, relationship_value, notes, status)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-        [campaignId, npc.name, npc.role, npc.personality, npc.quirks, npc.relationship_value, npc.notes, npc.status]
+        `INSERT INTO npcs (campaign_id, name, role, personality, quirks, relationship_value, notes, status, voice_json)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [campaignId, npc.name, npc.role, npc.personality, npc.quirks, npc.relationship_value, npc.notes, npc.status,
+         JSON.stringify(assignNpcVoiceProfile(npc, npcIndex))]
       );
     }
 
@@ -880,6 +884,7 @@ Output the JSON object containing the opening narrative, scene_grounding, sugges
       svg,
       suggestedChoices: turnData.suggested_choices || [],
       rollResults: [],
+      voiceLines: buildVoiceScript(turnData.narration_lines, finalNpcList),
       inputKind: turnData.input_kind || 'dialogue'
     }
   };
@@ -1159,7 +1164,8 @@ Output the JSON object containing the narrative response, scene_grounding, sugge
       sceneGrounding: turnData.scene_grounding || null,
       svg,
       suggestedChoices: turnData.suggested_choices || [],
-      rollResults: diceRolls
+      rollResults: diceRolls,
+      voiceLines: buildVoiceScript(turnData.narration_lines, updatedNpcs)
     }
   };
 }
@@ -1459,11 +1465,12 @@ export async function forkCampaign(campaignId, turnNumber, newTitle) {
     );
 
     // NPCs
-    for (const npc of npcs) {
+    for (const [npcIndex, npc] of npcs.entries()) {
       await db.run(
-        `INSERT INTO npcs (campaign_id, name, role, personality, quirks, relationship_value, notes, status)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-        [newCampaignId, npc.name, npc.role, npc.personality, npc.quirks, npc.relationship_value, npc.notes, npc.status]
+        `INSERT INTO npcs (campaign_id, name, role, personality, quirks, relationship_value, notes, status, voice_json)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [newCampaignId, npc.name, npc.role, npc.personality, npc.quirks, npc.relationship_value, npc.notes, npc.status,
+         JSON.stringify(assignNpcVoiceProfile(npc, npcIndex))]
       );
     }
 

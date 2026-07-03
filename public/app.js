@@ -789,7 +789,7 @@ function renderGame(gameState, resetNarrative = false, options = {}) {
   turnRolls.forEach(appendRollResultBubble);
   appendGMDialogue(gameState.turn.narrative);
   if (options.narrate) {
-    narrateGmResponse(gameState.turn.narrative);
+    narrateGmResponse(gameState.turn);
   }
 
   // Scene grounding — especially valuable on clarification turns
@@ -818,8 +818,12 @@ function stripNarrationText(markdownText) {
     .slice(0, 4000);
 }
 
-// Stops any playing narration and hides the skip control.
+// Token invalidated by stopNarration; a stale token aborts a running queue.
+let narrationQueueToken = null;
+
+// Stops any playing narration (and any queued segments) and hides the skip control.
 function stopNarration() {
+  narrationQueueToken = null;
   if (currentNarrationAudio) {
     currentNarrationAudio.pause();
     URL.revokeObjectURL(currentNarrationAudio.src);
@@ -828,48 +832,76 @@ function stopNarration() {
   document.getElementById('btn-skip-narration').style.display = 'none';
 }
 
-async function narrateGmResponse(markdownText) {
-  if (!apiConfig.voiceNarration) return;
-
-  const text = stripNarrationText(markdownText);
-  if (!text) return;
-
-  stopNarration();
-
-  try {
-    const response = await fetchWithTimeout('/api/audio/narrate', {
-      method: 'POST',
-      body: JSON.stringify({
-        text,
-        audioConfig: {
-          voice: apiConfig.voiceName,
-          instructions: apiConfig.voiceInstructions
-        }
-      })
-    }, 90000);
-
-    if (!response.ok) {
-      const message = await getResponseErrorMessage(response, 'Voice narration failed');
-      throw new Error(message);
-    }
-
-    const blob = await response.blob();
+function playAudioBlob(blob) {
+  return new Promise(resolve => {
     const objectUrl = URL.createObjectURL(blob);
     currentNarrationAudio = new Audio(objectUrl);
-    const skipBtn = document.getElementById('btn-skip-narration');
     currentNarrationAudio.addEventListener('ended', () => {
       URL.revokeObjectURL(objectUrl);
       currentNarrationAudio = null;
-      skipBtn.style.display = 'none';
+      resolve();
     }, { once: true });
-    skipBtn.style.display = 'inline-flex';
-    await currentNarrationAudio.play();
+    currentNarrationAudio.play().catch(() => resolve());
+  });
+}
+
+// Multi-voice narration (Phase 2): plays the turn's voice script segment by
+// segment — NPC lines in their sticky stored voices, narrator lines in the
+// player's chosen voice. Falls back to single-voice narration of the whole
+// narrative when no script is present. Skip stops the entire queue.
+async function narrateGmResponse(turn) {
+  if (!apiConfig.voiceNarration) return;
+
+  stopNarration();
+
+  const script = Array.isArray(turn.voiceLines) && turn.voiceLines.length > 0
+    ? turn.voiceLines
+    : [{ text: turn.narrative, voice: null, instructions: null }];
+
+  const queue = script
+    .map(line => ({ ...line, text: stripNarrationText(line.text) }))
+    .filter(line => line.text);
+  if (queue.length === 0) return;
+
+  const token = {};
+  narrationQueueToken = token;
+  const skipBtn = document.getElementById('btn-skip-narration');
+  skipBtn.style.display = 'inline-flex';
+
+  try {
+    for (const line of queue) {
+      if (narrationQueueToken !== token) return;
+
+      // NPC lines carry their full stored direction; narrator lines compose
+      // the player's chosen direction with the line's tone.
+      const audioConfig = line.voice
+        ? { voice: line.voice, instructions: line.instructions || '' }
+        : { voice: apiConfig.voiceName, instructions: [apiConfig.voiceInstructions, line.instructions].filter(Boolean).join(' ') };
+
+      const response = await fetchWithTimeout('/api/audio/narrate', {
+        method: 'POST',
+        body: JSON.stringify({ text: line.text, audioConfig })
+      }, 90000);
+
+      if (!response.ok) {
+        const message = await getResponseErrorMessage(response, 'Voice narration failed');
+        throw new Error(message);
+      }
+      if (narrationQueueToken !== token) return;
+
+      await playAudioBlob(await response.blob());
+    }
     voiceErrorShown = false;
   } catch (error) {
     console.error(error);
     if (!voiceErrorShown) {
       showToast(`Voice Error: ${error.message}`, 'error');
       voiceErrorShown = true;
+    }
+  } finally {
+    if (narrationQueueToken === token) {
+      narrationQueueToken = null;
+      skipBtn.style.display = 'none';
     }
   }
 }

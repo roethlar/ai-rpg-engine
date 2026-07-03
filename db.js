@@ -311,5 +311,23 @@ export async function initDb() {
     // Ignore error if column already exists
   }
 
+  // Backfill sticky voice profiles for NPCs created before voice_json existed,
+  // deterministic per campaign so revisited campaigns keep consistent voices.
+  const voicelessNpcs = await all(`SELECT id, campaign_id, name, personality, quirks FROM npcs WHERE voice_json IS NULL ORDER BY campaign_id, id`);
+  if (voicelessNpcs.length > 0) {
+    const { assignNpcVoiceProfile } = await import('./tts-providers.js');
+    let campaignCursor = null;
+    let voiceIndex = 0;
+    for (const npc of voicelessNpcs) {
+      if (npc.campaign_id !== campaignCursor) {
+        campaignCursor = npc.campaign_id;
+        voiceIndex = 0;
+      }
+      await run(`UPDATE npcs SET voice_json = ? WHERE id = ?`, [JSON.stringify(assignNpcVoiceProfile(npc, voiceIndex)), npc.id]);
+      voiceIndex++;
+    }
+    console.log(`Assigned voice profiles to ${voicelessNpcs.length} existing NPC(s).`);
+  }
+
   console.log('Database initialized successfully at:', dbPath);
 }

@@ -1,5 +1,5 @@
 import assert from 'assert';
-import { parseJsonSafe, validateTurnData, validateRequiredChecks, rollCheck, forceNoOpTurnState, applyCharacterUpdate, applyDiceConsequences, TABLE_TALK_KINDS } from './rpg-state.js';
+import { parseJsonSafe, validateTurnData, validateRequiredChecks, rollCheck, forceNoOpTurnState, applyCharacterUpdate, applyDiceConsequences, buildVoiceScript, TABLE_TALK_KINDS } from './rpg-state.js';
 import { AIClient, resolveAgentConfig, isTransientAiError } from './api-client.js';
 
 console.log('🧪 Starting Aetheria RPG Engine tests...');
@@ -652,6 +652,58 @@ async function testTtsProviderSeam() {
 }
 
 // -------------------------------------------------------------
+// Test: multi-voice narration — script validation, sticky NPC voices (Phase 2)
+// -------------------------------------------------------------
+async function testVoiceScript() {
+  console.log(' - Running multi-voice narration tests...');
+  const { assignNpcVoiceProfile, NPC_VOICE_POOL } = await import('./tts-providers.js');
+
+  // narration_lines validation: drops empty/garbage, defaults speaker, bounds fields
+  const validated = validateTurnData({
+    input_kind: 'dialogue',
+    narrative: 'Kessler laughs.',
+    narration_lines: [
+      { speaker: 'narrator', tone: 'low, tense', text: 'The bar falls quiet.' },
+      { speaker: 'Kessler', tone: 'amused contempt', text: '"You again."' },
+      { speaker: '', text: 'orphan line gets narrator' },
+      { text: '   ' },
+      'not an object'
+    ]
+  }, 1);
+  assert.strictEqual(validated.narration_lines.length, 3, 'Empty/garbage lines dropped');
+  assert.strictEqual(validated.narration_lines[1].speaker, 'Kessler');
+  assert.strictEqual(validated.narration_lines[2].speaker, 'narrator', 'Blank speaker defaults to narrator');
+
+  // The table-talk no-op net must NOT strip the voice script (presentation, not state)
+  const clarified = validateTurnData({
+    input_kind: 'clarification',
+    narrative: 'Answer.',
+    narration_lines: [{ speaker: 'narrator', text: 'Answer.' }]
+  }, 1);
+  assert.strictEqual(clarified.narration_lines.length, 1, 'Voice script survives clarification forcing');
+
+  // Sticky NPC voice assignment: deterministic, marin excluded, direction from character
+  assert.strictEqual(NPC_VOICE_POOL.includes('marin'), false, 'NPC pool must exclude the default narrator voice');
+  const npc = { name: 'Kessler', personality: 'Cold, patient predator', quirks: 'Never raises his voice' };
+  const profile1 = assignNpcVoiceProfile(npc, 0);
+  const profile2 = assignNpcVoiceProfile(npc, 0);
+  assert.deepStrictEqual(profile1, profile2, 'Same NPC + index → same profile (sticky)');
+  assert.notStrictEqual(assignNpcVoiceProfile(npc, 1).voice, profile1.voice, 'Different index → different voice');
+  assert.strictEqual(profile1.instructions.includes('Never raises his voice'), true, 'Direction derives from quirks');
+
+  // Script resolution: NPC lines get stored profiles (case-insensitive), narrator gets nulls
+  const npcs = [{ name: 'Kessler', voice_json: JSON.stringify({ provider: 'openai', voice: 'cedar', instructions: 'Cold, quiet menace.' }) }];
+  const script = buildVoiceScript(validated.narration_lines, npcs);
+  assert.strictEqual(script[0].voice, null, 'Narrator line: client falls back to player voice');
+  assert.strictEqual(script[0].instructions, 'Tone: low, tense.', 'Narrator tone rides as suffix');
+  assert.strictEqual(script[1].voice, 'cedar', 'NPC line uses the stored sticky voice');
+  assert.strictEqual(script[1].instructions, 'Cold, quiet menace. Tone: amused contempt.', 'NPC direction + line tone compose');
+  const unknownSpeaker = buildVoiceScript([{ speaker: 'Someone New', tone: '', text: 'Hi.' }], npcs);
+  assert.strictEqual(unknownSpeaker[0].voice, null, 'Unknown speakers degrade to narrator voice');
+  assert.deepStrictEqual(buildVoiceScript(undefined, npcs), [], 'Missing script → empty (single-voice fallback)');
+}
+
+// -------------------------------------------------------------
 // Test: per-role Council config resolution (provider-scoped inheritance)
 // -------------------------------------------------------------
 function testResolveAgentConfig() {
@@ -737,6 +789,7 @@ async function runAll() {
     testApplyCharacterUpdate();
     testRefereeDiceFlow();
     testResolveAgentConfig();
+    await testVoiceScript();
     await testTtsProviderSeam();
     await testServerConfigResolution();
     await testFallbackTiering();

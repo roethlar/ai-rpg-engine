@@ -39,6 +39,18 @@ public/app.js.
 
 ## Phase 2: Voice of the Council
 
+**Implementation green-lit 2026-07-03 (owner: "I need to test multiple voices" —
+sequencing override ahead of the Phase 0 feel verdict, same pattern as the
+Council-refactor green-light). Scope of first cut:** engine assigns each NPC a
+sticky voice profile at creation (deterministic pool pick + instructions derived
+from personality/quirks, stored in npcs.voice_json); the narrator emits a
+speaker+tone-tagged voice script (narration_lines) alongside the narrative;
+the engine resolves speakers to stored profiles and returns turn.voiceLines;
+the frontend plays segments sequentially (skip stops the queue), falling back
+to single-voice narration when no script is present. Playtest gate: NPC voices
+distinct and consistent across turns; narrator remains the player's chosen
+voice; graceful fallback when the model omits the script.
+
 - Expand current TTS (OpenAI) to support multiple character voices per turn.
 - Give the DM a consistent persona/voice style that persists across a campaign.
 - Allow emotional tone directives from the Council pipeline to influence TTS parameters.

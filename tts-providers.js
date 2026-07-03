@@ -26,6 +26,22 @@ export function validateVoiceProfile(raw) {
   };
 }
 
+/**
+ * NPC voice assignment (Phase 2): deterministic pool pick + character
+ * direction derived from the NPC's recorded personality/quirks. Assigned once
+ * at NPC creation and stored in npcs.voice_json — sticky by construction.
+ * 'marin' is excluded so NPCs are distinct from the default narrator voice.
+ */
+export const NPC_VOICE_POOL = ['cedar', 'ash', 'onyx', 'coral', 'sage', 'ballad', 'verse', 'nova', 'echo', 'shimmer', 'alloy', 'fable'];
+
+export function assignNpcVoiceProfile(npc, index) {
+  const voice = NPC_VOICE_POOL[Math.abs(index) % NPC_VOICE_POOL.length];
+  const parts = [`Character voice for ${npc.name}.`];
+  if (npc.personality) parts.push(`Personality: ${npc.personality}.`);
+  if (npc.quirks) parts.push(`Speech habits: ${npc.quirks}.`);
+  return validateVoiceProfile({ provider: 'openai', voice, instructions: parts.join(' ') });
+}
+
 async function synthesizeOpenAI({ apiKey, model, voice, instructions, text }) {
   if (!apiKey) {
     throw new Error('OpenAI API key is required for voice narration.');
