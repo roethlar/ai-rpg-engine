@@ -41,6 +41,7 @@ export function sanitizeAdminAiConfig(raw) {
     ollamaUrl: cleanField(data.ollamaUrl),
     voiceApiKey: cleanField(data.voiceApiKey),
     voiceModel: cleanField(data.voiceModel),
+    voiceProvider: cleanField(data.voiceProvider),
     fallback: {
       provider: AI_PROVIDERS.includes(fallbackRaw.provider) ? fallbackRaw.provider : '',
       model: cleanField(fallbackRaw.model),
@@ -67,7 +68,8 @@ export function mergeAiConfig(adminConfig, env = process.env) {
     baseUrl: admin.baseUrl || undefined,
     ollamaUrl: admin.ollamaUrl || undefined,
     voiceApiKey: admin.voiceApiKey || env.OPENAI_API_KEY || '',
-    voiceModel: admin.voiceModel || env.TTS_MODEL || ''
+    voiceModel: admin.voiceModel || env.TTS_MODEL || '',
+    voiceProvider: admin.voiceProvider || env.TTS_PROVIDER || 'openai'
   };
 
   const fallbackProvider = admin.fallback.provider || env.FALLBACK_AI_PROVIDER || '';
@@ -107,6 +109,7 @@ export function maskAiConfig(adminConfig) {
     baseUrl: admin.baseUrl,
     ollamaUrl: admin.ollamaUrl,
     voiceModel: admin.voiceModel,
+    voiceProvider: admin.voiceProvider,
     apiKeySet: !!admin.apiKey,
     voiceApiKeySet: !!admin.voiceApiKey,
     fallback: {

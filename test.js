@@ -596,6 +596,62 @@ async function testFallbackTiering() {
 }
 
 // -------------------------------------------------------------
+// Test: TTS provider seam + voice profiles (Phase 2 groundwork)
+// -------------------------------------------------------------
+async function testTtsProviderSeam() {
+  console.log(' - Running TTS provider seam tests...');
+  const { synthesizeSpeech, validateVoiceProfile, listTtsProviders } = await import('./tts-providers.js');
+
+  assert.deepStrictEqual(listTtsProviders(), ['openai'], 'OpenAI is the baseline provider');
+  await assert.rejects(
+    () => synthesizeSpeech({ provider: 'elevenlabs', apiKey: 'k', text: 'hi' }),
+    /Unsupported TTS provider/,
+    'Unknown providers fail with a clear error'
+  );
+  await assert.rejects(
+    () => synthesizeSpeech({ provider: 'openai', apiKey: '', text: 'hi' }),
+    /API key is required/,
+    'Missing key fails fast'
+  );
+
+  const realFetch = globalThis.fetch;
+  let captured = null;
+  globalThis.fetch = async (url, options) => {
+    captured = { url: String(url), auth: options.headers.Authorization, body: JSON.parse(options.body) };
+    return { ok: true, arrayBuffer: async () => new Uint8Array([1, 2, 3]).buffer };
+  };
+  try {
+    const audio = await synthesizeSpeech({
+      provider: 'openai', apiKey: 'voice-key', model: 'gpt-4o-mini-tts',
+      voice: 'cedar', instructions: 'gravelly Viennese accent', text: 'Guten Abend.'
+    });
+    assert.strictEqual(audio.length, 3, 'Returns the audio buffer');
+    assert.strictEqual(captured.url, 'https://api.openai.com/v1/audio/speech');
+    assert.strictEqual(captured.auth, 'Bearer voice-key');
+    assert.strictEqual(captured.body.voice, 'cedar');
+    assert.strictEqual(captured.body.instructions, 'gravelly Viennese accent', 'Steerable models receive instructions');
+
+    await synthesizeSpeech({ provider: 'openai', apiKey: 'k', model: 'tts-1', voice: 'nope', instructions: 'x', text: 'hi' });
+    assert.strictEqual(captured.body.voice, 'marin', 'Unknown voices fall back to marin');
+    assert.strictEqual(captured.body.instructions, undefined, 'Fixed-character models get no instructions');
+
+    await synthesizeSpeech({ provider: 'openai', apiKey: 'k', model: 'made-up-model', text: 'hi' });
+    assert.strictEqual(captured.body.model, 'gpt-4o-mini-tts', 'Unknown TTS models fall back to the default');
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+
+  // Voice profiles: the stored voice identity of a speaker (audio canon commitment)
+  const profile = validateVoiceProfile({ voice: 'cedar', instructions: `  ${'x'.repeat(700)}  `, provider: ' openai ' });
+  assert.strictEqual(profile.voice, 'cedar');
+  assert.strictEqual(profile.provider, 'openai');
+  assert.strictEqual(profile.instructions.length, 600, 'Instructions are bounded');
+  const fallbackProfile = validateVoiceProfile({ voice: 'not-a-voice' });
+  assert.strictEqual(fallbackProfile.voice, 'marin');
+  assert.strictEqual(fallbackProfile.provider, 'openai');
+}
+
+// -------------------------------------------------------------
 // Test: per-role Council config resolution (provider-scoped inheritance)
 // -------------------------------------------------------------
 function testResolveAgentConfig() {
@@ -681,6 +737,7 @@ async function runAll() {
     testApplyCharacterUpdate();
     testRefereeDiceFlow();
     testResolveAgentConfig();
+    await testTtsProviderSeam();
     await testServerConfigResolution();
     await testFallbackTiering();
     await testProviderEndpointPin();

@@ -11,6 +11,7 @@ import {
   saveAdminAiConfig,
   maskAiConfig
 } from './server-config.js';
+import { synthesizeSpeech, TTS_VOICES } from './tts-providers.js';
 
 dotenv.config();
 
@@ -77,8 +78,6 @@ const MAX_ACTION_LENGTH = 2000;
 const MAX_TITLE_LENGTH = 160;
 const MAX_NARRATION_LENGTH = 4000;
 const MAX_TTS_INSTRUCTIONS_LENGTH = 600;
-const TTS_MODELS = new Set(['gpt-4o-mini-tts', 'gpt-4o-mini-tts-2025-12-15', 'tts-1', 'tts-1-hd']);
-const TTS_VOICES = new Set(['alloy', 'ash', 'ballad', 'coral', 'echo', 'fable', 'marin', 'nova', 'onyx', 'sage', 'shimmer', 'verse', 'cedar']);
 
 function boundedString(value, fieldName, maxLength) {
   if (typeof value !== 'string') {
@@ -450,47 +449,24 @@ app.post('/api/audio/narrate', rateLimit(20, 60000), async (req, res) => {
     // Voice API key and TTS model are server-owned (decision 2026-07-03); the
     // voice choice and style instructions remain player preferences.
     const serverConfig = await getServerAiConfig();
-    const requestedModel = serverConfig.voiceModel;
-    const requestedVoice = audioConfig.voice || process.env.TTS_VOICE;
-    const model = TTS_MODELS.has(requestedModel) ? requestedModel : 'gpt-4o-mini-tts';
-    const voice = TTS_VOICES.has(requestedVoice) ? requestedVoice : 'marin';
+    const voice = TTS_VOICES.has(audioConfig.voice || process.env.TTS_VOICE)
+      ? (audioConfig.voice || process.env.TTS_VOICE)
+      : 'marin';
     const instructions = optionalBoundedString(
       audioConfig.instructions,
       'instructions',
       MAX_TTS_INSTRUCTIONS_LENGTH,
       'Narrate as an atmospheric game master. Keep the delivery clear, tense, and cinematic without overacting.'
     );
-    const apiKey = serverConfig.voiceApiKey;
 
-    if (!apiKey) {
-      return res.status(400).json({ error: 'OpenAI API key is required for voice narration.' });
-    }
-
-    const requestBody = {
-      model,
+    const audioBuffer = await synthesizeSpeech({
+      provider: serverConfig.voiceProvider,
+      apiKey: serverConfig.voiceApiKey,
+      model: serverConfig.voiceModel,
       voice,
-      input: narrationText,
-      response_format: 'mp3'
-    };
-    if (model.startsWith('gpt-4o-mini-tts') && instructions) {
-      requestBody.instructions = instructions;
-    }
-
-    const response = await fetch('https://api.openai.com/v1/audio/speech', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(requestBody)
+      instructions,
+      text: narrationText
     });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      return res.status(response.status).json({ error: `OpenAI speech error: ${response.statusText} - ${errorText}` });
-    }
-
-    const audioBuffer = Buffer.from(await response.arrayBuffer());
     res.setHeader('Content-Type', 'audio/mpeg');
     res.setHeader('Cache-Control', 'no-store');
     res.send(audioBuffer);

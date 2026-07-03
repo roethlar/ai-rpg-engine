@@ -296,5 +296,20 @@ export async function initDb() {
     CREATE INDEX IF NOT EXISTS idx_npcs_campaign ON npcs (campaign_id)
   `);
 
+  // Voice identity as recorded state (Phase 2 groundwork, decision context in
+  // plan.md "Voice of the Council"): stable voice profiles for the GM narrator
+  // (per campaign) and each NPC — the audio analog of canon commitment.
+  // Consumed once structured narration carries per-line speakers.
+  try {
+    await run('ALTER TABLE campaigns ADD COLUMN narrator_voice_json TEXT;');
+  } catch (e) {
+    // Ignore error if column already exists
+  }
+  try {
+    await run('ALTER TABLE npcs ADD COLUMN voice_json TEXT;');
+  } catch (e) {
+    // Ignore error if column already exists
+  }
+
   console.log('Database initialized successfully at:', dbPath);
 }

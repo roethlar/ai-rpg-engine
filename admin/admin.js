@@ -86,6 +86,7 @@ function renderSettings(settings) {
   el('base-url').value = settings.baseUrl || '';
   el('ollama-url').value = settings.ollamaUrl || '';
   el('voice-model').value = settings.voiceModel || '';
+  el('voice-provider').value = settings.voiceProvider || '';
   el('fb-provider').value = settings.fallback?.provider || '';
   el('fb-model').value = settings.fallback?.model || '';
   renderSecretState('api-key-state', settings.apiKeySet);
@@ -123,6 +124,7 @@ function collectSettings(clearKeys = false) {
     ollamaUrl: el('ollama-url').value,
     voiceApiKey: secret('voice-api-key'),
     voiceModel: el('voice-model').value,
+    voiceProvider: el('voice-provider').value,
     fallback: {
       provider: el('fb-provider').value,
       model: el('fb-model').value,

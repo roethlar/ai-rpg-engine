@@ -120,6 +120,12 @@
 
       <section>
         <h2>Voice Narration (server side)</h2>
+        <label for="voice-provider">Voice provider</label>
+        <select id="voice-provider">
+          <option value="">(default: OpenAI)</option>
+          <option value="openai">OpenAI</option>
+        </select>
+        <div class="hint">Speech goes through a provider seam; additional providers (e.g. voice cloning for unique NPC voices) register in tts-providers.js and appear here.</div>
         <label for="voice-api-key">Voice API key (OpenAI)</label>
         <input type="password" id="voice-api-key" placeholder="blank = keep current" autocomplete="off">
         <div class="secret-state" id="voice-api-key-state"></div>
