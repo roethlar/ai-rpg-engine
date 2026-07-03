@@ -1,32 +1,42 @@
 {
   "validated_against": {
-    "commit": "bac5e9a5324e3f9180f5c40ef0e9086d22d0169a",
-    "date": "2026-06-11"
+    "commit": "f3d528d9eac9bd975bfa058ab62533c81d60da55",
+    "date": "2026-07-02"
   },
   "artifacts": [
     {
       "path": "AGENTS.md",
-      "purpose": "Canonical agent guidance (includes universal invariants, Bootstrap Handoff, Development Process rules from plan.md, Verification, Git Safety, Operator Requests)",
+      "purpose": "Canonical agent guidance: toolkit template verbatim (templateVersion 2026-07-02.1) with Prime Invariants, universal invariants, operators, verification and git-safety rules; replaced whole on governance refresh, never hand-edited",
+      "custody": "tracked"
+    },
+    {
+      "path": ".agents/repo-guidance.md",
+      "purpose": "Repo-specific rules carved out of the previous AGENTS.md: mission detail, development process (phase gates, playtest review), reading order, verification specifics, remotes",
       "custody": "tracked"
     },
     {
       "path": ".agents/state.md",
-      "purpose": "Current repo state, active work (Phase 0 playtest), blockers, next actions, verification commands, and unrecorded repo memory",
+      "purpose": "Current repo state, active work, blockers, next actions, verification commands, and unrecorded repo memory",
       "custody": "tracked"
     },
     {
       "path": ".agents/decisions.md",
-      "purpose": "Durable decisions and supersessions (phased dev + review gates; Council as canonical pipeline)",
+      "purpose": "Durable decisions and supersessions (phased dev + review gates; Council pipeline canonical; GM authority, omniscience, terminology, server-owned AI config)",
       "custody": "tracked"
     },
     {
       "path": ".agents/repo-map.json",
-      "purpose": "Verification config, fact-bearing paths, guidance paths, and notes about local verification + ignore rules (evidence-backed)",
+      "purpose": "Verification config, fact-bearing paths, guidance paths, and evidence-backed notes about local verification and ignore rules",
       "custody": "tracked"
     },
     {
       "path": ".agents/artifact-manifest.json",
-      "purpose": "Inventory of all durable artifacts with purposes and custody at time of approval commit",
+      "purpose": "Inventory of all durable governance artifacts with purposes and custody at time of approval commit",
+      "custody": "tracked"
+    },
+    {
+      "path": ".agents/push-policy.md",
+      "purpose": "Push policy for commits made by agents (owner-selected at governance approval: operators)",
       "custody": "tracked"
     },
     {
@@ -36,27 +46,47 @@
     },
     {
       "path": ".claude/commands/catchup.md",
-      "purpose": "Claude Code slash-command shim for the 'catchup' operator request (pointer only, per AGENTS.md)",
+      "purpose": "Claude Code slash-command wrapper for the 'catchup' operator (pointer to AGENTS.md Operator Requests)",
       "custody": "tracked"
     },
     {
       "path": ".claude/commands/handoff.md",
-      "purpose": "Claude Code slash-command shim for the 'handoff' operator request (pointer only)",
+      "purpose": "Claude Code slash-command wrapper for the 'handoff' operator (pointer only)",
       "custody": "tracked"
     },
     {
       "path": ".claude/commands/drift.md",
-      "purpose": "Claude Code slash-command shim for the 'drift' operator request (pointer only)",
+      "purpose": "Claude Code slash-command wrapper for the 'drift' operator (pointer only)",
       "custody": "tracked"
     },
     {
       "path": ".claude/commands/decision.md",
-      "purpose": "Claude Code slash-command shim for the 'decision' operator request (pointer only)",
+      "purpose": "Claude Code slash-command wrapper for the 'decision' operator (pointer only)",
       "custody": "tracked"
     },
     {
       "path": ".claude/commands/plan.md",
-      "purpose": "Claude Code slash-command shim for the 'plan' operator request (pointer only)",
+      "purpose": "Claude Code slash-command wrapper for the 'plan' operator (pointer only)",
+      "custody": "tracked"
+    },
+    {
+      "path": ".claude/commands/playbook.md",
+      "purpose": "Claude Code slash-command wrapper for the 'playbook' operator (pointer only)",
+      "custody": "tracked"
+    },
+    {
+      "path": ".claude/commands/update-governance.md",
+      "purpose": "Claude Code slash-command wrapper that refreshes this repo's governance from the AgentGovernanceBootstrap toolkit (wrapper-only entry point, not an AGENTS.md operator)",
+      "custody": "tracked"
+    },
+    {
+      "path": ".claude/settings.json",
+      "purpose": "Claude Code project hooks: re-ground pointer to AGENTS.md Prime Invariants after context compaction (SessionStart/compact) and advisory AGENTS.md pre-edit tripwire (PreToolUse)",
+      "custody": "tracked"
+    },
+    {
+      "path": ".claude/agents-md-tripwire.py",
+      "purpose": "Stdlib-Python script for the advisory AGENTS.md pre-edit tripwire hook (emits a governance-boundary reminder; never blocks edits)",
       "custody": "tracked"
     }
   ]
