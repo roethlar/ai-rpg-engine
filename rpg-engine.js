@@ -4,7 +4,8 @@ import {
   parseJsonSafe,
   createFallbackSvg,
   validateTurnData,
-  performDiceCheck,
+  validateRequiredChecks,
+  rollCheck,
   validateOutlineData,
   forceNoOpTurnState,
   TABLE_TALK_KINDS
@@ -163,14 +164,33 @@ function buildTurnContext({
   activeQuestName,
   activeQuestDesc,
   playerAction,
-  finalPlayerAction,
-  rollResult
+  finalPlayerAction
 }) {
-  const recentTurns = pastTurns.map(turn => ({
-    turn_number: turn.turn_number,
-    player_action: turn.player_action,
-    narrative_excerpt: turn.narrative.substring(0, 700)
-  }));
+  // DM omniscience (decision 2026-06-11): the mechanical record — dice rolls, applied
+  // damage and its causes — must be visible to the Council on later turns, so the DM
+  // can always explain its own mechanics. Legacy roll_result/roll_damage records from
+  // pre-refactor campaigns are mapped into the same shape.
+  const recentTurns = pastTurns.map(turn => {
+    let diceRolls = [];
+    try {
+      const stateChanges = JSON.parse(turn.state_changes_json || '{}');
+      if (Array.isArray(stateChanges.dice_rolls)) {
+        diceRolls = stateChanges.dice_rolls;
+      } else if (stateChanges.roll_result) {
+        diceRolls = [{
+          ...stateChanges.roll_result,
+          applied_health_change: typeof stateChanges.roll_damage === 'number' ? -stateChanges.roll_damage : 0
+        }];
+      }
+    } catch (e) {}
+
+    return {
+      turn_number: turn.turn_number,
+      player_action: turn.player_action,
+      narrative_excerpt: turn.narrative.substring(0, 700),
+      dice_rolls: diceRolls
+    };
+  });
 
   return {
     campaign: {
@@ -201,8 +221,7 @@ function buildTurnContext({
     })),
     recent_turns: recentTurns,
     player_input: playerAction,
-    final_player_input: finalPlayerAction,
-    rules_check: rollResult
+    final_player_input: finalPlayerAction
   };
 }
 
@@ -374,11 +393,26 @@ Your primary job is to prevent the game from feeling like a video game that forc
 - A clarification turn is pure information exchange. The player is trying to understand the scene so they can make a good decision later. This is normal and desirable tabletop play.
 - Only treat something as "committed_action" if the player has clearly stated an immediate intention to do a specific thing.
 
+=== DICE & CHECKS (rules_mode for this campaign: ${turnContext.campaign.rules_mode}) ===
+Dice are a service you order for the table, not a tax on acting. The engine rolls; you adjudicate.
+- Your FIRST decision is WHETHER a check is warranted at all. Trivial, safe, or routine actions — walking somewhere, talking, looking around, cautious movement with no active threat, using an obviously suitable tool — require NO check. Most turns require no check.
+- Require a check only when the action has genuine uncertainty AND meaningful stakes (something is risked by failure).
+- required_checks must be [] when: rules_mode is false, the action is denied or needs clarification, input_kind is not committed_action, or the action simply doesn't warrant one.
+- For each required check YOU decide the attribute, the DC (5 easy – 25 near-impossible), why it is needed, and the concrete failure consequence under this campaign's rules and fiction. health_change/mana_change are 0 or negative; 0 is legitimate — failure can be purely narrative (noticed, blocked, lost time).
+
 Return JSON matching:
 {
   "referee_status": "approved|denied|needs_clarification",
   "input_kind": "clarification|dialogue|committed_action",
   "ruling": "The fair outcome or reason for denial",
+  "required_checks": [
+    {
+      "attribute": "strength|agility|intellect|willpower",
+      "dc": 12,
+      "reason": "Why this check is warranted and what is at stake",
+      "failure_consequence": { "description": "What concretely goes wrong on failure", "health_change": 0, "mana_change": 0 }
+    }
+  ],
   "approved_state_policy": "none|limited|normal",
   "allowed_character_update": {
     "health_change": 0,
@@ -401,6 +435,7 @@ For clarification, denial, or needs_clarification, approved_state_policy must be
     referee_status: 'needs_clarification',
     input_kind: interactionProposal.input_kind || 'clarification',
     ruling: 'Unable to parse referee decision.',
+    required_checks: [],
     approved_state_policy: 'none',
     allowed_character_update: { health_change: 0, mana_change: 0, xp_gain: 0, inventory_changes: [] },
     allowed_ability_updates: [],
@@ -412,8 +447,28 @@ For clarification, denial, or needs_clarification, approved_state_policy must be
     }
   });
 
+  // Dice before narration (approved refactor, plan.md): the referee ordered the
+  // checks; the engine rolls them now, deterministically in code, so every later
+  // call — final continuity and narration — works from resolved facts. Denied or
+  // reclassified actions get no rolls, so they can never take roll damage.
+  let diceRolls = [];
+  const rollsWarranted = turnContext.campaign.rules_mode &&
+    refereeDecision.referee_status === 'approved' &&
+    refereeDecision.input_kind === 'committed_action';
+  if (rollsWarranted) {
+    const checks = validateRequiredChecks(refereeDecision.required_checks);
+    diceRolls = checks.map(check => rollCheck(turnContext.character, check));
+    for (const record of diceRolls) {
+      console.log(`[DICE] ${record.attribute} check (${record.reason || 'no reason given'}): ${record.total} vs DC ${record.dc} → ${record.success ? 'success' : `FAILURE (${record.applied_health_change} HP, ${record.applied_mana_change} MP)`}`);
+    }
+  }
+
+  const diceResultsSection = `=== DICE RESULTS (ENGINE-ROLLED, ALREADY FINAL) ===
+${diceRolls.length > 0 ? compactJson(diceRolls) : 'No checks were required this turn.'}`;
+
   const continuityFinalSystem = `You are the final continuity context call for a persistent single-player RPG.
-You receive the referee decision, perform a final consistency check, and prepare archive notes.
+You receive the referee decision and the engine-rolled dice results, perform a final consistency check, and prepare archive notes.
+Dice results are already final: do not re-roll, reinterpret, or contradict them.
 You do not narrate to the player. Return JSON only.`;
 
   const continuityFinalPrompt = `Review this current game context:
@@ -427,6 +482,8 @@ ${compactJson(continuityReview)}
 
 === REFEREE DECISION ===
 ${compactJson(refereeDecision)}
+
+${diceResultsSection}
 
 Return JSON matching:
 {
@@ -462,7 +519,12 @@ CLARIFICATION BEHAVIOR (VERY IMPORTANT):
 
 If final_status is denied or needs_clarification, explain the issue in-world and set all state changes to no-op values.
 If final_input_kind is clarification or dialogue, answer directly and set all state changes to no-op values.
-If final_input_kind is committed_action, include only state changes approved by the referee and final continuity check.`;
+If final_input_kind is committed_action, include only state changes approved by the referee and final continuity check.
+
+DICE RESULTS (VERY IMPORTANT):
+- Any dice results provided are already rolled and final, and their failure consequences (HP/mana costs) are applied mechanically by the engine.
+- Narrate so the prose matches each result exactly: successes succeed, failures fail, and the stated consequence is what goes wrong.
+- Do NOT add the consequence again to character_update — the engine already applies it. Do not invent extra rolls, damage, or costs beyond the results given.`;
 
   const finalInteractionPrompt = `${turnPrompt}
 
@@ -478,6 +540,8 @@ ${compactJson(refereeDecision)}
 === FINAL CONTINUITY CHECK AND ARCHIVE NOTES ===
 ${compactJson(continuityFinal)}
 
+${diceResultsSection}
+
 Produce the final canonical JSON response now. The player must experience one coherent DM, not separate reviewers.`;
 
   const finalRaw = await interactionClient.sendPrompt({
@@ -488,6 +552,8 @@ Produce the final canonical JSON response now. The player must experience one co
 
   try {
     const finalData = parseJsonSafe(finalRaw);
+    // The engine's roll records are canonical; whatever the narrator emitted is discarded.
+    finalData.dice_rolls = diceRolls;
     const noStateChange = continuityFinal.final_status !== 'approved' ||
       TABLE_TALK_KINDS.includes(continuityFinal.final_input_kind) ||
       continuityFinal.state_change_policy === 'none' ||
@@ -844,7 +910,7 @@ Output the JSON object containing the opening narrative, scene_grounding, sugges
       sceneGrounding: turnData.scene_grounding || null,
       svg,
       suggestedChoices: turnData.suggested_choices || [],
-      rollResult: null,
+      rollResults: [],
       inputKind: turnData.input_kind || 'dialogue'
     }
   };
@@ -895,9 +961,10 @@ export async function takeTurn(campaignId, playerAction, apiConfig) {
   const currentTurnNumber = pastTurns.length > 0 ? pastTurns[pastTurns.length - 1].turn_number + 1 : 1;
   const currentAct = campaign.current_act || 1;
 
-  // Rules mode checks happen after the context calls classify and approve the input.
-  let rollResult = null;
-  let finalPlayerAction = playerAction;
+  // Rules-mode checks are adjudicated by the Referee and rolled by the engine inside
+  // the Council pipeline (dice before narration); this function only applies the
+  // resulting consequences to character state.
+  const finalPlayerAction = playerAction;
 
   // 2. Build the context prompt
   const dmSystem = getDMSystemInstruction(outline, character, npcs, currentAct);
@@ -971,8 +1038,7 @@ Output the JSON object containing the narrative response, scene_grounding, sugge
     activeQuestName,
     activeQuestDesc,
     playerAction,
-    finalPlayerAction,
-    rollResult
+    finalPlayerAction
   });
   const aiResponse = await runMultiAgentTurn({ apiConfig, dmSystem, turnContext, turnPrompt });
 
@@ -1000,34 +1066,28 @@ Output the JSON object containing the narrative response, scene_grounding, sugge
     turnData.memory_summary = null;
     turnData.memory_keywords = '';
     turnData.dice_rolls = [];
-    rollResult = null;
   }
 
-  if (campaign.rules_mode && turnData.input_kind === 'committed_action') {
-    rollResult = performDiceCheck(character, playerAction);
-    turnData.roll_result = rollResult;
-    console.log(`Rules check generated: ${rollResult.attribute} ${rollResult.total} vs DC ${rollResult.dc}`);
-  }
-
-  // If rules check occurred, bundle it inside turnData to store in DB
-  if (rollResult) {
-    turnData.roll_result = rollResult;
+  // Dice results are referee-adjudicated and engine-rolled inside the Council pipeline;
+  // the narration was written from them. Here the engine applies the adjudicated failure
+  // consequences carried on each roll record — no hardcoded penalties.
+  const diceRolls = Array.isArray(turnData.dice_rolls) ? turnData.dice_rolls : [];
+  for (const record of diceRolls) {
+    if (record.success) continue;
+    if (typeof record.applied_health_change === 'number' && record.applied_health_change < 0) {
+      character.health = Math.max(0, character.health + record.applied_health_change);
+    }
+    if (typeof record.applied_mana_change === 'number' && record.applied_mana_change < 0) {
+      character.mana = Math.max(0, character.mana + record.applied_mana_change);
+    }
   }
 
   // Apply state updates (Unify Level Up mechanics)
   const updates = turnData.character_update || {};
-  
+
   // Health
   if (typeof updates.health_change === 'number') {
     character.health = Math.max(0, Math.min(character.max_health, character.health + updates.health_change));
-  }
-  // Modifier checks or special roll results can also apply damage checks
-  if (rollResult && !rollResult.success) {
-    // Penalty for failed roll
-    const damage = Math.floor(Math.random() * 6) + 5; // 5-10 damage
-    character.health = Math.max(0, character.health - damage);
-    turnData.roll_damage = damage;
-    turnData.narrative += `\n\n⚠️ **You took ${damage} damage from the failed challenge!**`;
   }
 
   // Mana
@@ -1188,7 +1248,7 @@ Output the JSON object containing the narrative response, scene_grounding, sugge
       sceneGrounding: turnData.scene_grounding || null,
       svg,
       suggestedChoices: turnData.suggested_choices || [],
-      rollResult
+      rollResults: diceRolls
     }
   };
 }
@@ -1230,7 +1290,7 @@ export async function getCampaignState(campaignId) {
   let activeQuestDesc = outline.starting_quest.description;
   let currentAct = campaign.current_act || 1;
   let suggestedChoices = [];
-  let rollResult = null;
+  let rollResults = [];
   let inputKind = 'committed_action';
   let lastTurnData = null;
 
@@ -1242,7 +1302,12 @@ export async function getCampaignState(campaignId) {
         activeQuestDesc = lastTurnData.quest_update.quest_description || '';
       }
       suggestedChoices = lastTurnData.suggested_choices || [];
-      rollResult = lastTurnData.roll_result || null;
+      if (Array.isArray(lastTurnData.dice_rolls) && lastTurnData.dice_rolls.length > 0) {
+        rollResults = lastTurnData.dice_rolls;
+      } else if (lastTurnData.roll_result) {
+        // Legacy pre-refactor turn record
+        rollResults = [lastTurnData.roll_result];
+      }
       inputKind = lastTurnData.input_kind || inputKind;
     } catch(e) {}
   }
@@ -1267,7 +1332,7 @@ export async function getCampaignState(campaignId) {
       sceneGrounding: lastTurnData ? lastTurnData.scene_grounding || null : null,
       svg: lastTurn ? lastTurn.svg_illustration : createFallbackSvg(campaign.title),
       suggestedChoices,
-      rollResult
+      rollResults
     }
   };
 }
@@ -1409,8 +1474,22 @@ export async function forkCampaign(campaignId, turnNumber, newTitle) {
     }
     
     // Applying failed roll penalty if turn is not the first one and a failed roll is logged in state changes
+    // (legacy pre-refactor turn records)
     if (turn.turn_number > 1 && turnData.roll_result && !turnData.roll_result.success && typeof turnData.roll_damage === 'number') {
       character.health = Math.max(0, character.health - turnData.roll_damage);
+    }
+
+    // Replay referee-adjudicated dice consequences (dice-before-narration turn records)
+    if (turn.turn_number > 1 && Array.isArray(turnData.dice_rolls)) {
+      for (const record of turnData.dice_rolls) {
+        if (!record || record.success) continue;
+        if (typeof record.applied_health_change === 'number' && record.applied_health_change < 0) {
+          character.health = Math.max(0, character.health + record.applied_health_change);
+        }
+        if (typeof record.applied_mana_change === 'number' && record.applied_mana_change < 0) {
+          character.mana = Math.max(0, character.mana + record.applied_mana_change);
+        }
+      }
     }
 
     if (updates.inventory_changes && Array.isArray(updates.inventory_changes)) {

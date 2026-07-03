@@ -178,6 +178,33 @@ export function validateTurnData(raw, currentAct = 1) {
     ? data.scene_grounding.trim()
     : null;
 
+  // 5c. Dice roll records (engine-rolled in the Council path; sanitized here so the
+  // durable turn state — which clarification turns and forks replay — stays well-formed)
+  validated.dice_rolls = [];
+  if (Array.isArray(data.dice_rolls)) {
+    data.dice_rolls.slice(0, 3).forEach(roll => {
+      if (!roll || typeof roll !== 'object') return;
+      if (typeof roll.total !== 'number' || isNaN(roll.total)) return;
+      if (typeof roll.dc !== 'number' || isNaN(roll.dc)) return;
+      validated.dice_rolls.push({
+        attribute: typeof roll.attribute === 'string' ? roll.attribute : 'strength',
+        roll: typeof roll.roll === 'number' && !isNaN(roll.roll) ? roll.roll : 0,
+        modifier: typeof roll.modifier === 'number' && !isNaN(roll.modifier) ? roll.modifier : 0,
+        total: roll.total,
+        dc: roll.dc,
+        success: !!roll.success,
+        reason: typeof roll.reason === 'string' ? roll.reason.trim() : '',
+        consequence: typeof roll.consequence === 'string' ? roll.consequence.trim() : '',
+        applied_health_change: typeof roll.applied_health_change === 'number' && !isNaN(roll.applied_health_change)
+          ? Math.max(-50, Math.min(0, Math.floor(roll.applied_health_change)))
+          : 0,
+        applied_mana_change: typeof roll.applied_mana_change === 'number' && !isNaN(roll.applied_mana_change)
+          ? Math.max(-30, Math.min(0, Math.floor(roll.applied_mana_change)))
+          : 0
+      });
+    });
+  }
+
   // 6. Memory logs
   validated.memory_summary = typeof data.memory_summary === 'string' && data.memory_summary.trim() !== ''
     ? data.memory_summary.trim()
@@ -294,63 +321,72 @@ export function forceNoOpTurnState(finalData, turnContext, inputKind) {
 }
 
 /**
- * Performs a d20 roll check against one of the player's core attributes.
+ * Dice-before-narration (approved Council refactor, plan.md): the Referee decides
+ * which checks a committed action requires; the engine rolls; the narrator writes
+ * prose from the resolved results. These helpers own the engine side.
  */
-export function performDiceCheck(character, actionText) {
-  const actionLower = actionText.toLowerCase();
-  
-  // Decide the attribute based on keywords
-  let attribute = 'strength'; // fallback default
-  
-  const strKeywords = ['strength', 'force', 'break', 'shatter', 'lift', 'pull', 'push', 'strike', 'hit', 'smash', 'climb', 'jump', 'swim', 'kick', 'bash'];
-  const agiKeywords = ['agility', 'dodge', 'sneak', 'steal', 'pick', 'lock', 'hide', 'slip', 'tumble', 'reflex', 'throw', 'shoot', 'arrow', 'run', 'escape', 'leap'];
-  const intKeywords = ['intellect', 'spell', 'cast', 'magic', 'read', 'decipher', 'lore', 'study', 'remember', 'analyze', 'examine', 'investigate', 'understand', 'identify'];
-  const wilKeywords = ['willpower', 'resist', 'endure', 'persuade', 'diplomacy', 'intimidate', 'charm', 'bluff', 'pray', 'heal', 'meditate', 'convince', 'calm'];
+const CHECK_ATTRIBUTES = ['strength', 'agility', 'intellect', 'willpower'];
+const MAX_CHECKS_PER_TURN = 3;
 
-  if (agiKeywords.some(kw => actionLower.includes(kw))) {
-    attribute = 'agility';
-  } else if (intKeywords.some(kw => actionLower.includes(kw))) {
-    attribute = 'intellect';
-  } else if (wilKeywords.some(kw => actionLower.includes(kw))) {
-    attribute = 'willpower';
-  } else if (strKeywords.some(kw => actionLower.includes(kw))) {
-    attribute = 'strength';
-  } else {
-    // If no keyword matches, use the highest character attribute to reward character specialization
-    const attrs = character.attributes || {};
-    let highestVal = -1;
-    for (const [key, val] of Object.entries(attrs)) {
-      if (val > highestVal) {
-        highestVal = val;
-        attribute = key;
+/**
+ * Sanitizes the Referee's required_checks output. Drops malformed entries,
+ * clamps DCs and failure consequences, caps the number of checks per turn.
+ */
+export function validateRequiredChecks(raw) {
+  if (!Array.isArray(raw)) return [];
+  const checks = [];
+  for (const entry of raw) {
+    if (checks.length >= MAX_CHECKS_PER_TURN) break;
+    if (!entry || typeof entry !== 'object') continue;
+    if (!CHECK_ATTRIBUTES.includes(entry.attribute)) continue;
+
+    const consequence = entry.failure_consequence && typeof entry.failure_consequence === 'object'
+      ? entry.failure_consequence
+      : {};
+
+    checks.push({
+      attribute: entry.attribute,
+      dc: typeof entry.dc === 'number' && !isNaN(entry.dc)
+        ? Math.max(5, Math.min(25, Math.floor(entry.dc)))
+        : 12,
+      reason: typeof entry.reason === 'string' ? entry.reason.trim() : '',
+      failure_consequence: {
+        description: typeof consequence.description === 'string' ? consequence.description.trim() : '',
+        health_change: typeof consequence.health_change === 'number' && !isNaN(consequence.health_change)
+          ? Math.max(-50, Math.min(0, Math.floor(consequence.health_change)))
+          : 0,
+        mana_change: typeof consequence.mana_change === 'number' && !isNaN(consequence.mana_change)
+          ? Math.max(-30, Math.min(0, Math.floor(consequence.mana_change)))
+          : 0
       }
-    }
+    });
   }
+  return checks;
+}
 
-  const attrValue = character.attributes?.[attribute] || 10;
-  
-  // D&D modifier calculation formula: floor((val - 10) / 2)
+/**
+ * Rolls one referee-defined check: d20 + D&D-style attribute modifier vs DC.
+ * The returned record is the canonical roll record for the turn state: on
+ * failure it carries the referee-adjudicated consequence as applied_* values.
+ */
+export function rollCheck(character, check) {
+  const attrValue = character.attributes?.[check.attribute] ?? 10;
   const modifier = Math.floor((attrValue - 10) / 2);
-  
-  // Roll a d20
   const roll = Math.floor(Math.random() * 20) + 1;
   const total = roll + modifier;
-
-  // Determine difficulty class (DC) randomly
-  // 10: Easy (35%), 13: Medium-Easy (20%), 15: Medium (30%), 18: Hard (15%)
-  const dcs = [10, 10, 10, 13, 13, 15, 15, 15, 18, 18];
-  const dcIndex = Math.floor(Math.random() * dcs.length);
-  const dc = dcs[dcIndex];
-  
-  const success = total >= dc;
+  const success = total >= check.dc;
 
   return {
-    attribute,
+    attribute: check.attribute,
     roll,
     modifier,
     total,
-    dc,
-    success
+    dc: check.dc,
+    success,
+    reason: check.reason || '',
+    consequence: check.failure_consequence?.description || '',
+    applied_health_change: success ? 0 : (check.failure_consequence?.health_change || 0),
+    applied_mana_change: success ? 0 : (check.failure_consequence?.mana_change || 0)
   };
 }
 

@@ -1,5 +1,5 @@
 import assert from 'assert';
-import { parseJsonSafe, validateTurnData, performDiceCheck, forceNoOpTurnState, TABLE_TALK_KINDS } from './rpg-state.js';
+import { parseJsonSafe, validateTurnData, validateRequiredChecks, rollCheck, forceNoOpTurnState, TABLE_TALK_KINDS } from './rpg-state.js';
 import { AIClient, resolveAgentConfig } from './api-client.js';
 
 console.log('🧪 Starting Aetheria RPG Engine tests...');
@@ -249,32 +249,76 @@ function testForceNoOpTurnState() {
 }
 
 // -------------------------------------------------------------
-// Test 5: Dice Check modifier & DC success math
+// Test 5: Referee-adjudicated dice — check validation & roll math
 // -------------------------------------------------------------
-function testDiceCheckMath() {
-  console.log(' - Running dice roll and DC math tests...');
-  
-  const mockChar = {
-    attributes: { strength: 14, agility: 8, intellect: 16, willpower: 10 }
-  };
-  
-  // Agility check keywords should trigger agility check
-  const res1 = performDiceCheck(mockChar, 'Try to sneak past the guards');
-  assert.strictEqual(res1.attribute, 'agility');
-  assert.strictEqual(res1.modifier, -1, 'AGI 8 modifier should be -1');
+function testRefereeDiceFlow() {
+  console.log(' - Running referee-adjudicated dice check tests...');
 
-  // Intellect check keywords should trigger intellect check
-  const res2 = performDiceCheck(mockChar, 'Attempt to decipher the ancient scroll');
-  assert.strictEqual(res2.attribute, 'intellect');
-  assert.strictEqual(res2.modifier, 3, 'INT 16 modifier should be 3');
+  // validateRequiredChecks: sanitize the referee's output
+  const rawChecks = [
+    { attribute: 'agility', dc: 14, reason: 'Leap the chasm', failure_consequence: { description: 'You fall onto the rocks', health_change: -8, mana_change: 0 } },
+    { attribute: 'luck', dc: 10 },                                            // invalid attribute → dropped
+    { attribute: 'strength', dc: 99, failure_consequence: { health_change: -200, mana_change: 5 } }, // clamped
+    { attribute: 'intellect' },                                               // missing dc → default
+    { attribute: 'willpower', dc: 12 },                                       // over the 3-check cap → dropped
+    { attribute: 'agility', dc: 12 }
+  ];
+  const checks = validateRequiredChecks(rawChecks);
+  assert.strictEqual(checks.length, 3, 'Should cap checks at 3 per turn and drop invalid attributes');
+  assert.strictEqual(checks[0].attribute, 'agility');
+  assert.strictEqual(checks[0].failure_consequence.health_change, -8);
+  assert.strictEqual(checks[1].dc, 25, 'Should clamp DC to 25 max');
+  assert.strictEqual(checks[1].failure_consequence.health_change, -50, 'Should clamp failure damage to -50');
+  assert.strictEqual(checks[1].failure_consequence.mana_change, 0, 'Positive mana consequence must clamp to 0 (consequences are costs)');
+  assert.strictEqual(checks[2].dc, 12, 'Missing DC should default to 12');
+  assert.deepStrictEqual(validateRequiredChecks(null), [], 'Non-array input yields no checks');
+  assert.deepStrictEqual(validateRequiredChecks('roll everything'), [], 'Garbage input yields no checks');
 
-  // Default behavior should choose highest attribute (intellect = 16)
-  const res3 = performDiceCheck(mockChar, 'Do some random action');
-  assert.strictEqual(res3.attribute, 'intellect', 'Should default to highest attribute');
-  
-  // Math validation
-  assert.strictEqual(res3.total, res3.roll + res3.modifier, 'Total must equal roll + modifier');
-  assert.strictEqual(res3.success, res3.total >= res3.dc, 'Success flag should match total >= DC');
+  // rollCheck: d20 math and consequence application
+  const mockChar = { attributes: { strength: 14, agility: 8, intellect: 20, willpower: 10 } };
+
+  // Guaranteed failure: AGI 8 → mod -1, max total 19 < DC 25
+  const fail = rollCheck(mockChar, {
+    attribute: 'agility', dc: 25, reason: 'Impossible leap',
+    failure_consequence: { description: 'You fall', health_change: -8, mana_change: -3 }
+  });
+  assert.strictEqual(fail.modifier, -1, 'AGI 8 modifier should be -1');
+  assert.strictEqual(fail.total, fail.roll + fail.modifier, 'Total must equal roll + modifier');
+  assert.strictEqual(fail.success, false, 'Total 19 max cannot beat DC 25');
+  assert.strictEqual(fail.applied_health_change, -8, 'Failed check must carry the adjudicated HP consequence');
+  assert.strictEqual(fail.applied_mana_change, -3, 'Failed check must carry the adjudicated mana consequence');
+  assert.strictEqual(fail.consequence, 'You fall');
+
+  // Guaranteed success: INT 20 → mod +5, min total 6 >= DC 5
+  const succeed = rollCheck(mockChar, {
+    attribute: 'intellect', dc: 5, reason: 'Trivial recall',
+    failure_consequence: { description: 'Forgotten', health_change: -10, mana_change: -5 }
+  });
+  assert.strictEqual(succeed.modifier, 5, 'INT 20 modifier should be +5');
+  assert.strictEqual(succeed.success, true, 'Min total 6 always beats DC 5');
+  assert.strictEqual(succeed.applied_health_change, 0, 'Successful check must apply no consequence');
+  assert.strictEqual(succeed.applied_mana_change, 0, 'Successful check must apply no consequence');
+
+  // validateTurnData: dice roll records survive on committed_action, are wiped on clarification
+  const withRolls = validateTurnData({
+    input_kind: 'committed_action',
+    narrative: 'You leap.',
+    dice_rolls: [
+      { attribute: 'agility', roll: 4, modifier: -1, total: 3, dc: 14, success: false, reason: 'Leap', consequence: 'Fall', applied_health_change: -8, applied_mana_change: 0 },
+      { attribute: 'strength', total: 'NaN', dc: 10 },  // malformed → dropped
+      { attribute: 'strength', total: 15, dc: 10, success: true, applied_health_change: -99 } // clamped
+    ]
+  }, 1);
+  assert.strictEqual(withRolls.dice_rolls.length, 2, 'Malformed roll records must be dropped');
+  assert.strictEqual(withRolls.dice_rolls[0].applied_health_change, -8);
+  assert.strictEqual(withRolls.dice_rolls[1].applied_health_change, -50, 'Applied consequence must clamp to -50');
+
+  const clarWithRolls = validateTurnData({
+    input_kind: 'clarification',
+    narrative: 'The chasm is about ten feet wide.',
+    dice_rolls: [{ attribute: 'agility', total: 12, dc: 14, success: false, applied_health_change: -8 }]
+  }, 1);
+  assert.deepStrictEqual(clarWithRolls.dice_rolls, [], 'Clarification turns must never carry dice rolls');
 }
 
 // -------------------------------------------------------------
@@ -365,7 +409,7 @@ async function runAll() {
     testProductionSsrfBlock();
     testJsonSchemaValidation();
     testForceNoOpTurnState();
-    testDiceCheckMath();
+    testRefereeDiceFlow();
     testResolveAgentConfig();
     await testTaskQueueSerialization();
     console.log('✅ All unit tests completed successfully!');

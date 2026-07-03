@@ -765,9 +765,10 @@ function renderGame(gameState, resetNarrative = false, options = {}) {
   if (resetNarrative) {
     narrativeContainer.innerHTML = '';
   }
-  if (gameState.turn.rollResult) {
-    appendRollResultBubble(gameState.turn.rollResult);
-  }
+  const turnRolls = Array.isArray(gameState.turn.rollResults)
+    ? gameState.turn.rollResults
+    : (gameState.turn.rollResult ? [gameState.turn.rollResult] : []);
+  turnRolls.forEach(appendRollResultBubble);
   appendDMDialogue(gameState.turn.narrative);
   if (options.narrate) {
     narrateDmResponse(gameState.turn.narrative);
@@ -1189,17 +1190,28 @@ function showToast(msg, type = 'info') {
 function appendRollResultBubble(roll) {
   const el = document.createElement('div');
   el.className = 'log-entry log-roll';
-  const outcomeText = roll.success ? 'SUCCESS' : 'FAILURE';
+  const costs = [];
+  if (!roll.success && typeof roll.applied_health_change === 'number' && roll.applied_health_change < 0) {
+    costs.push(`${roll.applied_health_change} HP`);
+  }
+  if (!roll.success && typeof roll.applied_mana_change === 'number' && roll.applied_mana_change < 0) {
+    costs.push(`${roll.applied_mana_change} MP`);
+  }
+  const outcomeText = roll.success ? 'SUCCESS' : `FAILURE${costs.length ? ` (${costs.join(', ')})` : ''}`;
   const outcomeClass = roll.success ? 'roll-success' : 'roll-failure';
-  
+  const reasonHtml = roll.reason
+    ? `<div class="roll-reason">${escapeHtml(roll.reason)}</div>`
+    : '';
+
   el.innerHTML = DOMPurify.sanitize(`
     <div class="roll-badge-container">
       <span class="roll-d20-icon"><i class="fa-solid fa-dice-d20"></i></span>
       <div class="roll-details">
         <div class="roll-calculation">
-          <strong>${(roll.attribute || 'stat').toUpperCase()} CHECK:</strong> 
+          <strong>${(roll.attribute || 'stat').toUpperCase()} CHECK:</strong>
           Roll ${roll.roll} + Mod ${roll.modifier >= 0 ? '+' : ''}${roll.modifier} = <strong>${roll.total}</strong> vs DC ${roll.dc}
         </div>
+        ${reasonHtml}
         <div class="roll-outcome ${outcomeClass}">${outcomeText}</div>
       </div>
     </div>
@@ -1278,12 +1290,14 @@ function renderChronologyTimeline(items) {
       let stateChanges = {};
       try { stateChanges = JSON.parse(turn.state_changes_json || '{}'); } catch(e) {}
       
-      const roll = stateChanges.roll_result;
-      const rollBadgeHtml = roll 
-        ? `<div class="timeline-roll-badge ${roll.success ? 'success' : 'fail'}">
-             <i class="fa-solid fa-dice-d20"></i> ${(roll.attribute || 'stat').toUpperCase()} check: ${roll.total} vs DC ${roll.dc}
-           </div>`
-        : '';
+      const timelineRolls = Array.isArray(stateChanges.dice_rolls) && stateChanges.dice_rolls.length > 0
+        ? stateChanges.dice_rolls
+        : (stateChanges.roll_result ? [stateChanges.roll_result] : []);
+      const rollBadgeHtml = timelineRolls.map(roll =>
+        `<div class="timeline-roll-badge ${roll.success ? 'success' : 'fail'}">
+           <i class="fa-solid fa-dice-d20"></i> ${(roll.attribute || 'stat').toUpperCase()} check: ${roll.total} vs DC ${roll.dc}
+         </div>`
+      ).join('');
 
       const safeHtml = DOMPurify.sanitize(`
         <div class="timeline-node-header">
