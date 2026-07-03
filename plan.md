@@ -122,9 +122,21 @@ This plan will be updated as we learn from implementation and playtesting.
 - Will capture outputs, check for `sceneGrounding` "Current Situation" block, direct non-advancing answers, zero state mutations on clarification turns, and correct `input_kind`.
 - If good for several back-and-forths, mark Phase 0 complete + commit. If not, refine prompts + re-test immediately per the "review after each phase" rule.
 
-**Phase 0 — Council Efficiency Refactor (approved 2026-06-05, not yet implemented)**
+**Phase 0 — Council Efficiency Refactor (approved 2026-06-05, implemented 2026-07-03 — pending playtest)**
 
-Recorded here first, so the code is plan-backed before it is written:
+Implemented 2026-07-03 in three commits (owner green-lit ahead of the Phase 0
+over-conservatism probe): dead single-model path deleted; 2-call table-talk path
+(interaction + grounding verifier) for clarification/dialogue with state forced to
+no-op per decision 2026-06-05 (`forceNoOpTurnState`, DB-truth quest reset folded in);
+dice-before-narration (Referee decides whether/which checks with failure consequences,
+engine rolls between Referee and Continuity-Final, narrator writes from resolved
+results, engine applies adjudicated consequences — keyword matching and the hardcoded
+5-10 HP penalty deleted, denied actions can no longer take roll damage, roll records
+now visible to later turns per the omniscience decision). Unit suite green with new
+guard-proven tests; success check below still requires a rules_mode playtest before
+this counts as done.
+
+Original design (recorded here first, so the code is plan-backed before it was written):
 - **Branch the Council on `input_kind` after the Interaction Agent.** `clarification` and `dialogue` take a **2-call path**: (1) the Interaction Agent answers the question and classifies it, (2) a single grounding/continuity verifier independently checks that answer against game state (anti-hallucination / anti-drift) and emits the final player-facing JSON with all state forced to no-op. `committed_action` keeps the **full chain** (Interaction → Continuity → Referee → Continuity-Final → Narration), because only it mutates state. Rationale: a question should not cost 5 LLM calls — today the Referee and Continuity-Final are forced no-ops on clarification turns, pure overhead. The independent verifier preserves the anti-hallucination guarantee while halving the call count for table-talk.
 - **Delete the dead single-model path.** `isMultiAgentModeEnabled()` hardcodes `true`, so the single-model branch in `takeTurn`, its unused client, and the toggle are unreachable. Remove them; the Council becomes the only path. Fold the one correct behavior currently living in that block (resetting `quest_update` to the *real* active quest on clarification) into the verifier so it isn't lost.
 - **Success check:** clarification still produces zero state mutations and a useful `scene_grounding`; committed actions still adjudicate normally; all existing tests pass.
