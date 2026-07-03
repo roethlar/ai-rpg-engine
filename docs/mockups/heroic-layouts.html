@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Heroic &amp; Map — Layout Options</title>
+<style>
+/* ===== Page shell (theme-aware); mock frames commit to the in-game dark ===== */
+:root {
+  --shell-bg: #f4f2f7;
+  --shell-text: #241a2e;
+  --shell-dim: #6d5f7c;
+  --shell-line: #d9d2e3;
+  --accent: #b3128a;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --shell-bg: #171020; --shell-text: #e8e2f0; --shell-dim: #9b8daa; --shell-line: #322843; --accent: #ff2fae; }
+}
+:root[data-theme="dark"] { --shell-bg: #171020; --shell-text: #e8e2f0; --shell-dim: #9b8daa; --shell-line: #322843; --accent: #ff2fae; }
+:root[data-theme="light"] { --shell-bg: #f4f2f7; --shell-text: #241a2e; --shell-dim: #6d5f7c; --shell-line: #d9d2e3; --accent: #b3128a; }
+
+/* In-game frame tokens (Aetheria .theme-cyberpunk) */
+:root {
+  --g-bg: #0b0512; --g-panel: #150a20; --g-panel2: #1c0e2a;
+  --g-pink: #ff2fae; --g-cyan: #00dede; --g-text: #e8fbfa; --g-dim: #9b7fae;
+  --g-line: #3a1f52;
+  --font-title: 'Outfit', system-ui, sans-serif;
+  --font-body: 'Inter', system-ui, sans-serif;
+  --font-dialogue: 'Playfair Display', Georgia, serif;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--shell-bg); color: var(--shell-text);
+  font-family: var(--font-body); line-height: 1.55;
+  padding: 32px 16px 80px;
+}
+main { max-width: 1080px; margin: 0 auto; }
+h1 { font-family: var(--font-title); font-size: 26px; letter-spacing: 0.5px; text-wrap: balance; }
+.lede { color: var(--shell-dim); font-size: 14px; max-width: 68ch; margin: 8px 0 24px; }
+.lede code { font-size: 12.5px; }
+
+/* ===== Controls ===== */
+.controls { display: flex; flex-wrap: wrap; gap: 12px 28px; align-items: center; margin-bottom: 18px; }
+.control-group { display: flex; gap: 6px; align-items: center; }
+.control-label { font-family: var(--font-title); font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--shell-dim); margin-right: 4px; }
+.controls button {
+  font-family: var(--font-title); font-size: 13px; font-weight: 600;
+  padding: 7px 14px; border-radius: 6px; cursor: pointer;
+  border: 1px solid var(--shell-line); background: transparent; color: var(--shell-text);
+}
+.controls button:hover { border-color: var(--accent); }
+.controls button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.controls button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+/* ===== Mock frame chrome ===== */
+.frame {
+  display: none;
+  background: var(--g-bg); color: var(--g-text);
+  border: 1px solid var(--g-line); border-radius: 12px;
+  overflow: hidden; box-shadow: 0 18px 50px rgba(10, 2, 20, 0.45);
+}
+.frame.active { display: block; }
+.frame-top {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 10px 18px; border-bottom: 1px solid var(--g-line);
+  background: rgba(28, 14, 42, 0.6);
+}
+.frame-top .title { font-family: var(--font-title); font-weight: 800; font-size: 14px; letter-spacing: 1px;
+  background: linear-gradient(135deg, var(--g-pink), var(--g-cyan));
+  -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+.frame-top .campaign { font-size: 11px; color: var(--g-dim); }
+.frame-grid { display: grid; gap: 12px; padding: 12px; min-height: 560px; }
+
+.gpanel { background: rgba(28, 14, 42, 0.5); border: 1px solid var(--g-line); border-radius: 9px; padding: 12px; }
+.gpanel h4 { font-family: var(--font-title); font-size: 10px; text-transform: uppercase; letter-spacing: 1.6px; color: var(--g-cyan); margin-bottom: 8px; }
+
+/* Character mini-panel */
+.char-name { font-family: var(--font-title); font-weight: 700; font-size: 14px; }
+.char-class { font-size: 10.5px; color: var(--g-dim); margin-bottom: 10px; }
+.bar { height: 7px; border-radius: 4px; background: #241233; overflow: hidden; margin: 4px 0 8px; }
+.bar i { display: block; height: 100%; border-radius: 4px; }
+.bar-label { font-size: 9.5px; text-transform: uppercase; letter-spacing: 1px; color: var(--g-dim); }
+.hp i { width: 72%; background: linear-gradient(90deg, #ff3d67, var(--g-pink)); }
+.mp i { width: 55%; background: linear-gradient(90deg, #2f6bff, var(--g-cyan)); }
+.quest { font-size: 11px; color: var(--g-dim); line-height: 1.45; margin-top: 10px; }
+.quest b { color: var(--g-text); display: block; font-size: 11.5px; }
+
+/* Narrative log */
+.log { display: flex; flex-direction: column; gap: 12px; overflow: hidden; }
+.log-player { align-self: flex-end; max-width: 82%; background: rgba(0, 222, 222, 0.08); border: 1px solid rgba(0, 222, 222, 0.35); border-radius: 8px; padding: 8px 12px; font-size: 12px; }
+.log-gm { max-width: 94%; font-size: 12.5px; }
+.log-gm .who { font-family: var(--font-title); font-size: 9px; letter-spacing: 1.4px; text-transform: uppercase; color: var(--g-pink); margin-bottom: 4px; }
+.log-gm em { font-family: var(--font-dialogue); font-size: 13.5px; color: #fff; }
+.log-gm p { color: #cfc3dd; }
+
+/* Heroic surface — stands in for an AI image render */
+.heroic {
+  position: relative; border-radius: 9px; overflow: hidden;
+  border: 1px solid var(--g-line); min-height: 120px;
+  background:
+    radial-gradient(ellipse 75% 60% at 68% 30%, rgba(255, 47, 174, 0.5), transparent 60%),
+    radial-gradient(ellipse 60% 80% at 20% 85%, rgba(0, 222, 222, 0.28), transparent 55%),
+    linear-gradient(178deg, #2b0f3f 0%, #12061e 55%, #060210 100%);
+}
+.heroic::before { /* skyline silhouette */
+  content: ""; position: absolute; inset: auto 0 0 0; height: 46%;
+  background: linear-gradient(0deg, #05010c 30%, transparent 100%),
+    repeating-linear-gradient(90deg, #0d0518 0 26px, #140826 26px 34px, #0a0414 34px 58px);
+  opacity: 0.9;
+}
+.heroic::after { /* figure silhouette */
+  content: ""; position: absolute; bottom: 0; right: 14%;
+  width: 17%; height: 78%; max-width: 90px;
+  background: radial-gradient(ellipse 50% 12% at 50% 7%, #030108 98%, transparent), linear-gradient(#030108, #030108);
+  border-radius: 45% 45% 12% 12% / 22% 22% 0 0;
+  filter: drop-shadow(-6px 0 14px rgba(255, 47, 174, 0.35));
+}
+.heroic .tag {
+  position: absolute; left: 10px; bottom: 10px; z-index: 2;
+  font-family: var(--font-title); font-size: 9px; letter-spacing: 1.4px; text-transform: uppercase;
+  background: rgba(5, 1, 12, 0.72); border: 1px solid var(--g-line);
+  padding: 4px 8px; border-radius: 5px; color: var(--g-dim);
+}
+.heroic .tag b { color: var(--g-text); }
+
+/* Spatial surface: scene grounding (exploration) vs tactical map (combat) */
+.spatial .grounding { font-size: 11.5px; color: #cfc3dd; font-style: italic; line-height: 1.5; }
+.spatial .map-wrap { display: none; }
+.legend { display: flex; gap: 12px; margin-top: 8px; font-size: 9.5px; color: var(--g-dim); }
+.legend i { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 4px; }
+.combat .spatial .grounding { display: none; }
+.combat .spatial .map-wrap { display: block; }
+.combat .spatial h4 { color: var(--g-pink); }
+.map-svg { width: 100%; height: auto; border-radius: 6px; display: block; }
+
+/* Layout A: heroic banner over the log; spatial panel in the rail */
+.frame-a .frame-grid { grid-template-columns: 190px 1fr 240px; }
+.frame-a .heroic { aspect-ratio: 16 / 5.5; }
+.frame-a .center { display: flex; flex-direction: column; gap: 12px; }
+
+/* Layout B: tall heroic companion beside the log; spatial slides in beneath it */
+.frame-b .frame-grid { grid-template-columns: 190px 1.35fr 1fr; }
+.frame-b .companion { display: flex; flex-direction: column; gap: 12px; }
+.frame-b .heroic { flex: 1; min-height: 300px; }
+.frame-b.combat .heroic { flex: 0 0 34%; min-height: 150px; }
+
+/* Layout C: supporting rail — log dominant, heroic small above spatial in the rail */
+.frame-c .frame-grid { grid-template-columns: 190px 1fr 220px; }
+.frame-c .rail { display: flex; flex-direction: column; gap: 12px; }
+.frame-c .heroic { aspect-ratio: 4 / 3; }
+
+/* ===== Notes under each frame ===== */
+.notes { border-left: 3px solid var(--accent); padding: 4px 0 4px 16px; margin: 18px 0 28px; }
+.notes h3 { font-family: var(--font-title); font-size: 15px; margin-bottom: 6px; }
+.notes ul { list-style: none; font-size: 13.5px; color: var(--shell-dim); }
+.notes li { margin: 4px 0; padding-left: 14px; position: relative; }
+.notes li::before { content: "—"; position: absolute; left: 0; color: var(--accent); }
+.notes .rule { font-size: 12px; color: var(--shell-dim); margin-top: 8px; }
+.note-block { display: none; }
+.note-block.active { display: block; }
+
+@media (max-width: 860px) {
+  .frame-a .frame-grid, .frame-b .frame-grid, .frame-c .frame-grid { grid-template-columns: 1fr; }
+  .frame-grid { min-height: 0; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .frame.active { animation: rise 0.25s ease; }
+  @keyframes rise { from { opacity: 0.4; transform: translateY(4px); } }
+}
+</style>
+</head>
+<body>
+<main>
+  <h1>Heroic &amp; Map — three layout options</h1>
+  <p class="lede">Decision aid for the <em>Maps &amp; Character Miniatures</em> topic in <code>plan.md</code>: the heroic render is the always-present visual; the tactical map appears only when position matters. Content is from the live Velvet Protocol campaign, in the app's own cyberpunk theme. Flip the turn state to see how each layout handles the spatial surface both ways.</p>
+
+  <div class="controls">
+    <div class="control-group" role="tablist" aria-label="Layout option">
+      <span class="control-label">Layout</span>
+      <button data-layout="a" aria-pressed="true">A · Banner</button>
+      <button data-layout="b" aria-pressed="false">B · Tall companion</button>
+      <button data-layout="c" aria-pressed="false">C · Supporting rail</button>
+    </div>
+    <div class="control-group">
+      <span class="control-label">Turn state</span>
+      <button data-state="explore" aria-pressed="true">Exploration</button>
+      <button data-state="combat" aria-pressed="false">Combat (position matters)</button>
+    </div>
+  </div>
+
+  <!-- ============ LAYOUT A: BANNER ============ -->
+  <section class="frame frame-a active" id="frame-a">
+    <div class="frame-top"><span class="title">AETHERIA GM</span><span class="campaign">Velvet Protocol: A Neon Blood Saga — Act II</span></div>
+    <div class="frame-grid">
+      <div class="gpanel">
+        <h4>Character</h4>
+        <div class="char-name">Joe</div>
+        <div class="char-class">Former paperboy · dropout · 172 IQ</div>
+        <span class="bar-label">Health 72/100</span><div class="bar hp"><i></i></div>
+        <span class="bar-label">Focus 33/60</span><div class="bar mp"><i></i></div>
+        <div class="quest"><b>Active: The Masque's Ledger</b>Get Kessler talking before the Blutgericht's floor show ends.</div>
+      </div>
+      <div class="center">
+        <div class="heroic"><span class="tag"><b>KESSLER</b> · Blutgericht club — heroic render</span></div>
+        <div class="gpanel log">
+          <div class="log-player">"I slide onto the stool next to Kessler and order whatever he's having."</div>
+          <div class="log-gm"><div class="who">Game Master</div><p>The bartender pours two fingers of something that glows faintly amber. Kessler doesn't look at you, but his reflection in the chrome does. <em>"You're either very brave or very new. The Masque doesn't sell either one a second drink."</em></p></div>
+        </div>
+      </div>
+      <div class="gpanel spatial">
+        <h4>Situation</h4>
+        <p class="grounding">The bar runs the length of the east wall; Kessler is two stools down, flanked by an empty seat. Two Masque thugs hold the booth by the door, thirty feet behind you. The stage lights strobe every eight seconds — brief cover. Exits: main door (northwest), staff corridor behind the bar.</p>
+        <div class="map-wrap">
+          <svg class="map-svg" viewBox="0 0 240 200" role="img" aria-label="Top-down tactical map of the Blutgericht bar">
+            <defs><pattern id="grid-a" width="20" height="20" patternUnits="userSpaceOnUse"><path d="M20 0H0V20" fill="none" stroke="#241233" stroke-width="1"/></pattern></defs>
+            <rect width="240" height="200" fill="#0e0618"/><rect width="240" height="200" fill="url(#grid-a)"/>
+            <rect x="4" y="4" width="232" height="192" fill="none" stroke="#3a1f52" stroke-width="3"/>
+            <rect x="196" y="20" width="28" height="150" fill="#1c0e2a" stroke="#3a1f52"/>
+            <text x="210" y="100" fill="#9b7fae" font-size="8" text-anchor="middle" transform="rotate(90 210 100)">BAR</text>
+            <rect x="20" y="150" width="52" height="30" fill="#1c0e2a" stroke="#3a1f52"/>
+            <text x="46" y="168" fill="#9b7fae" font-size="7" text-anchor="middle">BOOTH</text>
+            <rect x="20" y="20" width="70" height="26" fill="#160a24" stroke="#3a1f52"/>
+            <text x="55" y="36" fill="#9b7fae" font-size="7" text-anchor="middle">STAGE</text>
+            <rect x="2" y="118" width="6" height="24" fill="#00dede" opacity="0.7"/>
+            <circle cx="182" cy="84" r="8" fill="#00dede"/><text x="182" y="87" font-size="8" font-weight="bold" text-anchor="middle" fill="#04121b">J</text>
+            <circle cx="182" cy="120" r="8" fill="#ff2fae"/><text x="182" y="123" font-size="8" font-weight="bold" text-anchor="middle" fill="#1b0412">K</text>
+            <circle cx="46" cy="160" r="7" fill="#5c4a70"/><circle cx="62" cy="168" r="7" fill="#5c4a70"/>
+          </svg>
+          <div class="legend"><span><i style="background:#00dede"></i>Joe</span><span><i style="background:#ff2fae"></i>Kessler</span><span><i style="background:#5c4a70"></i>Masque thugs</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ LAYOUT B: TALL COMPANION ============ -->
+  <section class="frame frame-b" id="frame-b">
+    <div class="frame-top"><span class="title">AETHERIA GM</span><span class="campaign">Velvet Protocol: A Neon Blood Saga — Act II</span></div>
+    <div class="frame-grid">
+      <div class="gpanel">
+        <h4>Character</h4>
+        <div class="char-name">Joe</div>
+        <div class="char-class">Former paperboy · dropout · 172 IQ</div>
+        <span class="bar-label">Health 72/100</span><div class="bar hp"><i></i></div>
+        <span class="bar-label">Focus 33/60</span><div class="bar mp"><i></i></div>
+        <div class="quest"><b>Active: The Masque's Ledger</b>Get Kessler talking before the Blutgericht's floor show ends.</div>
+      </div>
+      <div class="gpanel log">
+        <div class="log-player">"I slide onto the stool next to Kessler and order whatever he's having."</div>
+        <div class="log-gm"><div class="who">Game Master</div><p>The bartender pours two fingers of something that glows faintly amber. Kessler doesn't look at you, but his reflection in the chrome does. <em>"You're either very brave or very new. The Masque doesn't sell either one a second drink."</em></p></div>
+        <div class="log-player">"Which exit is closest if this goes sideways?"</div>
+        <div class="log-gm"><div class="who">Game Master</div><p>The staff corridor behind the bar is ten feet away — but it's Kessler's ground, not yours.</p></div>
+      </div>
+      <div class="companion">
+        <div class="heroic"><span class="tag"><b>KESSLER</b> · Blutgericht club — heroic render</span></div>
+        <div class="gpanel spatial">
+          <h4>Situation</h4>
+          <p class="grounding">Bar along the east wall; Kessler two stools down. Two Masque thugs in the door booth, thirty feet back. Strobe every eight seconds. Exits: main door NW, staff corridor behind the bar.</p>
+          <div class="map-wrap">
+            <svg class="map-svg" viewBox="0 0 240 170" role="img" aria-label="Top-down tactical map of the Blutgericht bar">
+              <defs><pattern id="grid-b" width="20" height="20" patternUnits="userSpaceOnUse"><path d="M20 0H0V20" fill="none" stroke="#241233" stroke-width="1"/></pattern></defs>
+              <rect width="240" height="170" fill="#0e0618"/><rect width="240" height="170" fill="url(#grid-b)"/>
+              <rect x="4" y="4" width="232" height="162" fill="none" stroke="#3a1f52" stroke-width="3"/>
+              <rect x="196" y="18" width="28" height="128" fill="#1c0e2a" stroke="#3a1f52"/>
+              <rect x="20" y="126" width="52" height="26" fill="#1c0e2a" stroke="#3a1f52"/>
+              <rect x="20" y="18" width="70" height="24" fill="#160a24" stroke="#3a1f52"/>
+              <circle cx="182" cy="72" r="8" fill="#00dede"/><text x="182" y="75" font-size="8" font-weight="bold" text-anchor="middle" fill="#04121b">J</text>
+              <circle cx="182" cy="104" r="8" fill="#ff2fae"/><text x="182" y="107" font-size="8" font-weight="bold" text-anchor="middle" fill="#1b0412">K</text>
+              <circle cx="46" cy="136" r="7" fill="#5c4a70"/><circle cx="62" cy="144" r="7" fill="#5c4a70"/>
+            </svg>
+            <div class="legend"><span><i style="background:#00dede"></i>Joe</span><span><i style="background:#ff2fae"></i>Kessler</span><span><i style="background:#5c4a70"></i>Thugs</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ LAYOUT C: SUPPORTING RAIL ============ -->
+  <section class="frame frame-c" id="frame-c">
+    <div class="frame-top"><span class="title">AETHERIA GM</span><span class="campaign">Velvet Protocol: A Neon Blood Saga — Act II</span></div>
+    <div class="frame-grid">
+      <div class="gpanel">
+        <h4>Character</h4>
+        <div class="char-name">Joe</div>
+        <div class="char-class">Former paperboy · dropout · 172 IQ</div>
+        <span class="bar-label">Health 72/100</span><div class="bar hp"><i></i></div>
+        <span class="bar-label">Focus 33/60</span><div class="bar mp"><i></i></div>
+        <div class="quest"><b>Active: The Masque's Ledger</b>Get Kessler talking before the Blutgericht's floor show ends.</div>
+      </div>
+      <div class="gpanel log">
+        <div class="log-player">"I slide onto the stool next to Kessler and order whatever he's having."</div>
+        <div class="log-gm"><div class="who">Game Master</div><p>The bartender pours two fingers of something that glows faintly amber. Kessler doesn't look at you, but his reflection in the chrome does. <em>"You're either very brave or very new. The Masque doesn't sell either one a second drink."</em></p></div>
+        <div class="log-player">"Which exit is closest if this goes sideways?"</div>
+        <div class="log-gm"><div class="who">Game Master</div><p>The staff corridor behind the bar is ten feet away — but it's Kessler's ground, not yours. The main door means crossing the thugs' sightline for all thirty feet.</p></div>
+      </div>
+      <div class="rail">
+        <div class="heroic"><span class="tag"><b>KESSLER</b> · heroic render</span></div>
+        <div class="gpanel spatial">
+          <h4>Situation</h4>
+          <p class="grounding">Kessler two stools down; thugs at the door booth, 30 ft. Strobe every 8 s. Exits: main door NW, staff corridor.</p>
+          <div class="map-wrap">
+            <svg class="map-svg" viewBox="0 0 200 170" role="img" aria-label="Top-down tactical map of the Blutgericht bar">
+              <defs><pattern id="grid-c" width="20" height="20" patternUnits="userSpaceOnUse"><path d="M20 0H0V20" fill="none" stroke="#241233" stroke-width="1"/></pattern></defs>
+              <rect width="200" height="170" fill="#0e0618"/><rect width="200" height="170" fill="url(#grid-c)"/>
+              <rect x="4" y="4" width="192" height="162" fill="none" stroke="#3a1f52" stroke-width="3"/>
+              <rect x="160" y="18" width="24" height="128" fill="#1c0e2a" stroke="#3a1f52"/>
+              <rect x="16" y="126" width="46" height="26" fill="#1c0e2a" stroke="#3a1f52"/>
+              <rect x="16" y="18" width="60" height="24" fill="#160a24" stroke="#3a1f52"/>
+              <circle cx="148" cy="72" r="8" fill="#00dede"/><text x="148" y="75" font-size="8" font-weight="bold" text-anchor="middle" fill="#04121b">J</text>
+              <circle cx="148" cy="104" r="8" fill="#ff2fae"/><text x="148" y="107" font-size="8" font-weight="bold" text-anchor="middle" fill="#1b0412">K</text>
+              <circle cx="38" cy="136" r="7" fill="#5c4a70"/><circle cx="54" cy="144" r="7" fill="#5c4a70"/>
+            </svg>
+            <div class="legend"><span><i style="background:#00dede"></i>Joe</span><span><i style="background:#ff2fae"></i>Kessler</span><span><i style="background:#5c4a70"></i>Thugs</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ NOTES ============ -->
+  <div class="notes">
+    <div class="note-block active" data-note="a">
+      <h3>A · Heroic as banner</h3>
+      <ul>
+        <li>Cinematic: the render gets full center-stage width, like a film frame above the story.</li>
+        <li>Wide aspect suits locations and establishing shots; tight portrait crops of a single NPC waste width.</li>
+        <li>Costs vertical space: the log starts lower, so less story is visible per screen.</li>
+        <li>Spatial surface lives in the rail at fixed size — the map never competes with the heroic.</li>
+      </ul>
+    </div>
+    <div class="note-block" data-note="b">
+      <h3>B · Heroic as tall companion</h3>
+      <ul>
+        <li>Portrait aspect flatters characters — the most common heroic subject in conversation-heavy play.</li>
+        <li>Log keeps full height; picture and prose sit side by side like a book spread.</li>
+        <li>In combat the heroic yields: it shrinks and the map slides in beneath it, both visible in one column.</li>
+        <li>Narrowest log column of the three — long GM paragraphs wrap harder.</li>
+      </ul>
+    </div>
+    <div class="note-block" data-note="c">
+      <h3>C · Heroic as supporting rail</h3>
+      <ul>
+        <li>Closest to the current visualizer position — least layout disruption, prose stays dominant.</li>
+        <li>Heroic reads as a portrait card, not a set piece; less impact when a new location lands.</li>
+        <li>Rail stacks heroic over situation/map, so both surfaces are always co-visible at small size.</li>
+        <li>Smallest map of the three — fine for token positions, cramped for larger encounters.</li>
+      </ul>
+    </div>
+    <p class="rule">Shared rules in all three (per plan.md): the heroic persists until the game moves past it — new location, or an NPC takes prominence; the engine owns <code>current_heroic</code>. The situation panel is the same surface at two fidelities: scene-grounding text by default, tactical map + tokens only when position matters. Resolution stays narrative — tokens inform theater-of-mind play.</p>
+  </div>
+</main>
+
+<script>
+const frames = { a: document.getElementById('frame-a'), b: document.getElementById('frame-b'), c: document.getElementById('frame-c') };
+const notes = document.querySelectorAll('.note-block');
+let combat = false;
+
+document.querySelectorAll('[data-layout]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('[data-layout]').forEach(b => b.setAttribute('aria-pressed', 'false'));
+    btn.setAttribute('aria-pressed', 'true');
+    const pick = btn.dataset.layout;
+    Object.entries(frames).forEach(([key, frame]) => frame.classList.toggle('active', key === pick));
+    notes.forEach(note => note.classList.toggle('active', note.dataset.note === pick));
+  });
+});
+
+document.querySelectorAll('[data-state]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('[data-state]').forEach(b => b.setAttribute('aria-pressed', 'false'));
+    btn.setAttribute('aria-pressed', 'true');
+    combat = btn.dataset.state === 'combat';
+    Object.values(frames).forEach(frame => frame.classList.toggle('combat', combat));
+  });
+});
+</script>
+</body>
+</html>
