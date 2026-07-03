@@ -32,6 +32,9 @@ short and update it when important repo facts change.
 - MULTI-VOICE SHIPPED 2026-07-03 (Phase 2 first cut, owner green-lit ahead of Phase 0 verdict): sticky NPC voice profiles (npcs.voice_json, assigned at creation + backfilled for existing campaigns), narrator emits speaker/tone-tagged narration_lines, engine resolves to turn.voiceLines, frontend plays sequentially with skip. Live-smoked on campaign 2 (Vera line → her cedar voice). Owner's playtest gate: voices distinct + consistent, narrator stays player-chosen, graceful fallback. Known refinement candidate: the player's own quoted words currently voice as narrator lines.
 - Remotes: owner added public github remote 2026-07-03 (pushes it himself); origin (gitea) accumulating unpushed commits pending owner go.
 
+- DECISIONS 2026-07-03 (recorded in `.agents/decisions.md`): no player-voice echo (prompt rule shipped); rulesets selectable at campaign start with generated house default (SHIPPED first cut — campaign 3 demo: themed 5-ability sheet, "what spells do I have?" answered from canon; owner judges before SRD options); genre theming agent-generated at campaign setup (accent graphics deferred — NOT yet implemented beyond existing theme_colors); image-gen provider-configurable behind a seam with identity-anchor param, local-on-5090 for dev (NOT yet implemented — unblocks heroic/map phase build).
+- Owner-testable now: multi-voice narration (campaigns 1-3, voices backfilled), ruleset tab + canon answers (campaign 3 "Shadows of the Sunken Sands"), spotlight UI, skip button, voice preview.
+
 ## Blockers
 
 - None recorded. (Depends on human starting a test campaign in the running server UI at http://localhost:3000 or 3001 and submitting the exact clarification test inputs.)
