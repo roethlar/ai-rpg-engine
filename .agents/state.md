@@ -13,6 +13,7 @@ short and update it when important repo facts change.
 - Four durable decisions recorded 2026-06-11 in `.agents/decisions.md`: server-owned AI config, GM omniscience with canon commitment, GM authority final (player not in control), GM-not-DM terminology.
 - Council pipeline is the active/only path; single-model branches are dead code (plan notes pending refactor).
 - Local server not running (shut down at end of 2026-06-11 session; start with `npm start`, port 3000, no .env — provider/key entered in UI by owner).
+- Tauri desktop shell added 2026-07-03 (plan.md Dev Tooling): `npm run desktop` after one-time `npm install --prefix desktop`. Spawn/reuse/kill-on-exit paths verified; owner still owes the plan's success check (window-close playthrough). Browser UI remains canonical.
 
 ## Next
 
