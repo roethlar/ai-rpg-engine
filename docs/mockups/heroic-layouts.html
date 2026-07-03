@@ -124,12 +124,15 @@ h1 { font-family: var(--font-title); font-size: 26px; letter-spacing: 0.5px; tex
 }
 .heroic .tag b { color: var(--g-text); }
 
-/* Spatial surface: scene grounding (exploration) vs tactical map (combat) */
+/* Spatial surface: grounding text is ALWAYS present (what a top-down view
+   can't carry — light, sound, what the character notices); the tactical map
+   appears additionally when position matters, on top, with the text as its
+   caption. (Owner refinement 2026-07-03: both, never either/or.) */
+.spatial { display: flex; flex-direction: column; }
 .spatial .grounding { font-size: 11.5px; color: #cfc3dd; font-style: italic; line-height: 1.5; }
-.spatial .map-wrap { display: none; }
-.legend { display: flex; gap: 12px; margin-top: 8px; font-size: 9.5px; color: var(--g-dim); }
+.spatial .map-wrap { display: none; order: -1; margin-bottom: 8px; }
+.legend { display: flex; gap: 12px; margin: 8px 0; font-size: 9.5px; color: var(--g-dim); }
 .legend i { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 4px; }
-.combat .spatial .grounding { display: none; }
 .combat .spatial .map-wrap { display: block; }
 .combat .spatial h4 { color: var(--g-pink); }
 .map-svg { width: 100%; height: auto; border-radius: 6px; display: block; }
@@ -436,7 +439,7 @@ h1 { font-family: var(--font-title); font-size: 26px; letter-spacing: 0.5px; tex
         <li>Pure frontend (CSS grid area swaps); the engine already emits the positional signal, so combat could later auto-suggest the map spotlight.</li>
       </ul>
     </div>
-    <p class="rule">Shared rules in all layouts (per plan.md): the heroic persists until the game moves past it — new location, or an NPC takes prominence; the engine owns <code>current_heroic</code>. The situation panel is the same surface at two fidelities: scene-grounding text by default, tactical map + tokens only when position matters. Resolution stays narrative — tokens inform theater-of-mind play.</p>
+    <p class="rule">Shared rules in all layouts (per plan.md + owner refinement 2026-07-03): the heroic persists until the game moves past it — new location, or an NPC takes prominence; the engine owns <code>current_heroic</code>. The situation panel always shows the scene-grounding text; the tactical map + tokens appear <em>additionally</em> when position matters, with the text as the map's caption — they complement, never replace each other. Resolution stays narrative — tokens inform theater-of-mind play.</p>
   </div>
 </main>
 
