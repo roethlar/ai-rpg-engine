@@ -652,6 +652,40 @@ async function testTtsProviderSeam() {
 }
 
 // -------------------------------------------------------------
+// Test: campaign ruleset — validation and canon injection
+// -------------------------------------------------------------
+async function testRulesetCanon() {
+  console.log(' - Running campaign ruleset tests...');
+  const { validateRulesetData } = await import('./rpg-state.js');
+  const { getGMSystemInstruction } = await import('./rpg-prompts.js');
+
+  const ruleset = validateRulesetData({
+    name: '  Brine Protocol  ',
+    resolution: 'd20 plus your attribute modifier against the referee\'s DC.',
+    abilities: [
+      { name: 'Grid Dive', cost: '8 mana', effect: 'Interface with a networked system within sight.', limits: 'Once per scene' },
+      { name: '', effect: 'nameless — dropped' },
+      { name: 'Slip Away', cost: '', effect: '', limits: '' }
+    ],
+    notes: 'Mana recovers fully on rest.'
+  });
+  assert.strictEqual(ruleset.name, 'Brine Protocol');
+  assert.strictEqual(ruleset.abilities.length, 2, 'Nameless abilities dropped');
+  assert.strictEqual(ruleset.abilities[1].cost, 'free', 'Missing cost defaults to free');
+  assert.strictEqual(validateRulesetData({ name: 'Empty' }), null, 'No resolution and no abilities → null (freeform)');
+  assert.strictEqual(validateRulesetData(null), null);
+
+  // Canon injection: the GM system instruction carries the sheet when present
+  const outline = { title: 'T', setting: 'S', acts: [], major_locations: [{ name: 'L', description: 'D' }], key_npcs: [{ name: 'N', role: 'R', personality: 'P' }], starting_quest: { title: 'Q', description: 'D' }, theme_colors: {} };
+  const character = { name: 'Vex', class: 'Diver', attributes: {}, health: 100, max_health: 100, mana: 50, max_mana: 50, xp: 0, level: 1, inventory: [], abilities: [] };
+  const withRules = getGMSystemInstruction(outline, character, [], 1, ruleset);
+  assert.strictEqual(withRules.includes('CAMPAIGN RULES (CANON'), true, 'Rules section present with a ruleset');
+  assert.strictEqual(withRules.includes('Grid Dive | 8 mana'), true, 'Abilities listed with costs');
+  const withoutRules = getGMSystemInstruction(outline, character, [], 1, null);
+  assert.strictEqual(withoutRules.includes('CAMPAIGN RULES'), false, 'No rules section for freeform campaigns');
+}
+
+// -------------------------------------------------------------
 // Test: multi-voice narration — script validation, sticky NPC voices (Phase 2)
 // -------------------------------------------------------------
 async function testVoiceScript() {
@@ -789,6 +823,7 @@ async function runAll() {
     testApplyCharacterUpdate();
     testRefereeDiceFlow();
     testResolveAgentConfig();
+    await testRulesetCanon();
     await testVoiceScript();
     await testTtsProviderSeam();
     await testServerConfigResolution();

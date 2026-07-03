@@ -5,7 +5,19 @@
 /**
  * System Instruction Compiler for the Game Master LLM.
  */
-export function getGMSystemInstruction(outline, character, npcs = [], currentAct = 1) {
+export function getGMSystemInstruction(outline, character, npcs = [], currentAct = 1, ruleset = null) {
+  // Ruleset is canon campaign state (decision 2026-07-03): applied identically
+  // every turn, never drifting, and every answer about "what can I do" comes
+  // from this sheet.
+  const rulesetSection = ruleset ? `
+=== CAMPAIGN RULES (CANON — these must never drift) ===
+Ruleset: ${ruleset.name}
+Resolution: ${ruleset.resolution}
+Player abilities (name | cost | effect | limits):
+${(ruleset.abilities || []).map(a => `- ${a.name} | ${a.cost} | ${a.effect} | ${a.limits}`).join('\n') || '- None defined yet.'}
+House notes: ${ruleset.notes}
+Apply these rules identically every turn. When the player asks what they can do, answer from this sheet. Abilities gained in play must state cost and limits consistent with it.
+` : '';
   // Dynamically map acts array to prevent index boundary crashes on different counts
   const actsOutlinePrompt = outline.acts && Array.isArray(outline.acts)
     ? outline.acts.map(act => `* Act ${act.act}: "${act.title}" - Objective: "${act.objective}" (Key milestones: ${act.key_events?.join(', ') || 'none'})`).join('\n')
@@ -55,7 +67,7 @@ Known Abilities:
 ${character.abilities && character.abilities.length > 0 ? character.abilities.map(ability => `- ${ability.name} [${ability.tier || 'emerging'}]: ${ability.description}`).join('\n') : '- None established yet. Reveal or develop abilities through play when earned.'}
 Progression Notes:
 ${character.progression_notes || 'No long-term progression notes yet.'}
-
+${rulesetSection}
 === GM RULES ===
 1. Narrative Quality: Write vivid, rich description with high atmospheric focus. Write 2-3 paragraphs. If any NPCs speak, use their unique voice, habits, or stuttering quirks.
 2. Coherence: Ensure you keep the story aligned with the current Act and Quest. Do not jump to the conclusion early. Let the player explore.

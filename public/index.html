@@ -176,6 +176,9 @@
           <button class="tab-btn" id="tab-journal-btn">
             <i class="fa-solid fa-book-open"></i> Journal
           </button>
+          <button class="tab-btn" id="tab-rules-btn" style="display: none;">
+            <i class="fa-solid fa-scale-balanced"></i> Rules
+          </button>
           <button class="tab-btn" id="tab-codex-btn" style="display: none;">
             <i class="fa-solid fa-address-book"></i> GM Codex
           </button>
@@ -205,6 +208,13 @@
         <div class="tab-content" id="tab-content-codex" style="display: none;">
           <div class="codex-grid" id="codex-container">
             <!-- Populated dynamically with NPCs -->
+          </div>
+        </div>
+
+        <!-- Campaign rules (canon rule sheet, shown when the campaign has one) -->
+        <div class="tab-content" id="tab-content-rules" style="display: none; flex-direction: column;">
+          <div class="rules-sheet" id="rules-container" style="overflow-y: auto; flex: 1; padding-right: 4px;">
+            <!-- Populated from campaign ruleset -->
           </div>
         </div>
       </div>
@@ -282,6 +292,15 @@
               <span>Enable Rules Mode (Stat Dice Checks)</span>
             </label>
             <span class="form-tip">Performs stat checks (d20 + mod vs DC) on active actions. Fails can result in HP damage. Conversation turns do not require rolls.</span>
+          </div>
+
+          <div class="form-group" style="margin-top: 12px;">
+            <label for="select-ruleset">Ruleset</label>
+            <select id="select-ruleset">
+              <option value="house">House Rules (generated for this campaign)</option>
+              <option value="none">Freeform (no rule sheet)</option>
+            </select>
+            <span class="form-tip">House Rules generates a canon rule sheet — your abilities, costs, and limits — viewable in the Rules tab and applied identically every turn.</span>
           </div>
 
           <div class="form-actions">

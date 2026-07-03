@@ -80,6 +80,8 @@ const rightPanelHeading = document.getElementById('right-panel-heading');
 const tabInventoryBtn = document.getElementById('tab-inventory-btn');
 const tabJournalBtn = document.getElementById('tab-journal-btn');
 const tabCodexBtn = document.getElementById('tab-codex-btn');
+const tabRulesBtn = document.getElementById('tab-rules-btn');
+const tabContentRules = document.getElementById('tab-content-rules');
 const tabContentInventory = document.getElementById('tab-content-inventory');
 const tabContentJournal = document.getElementById('tab-content-journal');
 const tabContentCodex = document.getElementById('tab-content-codex');
@@ -261,12 +263,17 @@ function setActiveTab(tab) {
   tabInventoryBtn.classList.remove('active');
   tabJournalBtn.classList.remove('active');
   tabCodexBtn.classList.remove('active');
+  tabRulesBtn.classList.remove('active');
 
   tabContentInventory.style.display = 'none';
   tabContentJournal.style.display = 'none';
   tabContentCodex.style.display = 'none';
+  tabContentRules.style.display = 'none';
 
-  if (tab === 'inventory') {
+  if (tab === 'rules') {
+    tabRulesBtn.classList.add('active');
+    tabContentRules.style.display = 'flex';
+  } else if (tab === 'inventory') {
     tabInventoryBtn.classList.add('active');
     tabContentInventory.style.display = 'flex';
   } else if (tab === 'journal') {
@@ -312,6 +319,7 @@ function setupEventListeners() {
   tabInventoryBtn.addEventListener('click', () => setActiveTab('inventory'));
   tabJournalBtn.addEventListener('click', () => setActiveTab('journal'));
   tabCodexBtn.addEventListener('click', () => setActiveTab('codex'));
+  tabRulesBtn.addEventListener('click', () => setActiveTab('rules'));
 
   // Journal Timeline search filter
   journalSearchInput.addEventListener('input', () => {
@@ -342,7 +350,8 @@ function setupEventListeners() {
     const body = {
       genre,
       characterMode,
-      rulesMode
+      rulesMode,
+      ruleset: document.getElementById('select-ruleset').value
     };
 
     if (characterMode === 'new') {
@@ -430,6 +439,29 @@ function setupEventListeners() {
       setActionInputState(true);
     }
   });
+}
+
+// Renders the campaign's canon rule sheet into the Rules tab.
+function renderRules(ruleset) {
+  if (!ruleset) {
+    tabRulesBtn.style.display = 'none';
+    if (tabRulesBtn.classList.contains('active')) setActiveTab('inventory');
+    return;
+  }
+  tabRulesBtn.style.display = 'block';
+  const rulesContainer = document.getElementById('rules-container');
+  const abilities = (ruleset.abilities || []).map(a => `
+    <div class="rules-ability">
+      <div class="rules-ability-head"><strong>${escapeHtml(a.name)}</strong><span class="rules-cost">${escapeHtml(a.cost)}</span></div>
+      <div class="rules-effect">${escapeHtml(a.effect)}</div>
+      <div class="rules-limits"><i class="fa-solid fa-ban"></i> ${escapeHtml(a.limits)}</div>
+    </div>`).join('');
+  rulesContainer.innerHTML = DOMPurify.sanitize(`
+    <div class="rules-title">${escapeHtml(ruleset.name)}</div>
+    ${ruleset.resolution ? `<p class="rules-resolution">${escapeHtml(ruleset.resolution)}</p>` : ''}
+    ${abilities ? `<div class="rules-section-label">Abilities &amp; Spells</div>${abilities}` : ''}
+    ${ruleset.notes ? `<div class="rules-section-label">House Notes</div><p class="rules-notes">${escapeHtml(ruleset.notes)}</p>` : ''}
+  `);
 }
 
 // Voice preview: audition the selected voice + direction on a sample line
@@ -772,6 +804,9 @@ function renderGame(gameState, resetNarrative = false, options = {}) {
 
   // Render Codex (NPC Dossiers)
   renderCodex(gameState.npcs || []);
+
+  // Campaign rule sheet (canon; tab hidden for freeform campaigns)
+  renderRules(gameState.ruleset || null);
 
   // Graphic illustration (Sanitized using DOMPurify SVG profile)
   if (gameState.turn.svg) {

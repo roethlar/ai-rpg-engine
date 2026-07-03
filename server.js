@@ -298,7 +298,8 @@ app.post('/api/campaigns', rateLimit(5, 60000), async (req, res) => {
   try {
     // Server-owned AI config (decision 2026-06-11): client-supplied apiConfig is
     // ignored; the operator's /admin + env configuration is authoritative.
-    const { genre, characterName, characterClass, characterProfileId, characterMode, rulesMode } = req.body;
+    const { genre, characterName, characterClass, characterProfileId, characterMode, rulesMode, ruleset } = req.body;
+    const cleanRuleset = ['house', 'none'].includes(ruleset) ? ruleset : 'house';
     const apiConfig = await getServerAiConfig();
     const cleanGenre = boundedString(genre, 'genre', MAX_GENRE_LENGTH);
     const mode = ['new', 'existing', 'copy'].includes(characterMode) ? characterMode : 'new';
@@ -315,7 +316,8 @@ app.post('/api/campaigns', rateLimit(5, 60000), async (req, res) => {
       characterProfileId: cleanCharacterProfileId,
       characterMode: mode,
       apiConfig,
-      rulesMode
+      rulesMode,
+      ruleset: cleanRuleset
     });
     res.json(state);
   } catch (error) {

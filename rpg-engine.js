@@ -11,6 +11,7 @@ import {
   applyCharacterUpdate,
   applyDiceConsequences,
   buildVoiceScript,
+  validateRulesetData,
   TABLE_TALK_KINDS
 } from './rpg-state.js';
 import { assignNpcVoiceProfile } from './tts-providers.js';
@@ -168,7 +169,8 @@ function buildTurnContext({
   activeQuestName,
   activeQuestDesc,
   playerAction,
-  finalPlayerAction
+  finalPlayerAction,
+  ruleset
 }) {
   // GM omniscience (decision 2026-06-11): the mechanical record — dice rolls, applied
   // damage and its causes — must be visible to the Council on later turns, so the GM
@@ -225,7 +227,8 @@ function buildTurnContext({
     })),
     recent_turns: recentTurns,
     player_input: playerAction,
-    final_player_input: finalPlayerAction
+    final_player_input: finalPlayerAction,
+    campaign_rules: ruleset || null
   };
 }
 
@@ -594,7 +597,8 @@ export async function createCampaign({
   characterProfileId,
   characterMode = 'new',
   apiConfig,
-  rulesMode = false
+  rulesMode = false,
+  ruleset = 'house'
 }) {
   // Setup is its own role (decision 2026-07-03): the campaign outline and
   // opening scene are the highest-leverage calls and can run the strongest
@@ -657,6 +661,37 @@ You MUST return a JSON object ONLY matching this schema, with no additional text
 
   const rawOutline = parseJsonSafe(outlineResponse);
   const outline = validateOutlineData(rawOutline);
+
+  // Ruleset as canon campaign state (decision 2026-07-03): generated once at
+  // creation by the Setup role, stored, and injected into every turn.
+  let rulesetData = null;
+  if (ruleset === 'house') {
+    const rulesetSystem = `You design a compact, self-consistent rule sheet for a tabletop RPG campaign.
+The engine already resolves risky actions with a d20 + attribute modifier (strength/agility/intellect/willpower; modifier = floor((score - 10) / 2)) against a difficulty class from 5 (easy) to 25 (near-impossible), and failed checks have referee-adjudicated consequences. Advancement: level = floor(XP / 100) + 1; leveling fully restores and raises maximums.
+Your job is the campaign-specific layer on top. Return JSON ONLY matching:
+{
+  "name": "Short ruleset name themed to this campaign",
+  "resolution": "One-paragraph player-facing summary of how checks work, restating the engine mechanics above in the campaign's voice",
+  "abilities": [
+    { "name": "Ability or spell name", "cost": "e.g. 5 mana / free / once per scene", "effect": "What it does in fiction and in checks", "limits": "Constraints, cooldowns, requirements" }
+  ],
+  "notes": "House rules for resources, recovery, and anything genre-specific a referee needs to apply these identically every time"
+}
+Give the player character 4 to 8 starting abilities fitting their concept and the genre. Every rule must be concrete enough that a referee applies it the same way every turn.`;
+
+    console.log('Generating campaign ruleset...');
+    try {
+      const rulesetResponse = await client.sendPrompt({
+        systemInstruction: rulesetSystem,
+        prompt: `Campaign genre: "${genre}". Campaign title: "${outline.title}". Setting: ${outline.setting}\nPlayer character: ${resolvedCharacterName}, concept: "${resolvedCharacterArchetype}".`,
+        jsonMode: true
+      });
+      rulesetData = validateRulesetData(parseJsonSafe(rulesetResponse));
+    } catch (error) {
+      // A campaign without a rule sheet is playable (freeform); creation must not fail on this call.
+      console.warn(`Ruleset generation failed (continuing freeform): ${error.message}`);
+    }
+  }
   
   const attributes = sourceProfile
     ? parseJsonObject(sourceProfile.attributes_json, defaultAttributesForConcept(resolvedCharacterArchetype))
@@ -691,7 +726,7 @@ You MUST return a JSON object ONLY matching this schema, with no additional text
     attributes,
     abilities,
     progression_notes: progressionNotes
-  }, npcList, 1);
+  }, npcList, 1, rulesetData);
 
   const turn1Prompt = `Set the scene and begin the campaign.
 Start the story at the beginning of Act I. Introduce the starting quest: "${outline.starting_quest.title}".
@@ -755,8 +790,8 @@ Output the JSON object containing the opening narrative, scene_grounding, sugges
 
     // Insert campaign into DB
     const campaignResult = await db.run(
-      `INSERT INTO campaigns (title, genre, summary, current_act, rules_mode) VALUES (?, ?, ?, 1, ?)`,
-      [outline.title, genre, outline.setting, rulesModeInt]
+      `INSERT INTO campaigns (title, genre, summary, current_act, rules_mode, ruleset_json) VALUES (?, ?, ?, 1, ?, ?)`,
+      [outline.title, genre, outline.setting, rulesModeInt, rulesetData ? JSON.stringify(rulesetData) : null]
     );
     campaignId = campaignResult.id;
 
@@ -854,6 +889,7 @@ Output the JSON object containing the opening narrative, scene_grounding, sugges
     setting: outline.setting,
     themeColors: outline.theme_colors,
     rulesMode: !!rulesModeInt,
+    ruleset: rulesetData,
     character: {
       name: resolvedCharacterName,
       class: resolvedCharacterArchetype,
@@ -941,7 +977,8 @@ export async function takeTurn(campaignId, playerAction, apiConfig) {
   const finalPlayerAction = playerAction;
 
   // 2. Build the context prompt
-  const gmSystem = getGMSystemInstruction(outline, character, npcs, currentAct);
+  const rulesetData = validateRulesetData(parseJsonObject(campaign.ruleset_json, null));
+  const gmSystem = getGMSystemInstruction(outline, character, npcs, currentAct, rulesetData);
 
   let historyPrompt = `=== CAMPAIGN HISTORY ===\n`;
   if (memories.length > 0) {
@@ -1012,7 +1049,8 @@ Output the JSON object containing the narrative response, scene_grounding, sugge
     activeQuestName,
     activeQuestDesc,
     playerAction,
-    finalPlayerAction
+    finalPlayerAction,
+    ruleset: rulesetData
   });
   const aiResponse = await runMultiAgentTurn({ apiConfig, gmSystem, turnContext, turnPrompt });
 
@@ -1156,6 +1194,7 @@ Output the JSON object containing the narrative response, scene_grounding, sugge
     currentQuest: turnData.quest_update || { active_quest: activeQuestName, quest_description: activeQuestDesc },
     currentAct: nextAct,
     rulesMode: !!campaign.rules_mode,
+    ruleset: rulesetData,
     turn: {
       number: currentTurnNumber,
       playerAction,
@@ -1236,6 +1275,7 @@ export async function getCampaignState(campaignId) {
     setting: campaign.summary,
     themeColors: outline.theme_colors,
     rulesMode: !!campaign.rules_mode,
+    ruleset: validateRulesetData(parseJsonObject(campaign.ruleset_json, null)),
     character,
     npcs,
     outline,
@@ -1406,8 +1446,8 @@ export async function forkCampaign(campaignId, turnNumber, newTitle) {
   let newPlayerCharacterId;
   await db.withWriteTransaction(async () => {
     const campaignResult = await db.run(
-      `INSERT INTO campaigns (title, genre, summary, current_act, rules_mode) VALUES (?, ?, ?, ?, ?)`,
-      [newTitle, campaign.genre, campaign.summary, lastAct, campaign.rules_mode]
+      `INSERT INTO campaigns (title, genre, summary, current_act, rules_mode, ruleset_json) VALUES (?, ?, ?, ?, ?, ?)`,
+      [newTitle, campaign.genre, campaign.summary, lastAct, campaign.rules_mode, campaign.ruleset_json || null]
     );
     newCampaignId = campaignResult.id;
 

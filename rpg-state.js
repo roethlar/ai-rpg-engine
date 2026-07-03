@@ -341,6 +341,42 @@ export function forceNoOpTurnState(finalData, turnContext, inputKind) {
 }
 
 /**
+ * Validates a generated campaign ruleset (decision 2026-07-03: ruleset is
+ * canon campaign state — Council-consultable, player-viewable, must not
+ * drift). Returns null when there is no usable content, which callers treat
+ * as "no ruleset" (freeform play).
+ */
+export function validateRulesetData(raw) {
+  const data = raw && typeof raw === 'object' ? raw : {};
+  const clean = (value, max) => typeof value === 'string' ? value.trim().slice(0, max) : '';
+
+  const abilities = [];
+  if (Array.isArray(data.abilities)) {
+    data.abilities.slice(0, 12).forEach(ability => {
+      if (!ability || typeof ability !== 'object') return;
+      const name = clean(ability.name, 80);
+      if (!name) return;
+      abilities.push({
+        name,
+        cost: clean(ability.cost, 120) || 'free',
+        effect: clean(ability.effect, 500) || 'Effect to be clarified in play.',
+        limits: clean(ability.limits, 300) || 'None stated.'
+      });
+    });
+  }
+
+  const validated = {
+    name: clean(data.name, 80) || 'House Rules',
+    resolution: clean(data.resolution, 1000),
+    abilities,
+    notes: clean(data.notes, 1000)
+  };
+
+  if (!validated.resolution && abilities.length === 0) return null;
+  return validated;
+}
+
+/**
  * Resolves a validated voice script against the campaign's NPCs: each line's
  * speaker is matched (case-insensitively) to a stored voice profile
  * (npcs.voice_json). Narrator/unknown speakers get null voice/instructions so

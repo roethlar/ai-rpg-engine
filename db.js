@@ -99,6 +99,15 @@ export async function initDb() {
     // Ignore error if column already exists
   }
 
+  // Ruleset as canon campaign state (decision 2026-07-03): the campaign's rule
+  // sheet — resolution summary, abilities with costs/limits — generated at
+  // creation, consulted by the Council, viewable by the player.
+  try {
+    await run('ALTER TABLE campaigns ADD COLUMN ruleset_json TEXT;');
+  } catch (e) {
+    // Ignore error if column already exists
+  }
+
   // Create campaign_outlines table
   await run(`
     CREATE TABLE IF NOT EXISTS campaign_outlines (
