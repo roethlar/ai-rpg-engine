@@ -53,5 +53,11 @@
 
 ## Remotes & Sync
 
-- Single remote `origin`: `http://q:3000/michael/ai-rpg-engine.git` (LAN
-  gitea). Push policy lives in `.agents/push-policy.md`.
+- Two remotes: `origin` = `http://q.internal:3000/michael/ai-rpg-engine` (LAN
+  gitea) and `github` = `https://github.com/roethlar/ai-rpg-engine.git`
+  (public — added by the owner 2026-07-03; the owner also pushes it
+  directly). The repo being public means tracked files must never contain
+  secrets (tracked files verified clean 2026-07-03; .env and data/ are
+  gitignored).
+- Push policy lives in `.agents/push-policy.md` and applies to both remotes:
+  a push go means pushing master to both unless the owner says otherwise.
