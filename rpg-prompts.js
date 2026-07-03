@@ -77,9 +77,12 @@ ${character.progression_notes || 'No long-term progression notes yet.'}
   "input_kind": "clarification|dialogue|committed_action",
   "narrative": "If clarification: directly answer the player's question in a natural, conversational way, grounded in what the character knows or can perceive. If dialogue or committed_action: vivid narrative markdown description of what happens, ending in a hook or prompt for response.",
   "narration_lines": [
-    // Voice-acting script: mirror the FULL narrative above, in order, split into segments.
+    // Voice-acting script: mirror the narrative above, in order, split into segments.
     // Each NPC's spoken dialogue is its own line with speaker set to their EXACT name;
     // all description and unspoken text uses speaker "narrator". tone is a brief vocal direction.
+    // NEVER voice the player's own words: omit any segment that re-quotes what the player
+    // said or typed — the player heard themselves. Sole exception: an NPC deliberately
+    // quoting or mimicking the player speaks those words as that NPC's line.
     { "speaker": "narrator", "tone": "hushed, building tension", "text": "Verbatim narrative segment." },
     { "speaker": "Exact NPC Name", "tone": "amused contempt", "text": "Only the words the NPC speaks aloud." }
   ],
