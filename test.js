@@ -1,6 +1,6 @@
 import assert from 'assert';
 import { parseJsonSafe, validateTurnData, validateRequiredChecks, rollCheck, forceNoOpTurnState, TABLE_TALK_KINDS } from './rpg-state.js';
-import { AIClient, resolveAgentConfig } from './api-client.js';
+import { AIClient, resolveAgentConfig, isTransientAiError } from './api-client.js';
 
 console.log('🧪 Starting Aetheria RPG Engine tests...');
 
@@ -442,6 +442,83 @@ async function testProviderEndpointPin() {
 }
 
 // -------------------------------------------------------------
+// Test: fallback tiering — retry once, then per-call backup tier (Phase I2)
+// -------------------------------------------------------------
+async function testFallbackTiering() {
+  console.log(' - Running fallback tiering tests...');
+
+  // Error classification
+  assert.strictEqual(isTransientAiError(Object.assign(new Error('x'), { status: 503 })), true, '503 is transient');
+  assert.strictEqual(isTransientAiError(Object.assign(new Error('x'), { status: 429 })), true, '429 is transient');
+  assert.strictEqual(isTransientAiError(Object.assign(new Error('x'), { status: 401 })), false, '401 is not transient');
+  assert.strictEqual(isTransientAiError(Object.assign(new Error('timeout'), { transient: true })), true, 'timeout flag is transient');
+  assert.strictEqual(isTransientAiError(new TypeError('fetch failed')), true, 'network TypeError is transient');
+  assert.strictEqual(isTransientAiError(new Error('API key is not configured.')), false, 'config errors fail fast');
+
+  const realFetch = globalThis.fetch;
+  const calls = [];
+  let failures = 0;
+  globalThis.fetch = async (url, options) => {
+    calls.push({ url: String(url), auth: options?.headers?.Authorization || options?.headers?.['x-goog-api-key'] || '' });
+    if (failures > 0) {
+      failures--;
+      return { ok: false, status: 503, statusText: 'Service Unavailable', text: async () => 'overloaded' };
+    }
+    return { ok: true, json: async () => ({ choices: [{ message: { content: 'recovered' } }], candidates: [{ content: { parts: [{ text: 'recovered' }] } }] }) };
+  };
+
+  try {
+    // 1. Transient error then success: one retry, same provider
+    failures = 1;
+    calls.length = 0;
+    const retryClient = new AIClient({ provider: 'openai', apiKey: 'k1' });
+    const out1 = await retryClient.sendPrompt({ prompt: 'hi' });
+    assert.strictEqual(out1, 'recovered');
+    assert.strictEqual(calls.length, 2, 'Should retry exactly once');
+    assert.strictEqual(calls[1].url.includes('api.openai.com'), true, 'Retry stays on the primary provider');
+
+    // 2. Two transient failures with a backup tier: third call goes to the fallback provider/key
+    failures = 2;
+    calls.length = 0;
+    const failoverClient = new AIClient({
+      provider: 'openai', apiKey: 'k1',
+      fallback: { provider: 'grok', model: 'grok-3-mini', apiKey: 'fb-key' }
+    });
+    const out2 = await failoverClient.sendPrompt({ prompt: 'hi' });
+    assert.strictEqual(out2, 'recovered');
+    assert.strictEqual(calls.length, 3, 'Primary, retry, then fallback');
+    assert.strictEqual(calls[2].url.includes('api.x.ai'), true, 'Third call must hit the backup provider');
+    assert.strictEqual(calls[2].auth, 'Bearer fb-key', 'Backup call must use the backup key');
+
+    // 3. Two transient failures with NO backup tier: error propagates after one retry
+    failures = 99;
+    calls.length = 0;
+    const noFallbackClient = new AIClient({ provider: 'openai', apiKey: 'k1' });
+    await assert.rejects(() => noFallbackClient.sendPrompt({ prompt: 'hi' }), /503/, 'Without a backup tier the transient error surfaces');
+    assert.strictEqual(calls.length, 2, 'Only primary + one retry without a backup tier');
+
+    // 4. Non-transient error: fail fast, no retry
+    calls.length = 0;
+    globalThis.fetch = async (url) => {
+      calls.push({ url: String(url) });
+      return { ok: false, status: 401, statusText: 'Unauthorized', text: async () => 'bad key' };
+    };
+    const failFastClient = new AIClient({
+      provider: 'openai', apiKey: 'bad',
+      fallback: { provider: 'grok', apiKey: 'fb-key' }
+    });
+    await assert.rejects(() => failFastClient.sendPrompt({ prompt: 'hi' }), /401/, '401 must not be retried');
+    assert.strictEqual(calls.length, 1, 'Non-transient errors get exactly one attempt');
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+
+  // resolveAgentConfig must carry the fallback tier through to every role
+  const roleConfig = resolveAgentConfig({ provider: 'gemini', apiKey: 'k', fallback: { provider: 'grok', apiKey: 'f' } }, 'referee');
+  assert.deepStrictEqual(roleConfig.fallback, { provider: 'grok', apiKey: 'f' }, 'Per-role configs must keep the fallback tier');
+}
+
+// -------------------------------------------------------------
 // Test: per-role Council config resolution (provider-scoped inheritance)
 // -------------------------------------------------------------
 function testResolveAgentConfig() {
@@ -498,6 +575,7 @@ async function runAll() {
     testRefereeDiceFlow();
     testResolveAgentConfig();
     await testServerConfigResolution();
+    await testFallbackTiering();
     await testProviderEndpointPin();
     await testTaskQueueSerialization();
     console.log('✅ All unit tests completed successfully!');

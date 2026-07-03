@@ -155,10 +155,52 @@ async function fetchWithTimeout(url, options = {}, timeoutMs = 240000) {
   } catch (error) {
     clearTimeout(id);
     if (error.name === 'AbortError') {
-      throw new Error(`AI Request Timed Out (Limit: ${timeoutMs / 1000}s)`);
+      const timeoutError = new Error(`AI Request Timed Out (Limit: ${timeoutMs / 1000}s)`);
+      timeoutError.transient = true;
+      throw timeoutError;
     }
     throw error;
   }
+}
+
+/**
+ * Builds a provider API error carrying the HTTP status so retry/fallback
+ * logic can classify it.
+ */
+function providerApiError(label, response, errText) {
+  const error = new Error(`${label} error: ${response.status} ${response.statusText} - ${errText}`);
+  error.status = response.status;
+  return error;
+}
+
+const TRANSIENT_HTTP_STATUSES = new Set([408, 429, 500, 502, 503, 504]);
+
+/**
+ * Transient = worth retrying: provider overload/unavailability, rate limits,
+ * timeouts, and network-layer failures (fetch throws TypeError). Config errors
+ * (missing key, 401/403, bad request) are not transient and fail fast.
+ */
+export function isTransientAiError(error) {
+  if (!error) return false;
+  if (error.transient === true) return true;
+  if (TRANSIENT_HTTP_STATUSES.has(error.status)) return true;
+  return error.name === 'TypeError';
+}
+
+const RETRY_BACKOFF_MS = Number(process.env.AI_RETRY_BACKOFF_MS || 1000);
+
+function delay(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function normalizeFallbackConfig(config = {}) {
+  const provider = config.fallback?.provider || process.env.FALLBACK_AI_PROVIDER;
+  if (!provider) return null;
+  return {
+    provider,
+    model: config.fallback?.model || process.env.FALLBACK_AI_MODEL || undefined,
+    apiKey: config.fallback?.apiKey || process.env.FALLBACK_API_KEY || undefined
+  };
 }
 
 /**
@@ -188,7 +230,10 @@ export function resolveAgentConfig(apiConfig = {}, role) {
     model: process.env[`${prefix}_AI_MODEL`] || (inherit ? apiConfig.model : undefined),
     apiKey: process.env[`${prefix}_API_KEY`] || (inherit ? apiConfig.apiKey : undefined),
     baseUrl: process.env[`${prefix}_CUSTOM_ENDPOINT_URL`] || (inherit ? apiConfig.baseUrl : undefined),
-    ollamaUrl: process.env[`${prefix}_OLLAMA_URL`] || (inherit ? apiConfig.ollamaUrl : undefined)
+    ollamaUrl: process.env[`${prefix}_OLLAMA_URL`] || (inherit ? apiConfig.ollamaUrl : undefined),
+    // The fallback tier is role-independent: any role's failing call may fail
+    // over to the backup model (per-call, so role separation is preserved).
+    fallback: apiConfig.fallback
   };
 }
 
@@ -212,6 +257,10 @@ export class AIClient {
 
     this.baseUrl = rawBaseUrl;
     this.ollamaUrl = rawOllamaUrl;
+
+    // Backup tier for transient-error failover (decision 2026-07-03). The
+    // backup client itself never gets a fallback, so failover cannot recurse.
+    this.fallback = normalizeFallbackConfig(config);
 
     // Set default models based on provider
     if (!this.model) {
@@ -247,7 +296,35 @@ export class AIClient {
     }
   }
 
-  async sendPrompt({ systemInstruction, prompt, jsonMode = false }) {
+  /**
+   * Sends a prompt with transient-error handling (decision 2026-07-03):
+   * retry once against the same config, then fail over the single call to the
+   * configured backup tier. Non-transient errors fail fast.
+   */
+  async sendPrompt(args) {
+    try {
+      return await this.dispatchPrompt(args);
+    } catch (firstError) {
+      if (!isTransientAiError(firstError)) throw firstError;
+      console.warn(`[AI] Transient ${this.provider} error (${firstError.message}). Retrying once...`);
+      await delay(RETRY_BACKOFF_MS);
+
+      try {
+        return await this.dispatchPrompt(args);
+      } catch (retryError) {
+        if (!isTransientAiError(retryError) || !this.fallback) throw retryError;
+        console.warn(`[AI] Retry failed (${retryError.message}). Failing over to backup tier: ${this.fallback.provider}.`);
+        const backupClient = new AIClient({
+          provider: this.fallback.provider,
+          model: this.fallback.model,
+          apiKey: this.fallback.apiKey
+        });
+        return backupClient.dispatchPrompt(args);
+      }
+    }
+  }
+
+  async dispatchPrompt({ systemInstruction, prompt, jsonMode = false }) {
     if (this.baseUrl) {
       await validateUrlForSsrfAsync(this.baseUrl, process.env.CUSTOM_ENDPOINT_URL);
     }
@@ -310,7 +387,7 @@ export class AIClient {
 
     if (!response.ok) {
       const errText = await response.text();
-      throw new Error(`Gemini API error: ${response.status} ${response.statusText} - ${errText}`);
+      throw providerApiError('Gemini API', response, errText);
     }
 
     const data = await response.json();
@@ -351,7 +428,7 @@ export class AIClient {
 
     if (!response.ok) {
       const errText = await response.text();
-      throw new Error(`OpenAI API error: ${response.status} ${response.statusText} - ${errText}`);
+      throw providerApiError('OpenAI API', response, errText);
     }
 
     const data = await response.json();
@@ -392,7 +469,7 @@ export class AIClient {
 
     if (!response.ok) {
       const errText = await response.text();
-      throw new Error(`xAI Grok API error: ${response.status} ${response.statusText} - ${errText}`);
+      throw providerApiError('xAI Grok API', response, errText);
     }
 
     const data = await response.json();
@@ -436,7 +513,7 @@ export class AIClient {
 
     if (!response.ok) {
       const errText = await response.text();
-      throw new Error(`Claude API error: ${response.status} ${response.statusText} - ${errText}`);
+      throw providerApiError('Claude API', response, errText);
     }
 
     const data = await response.json();
@@ -468,7 +545,7 @@ export class AIClient {
 
     if (!response.ok) {
       const errText = await response.text();
-      throw new Error(`Ollama error: ${response.status} ${response.statusText} - ${errText}`);
+      throw providerApiError('Ollama', response, errText);
     }
 
     const data = await response.json();
@@ -504,7 +581,7 @@ export class AIClient {
 
     if (!response.ok) {
       const errText = await response.text();
-      throw new Error(`Custom OpenAI endpoint error: ${response.status} ${response.statusText} - ${errText}`);
+      throw providerApiError('Custom OpenAI endpoint', response, errText);
     }
 
     const data = await response.json();

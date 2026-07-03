@@ -432,6 +432,33 @@ body {
   color: #fff;
 }
 
+/* Out-of-fiction system notices (provider failures etc.) — visually distinct
+   from the GM voice: amber accent, dashed border. */
+.log-system {
+  align-self: center;
+  max-width: 92%;
+  padding: 10px 14px;
+  border: 1px dashed hsl(35, 70%, 45%);
+  border-radius: 8px;
+  background: hsla(35, 80%, 55%, 0.07);
+}
+.log-system .speaker {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-weight: 700;
+  color: hsl(35, 80%, 60%);
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.log-system .content {
+  font-size: 12.5px;
+  color: hsl(var(--theme-text-dim));
+  line-height: 1.5;
+}
+
 .log-scene {
   align-self: flex-start;
   max-width: 92%;

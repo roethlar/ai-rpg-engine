@@ -392,7 +392,11 @@ function setupEventListeners() {
       renderGame(gameState, false, { narrate: true });
     } catch (error) {
       console.error(error);
-      appendGMDialogue(`**Error from Game Master:** ${error.message}\n\nPlease check server logs, network, or your API key settings.`);
+      // Decision 2026-07-03: transient failures surface OUTSIDE the GM's voice
+      // as a retriable state, with the player's typed input restored.
+      appendSystemNotice(`The connection to the AI provider failed (${error.message}). Your action was not lost — it has been restored below. Press send to retry.`);
+      actionInput.value = actionText;
+      actionInput.focus();
       if (shouldOpenSettingsForError(error.message)) {
         openSettingsModal();
       }
@@ -400,6 +404,18 @@ function setupEventListeners() {
       setActionInputState(true);
     }
   });
+}
+
+// A system/out-of-fiction notice in the narrative log — never the GM's voice.
+function appendSystemNotice(message) {
+  const el = document.createElement('div');
+  el.className = 'log-entry log-system';
+  el.innerHTML = DOMPurify.sanitize(`
+    <div class="speaker"><i class="fa-solid fa-triangle-exclamation"></i> System</div>
+    <div class="content">${escapeHtml(message)}</div>
+  `);
+  narrativeContainer.appendChild(el);
+  scrollToBottom();
 }
 
 function openCampaignWizard() {
