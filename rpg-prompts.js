@@ -123,5 +123,5 @@ ${character.progression_notes || 'No long-term progression notes yet.'}
   ]
 }
 
-Double check your JSON is valid. Pay special attention to input_kind classification — when in doubt, use "clarification" and give the player clear scene information so they can make informed decisions.`;
+Double check your JSON is valid. Every double quote inside the svg_illustration string value MUST be escaped with a backslash (\\") exactly as shown in the schema above, or the JSON will fail to parse. Pay special attention to input_kind classification — when in doubt, use "clarification" and give the player clear scene information so they can make informed decisions.`;
 }
