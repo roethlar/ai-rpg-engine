@@ -12,6 +12,7 @@ use std::net::TcpStream;
 use std::process::{Child, Command};
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
+use tauri::menu::{Menu, MenuItem, Submenu};
 use tauri::{Manager, RunEvent, WebviewUrl, WebviewWindowBuilder};
 
 const SERVER_PORT: u16 = 3000;
@@ -92,7 +93,29 @@ fn main() {
                 .title("Aetheria GM")
                 .inner_size(1440.0, 900.0)
                 .build()?;
+
+            // Operator menu: /admin is deliberately not linked from the game UI,
+            // and this window has no URL bar — so the shell provides the way in.
+            let admin_item = MenuItem::with_id(app, "open-admin", "Open Admin Panel…", true, None::<&str>)?;
+            let server_menu = Submenu::with_items(app, "Server", true, &[&admin_item])?;
+            let menu = Menu::with_items(app, &[&server_menu])?;
+            app.set_menu(menu)?;
             Ok(())
+        })
+        .on_menu_event(|app, event| {
+            if event.id() == "open-admin" {
+                if let Some(window) = app.get_webview_window("admin") {
+                    let _ = window.set_focus();
+                } else {
+                    let admin_url = format!("http://localhost:{SERVER_PORT}/admin")
+                        .parse()
+                        .expect("static admin URL must parse");
+                    let _ = WebviewWindowBuilder::new(app, "admin", WebviewUrl::External(admin_url))
+                        .title("Aetheria GM — Server Administration")
+                        .inner_size(760.0, 900.0)
+                        .build();
+                }
+            }
         })
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
