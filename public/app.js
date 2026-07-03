@@ -288,6 +288,7 @@ function setupEventListeners() {
   document.getElementById('btn-cancel-settings').addEventListener('click', () => settingsModal.style.display = 'none');
 
   checkboxVoiceNarration.addEventListener('change', toggleVoiceSettings);
+  document.getElementById('btn-voice-preview').addEventListener('click', previewVoice);
 
   // Spotlight controls
   document.querySelectorAll('.spotlight-btn').forEach(btn => {
@@ -428,6 +429,37 @@ function setupEventListeners() {
       setActionInputState(true);
     }
   });
+}
+
+// Voice preview: audition the selected voice + direction on a sample line
+// without spending a game turn. Uses the current (unsaved) form values.
+async function previewVoice() {
+  const btn = document.getElementById('btn-voice-preview');
+  btn.disabled = true;
+  try {
+    const response = await fetchWithTimeout('/api/audio/narrate', {
+      method: 'POST',
+      body: JSON.stringify({
+        text: 'The torchlight gutters as you step into the vault. Whatever slept here is awake now — and it knows your name.',
+        audioConfig: {
+          voice: selectVoiceName.value,
+          instructions: inputVoiceInstructions.value.trim()
+        }
+      })
+    }, 60000);
+    if (!response.ok) {
+      throw new Error(await getResponseErrorMessage(response, 'Voice preview failed'));
+    }
+    const blob = await response.blob();
+    const objectUrl = URL.createObjectURL(blob);
+    const audio = new Audio(objectUrl);
+    audio.addEventListener('ended', () => URL.revokeObjectURL(objectUrl), { once: true });
+    await audio.play();
+  } catch (error) {
+    showToast(`Voice preview: ${error.message}`, 'error');
+  } finally {
+    btn.disabled = false;
+  }
 }
 
 // A system/out-of-fiction notice in the narrative log — never the GM's voice.

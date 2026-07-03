@@ -945,6 +945,11 @@ body {
   max-height: 90vh;
   overflow-y: auto;
   padding: 24px;
+  /* Near-opaque on purpose: modals overlay story text, and the glass-card
+     blur is unavailable when accelerated compositing is off (e.g. the Tauri
+     shell's WEBKIT_DISABLE_DMABUF_RENDERER workaround) — readability must
+     never depend on backdrop-filter. */
+  background: hsl(var(--theme-panel));
 }
 .modal-header {
   display: flex;
