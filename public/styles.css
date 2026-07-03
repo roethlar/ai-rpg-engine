@@ -1062,9 +1062,12 @@ body {
 }
 
 /* KEYFRAMES & ANIMATIONS */
+/* Deliberately no opacity in slide-up: if the engine stalls animations (seen
+   in the Tauri shell's software-rendering mode), a frozen first frame must
+   still show the text. Content visibility never depends on an animation. */
 @keyframes slide-up {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+  from { transform: translateY(10px); }
+  to { transform: translateY(0); }
 }
 
 @keyframes pulse-glow {

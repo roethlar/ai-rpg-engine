@@ -1156,9 +1156,15 @@ function appendSceneGrounding(groundingText) {
 }
 
 function scrollToBottom() {
+  // Immediate + two delayed passes: SVGs and roll cards can settle layout
+  // after the first scroll, leaving fresh text below the fold.
+  narrativeContainer.scrollTop = narrativeContainer.scrollHeight;
   setTimeout(() => {
     narrativeContainer.scrollTop = narrativeContainer.scrollHeight;
   }, 50);
+  setTimeout(() => {
+    narrativeContainer.scrollTop = narrativeContainer.scrollHeight;
+  }, 350);
 }
 
 // UI Overlays
