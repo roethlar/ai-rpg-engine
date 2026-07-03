@@ -150,6 +150,37 @@ h1 { font-family: var(--font-title); font-size: 26px; letter-spacing: 0.5px; tex
 .frame-c .rail { display: flex; flex-direction: column; gap: 12px; }
 .frame-c .heroic { aspect-ratio: 4 / 3; }
 
+/* Layout D: dynamic spotlight — one info rail (char + situation stacked, per
+   owner feedback), log + tall heroic in the main field; click any panel to
+   spotlight it, everything else demotes to the rail. */
+.frame-d .frame-grid {
+  grid-template-columns: 210px 1.4fr 1fr;
+  grid-template-rows: auto 1fr;
+  grid-template-areas: "char log heroic" "spatial log heroic";
+}
+.frame-d .p-char { grid-area: char; }
+.frame-d .p-log { grid-area: log; }
+.frame-d .p-heroic { grid-area: heroic; min-height: 300px; }
+.frame-d .p-spatial { grid-area: spatial; }
+.frame-d .p-char, .frame-d .p-log, .frame-d .p-heroic, .frame-d .p-spatial { cursor: zoom-in; transition: box-shadow 0.15s; }
+.frame-d [data-panel]:hover { box-shadow: 0 0 0 1px var(--g-cyan); }
+.frame-d[data-focus] [data-panel] { cursor: zoom-in; }
+.frame-d[data-focus] .focused { cursor: zoom-out; box-shadow: 0 0 0 1px var(--g-pink); }
+.frame-d[data-focus="heroic"] .frame-grid { grid-template-columns: 230px 1fr; grid-template-rows: auto auto 1fr; grid-template-areas: "char heroic" "spatial heroic" "log heroic"; }
+.frame-d[data-focus="heroic"] .p-heroic { min-height: 480px; }
+.frame-d[data-focus="log"] .frame-grid { grid-template-columns: 230px 1fr; grid-template-rows: auto auto 1fr; grid-template-areas: "char log" "spatial log" "heroic log"; }
+.frame-d[data-focus="log"] .p-heroic { min-height: 130px; }
+.frame-d[data-focus="spatial"] .frame-grid { grid-template-columns: 230px 1fr; grid-template-rows: auto auto 1fr; grid-template-areas: "char spatial" "heroic spatial" "log spatial"; }
+.frame-d[data-focus="spatial"] .p-heroic { min-height: 130px; }
+.frame-d[data-focus="spatial"] .spatial .map-wrap { display: block; }
+.frame-d[data-focus="char"] .frame-grid { grid-template-columns: 230px 1fr; grid-template-rows: auto auto 1fr; grid-template-areas: "spatial char" "heroic char" "log char"; }
+.frame-d[data-focus="char"] .p-heroic { min-height: 130px; }
+.frame-d .char-more { display: none; }
+.frame-d[data-focus="char"] .char-more { display: block; margin-top: 12px; font-size: 11.5px; color: #cfc3dd; }
+.frame-d .char-more h5 { font-family: var(--font-title); font-size: 9.5px; letter-spacing: 1.4px; text-transform: uppercase; color: var(--g-cyan); margin: 10px 0 4px; }
+.frame-d .char-more li { list-style: none; padding: 3px 0; border-bottom: 1px solid #241233; }
+.spotlight-hint { font-size: 10.5px; color: var(--g-dim); padding: 6px 14px 10px; }
+
 /* ===== Notes under each frame ===== */
 .notes { border-left: 3px solid var(--accent); padding: 4px 0 4px 16px; margin: 18px 0 28px; }
 .notes h3 { font-family: var(--font-title); font-size: 15px; margin-bottom: 6px; }
@@ -181,6 +212,7 @@ h1 { font-family: var(--font-title); font-size: 26px; letter-spacing: 0.5px; tex
       <button data-layout="a" aria-pressed="true">A · Banner</button>
       <button data-layout="b" aria-pressed="false">B · Tall companion</button>
       <button data-layout="c" aria-pressed="false">C · Supporting rail</button>
+      <button data-layout="d" aria-pressed="false">D · Dynamic spotlight</button>
     </div>
     <div class="control-group">
       <span class="control-label">Turn state</span>
@@ -317,6 +349,55 @@ h1 { font-family: var(--font-title); font-size: 26px; letter-spacing: 0.5px; tex
     </div>
   </section>
 
+  <!-- ============ LAYOUT D: DYNAMIC SPOTLIGHT ============ -->
+  <section class="frame frame-d" id="frame-d">
+    <div class="frame-top"><span class="title">AETHERIA GM</span><span class="campaign">Velvet Protocol: A Neon Blood Saga — Act II</span></div>
+    <div class="spotlight-hint">Click any panel to spotlight it; click it again or press Esc to restore. The turn-state toggle still works.</div>
+    <div class="frame-grid">
+      <div class="gpanel p-char" data-panel="char">
+        <h4>Character</h4>
+        <div class="char-name">Joe</div>
+        <div class="char-class">Former paperboy · dropout · 172 IQ</div>
+        <span class="bar-label">Health 72/100</span><div class="bar hp"><i></i></div>
+        <span class="bar-label">Focus 33/60</span><div class="bar mp"><i></i></div>
+        <div class="quest"><b>Active: The Masque's Ledger</b>Get Kessler talking before the floor show ends.</div>
+        <div class="char-more">
+          <h5>Attributes</h5>
+          <ul><li>Strength 9 · Agility 12</li><li>Intellect 17 · Willpower 11</li></ul>
+          <h5>Inventory</h5>
+          <ul><li>Cracked dataslate — Kessler's partial ledger</li><li>Recovery patch ×2</li><li>Vial of amber glow (unidentified)</li></ul>
+          <h5>Abilities</h5>
+          <ul><li>Pattern Read [trained] — reconstruct a scene from small details</li><li>Fast Talk [emerging] — buy ten seconds anywhere</li></ul>
+        </div>
+      </div>
+      <div class="gpanel log p-log" data-panel="log">
+        <div class="log-player">"I slide onto the stool next to Kessler and order whatever he's having."</div>
+        <div class="log-gm"><div class="who">Game Master</div><p>The bartender pours two fingers of something that glows faintly amber. Kessler doesn't look at you, but his reflection in the chrome does. <em>"You're either very brave or very new. The Masque doesn't sell either one a second drink."</em></p></div>
+        <div class="log-player">"Which exit is closest if this goes sideways?"</div>
+        <div class="log-gm"><div class="who">Game Master</div><p>The staff corridor behind the bar is ten feet away — but it's Kessler's ground, not yours.</p></div>
+      </div>
+      <div class="heroic p-heroic" data-panel="heroic"><span class="tag"><b>KESSLER</b> · Blutgericht club — heroic render</span></div>
+      <div class="gpanel spatial p-spatial" data-panel="spatial">
+        <h4>Situation</h4>
+        <p class="grounding">Bar along the east wall; Kessler two stools down. Thugs at the door booth, 30 ft. Strobe every 8 s. Exits: main door NW, staff corridor.</p>
+        <div class="map-wrap">
+          <svg class="map-svg" viewBox="0 0 240 170" role="img" aria-label="Top-down tactical map of the Blutgericht bar">
+            <defs><pattern id="grid-d" width="20" height="20" patternUnits="userSpaceOnUse"><path d="M20 0H0V20" fill="none" stroke="#241233" stroke-width="1"/></pattern></defs>
+            <rect width="240" height="170" fill="#0e0618"/><rect width="240" height="170" fill="url(#grid-d)"/>
+            <rect x="4" y="4" width="232" height="162" fill="none" stroke="#3a1f52" stroke-width="3"/>
+            <rect x="196" y="18" width="28" height="128" fill="#1c0e2a" stroke="#3a1f52"/>
+            <rect x="20" y="126" width="52" height="26" fill="#1c0e2a" stroke="#3a1f52"/>
+            <rect x="20" y="18" width="70" height="24" fill="#160a24" stroke="#3a1f52"/>
+            <circle cx="182" cy="72" r="8" fill="#00dede"/><text x="182" y="75" font-size="8" font-weight="bold" text-anchor="middle" fill="#04121b">J</text>
+            <circle cx="182" cy="104" r="8" fill="#ff2fae"/><text x="182" y="107" font-size="8" font-weight="bold" text-anchor="middle" fill="#1b0412">K</text>
+            <circle cx="46" cy="136" r="7" fill="#5c4a70"/><circle cx="62" cy="144" r="7" fill="#5c4a70"/>
+          </svg>
+          <div class="legend"><span><i style="background:#00dede"></i>Joe</span><span><i style="background:#ff2fae"></i>Kessler</span><span><i style="background:#5c4a70"></i>Thugs</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <!-- ============ NOTES ============ -->
   <div class="notes">
     <div class="note-block active" data-note="a">
@@ -346,12 +427,21 @@ h1 { font-family: var(--font-title); font-size: 26px; letter-spacing: 0.5px; tex
         <li>Smallest map of the three — fine for token positions, cramped for larger encounters.</li>
       </ul>
     </div>
-    <p class="rule">Shared rules in all three (per plan.md): the heroic persists until the game moves past it — new location, or an NPC takes prominence; the engine owns <code>current_heroic</code>. The situation panel is the same surface at two fidelities: scene-grounding text by default, tactical map + tokens only when position matters. Resolution stays narrative — tokens inform theater-of-mind play.</p>
+    <div class="note-block" data-note="d">
+      <h3>D · Dynamic spotlight (response to 2026-07-03 feedback)</h3>
+      <ul>
+        <li>Base layout is B improved per feedback: one info rail (character + situation stacked), log and tall heroic share the main field. No wasted second rail.</li>
+        <li>Any surface spotlights on click — heroic zooms for a great render, map grows for tactics, log maximizes for reading, character expands to a full sheet (attributes, inventory, abilities appear only when focused).</li>
+        <li>Everything demoted stays visible in the rail — no modal, no lost context. Esc restores.</li>
+        <li>Pure frontend (CSS grid area swaps); the engine already emits the positional signal, so combat could later auto-suggest the map spotlight.</li>
+      </ul>
+    </div>
+    <p class="rule">Shared rules in all layouts (per plan.md): the heroic persists until the game moves past it — new location, or an NPC takes prominence; the engine owns <code>current_heroic</code>. The situation panel is the same surface at two fidelities: scene-grounding text by default, tactical map + tokens only when position matters. Resolution stays narrative — tokens inform theater-of-mind play.</p>
   </div>
 </main>
 
 <script>
-const frames = { a: document.getElementById('frame-a'), b: document.getElementById('frame-b'), c: document.getElementById('frame-c') };
+const frames = { a: document.getElementById('frame-a'), b: document.getElementById('frame-b'), c: document.getElementById('frame-c'), d: document.getElementById('frame-d') };
 const notes = document.querySelectorAll('.note-block');
 let combat = false;
 
@@ -372,6 +462,28 @@ document.querySelectorAll('[data-state]').forEach(btn => {
     combat = btn.dataset.state === 'combat';
     Object.values(frames).forEach(frame => frame.classList.toggle('combat', combat));
   });
+});
+
+// Layout D spotlight: click a panel to focus it; click again or Esc restores.
+const frameD = frames.d;
+frameD.querySelectorAll('[data-panel]').forEach(panel => {
+  panel.addEventListener('click', () => {
+    const key = panel.dataset.panel;
+    const already = frameD.dataset.focus === key;
+    frameD.querySelectorAll('[data-panel]').forEach(p => p.classList.remove('focused'));
+    if (already) {
+      delete frameD.dataset.focus;
+    } else {
+      frameD.dataset.focus = key;
+      panel.classList.add('focused');
+    }
+  });
+});
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape' && frameD.dataset.focus) {
+    delete frameD.dataset.focus;
+    frameD.querySelectorAll('[data-panel]').forEach(p => p.classList.remove('focused'));
+  }
 });
 </script>
 </body>
