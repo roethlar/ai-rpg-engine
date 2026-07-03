@@ -621,7 +621,7 @@ async function handleToolCall(toolName, args) {
         if (rows.length === 0) {
           contentText = 'No history turns found for this campaign.';
         } else {
-          contentText = rows.map(r => `[Turn ${r.turn_number}]\nPLAYER: ${r.player_action || '(Start Campaign)'}\nDM: ${r.narrative}\n---`).join('\n\n');
+          contentText = rows.map(r => `[Turn ${r.turn_number}]\nPLAYER: ${r.player_action || '(Start Campaign)'}\nGM: ${r.narrative}\n---`).join('\n\n');
         }
         break;
       }

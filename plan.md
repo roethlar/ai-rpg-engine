@@ -41,6 +41,34 @@
 
 **Multiplayer end state vision**: Multiple players can join the same campaign (via shared URL + access token). The DM maintains one shared scene description. Players take turns in declared order. Clarification/table-talk works for everyone. Character progression is persistent across campaigns.
 
+## Infrastructure Phases (promoted 2026-07-03 — functional gates, not feel gates)
+
+These serve security and reliability rather than GM feel, so their review gate is
+functional: unit tests + smoke verification, plus owner confirmation on next play.
+
+**Phase I1: Server-owned AI config & /admin panel** (decisions 2026-06-11 + 2026-07-03
+in `.agents/decisions.md`)
+- `server_settings` table; admin-set AI config (provider/model/keys/endpoints, voice
+  key/model, fallback tier) persisted server-side; resolution order admin DB > env.
+- `/admin` page (not linked from game UI) gated by `ADMIN_SECRET` (unset = open for
+  single-operator localhost dev, warned at startup; production fails closed).
+- Server ignores client-supplied AI config; player settings panel reduced to access
+  token, voice preference (toggle/voice/style), diagnostics.
+- Success: server env/admin config authoritative; a client sending forged apiConfig
+  cannot change provider/model/key; owner can configure keys via /admin and play.
+- Files: db.js, server-config.js (new), server.js, admin/ (new), public/index.html,
+  public/app.js, test.js.
+
+**Phase I2: Model fallback tiering** (decision 2026-07-03 in `.agents/decisions.md`)
+- Transient AI errors (network/timeout/408/429/5xx): retry once, then per-call
+  failover to a configured backup tier (admin panel or `FALLBACK_*` env). Role
+  separation preserved (per-call swap only). Non-transient errors fail fast.
+- Frontend: failures surviving retry+fallback surface as a retriable error outside
+  the GM voice, with the player's typed input restored.
+- Success: mocked-provider tests prove retry/fallback/fail-fast classification; a
+  mid-session 503 no longer reaches the narrative log as GM dialogue.
+- Files: api-client.js, server-config.js, public/app.js, test.js.
+
 ## Non-Goals (for now)
 - Real-time simultaneous multiplayer
 - Full combat grid / tactical combat system

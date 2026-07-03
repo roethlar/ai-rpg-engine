@@ -161,6 +161,59 @@ Supersedes:
 Nothing recorded; documents previously-unrecorded intent. README's presentation of the
 UI key slot as a coequal configuration path should be read in light of this decision.
 
+### 2026-07-03 - Owner settings live at /admin gated by ADMIN_SECRET; player panel keeps only player-appropriate settings
+
+Status: Active
+
+Decision:
+The mechanism for the server-owned AI configuration decision (2026-06-11) is a
+separate `/admin` page, not linked from the game UI, gated by a master password
+(`ADMIN_SECRET` env var) distinct from the player `ACCESS_SECRET`. All AI
+configuration — provider, model, API keys, custom endpoints, voice API key/model,
+and fallback tier — is managed there and persisted server-side. The player-facing
+settings panel keeps only player-appropriate settings: server access token, voice
+narration preference (on/off, voice choice, style instructions), and diagnostics.
+Client-supplied AI config (`apiConfig` provider/model/key/endpoint fields) is no
+longer honored by the server. Following the `ACCESS_SECRET` precedent, an unset
+`ADMIN_SECRET` leaves /admin accessible (single-operator localhost dev); production
+deployments must set it, and the server warns at startup when it is unset.
+
+Reason:
+Implements the enforcement half of the 2026-06-11 server-owned AI config decision
+with the "leading idea" mechanism recorded in plan.md's owner/player settings-split
+topic, chosen by the owner 2026-07-03. Keys billed to the operator must not be
+player-suppliable or player-overridable once the game is hosted.
+
+Supersedes:
+The transitional state recorded in the 2026-06-11 decision (client apiConfig
+override honored as legacy drift). The full per-player auth system remains a
+future topic; ADMIN_SECRET is deliberately independent of it.
+
+### 2026-07-03 - Model fallback tiering: retry once, then backup tier; failures surface outside the GM voice
+
+Status: Active
+
+Decision:
+Transient provider errors (network failure, HTTP 408/429/5xx) on any AI call are
+retried once against the same configuration after a short backoff. If the retry
+also fails transiently and a backup tier is configured (admin panel or
+`FALLBACK_AI_PROVIDER` / `FALLBACK_AI_MODEL` / `FALLBACK_API_KEY` env), the single
+failing call is re-issued against the backup tier with the same role prompt —
+per-call failover, so Council role separation is preserved (a mid-chain swap never
+changes which role adjudicates, only which model backs that one call).
+Non-transient errors (400/401/403, malformed request) are not retried. Failures
+that survive retry+fallback surface to the player as a retriable UI state outside
+the GM's voice, with the typed input restored — never as in-fiction GM dialogue
+and never killing the session.
+
+Reason:
+First playtest pain recorded in plan.md: provider overload (Gemini 503) must not
+surface as a raw error in the GM's voice, and the GM cannot "take a break."
+Promoted to implementation by the owner 2026-07-03.
+
+Supersedes:
+Nothing; implements the "Model fallback tiering" future topic in plan.md.
+
 ### 2026-06-05 - Council DM pipeline is canonical; clarification turns must not advance state (from plan.md + code)
 
 Status: Active
