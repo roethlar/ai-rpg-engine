@@ -293,48 +293,14 @@
   <div class="modal" id="settings-modal" style="display: none;">
     <div class="modal-content glass-card">
       <div class="modal-header">
-        <h2>AI Model Configurations</h2>
+        <h2>Player Settings</h2>
         <button class="btn-close" id="btn-close-settings"><i class="fa-solid fa-xmark"></i></button>
       </div>
       <div class="modal-body">
-        <p class="settings-intro">Configure which AI model powers your Game Master. Leaving keys empty defaults to the server's environment variables (`.env`).</p>
-        
+        <p class="settings-intro">Personal preferences for this browser. AI provider, model, and API keys are configured by the server operator.</p>
+
         <form id="settings-form">
           <div class="form-group">
-            <label for="select-provider">AI Provider</label>
-            <select id="select-provider">
-              <option value="gemini">Google Gemini (Recommended client-side)</option>
-              <option value="openai">OpenAI (GPT)</option>
-              <option value="claude">Anthropic Claude</option>
-              <option value="grok">xAI Grok</option>
-              <option value="ollama">Ollama (Local Models)</option>
-              <option value="custom">Custom OpenAI-Compatible Endpoint</option>
-            </select>
-          </div>
-
-          <div class="form-group" id="group-model">
-            <label for="input-model">Model Name</label>
-            <input type="text" id="input-model" placeholder="e.g. gemini-1.5-flash, gpt-4o-mini, Llama-3-8b">
-          </div>
-
-          <div class="form-group" id="group-api-key">
-            <label for="input-api-key">API Authorization Key</label>
-            <input type="password" id="input-api-key" placeholder="Enter API Key (Optional if configured in .env)">
-            <span class="form-tip" style="color: hsl(35, 80%, 65%); font-size: 11px; margin-top: 4px; display: block;"><i class="fa-solid fa-triangle-exclamation"></i> Warning: Keys entered here are saved in your browser's localStorage. For public production environments, we recommend keeping this field blank and configuring keys securely on the server via environment variables.</span>
-          </div>
-
-          <div class="form-group" id="group-custom-endpoint" style="display: none;">
-            <label for="input-custom-url">Custom Endpoint Base URL</label>
-            <input type="text" id="input-custom-url" placeholder="e.g. https://api.groq.com/openai/v1/chat/completions">
-          </div>
-
-          <div class="form-group" id="group-ollama-url" style="display: none;">
-            <label for="input-ollama-url">Ollama Local Connection URL</label>
-            <input type="text" id="input-ollama-url" placeholder="http://localhost:11434">
-            <span class="form-tip">To run Ollama from the browser, make sure Ollama runs with CORS enabled (set environment variable `OLLAMA_ORIGINS="*"`).</span>
-          </div>
-
-          <div class="form-group" style="margin-top: 16px; padding-top: 16px; border-top: 1px solid hsl(var(--theme-border));">
             <label class="checkbox-container" style="display: flex; align-items: center; gap: 10px; cursor: pointer; text-transform: none; font-size: 13px; font-weight: 600;">
               <input type="checkbox" id="input-enable-voice-narration" style="width: auto; cursor: pointer;">
               <span>Enable Voice Narration</span>
@@ -343,14 +309,9 @@
           </div>
 
           <div id="voice-settings-group" style="display: none;">
-            <div class="form-row">
-              <div class="form-group flex-1">
-                <label for="input-voice-model">Voice Model</label>
-                <input type="text" id="input-voice-model" placeholder="gpt-4o-mini-tts">
-              </div>
-              <div class="form-group flex-1">
-                <label for="select-voice-name">Voice</label>
-                <select id="select-voice-name">
+            <div class="form-group">
+              <label for="select-voice-name">Voice</label>
+              <select id="select-voice-name">
                   <option value="marin">Marin</option>
                   <option value="cedar">Cedar</option>
                   <option value="alloy">Alloy</option>
@@ -365,11 +326,6 @@
                   <option value="shimmer">Shimmer</option>
                   <option value="verse">Verse</option>
                 </select>
-              </div>
-            </div>
-            <div class="form-group">
-              <label for="input-voice-api-key">Voice API Key</label>
-              <input type="password" id="input-voice-api-key" placeholder="Optional if OPENAI_API_KEY is set on the server">
             </div>
             <div class="form-group">
               <label for="input-voice-instructions">Voice Direction</label>

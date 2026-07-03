@@ -6,18 +6,13 @@
 let currentCampaignId = null;
 let currentCampaignTitle = '';
 let savedCharacters = [];
+// Player-appropriate settings only: AI provider/model/keys are server-owned
+// (decision 2026-06-11) and configured by the operator at /admin.
 const DEFAULT_API_CONFIG = {
-  provider: 'gemini',
-  model: '',
-  apiKey: '',
-  baseUrl: '',
-  ollamaUrl: '',
   accessToken: '', // Authentication token
   enableDiagnostics: false, // Dev mode flag
   voiceNarration: false,
-  voiceModel: 'gpt-4o-mini-tts',
   voiceName: 'marin',
-  voiceApiKey: '',
   voiceInstructions: 'Narrate as an atmospheric game master. Keep the delivery clear, tense, and cinematic without overacting.'
 };
 let apiConfig = { ...DEFAULT_API_CONFIG };
@@ -47,18 +42,11 @@ const inputCharName = document.getElementById('input-char-name');
 const inputCharConcept = document.getElementById('input-char-concept');
 
 // Settings Inputs
-const selectProvider = document.getElementById('select-provider');
-const inputModel = document.getElementById('input-model');
-const inputApiKey = document.getElementById('input-api-key');
-const inputCustomUrl = document.getElementById('input-custom-url');
-const inputOllamaUrl = document.getElementById('input-ollama-url');
 const inputAccessToken = document.getElementById('input-access-token');
 const checkboxDiagnostics = document.getElementById('input-enable-diagnostics');
 const checkboxVoiceNarration = document.getElementById('input-enable-voice-narration');
 const voiceSettingsGroup = document.getElementById('voice-settings-group');
-const inputVoiceModel = document.getElementById('input-voice-model');
 const selectVoiceName = document.getElementById('select-voice-name');
-const inputVoiceApiKey = document.getElementById('input-voice-api-key');
 const inputVoiceInstructions = document.getElementById('input-voice-instructions');
 
 // Game Panel DOM Elements
@@ -138,76 +126,38 @@ function loadSettings() {
   apiConfig = normalizeApiConfig(savedConfig);
 
   // Populate form elements
-  selectProvider.value = apiConfig.provider || 'gemini';
-  inputModel.value = apiConfig.model || '';
-  inputApiKey.value = apiConfig.apiKey || '';
-  inputCustomUrl.value = apiConfig.baseUrl || '';
-  inputOllamaUrl.value = apiConfig.ollamaUrl || '';
   inputAccessToken.value = apiConfig.accessToken || '';
   checkboxDiagnostics.checked = !!apiConfig.enableDiagnostics;
   checkboxVoiceNarration.checked = !!apiConfig.voiceNarration;
-  inputVoiceModel.value = apiConfig.voiceModel || 'gpt-4o-mini-tts';
   selectVoiceName.value = apiConfig.voiceName || 'marin';
-  inputVoiceApiKey.value = apiConfig.voiceApiKey || '';
   inputVoiceInstructions.value = apiConfig.voiceInstructions || '';
 
-  toggleSettingsFields(selectProvider.value);
   toggleVoiceSettings();
 }
 
 // Save config to localStorage
 function saveSettings() {
-  apiConfig.provider = selectProvider.value;
-  apiConfig.model = inputModel.value.trim();
-  apiConfig.apiKey = inputApiKey.value.trim();
-  apiConfig.baseUrl = inputCustomUrl.value.trim();
-  apiConfig.ollamaUrl = inputOllamaUrl.value.trim();
   apiConfig.accessToken = inputAccessToken.value.trim();
   apiConfig.enableDiagnostics = checkboxDiagnostics.checked;
   apiConfig.voiceNarration = checkboxVoiceNarration.checked;
-  apiConfig.voiceModel = inputVoiceModel.value.trim() || 'gpt-4o-mini-tts';
   apiConfig.voiceName = selectVoiceName.value || 'marin';
-  apiConfig.voiceApiKey = inputVoiceApiKey.value.trim();
   apiConfig.voiceInstructions = inputVoiceInstructions.value.trim();
 
   localStorage.setItem('aetheria_settings', JSON.stringify(apiConfig));
-  
+
   if (currentCampaignId) {
     applyLayoutMode();
   }
 }
 
+// Picks only known player settings, dropping stale AI config that older
+// versions of this app stored in localStorage.
 function normalizeApiConfig(raw = {}) {
-  return {
-    ...DEFAULT_API_CONFIG,
-    ...raw
-  };
-}
-
-// Show/Hide provider fields
-function toggleSettingsFields(provider) {
-  const apiGroup = document.getElementById('group-api-key');
-  const customGroup = document.getElementById('group-custom-endpoint');
-  const ollamaGroup = document.getElementById('group-ollama-url');
-
-  apiGroup.style.display = 'block';
-  customGroup.style.display = 'none';
-  ollamaGroup.style.display = 'none';
-
-  if (provider === 'custom') {
-    customGroup.style.display = 'block';
-  } else if (provider === 'ollama') {
-    ollamaGroup.style.display = 'block';
-    apiGroup.style.display = 'none';
-  } else if (provider === 'gemini') {
-    inputModel.placeholder = 'e.g. gemini-1.5-flash, gemini-2.5-flash';
-  } else if (provider === 'openai') {
-    inputModel.placeholder = 'e.g. gpt-4o-mini, gpt-4o';
-  } else if (provider === 'claude') {
-    inputModel.placeholder = 'e.g. claude-3-5-sonnet-20241022';
-  } else if (provider === 'grok') {
-    inputModel.placeholder = 'e.g. grok-3, grok-3-mini';
+  const merged = { ...DEFAULT_API_CONFIG };
+  for (const key of Object.keys(DEFAULT_API_CONFIG)) {
+    if (raw[key] !== undefined) merged[key] = raw[key];
   }
+  return merged;
 }
 
 function toggleVoiceSettings() {
@@ -323,16 +273,13 @@ function setupEventListeners() {
   document.getElementById('btn-close-settings').addEventListener('click', () => settingsModal.style.display = 'none');
   document.getElementById('btn-cancel-settings').addEventListener('click', () => settingsModal.style.display = 'none');
 
-  selectProvider.addEventListener('change', (e) => {
-    toggleSettingsFields(e.target.value);
-  });
   checkboxVoiceNarration.addEventListener('change', toggleVoiceSettings);
 
   settingsForm.addEventListener('submit', (e) => {
     e.preventDefault();
     saveSettings();
     settingsModal.style.display = 'none';
-    showToast('AI configurations saved.', 'success');
+    showToast('Settings saved.', 'success');
   });
 
   // Right Panel tab swapping
@@ -369,7 +316,6 @@ function setupEventListeners() {
     const body = {
       genre,
       characterMode,
-      apiConfig,
       rulesMode
     };
 
@@ -433,8 +379,7 @@ function setupEventListeners() {
       const response = await fetchWithTimeout(`/api/campaigns/${currentCampaignId}/turn`, {
         method: 'POST',
         body: JSON.stringify({
-          playerAction: actionText,
-          apiConfig
+          playerAction: actionText
         })
       }, TURN_TIMEOUT_MS);
 
@@ -817,11 +762,8 @@ async function narrateGmResponse(markdownText) {
       method: 'POST',
       body: JSON.stringify({
         text,
-        apiConfig,
         audioConfig: {
-          model: apiConfig.voiceModel,
           voice: apiConfig.voiceName,
-          apiKey: apiConfig.voiceApiKey,
           instructions: apiConfig.voiceInstructions
         }
       })
