@@ -1,9 +1,9 @@
 version: '3.8'
 
 services:
-  aetheria-dm:
+  aetheria-gm:
     build: .
-    container_name: aetheria-rpg-dm
+    container_name: aetheria-rpg-gm
     ports:
       - "3000:3000"
     volumes:

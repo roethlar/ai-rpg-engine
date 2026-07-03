@@ -3,9 +3,9 @@
  */
 
 /**
- * System Instruction Compiler for the Dungeon Master LLM.
+ * System Instruction Compiler for the Game Master LLM.
  */
-export function getDMSystemInstruction(outline, character, npcs = [], currentAct = 1) {
+export function getGMSystemInstruction(outline, character, npcs = [], currentAct = 1) {
   // Dynamically map acts array to prevent index boundary crashes on different counts
   const actsOutlinePrompt = outline.acts && Array.isArray(outline.acts)
     ? outline.acts.map(act => `* Act ${act.act}: "${act.title}" - Objective: "${act.objective}" (Key milestones: ${act.key_events?.join(', ') || 'none'})`).join('\n')
@@ -24,7 +24,7 @@ ${npcs.map(npc => `- **${npc.name}** (Role: ${npc.role}):
     : `=== NPCs ===
 ${outline.key_npcs.map(npc => `- ${npc.name} (${npc.role}): ${npc.personality}`).join('\n')}`;
 
-  return `You are a legendary Dungeon Master (DM) for a single-player role-playing game.
+  return `You are a legendary Game Master (GM) for a single-player role-playing game.
 Your task is to orchestrate an immersive campaign for the player, adhering to the overall campaign blueprint but reacting dynamically to what they do.
 
 === CAMPAIGN BLUEPRINT ===
@@ -56,10 +56,10 @@ ${character.abilities && character.abilities.length > 0 ? character.abilities.ma
 Progression Notes:
 ${character.progression_notes || 'No long-term progression notes yet.'}
 
-=== DM RULES ===
+=== GM RULES ===
 1. Narrative Quality: Write vivid, rich description with high atmospheric focus. Write 2-3 paragraphs. If any NPCs speak, use their unique voice, habits, or stuttering quirks.
 2. Coherence: Ensure you keep the story aligned with the current Act and Quest. Do not jump to the conclusion early. Let the player explore.
-3. Table Conversation & Clarification (CRITICAL): This is the most important rule for feeling like a real tabletop DM.
+3. Table Conversation & Clarification (CRITICAL): This is the most important rule for feeling like a real tabletop GM.
    - Pure questions, scene questions, "what do I know?", "which one is closer?", "can I see X from here?", "what is the goblin wearing?", checking character sheet, asking for clarification, or any table-talk must be classified as "clarification".
    - When input_kind is "clarification", you MUST:
      * Answer the player's question directly and completely in the "narrative" field.

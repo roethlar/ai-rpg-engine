@@ -497,7 +497,7 @@ app.post('/api/mcp/message', async (req, res) => {
             tools: {}
           },
           serverInfo: {
-            name: 'aetheria-dm-mcp',
+            name: 'aetheria-gm-mcp',
             version: '1.0.0'
           }
         };
@@ -529,7 +529,7 @@ app.post('/api/mcp/message', async (req, res) => {
             },
             {
               name: 'get_campaign_history',
-              description: 'Fetch the full chronological narrative log and choices of player actions and DM stories.',
+              description: 'Fetch the full chronological narrative log and choices of player actions and GM stories.',
               inputSchema: {
                 type: 'object',
                 properties: {
@@ -690,7 +690,7 @@ db.initDb()
   .then(() => {
     app.listen(PORT, () => {
       console.log(`--------------------------------------------------------`);
-      console.log(`   Aetheria DM Game & MCP Server running on port ${PORT}`);
+      console.log(`   Aetheria GM Game & MCP Server running on port ${PORT}`);
       console.log(`   Local URL: http://localhost:${PORT}`);
       console.log(`   MCP SSE Endpoint: http://localhost:${PORT}/api/mcp/sse`);
       if (process.env.ACCESS_SECRET) {

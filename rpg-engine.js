@@ -10,7 +10,7 @@ import {
   forceNoOpTurnState,
   TABLE_TALK_KINDS
 } from './rpg-state.js';
-import { getDMSystemInstruction } from './rpg-prompts.js';
+import { getGMSystemInstruction } from './rpg-prompts.js';
 
 // Export these so index/test scripts still have direct access
 export { parseJsonSafe, createFallbackSvg };
@@ -166,8 +166,8 @@ function buildTurnContext({
   playerAction,
   finalPlayerAction
 }) {
-  // DM omniscience (decision 2026-06-11): the mechanical record — dice rolls, applied
-  // damage and its causes — must be visible to the Council on later turns, so the DM
+  // GM omniscience (decision 2026-06-11): the mechanical record — dice rolls, applied
+  // damage and its causes — must be visible to the Council on later turns, so the GM
   // can always explain its own mechanics. Legacy roll_result/roll_damage records from
   // pre-refactor campaigns are mapped into the same shape.
   const recentTurns = pastTurns.map(turn => {
@@ -243,7 +243,7 @@ async function callJsonAgent(client, systemInstruction, prompt, fallback) {
   }
 }
 
-async function runMultiAgentTurn({ apiConfig, dmSystem, turnContext, turnPrompt }) {
+async function runMultiAgentTurn({ apiConfig, gmSystem, turnContext, turnPrompt }) {
   const interactionClient = new AIClient(resolveAgentConfig(apiConfig, 'interaction'));
   const continuityClient = new AIClient(resolveAgentConfig(apiConfig, 'continuity'));
   const refereeClient = new AIClient(resolveAgentConfig(apiConfig, 'referee'));
@@ -265,12 +265,12 @@ The player input is: "${turnContext.player_input}"
 - "dialogue": The player is speaking in-character to an NPC or the world ("I say to the guard...", "I yell at the goblins").
 - "committed_action": The player states a clear, immediate intention to do something specific in the fiction right now ("I draw my sword and attack the closest goblin", "I climb the wall", "I cast magic missile at the leader", "I run toward the exit").
 
-When the input is even slightly ambiguous (a question that could lead to an action later), classify as "clarification". A real tabletop DM would answer the question first and let the player decide what to do.
+When the input is even slightly ambiguous (a question that could lead to an action later), classify as "clarification". A real tabletop GM would answer the question first and let the player decide what to do.
 
 Return JSON matching:
 {
   "input_kind": "clarification|dialogue|committed_action",
-  "player_intent": "What the player wants from the DM",
+  "player_intent": "What the player wants from the GM",
   "proposed_action": "The concrete in-fiction action only if one exists, otherwise null",
   "clarification_answer": "Direct answer if this is table-talk or clarification, otherwise null",
   "stakes": "Relevant risks, costs, or uncertainty",
@@ -289,17 +289,17 @@ Return JSON matching:
   // 2-call table-talk path: a question or in-character conversation must not cost the
   // full 5-call chain when its state outcome is forced to no-op anyway. The Interaction
   // Agent answered and classified; one independent grounding verifier checks that answer
-  // against the campaign record (anti-hallucination) and speaks as the DM.
+  // against the campaign record (anti-hallucination) and speaks as the GM.
   if (TABLE_TALK_KINDS.includes(interactionProposal.input_kind)) {
     const kind = interactionProposal.input_kind;
     console.log(`[COUNCIL] Table-talk path (${kind}): 2 calls (interaction + grounding verifier), state forced to no-op.`);
 
-    const verifierSystem = `${dmSystem}
+    const verifierSystem = `${gmSystem}
 
 === GROUNDING VERIFIER CONTEXT CALL ===
-You are the single DM voice the player sees, acting as an independent grounding check.
+You are the single GM voice the player sees, acting as an independent grounding check.
 Another context call proposed an answer to the player's table talk. Verify that answer
-against the campaign context before speaking it as the DM. Your JSON is the only
+against the campaign context before speaking it as the GM. Your JSON is the only
 response persisted to the database.
 
 VERIFICATION RULES (STRICT):
@@ -308,7 +308,7 @@ VERIFICATION RULES (STRICT):
   Correct or drop anything the record does not support. Do not invent new canonical facts.
 - If the record cannot answer the question, answer from what the character knows or can
   perceive, or say the character does not know or cannot tell yet. Never break the
-  fourth wall or say the DM does not know.
+  fourth wall or say the GM does not know.
 - This is a "${kind}" turn: pure information exchange or in-character conversation.
   Never advance time, resolve actions, spend resources, or change any state.
 - Always produce a useful "scene_grounding" so the player understands the current
@@ -321,7 +321,7 @@ VERIFICATION RULES (STRICT):
 === INTERACTION PROPOSAL (UNVERIFIED) ===
 ${compactJson(interactionProposal)}
 
-Verify the proposed answer against the campaign context and produce the final canonical JSON response now. The player must experience one coherent DM, not separate reviewers.`;
+Verify the proposed answer against the campaign context and produce the final canonical JSON response now. The player must experience one coherent GM, not separate reviewers.`;
 
     const finalRaw = await continuityClient.sendPrompt({
       systemInstruction: verifierSystem,
@@ -504,16 +504,16 @@ Return JSON matching:
     approved_state_summary: refereeDecision.ruling || ''
   });
 
-  const finalInteractionSystem = `${dmSystem}
+  const finalInteractionSystem = `${gmSystem}
 
 === FINAL INTERACTION CONTEXT CALL ===
-You are the single DM voice the player sees.
+You are the single GM voice the player sees.
 You must relay the final approved result in in-world terms while preserving the referee and continuity decisions.
 You are the last context call, and your JSON is the only response persisted to the database.
 
 CLARIFICATION BEHAVIOR (VERY IMPORTANT):
 - If final_input_kind is "clarification", you are answering a question or providing scene information.
-- Write like a good tabletop DM: clear, direct, atmospheric, and informative.
+- Write like a good tabletop GM: clear, direct, atmospheric, and informative.
 - Always produce a useful "scene_grounding" field so the player understands the current physical situation.
 - Never advance time or apply state changes on clarification turns.
 
@@ -542,7 +542,7 @@ ${compactJson(continuityFinal)}
 
 ${diceResultsSection}
 
-Produce the final canonical JSON response now. The player must experience one coherent DM, not separate reviewers.`;
+Produce the final canonical JSON response now. The player must experience one coherent GM, not separate reviewers.`;
 
   const finalRaw = await interactionClient.sendPrompt({
     systemInstruction: finalInteractionSystem,
@@ -602,7 +602,7 @@ export async function createCampaign({
   const resolvedCharacterName = sourceProfile ? sourceProfile.name : characterName;
   const resolvedCharacterArchetype = sourceProfile ? sourceProfile.archetype : (characterClass || 'Unformed protagonist');
 
-  const outlineSystem = `You are a legendary RPG game designer and Dungeon Master.
+  const outlineSystem = `You are a legendary RPG game designer and Game Master.
 Your job is to draft a coherent, epic 2-4 hour single-player campaign outline for the genre: "${genre}".
 You MUST return a JSON object ONLY matching this schema, with no additional text:
 {
@@ -667,7 +667,7 @@ You MUST return a JSON object ONLY matching this schema, with no additional text
   }));
 
   // Generate Turn 1 (Opening Narrative and Scene SVG)
-  const dmSystem = getDMSystemInstruction(outline, {
+  const gmSystem = getGMSystemInstruction(outline, {
     name: resolvedCharacterName,
     class: resolvedCharacterArchetype,
     health: sourceProfile?.health ?? 100,
@@ -690,7 +690,7 @@ Output the JSON object containing the opening narrative, scene_grounding, sugges
 
   console.log(`Generating opening turn for campaign...`);
   const turn1Response = await client.sendPrompt({
-    systemInstruction: dmSystem,
+    systemInstruction: gmSystem,
     prompt: turn1Prompt,
     jsonMode: true
   });
@@ -967,7 +967,7 @@ export async function takeTurn(campaignId, playerAction, apiConfig) {
   const finalPlayerAction = playerAction;
 
   // 2. Build the context prompt
-  const dmSystem = getDMSystemInstruction(outline, character, npcs, currentAct);
+  const gmSystem = getGMSystemInstruction(outline, character, npcs, currentAct);
 
   let historyPrompt = `=== CAMPAIGN HISTORY ===\n`;
   if (memories.length > 0) {
@@ -978,7 +978,7 @@ export async function takeTurn(campaignId, playerAction, apiConfig) {
     if (turn.player_action) {
       historyPrompt += `> PLAYER: ${turn.player_action}\n`;
     }
-    historyPrompt += `> DM: ${turn.narrative.substring(0, 500)}...\n`;
+    historyPrompt += `> GM: ${turn.narrative.substring(0, 500)}...\n`;
   });
   
   // Extract active quest
@@ -1015,7 +1015,7 @@ First decide input_kind:
 - "committed_action" — player has clearly stated they are doing something specific right now.
 
 CRITICAL FOR CLARIFICATION TURNS:
-- Speak like a patient, helpful tabletop DM at the table.
+- Speak like a patient, helpful tabletop GM at the table.
 - Give a direct, informative answer in the "narrative" field.
 - Always include a detailed "scene_grounding" so the player has a clear mental picture (positions, distances, cover, lighting, what they can and cannot see).
 - Do not describe the player doing anything. Do not resolve any action. Do not advance the clock.
@@ -1040,7 +1040,7 @@ Output the JSON object containing the narrative response, scene_grounding, sugge
     playerAction,
     finalPlayerAction
   });
-  const aiResponse = await runMultiAgentTurn({ apiConfig, dmSystem, turnContext, turnPrompt });
+  const aiResponse = await runMultiAgentTurn({ apiConfig, gmSystem, turnContext, turnPrompt });
 
   const parsedRaw = parseJsonSafe(aiResponse);
   const turnData = validateTurnData(parsedRaw, currentAct);

@@ -1,5 +1,5 @@
 /**
- * AETHERIA DM FRONTEND APPLICATION
+ * AETHERIA GM FRONTEND APPLICATION
  */
 
 // Application state
@@ -389,7 +389,7 @@ function setupEventListeners() {
     }
 
     closeCampaignWizard();
-    showLoadingOverlay(`Dungeon Master is crafting your campaign...\nCreating outline, character state, acts, NPCs, and initial scene.`);
+    showLoadingOverlay(`Game Master is crafting your campaign...\nCreating outline, character state, acts, NPCs, and initial scene.`);
 
     try {
       const response = await fetchWithTimeout('/api/campaigns', {
@@ -447,7 +447,7 @@ function setupEventListeners() {
       renderGame(gameState, false, { narrate: true });
     } catch (error) {
       console.error(error);
-      appendDMDialogue(`**Error from Dungeon Master:** ${error.message}\n\nPlease check server logs, network, or your API key settings.`);
+      appendGMDialogue(`**Error from Game Master:** ${error.message}\n\nPlease check server logs, network, or your API key settings.`);
       if (shouldOpenSettingsForError(error.message)) {
         openSettingsModal();
       }
@@ -769,9 +769,9 @@ function renderGame(gameState, resetNarrative = false, options = {}) {
     ? gameState.turn.rollResults
     : (gameState.turn.rollResult ? [gameState.turn.rollResult] : []);
   turnRolls.forEach(appendRollResultBubble);
-  appendDMDialogue(gameState.turn.narrative);
+  appendGMDialogue(gameState.turn.narrative);
   if (options.narrate) {
-    narrateDmResponse(gameState.turn.narrative);
+    narrateGmResponse(gameState.turn.narrative);
   }
 
   // Scene grounding — especially valuable on clarification turns
@@ -800,7 +800,7 @@ function stripNarrationText(markdownText) {
     .slice(0, 4000);
 }
 
-async function narrateDmResponse(markdownText) {
+async function narrateGmResponse(markdownText) {
   if (!apiConfig.voiceNarration) return;
 
   const text = stripNarrationText(markdownText);
@@ -1101,17 +1101,17 @@ function appendPlayerAction(text) {
   scrollToBottom();
 }
 
-// Append DM description with markdown support and DOMPurify sanitization
-function appendDMDialogue(markdownText) {
+// Append GM description with markdown support and DOMPurify sanitization
+function appendGMDialogue(markdownText) {
   const el = document.createElement('div');
-  el.className = 'log-entry log-dm';
+  el.className = 'log-entry log-gm';
 
   // Guard against undefined or null narrative string inputs
   const htmlContent = marked.parse(markdownText || '*The scene progresses in silence...*');
   const cleanHtml = DOMPurify.sanitize(htmlContent);
 
   el.innerHTML = `
-    <div class="speaker"><i class="fa-solid fa-dice-d20"></i> Dungeon Master</div>
+    <div class="speaker"><i class="fa-solid fa-dice-d20"></i> Game Master</div>
     <div class="content">${cleanHtml}</div>
   `;
   narrativeContainer.appendChild(el);
@@ -1379,7 +1379,7 @@ window.forkCampaignTimeline = async function(turnNumber) {
     return;
   }
 
-  showLoadingOverlay(`Dungeon Master is forking timeline...\nReconstructing character and NPC relationships at Turn ${turnNumber}.`);
+  showLoadingOverlay(`Game Master is forking timeline...\nReconstructing character and NPC relationships at Turn ${turnNumber}.`);
 
   try {
     const response = await fetchWithTimeout(`/api/campaigns/${currentCampaignId}/fork`, {

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Aetheria DM | AI Persistent RPG Engine</title>
+  <title>Aetheria GM | AI Persistent RPG Engine</title>
   <!-- Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -25,7 +25,7 @@
     <div class="logo">
       <i class="fa-solid fa-dice-d20 logo-icon"></i>
       <div class="logo-text">
-        <h1>Aetheria DM</h1>
+        <h1>Aetheria GM</h1>
         <span>PERSISTENT AI RPG ENGINE</span>
       </div>
     </div>
@@ -72,7 +72,7 @@
           <!-- Dynamic choice buttons -->
         </div>
         <form id="action-form" class="action-form">
-          <input type="text" id="action-input" placeholder="Act or ask the DM (e.g., 'Scan the corridor', 'Do I know this symbol?', 'Take cover')..." autocomplete="off" required>
+          <input type="text" id="action-input" placeholder="Act or ask the GM (e.g., 'Scan the corridor', 'Do I know this symbol?', 'Take cover')..." autocomplete="off" required>
           <button type="submit" class="btn btn-primary send-btn" id="btn-send-action">
             <span>Send</span> <i class="fa-solid fa-paper-plane"></i>
           </button>
@@ -172,7 +172,7 @@
             <i class="fa-solid fa-book-open"></i> Journal
           </button>
           <button class="tab-btn" id="tab-codex-btn" style="display: none;">
-            <i class="fa-solid fa-address-book"></i> DM Codex
+            <i class="fa-solid fa-address-book"></i> GM Codex
           </button>
         </div>
         <h3 id="right-panel-heading" style="display: none;"><i class="fa-solid fa-briefcase"></i> Inventory</h3>
@@ -241,7 +241,7 @@
           <div class="form-group">
             <label for="input-genre">Campaign Genre / Setting</label>
             <input type="text" id="input-genre" placeholder="e.g. Noir Cyberpunk Detective, Gothic Vampire Fantasy, Hard Sci-Fi Space Survival" required>
-            <span class="form-tip">Describe any setting you want. The AI Dungeon Master will dynamically construct the entire storyline, atmosphere, acts outline, and custom visual themes.</span>
+            <span class="form-tip">Describe any setting you want. The AI Game Master will dynamically construct the entire storyline, atmosphere, acts outline, and custom visual themes.</span>
           </div>
 
           <div class="form-group">
@@ -297,7 +297,7 @@
         <button class="btn-close" id="btn-close-settings"><i class="fa-solid fa-xmark"></i></button>
       </div>
       <div class="modal-body">
-        <p class="settings-intro">Configure which AI model powers your Dungeon Master. Leaving keys empty defaults to the server's environment variables (`.env`).</p>
+        <p class="settings-intro">Configure which AI model powers your Game Master. Leaving keys empty defaults to the server's environment variables (`.env`).</p>
         
         <form id="settings-form">
           <div class="form-group">
@@ -339,7 +339,7 @@
               <input type="checkbox" id="input-enable-voice-narration" style="width: auto; cursor: pointer;">
               <span>Enable Voice Narration</span>
             </label>
-            <span class="form-tip">Uses an AI-generated voice for the final player-facing DM narration only.</span>
+            <span class="form-tip">Uses an AI-generated voice for the final player-facing GM narration only.</span>
           </div>
 
           <div id="voice-settings-group" style="display: none;">
@@ -389,7 +389,7 @@
           <div class="form-group" style="margin-top: 16px; padding-top: 16px; border-top: 1px solid hsl(var(--theme-border));">
             <label class="checkbox-container" style="display: flex; align-items: center; gap: 10px; cursor: pointer; text-transform: none; font-size: 13px; font-weight: 600;">
               <input type="checkbox" id="input-enable-diagnostics" style="width: auto; cursor: pointer;">
-              <span>Enable DM Diagnostics (Developer Mode)</span>
+              <span>Enable GM Diagnostics (Developer Mode)</span>
             </label>
             <span class="form-tip">Unlocks background acts outline blueprint, character personalities, and relationship details for troubleshooting.</span>
           </div>
@@ -407,7 +407,7 @@
   <div class="loading-overlay" id="loading-overlay" style="display: none;">
     <div class="loading-box glass-card">
       <i class="fa-solid fa-dice-d20 fa-spin loading-spinner"></i>
-      <h3 id="loading-message">Dungeon Master is drafting campaign details...</h3>
+      <h3 id="loading-message">Game Master is drafting campaign details...</h3>
       <p>This can take several minutes with local models.</p>
     </div>
   </div>

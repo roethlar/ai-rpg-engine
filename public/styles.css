@@ -1,5 +1,5 @@
 /* ==========================================================================
-   AETHERIA DM CSS DESIGN SYSTEM
+   AETHERIA GM CSS DESIGN SYSTEM
    ========================================================================== */
 
 /* DESIGN SYSTEM CONSTANTS */
@@ -396,12 +396,12 @@ body {
   color: #fff;
 }
 
-.log-dm {
+.log-gm {
   align-self: flex-start;
   max-width: 95%;
   line-height: 1.6;
 }
-.log-dm .speaker {
+.log-gm .speaker {
   font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 1px;
@@ -412,21 +412,21 @@ body {
   align-items: center;
   gap: 6px;
 }
-.log-dm .content {
+.log-gm .content {
   font-family: var(--font-body);
   font-size: 14.5px;
   color: hsl(var(--theme-text));
 }
-.log-dm .content p {
+.log-gm .content p {
   margin-bottom: 12px;
 }
-.log-dm .content p:last-child {
+.log-gm .content p:last-child {
   margin-bottom: 0;
 }
-.log-dm .content strong {
+.log-gm .content strong {
   color: hsl(var(--theme-primary));
 }
-.log-dm .content em {
+.log-gm .content em {
   font-family: var(--font-dialogue);
   font-size: 15.5px;
   color: #fff;
