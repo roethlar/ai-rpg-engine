@@ -1,7 +1,7 @@
 {
   "validated_against": {
-    "commit": "f3d528d9eac9bd975bfa058ab62533c81d60da55",
-    "date": "2026-07-02"
+    "commit": "260d522+",
+    "date": "2026-07-03"
   },
   "projects": [],
   "verification": {
@@ -27,7 +27,18 @@
     "rpg-state.js",
     "rpg-prompts.js",
     "server.js",
-    "public/app.js"
+    "public/app.js",
+    "server-config.js",
+    "api-client.js",
+    "db.js",
+    "admin/admin.html",
+    "admin/admin.js",
+    "public/index.html",
+    "public/styles.css",
+    "docs/mockups/heroic-layouts.html",
+    "desktop/src-tauri/src/main.rs",
+    "desktop/src-tauri/tauri.conf.json",
+    "desktop/package.json"
   ],
   "guidance_paths": [
     "AGENTS.md",
@@ -52,6 +63,7 @@
     "No CI / workflow files detected (confirmed by 2026-07-02 discovery review packet: 'CI / Build Markers: None detected', 'Suspected Misplaced CI Files: None'). Verification command is local-only (node test.js from package.json scripts.test).",
     "Global gitignore rule **/.claude/settings.local.json (from ~/.config/git/ignore) keeps only the machine-specific permissions file untracked; .claude/commands/, .claude/settings.json, and .claude/agents-md-tripwire.py are committable (git check-ignore exits non-zero, verified 2026-07-02).",
     "Verification candidates from discovery (package.json) were confirmed by direct read of package.json and test.js (unit tests only; no server integration or full-play in the automated suite). Playtests are manual per project process.",
-    "AGENTS.md is the toolkit template verbatim (templateVersion 2026-07-02.1), replaced whole on governance refresh; repo-specific rules live in .agents/repo-guidance.md."
+    "AGENTS.md is the toolkit template verbatim (templateVersion 2026-07-02.1), replaced whole on governance refresh; repo-specific rules live in .agents/repo-guidance.md.",
+    "2026-07-03 additions: server-config.js + admin/ (server-owned AI config, /admin panel, per-role model tiering \u2014 Phases I1/I3); fallback tiering in api-client.js (Phase I2); desktop/ Tauri dev shell (npm run desktop; cargo build needed, not covered by node test.js); docs/mockups/ layout decision aids; dynamic spotlight layout in public/ (Phase 1 slice)."
   ]
 }

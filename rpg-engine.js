@@ -8,6 +8,8 @@ import {
   rollCheck,
   validateOutlineData,
   forceNoOpTurnState,
+  applyCharacterUpdate,
+  applyDiceConsequences,
   TABLE_TALK_KINDS
 } from './rpg-state.js';
 import { getGMSystemInstruction } from './rpg-prompts.js';
@@ -728,49 +730,9 @@ Output the JSON object containing the opening narrative, scene_grounding, sugges
   };
 
   // Apply Turn 1 character updates so state matches the turn data
-  const updates = turnData.character_update || {};
-  if (typeof updates.health_change === 'number') {
-    character.health = Math.max(0, Math.min(character.max_health, character.health + updates.health_change));
-  }
-  if (typeof updates.mana_change === 'number') {
-    character.mana = Math.max(0, Math.min(character.max_mana, character.mana + updates.mana_change));
-  }
-  if (typeof updates.xp_gain === 'number') {
-    const oldLevel = character.level;
-    character.xp += updates.xp_gain;
-    const computedLevel = Math.floor(character.xp / 100) + 1;
-    if (computedLevel > oldLevel) {
-      const levelDiff = computedLevel - oldLevel;
-      character.level = computedLevel;
-      character.max_health += levelDiff * 15;
-      character.health = character.max_health;
-      character.max_mana += levelDiff * 10;
-      character.mana = character.max_mana;
-      turnData.narrative += `\n\n🎉 **LEVEL UP! You have reached Level ${character.level}! Your maximum Health and Mana have increased!**`;
-    }
-  }
-  if (updates.inventory_changes && Array.isArray(updates.inventory_changes)) {
-    updates.inventory_changes.forEach(change => {
-      const item = change.item;
-      if (!item || !item.name) return;
-      if (change.action === 'add') {
-        const existing = character.inventory.find(i => i.name === item.name);
-        if (existing) {
-          existing.quantity = (existing.quantity || 1) + (item.quantity || 1);
-        } else {
-          character.inventory.push({ ...item, quantity: item.quantity || 1 });
-        }
-      } else if (change.action === 'remove' || change.action === 'use') {
-        const idx = character.inventory.findIndex(i => i.name === item.name);
-        if (idx !== -1) {
-          if (character.inventory[idx].quantity > 1) {
-            character.inventory[idx].quantity--;
-          } else {
-            character.inventory.splice(idx, 1);
-          }
-        }
-      }
-    });
+  const turn1Level = applyCharacterUpdate(character, turnData.character_update);
+  if (turn1Level.leveledUp) {
+    turnData.narrative += `\n\n🎉 **LEVEL UP! You have reached Level ${character.level}! Your maximum Health and Mana have increased!**`;
   }
   applyAbilityUpdates(character, turnData, 1);
 
@@ -1076,73 +1038,15 @@ Output the JSON object containing the narrative response, scene_grounding, sugge
   }
 
   // Dice results are referee-adjudicated and engine-rolled inside the Council pipeline;
-  // the narration was written from them. Here the engine applies the adjudicated failure
+  // the narration was written from them. The engine applies the adjudicated failure
   // consequences carried on each roll record — no hardcoded penalties.
   const diceRolls = Array.isArray(turnData.dice_rolls) ? turnData.dice_rolls : [];
-  for (const record of diceRolls) {
-    if (record.success) continue;
-    if (typeof record.applied_health_change === 'number' && record.applied_health_change < 0) {
-      character.health = Math.max(0, character.health + record.applied_health_change);
-    }
-    if (typeof record.applied_mana_change === 'number' && record.applied_mana_change < 0) {
-      character.mana = Math.max(0, character.mana + record.applied_mana_change);
-    }
-  }
+  applyDiceConsequences(character, diceRolls);
 
-  // Apply state updates (Unify Level Up mechanics)
-  const updates = turnData.character_update || {};
-
-  // Health
-  if (typeof updates.health_change === 'number') {
-    character.health = Math.max(0, Math.min(character.max_health, character.health + updates.health_change));
-  }
-
-  // Mana
-  if (typeof updates.mana_change === 'number') {
-    character.mana = Math.max(0, Math.min(character.max_mana, character.mana + updates.mana_change));
-  }
-  
-  // XP & Level (XP is single source of truth: level = floor(xp/100)+1)
-  if (typeof updates.xp_gain === 'number') {
-    const oldLevel = character.level;
-    character.xp += updates.xp_gain;
-    const computedLevel = Math.floor(character.xp / 100) + 1;
-    
-    if (computedLevel > oldLevel) {
-      const levelDiff = computedLevel - oldLevel;
-      character.level = computedLevel;
-      character.max_health += levelDiff * 15;
-      character.health = character.max_health; // full heal
-      character.max_mana += levelDiff * 10;
-      character.mana = character.max_mana;
-      turnData.narrative += `\n\n🎉 **LEVEL UP! You have reached Level ${character.level}! Your maximum Health and Mana have increased!**`;
-    }
-  }
-
-  // Inventory changes
-  if (updates.inventory_changes && Array.isArray(updates.inventory_changes)) {
-    updates.inventory_changes.forEach(change => {
-      const item = change.item;
-      if (!item || !item.name) return;
-
-      if (change.action === 'add') {
-        const existing = character.inventory.find(i => i.name === item.name);
-        if (existing) {
-          existing.quantity = (existing.quantity || 1) + (item.quantity || 1);
-        } else {
-          character.inventory.push({ ...item, quantity: item.quantity || 1 });
-        }
-      } else if (change.action === 'remove' || change.action === 'use') {
-        const idx = character.inventory.findIndex(i => i.name === item.name);
-        if (idx !== -1) {
-          if (character.inventory[idx].quantity > 1) {
-            character.inventory[idx].quantity--;
-          } else {
-            character.inventory.splice(idx, 1);
-          }
-        }
-      }
-    });
+  // Apply state updates (health/mana clamps, XP with unified level-up, inventory)
+  const turnLevel = applyCharacterUpdate(character, turnData.character_update);
+  if (turnLevel.leveledUp) {
+    turnData.narrative += `\n\n🎉 **LEVEL UP! You have reached Level ${character.level}! Your maximum Health and Mana have increased!**`;
   }
   applyAbilityUpdates(character, turnData, currentTurnNumber);
 
@@ -1457,29 +1361,9 @@ export async function forkCampaign(campaignId, turnNumber, newTitle) {
       continue;
     }
 
-    const updates = turnData.character_update || {};
-    
-    // Apply updates
-    if (typeof updates.health_change === 'number') {
-      character.health = Math.max(0, Math.min(character.max_health, character.health + updates.health_change));
-    }
-    if (typeof updates.mana_change === 'number') {
-      character.mana = Math.max(0, Math.min(character.max_mana, character.mana + updates.mana_change));
-    }
-    if (typeof updates.xp_gain === 'number') {
-      const oldLevel = character.level;
-      character.xp += updates.xp_gain;
-      const computedLevel = Math.floor(character.xp / 100) + 1;
-      if (computedLevel > oldLevel) {
-        const levelDiff = computedLevel - oldLevel;
-        character.level = computedLevel;
-        character.max_health += levelDiff * 15;
-        character.health = character.max_health;
-        character.max_mana += levelDiff * 10;
-        character.mana = character.max_mana;
-      }
-    }
-    
+    // Replay the turn's character update (health/mana/XP/level-up/inventory)
+    applyCharacterUpdate(character, turnData.character_update);
+
     // Applying failed roll penalty if turn is not the first one and a failed roll is logged in state changes
     // (legacy pre-refactor turn records)
     if (turn.turn_number > 1 && turnData.roll_result && !turnData.roll_result.success && typeof turnData.roll_damage === 'number') {
@@ -1487,40 +1371,8 @@ export async function forkCampaign(campaignId, turnNumber, newTitle) {
     }
 
     // Replay referee-adjudicated dice consequences (dice-before-narration turn records)
-    if (turn.turn_number > 1 && Array.isArray(turnData.dice_rolls)) {
-      for (const record of turnData.dice_rolls) {
-        if (!record || record.success) continue;
-        if (typeof record.applied_health_change === 'number' && record.applied_health_change < 0) {
-          character.health = Math.max(0, character.health + record.applied_health_change);
-        }
-        if (typeof record.applied_mana_change === 'number' && record.applied_mana_change < 0) {
-          character.mana = Math.max(0, character.mana + record.applied_mana_change);
-        }
-      }
-    }
-
-    if (updates.inventory_changes && Array.isArray(updates.inventory_changes)) {
-      updates.inventory_changes.forEach(change => {
-        const item = change.item;
-        if (!item || !item.name) return;
-        if (change.action === 'add') {
-          const existing = character.inventory.find(i => i.name === item.name);
-          if (existing) {
-            existing.quantity = (existing.quantity || 1) + (item.quantity || 1);
-          } else {
-            character.inventory.push({ ...item, quantity: item.quantity || 1 });
-          }
-        } else if (change.action === 'remove' || change.action === 'use') {
-          const idx = character.inventory.findIndex(i => i.name === item.name);
-          if (idx !== -1) {
-            if (character.inventory[idx].quantity > 1) {
-              character.inventory[idx].quantity--;
-            } else {
-              character.inventory.splice(idx, 1);
-            }
-          }
-        }
-      });
+    if (turn.turn_number > 1) {
+      applyDiceConsequences(character, turnData.dice_rolls);
     }
     applyAbilityUpdates(character, turnData, turn.turn_number);
 

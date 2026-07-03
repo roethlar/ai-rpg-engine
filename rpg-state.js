@@ -321,6 +321,81 @@ export function forceNoOpTurnState(finalData, turnContext, inputKind) {
 }
 
 /**
+ * Applies a validated character_update to a character in place: health/mana
+ * clamped to their maxima, XP with level-up mechanics (level = floor(xp/100)+1;
+ * each level grants +15 max HP / +10 max mana and a full refill), and inventory
+ * add/stack/use/remove. Shared by campaign creation, turns, and fork replay.
+ * Returns { leveledUp, levelsGained } so callers can narrate.
+ */
+export function applyCharacterUpdate(character, updates = {}) {
+  if (typeof updates.health_change === 'number') {
+    character.health = Math.max(0, Math.min(character.max_health, character.health + updates.health_change));
+  }
+  if (typeof updates.mana_change === 'number') {
+    character.mana = Math.max(0, Math.min(character.max_mana, character.mana + updates.mana_change));
+  }
+
+  let levelsGained = 0;
+  if (typeof updates.xp_gain === 'number') {
+    const oldLevel = character.level;
+    character.xp += updates.xp_gain;
+    const computedLevel = Math.floor(character.xp / 100) + 1;
+    if (computedLevel > oldLevel) {
+      levelsGained = computedLevel - oldLevel;
+      character.level = computedLevel;
+      character.max_health += levelsGained * 15;
+      character.health = character.max_health;
+      character.max_mana += levelsGained * 10;
+      character.mana = character.max_mana;
+    }
+  }
+
+  if (Array.isArray(updates.inventory_changes)) {
+    updates.inventory_changes.forEach(change => {
+      const item = change.item;
+      if (!item || !item.name) return;
+      if (change.action === 'add') {
+        const existing = character.inventory.find(i => i.name === item.name);
+        if (existing) {
+          existing.quantity = (existing.quantity || 1) + (item.quantity || 1);
+        } else {
+          character.inventory.push({ ...item, quantity: item.quantity || 1 });
+        }
+      } else if (change.action === 'remove' || change.action === 'use') {
+        const idx = character.inventory.findIndex(i => i.name === item.name);
+        if (idx !== -1) {
+          if (character.inventory[idx].quantity > 1) {
+            character.inventory[idx].quantity--;
+          } else {
+            character.inventory.splice(idx, 1);
+          }
+        }
+      }
+    });
+  }
+
+  return { leveledUp: levelsGained > 0, levelsGained };
+}
+
+/**
+ * Applies the engine-adjudicated failure consequences carried on dice roll
+ * records (dice-before-narration). Successful checks apply nothing. Shared by
+ * live turns and fork replay.
+ */
+export function applyDiceConsequences(character, diceRolls) {
+  if (!Array.isArray(diceRolls)) return;
+  for (const record of diceRolls) {
+    if (!record || record.success) continue;
+    if (typeof record.applied_health_change === 'number' && record.applied_health_change < 0) {
+      character.health = Math.max(0, character.health + record.applied_health_change);
+    }
+    if (typeof record.applied_mana_change === 'number' && record.applied_mana_change < 0) {
+      character.mana = Math.max(0, character.mana + record.applied_mana_change);
+    }
+  }
+}
+
+/**
  * Dice-before-narration (approved Council refactor, plan.md): the Referee decides
  * which checks a committed action requires; the engine rolls; the narrator writes
  * prose from the resolved results. These helpers own the engine side.

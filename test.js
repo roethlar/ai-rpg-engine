@@ -1,5 +1,5 @@
 import assert from 'assert';
-import { parseJsonSafe, validateTurnData, validateRequiredChecks, rollCheck, forceNoOpTurnState, TABLE_TALK_KINDS } from './rpg-state.js';
+import { parseJsonSafe, validateTurnData, validateRequiredChecks, rollCheck, forceNoOpTurnState, applyCharacterUpdate, applyDiceConsequences, TABLE_TALK_KINDS } from './rpg-state.js';
 import { AIClient, resolveAgentConfig, isTransientAiError } from './api-client.js';
 
 console.log('🧪 Starting Aetheria RPG Engine tests...');
@@ -246,6 +246,65 @@ function testForceNoOpTurnState() {
   assert.strictEqual(openingTurn.character_update.inventory_changes.length, 1, 'validateTurnData must NOT wipe dialogue turns (opening-turn starting state)');
   assert.strictEqual(openingTurn.memory_summary, 'The journey began.', 'validateTurnData must preserve dialogue memory (engine backstop owns dialogue no-op)');
   assert.strictEqual(openingTurn.npc_updates.length, 1, 'validateTurnData must preserve dialogue NPC updates');
+}
+
+// -------------------------------------------------------------
+// Test: character update application (shared by turns, creation, fork replay)
+// -------------------------------------------------------------
+function testApplyCharacterUpdate() {
+  console.log(' - Running character update application tests...');
+
+  const char = () => ({
+    health: 60, max_health: 100, mana: 30, max_mana: 50, xp: 80, level: 1,
+    inventory: [{ name: 'Recovery Patch', type: 'consumable', quantity: 2 }]
+  });
+
+  // Clamping both directions
+  const clampChar = char();
+  applyCharacterUpdate(clampChar, { health_change: 90, mana_change: -80 });
+  assert.strictEqual(clampChar.health, 100, 'Health must clamp at max_health');
+  assert.strictEqual(clampChar.mana, 0, 'Mana must floor at 0');
+
+  // Level-up: xp 80 + 40 = 120 → level 2, maxes grow, full refill
+  const levelChar = char();
+  const result = applyCharacterUpdate(levelChar, { xp_gain: 40 });
+  assert.deepStrictEqual(result, { leveledUp: true, levelsGained: 1 });
+  assert.strictEqual(levelChar.level, 2);
+  assert.strictEqual(levelChar.max_health, 115, 'Level-up grants +15 max HP');
+  assert.strictEqual(levelChar.health, 115, 'Level-up fully heals');
+  assert.strictEqual(levelChar.max_mana, 60, 'Level-up grants +10 max mana');
+  assert.strictEqual(levelChar.mana, 60, 'Level-up fully refills mana');
+
+  const noLevel = applyCharacterUpdate(char(), { xp_gain: 10 });
+  assert.deepStrictEqual(noLevel, { leveledUp: false, levelsGained: 0 });
+
+  // Inventory: stack, use down to removal, add new
+  const invChar = char();
+  applyCharacterUpdate(invChar, { inventory_changes: [
+    { action: 'add', item: { name: 'Recovery Patch', quantity: 3 } },
+    { action: 'use', item: { name: 'Recovery Patch' } },
+    { action: 'add', item: { name: 'Neon Blade', type: 'weapon' } }
+  ]});
+  assert.strictEqual(invChar.inventory.find(i => i.name === 'Recovery Patch').quantity, 4, 'Stacks then uses one');
+  assert.strictEqual(invChar.inventory.find(i => i.name === 'Neon Blade').quantity, 1, 'New items default to qty 1');
+
+  const drainChar = char();
+  applyCharacterUpdate(drainChar, { inventory_changes: [
+    { action: 'use', item: { name: 'Recovery Patch' } },
+    { action: 'use', item: { name: 'Recovery Patch' } }
+  ]});
+  assert.strictEqual(drainChar.inventory.length, 0, 'Using the last unit removes the item');
+
+  // Dice consequences: failures apply, successes do not, floors at 0
+  const diceChar = char();
+  applyDiceConsequences(diceChar, [
+    { success: true, applied_health_change: -50, applied_mana_change: -50 },
+    { success: false, applied_health_change: -8, applied_mana_change: -3 },
+    { success: false, applied_health_change: -999, applied_mana_change: 0 }
+  ]);
+  assert.strictEqual(diceChar.health, 0, 'Failed-check damage applies and floors at 0 (successes ignored)');
+  assert.strictEqual(diceChar.mana, 27, 'Failed-check mana cost applies');
+  applyDiceConsequences(diceChar, null); // must not throw
 }
 
 // -------------------------------------------------------------
@@ -619,6 +678,7 @@ async function runAll() {
     testProductionSsrfBlock();
     testJsonSchemaValidation();
     testForceNoOpTurnState();
+    testApplyCharacterUpdate();
     testRefereeDiceFlow();
     testResolveAgentConfig();
     await testServerConfigResolution();
