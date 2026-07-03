@@ -262,6 +262,38 @@ export function validateTurnData(raw, currentAct = 1) {
 }
 
 /**
+ * Turn kinds that are table talk: pure information exchange or in-character
+ * conversation, never a state mutation.
+ */
+export const TABLE_TALK_KINDS = ['clarification', 'dialogue'];
+
+/**
+ * Decision 2026-06-05: clarification and dialogue turns must never mutate canonical
+ * state. Forces every state-bearing field of a turn payload to a no-op. Quest is
+ * reset from turnContext (DB truth), never from model output.
+ */
+export function forceNoOpTurnState(finalData, turnContext, inputKind) {
+  finalData.input_kind = inputKind;
+  finalData.character_update = {
+    health_change: 0,
+    mana_change: 0,
+    xp_gain: 0,
+    inventory_changes: []
+  };
+  finalData.quest_update = {
+    active_quest: turnContext.active_quest.title,
+    quest_description: turnContext.active_quest.description,
+    current_act: turnContext.campaign.current_act
+  };
+  finalData.ability_updates = [];
+  finalData.npc_updates = [];
+  finalData.memory_summary = null;
+  finalData.memory_keywords = '';
+  finalData.dice_rolls = [];
+  return finalData;
+}
+
+/**
  * Performs a d20 roll check against one of the player's core attributes.
  */
 export function performDiceCheck(character, actionText) {

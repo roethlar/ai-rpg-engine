@@ -1,5 +1,5 @@
 import assert from 'assert';
-import { parseJsonSafe, validateTurnData, performDiceCheck } from './rpg-state.js';
+import { parseJsonSafe, validateTurnData, performDiceCheck, forceNoOpTurnState, TABLE_TALK_KINDS } from './rpg-state.js';
 import { AIClient, resolveAgentConfig } from './api-client.js';
 
 console.log('🧪 Starting Aetheria RPG Engine tests...');
@@ -187,6 +187,68 @@ function testJsonSchemaValidation() {
 }
 
 // -------------------------------------------------------------
+// Test: table-talk no-op forcing (Council 2-call path + full-chain forcing)
+// -------------------------------------------------------------
+function testForceNoOpTurnState() {
+  console.log(' - Running table-talk no-op forcing tests...');
+
+  assert.deepStrictEqual(TABLE_TALK_KINDS, ['clarification', 'dialogue'],
+    'Table talk is exactly clarification and dialogue (decision 2026-06-05)');
+
+  const turnContext = {
+    active_quest: { title: 'Find the Heir', description: 'Search the lower city.' },
+    campaign: { current_act: 2 }
+  };
+
+  for (const kind of TABLE_TALK_KINDS) {
+    const dirty = {
+      input_kind: 'committed_action',
+      narrative: 'The guard glares at you.',
+      scene_grounding: 'The guard stands three paces away, hand on his sword.',
+      character_update: { health_change: -12, mana_change: 5, xp_gain: 20, inventory_changes: [{ action: 'add', item: { name: 'Bribe pouch' } }] },
+      quest_update: { active_quest: 'Model-invented quest', quest_description: 'Wrong', current_act: 3 },
+      ability_updates: [{ action: 'add', ability: { name: 'Silver Tongue' } }],
+      npc_updates: [{ name: 'Guard', relationship_change: -20 }],
+      memory_summary: 'You argued with the guard.',
+      memory_keywords: 'guard, argument',
+      dice_rolls: [{ attribute: 'willpower', total: 14 }]
+    };
+
+    const forced = forceNoOpTurnState(dirty, turnContext, kind);
+    assert.strictEqual(forced, dirty, 'Should mutate and return the same object');
+    assert.strictEqual(forced.input_kind, kind);
+    assert.deepStrictEqual(forced.character_update, { health_change: 0, mana_change: 0, xp_gain: 0, inventory_changes: [] });
+    assert.deepStrictEqual(forced.quest_update, {
+      active_quest: 'Find the Heir',
+      quest_description: 'Search the lower city.',
+      current_act: 2
+    }, 'Quest must be reset from turnContext (DB truth), never model output');
+    assert.deepStrictEqual(forced.ability_updates, []);
+    assert.deepStrictEqual(forced.npc_updates, []);
+    assert.strictEqual(forced.memory_summary, null);
+    assert.strictEqual(forced.memory_keywords, '');
+    assert.deepStrictEqual(forced.dice_rolls, []);
+    assert.strictEqual(forced.narrative, 'The guard glares at you.', 'Narrative must survive the forcing');
+    assert.strictEqual(forced.scene_grounding, 'The guard stands three paces away, hand on his sword.', 'Scene grounding must survive the forcing');
+  }
+
+  // The validator net stays clarification-only: the opening turn is pinned to
+  // 'dialogue' in createCampaign precisely so starting state (gear grants, NPC
+  // notes, opening memory) survives validateTurnData. Dialogue no-op enforcement
+  // happens in the engine (takeTurn backstop + Council paths), never here.
+  const openingTurn = validateTurnData({
+    input_kind: 'dialogue',
+    narrative: 'You awaken in the caravan.',
+    character_update: { health_change: 0, mana_change: 0, xp_gain: 0, inventory_changes: [{ action: 'add', item: { name: 'Rusty Lantern' } }] },
+    memory_summary: 'The journey began.',
+    npc_updates: [{ name: 'Caravan Master', relationship_change: 5 }]
+  }, 1);
+  assert.strictEqual(openingTurn.character_update.inventory_changes.length, 1, 'validateTurnData must NOT wipe dialogue turns (opening-turn starting state)');
+  assert.strictEqual(openingTurn.memory_summary, 'The journey began.', 'validateTurnData must preserve dialogue memory (engine backstop owns dialogue no-op)');
+  assert.strictEqual(openingTurn.npc_updates.length, 1, 'validateTurnData must preserve dialogue NPC updates');
+}
+
+// -------------------------------------------------------------
 // Test 5: Dice Check modifier & DC success math
 // -------------------------------------------------------------
 function testDiceCheckMath() {
@@ -302,6 +364,7 @@ async function runAll() {
     testLevelUpMath();
     testProductionSsrfBlock();
     testJsonSchemaValidation();
+    testForceNoOpTurnState();
     testDiceCheckMath();
     testResolveAgentConfig();
     await testTaskQueueSerialization();

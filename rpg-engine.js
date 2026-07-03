@@ -1,11 +1,13 @@
 import * as db from './db.js';
 import { AIClient, resolveAgentConfig } from './api-client.js';
-import { 
-  parseJsonSafe, 
-  createFallbackSvg, 
-  validateTurnData, 
+import {
+  parseJsonSafe,
+  createFallbackSvg,
+  validateTurnData,
   performDiceCheck,
-  validateOutlineData
+  validateOutlineData,
+  forceNoOpTurnState,
+  TABLE_TALK_KINDS
 } from './rpg-state.js';
 import { getDMSystemInstruction } from './rpg-prompts.js';
 
@@ -265,6 +267,58 @@ Return JSON matching:
     suggested_next_actions: []
   });
 
+  // 2-call table-talk path: a question or in-character conversation must not cost the
+  // full 5-call chain when its state outcome is forced to no-op anyway. The Interaction
+  // Agent answered and classified; one independent grounding verifier checks that answer
+  // against the campaign record (anti-hallucination) and speaks as the DM.
+  if (TABLE_TALK_KINDS.includes(interactionProposal.input_kind)) {
+    const kind = interactionProposal.input_kind;
+    console.log(`[COUNCIL] Table-talk path (${kind}): 2 calls (interaction + grounding verifier), state forced to no-op.`);
+
+    const verifierSystem = `${dmSystem}
+
+=== GROUNDING VERIFIER CONTEXT CALL ===
+You are the single DM voice the player sees, acting as an independent grounding check.
+Another context call proposed an answer to the player's table talk. Verify that answer
+against the campaign context before speaking it as the DM. Your JSON is the only
+response persisted to the database.
+
+VERIFICATION RULES (STRICT):
+- Check every factual claim in the proposed answer against the game context: scene,
+  NPCs, memories, recent turns, character sheet, inventory, abilities, quest, and rules.
+  Correct or drop anything the record does not support. Do not invent new canonical facts.
+- If the record cannot answer the question, answer from what the character knows or can
+  perceive, or say the character does not know or cannot tell yet. Never break the
+  fourth wall or say the DM does not know.
+- This is a "${kind}" turn: pure information exchange or in-character conversation.
+  Never advance time, resolve actions, spend resources, or change any state.
+- Always produce a useful "scene_grounding" so the player understands the current
+  physical situation.
+- input_kind must be "${kind}". All state update fields must be complete no-ops
+  (0 changes, empty arrays, null memory).`;
+
+    const verifierPrompt = `${turnPrompt}
+
+=== INTERACTION PROPOSAL (UNVERIFIED) ===
+${compactJson(interactionProposal)}
+
+Verify the proposed answer against the campaign context and produce the final canonical JSON response now. The player must experience one coherent DM, not separate reviewers.`;
+
+    const finalRaw = await continuityClient.sendPrompt({
+      systemInstruction: verifierSystem,
+      prompt: verifierPrompt,
+      jsonMode: true
+    });
+
+    try {
+      const finalData = parseJsonSafe(finalRaw);
+      console.log(`[CLARIFICATION] Table-talk path: forcing strict no-op (${kind}). scene_grounding + direct answer expected from verifier narration.`);
+      return JSON.stringify(forceNoOpTurnState(finalData, turnContext, kind));
+    } catch (error) {
+      return finalRaw;
+    }
+  }
+
   const continuityReviewSystem = `You are the continuity context call for a persistent single-player RPG.
 You approve, deny, or revise the interaction proposal against campaign continuity.
 You protect pacing, act structure, known facts, NPC memory, and the game archive.
@@ -407,7 +461,7 @@ CLARIFICATION BEHAVIOR (VERY IMPORTANT):
 - Never advance time or apply state changes on clarification turns.
 
 If final_status is denied or needs_clarification, explain the issue in-world and set all state changes to no-op values.
-If final_input_kind is clarification, answer directly and set all state changes to no-op values.
+If final_input_kind is clarification or dialogue, answer directly and set all state changes to no-op values.
 If final_input_kind is committed_action, include only state changes approved by the referee and final continuity check.`;
 
   const finalInteractionPrompt = `${turnPrompt}
@@ -435,29 +489,17 @@ Produce the final canonical JSON response now. The player must experience one co
   try {
     const finalData = parseJsonSafe(finalRaw);
     const noStateChange = continuityFinal.final_status !== 'approved' ||
-      continuityFinal.final_input_kind === 'clarification' ||
+      TABLE_TALK_KINDS.includes(continuityFinal.final_input_kind) ||
       continuityFinal.state_change_policy === 'none' ||
       refereeDecision.referee_status !== 'approved';
 
     if (noStateChange) {
-      console.log('[CLARIFICATION] Council path: noStateChange true (clarification or policy=none) — forcing strict no-op. scene_grounding + direct answer expected from final narration.');
-      finalData.input_kind = continuityFinal.final_input_kind || refereeDecision.input_kind || 'clarification';
-      finalData.character_update = {
-        health_change: 0,
-        mana_change: 0,
-        xp_gain: 0,
-        inventory_changes: []
-      };
-      finalData.quest_update = {
-        active_quest: turnContext.active_quest.title,
-        quest_description: turnContext.active_quest.description,
-        current_act: turnContext.campaign.current_act
-      };
-      finalData.ability_updates = [];
-      finalData.npc_updates = [];
-      finalData.memory_summary = null;
-      finalData.memory_keywords = '';
-      finalData.dice_rolls = [];
+      console.log('[CLARIFICATION] Council path: noStateChange true (table talk, denial, or policy=none) — forcing strict no-op. scene_grounding + direct answer expected from final narration.');
+      forceNoOpTurnState(
+        finalData,
+        turnContext,
+        continuityFinal.final_input_kind || refereeDecision.input_kind || 'clarification'
+      );
     }
 
     if (continuityFinal.archive_log && !finalData.memory_summary && !noStateChange) {
@@ -937,8 +979,11 @@ Output the JSON object containing the narrative response, scene_grounding, sugge
   const parsedRaw = parseJsonSafe(aiResponse);
   const turnData = validateTurnData(parsedRaw, currentAct);
 
-  if (turnData.input_kind === 'clarification') {
-    console.log('[CLARIFICATION] Engine backstop: forcing strict no-op (character/quest/ability/NPC/memory cleared, no dice). scene_grounding + narrative answer preserved for tabletop-style table talk.');
+  // Decision 2026-06-05: dialogue is table talk too — no state mutation. The opening
+  // turn (pinned to 'dialogue' in createCampaign so starting state survives the
+  // validator net) never passes through takeTurn, so this backstop cannot wipe it.
+  if (turnData.input_kind === 'clarification' || turnData.input_kind === 'dialogue') {
+    console.log(`[CLARIFICATION] Engine backstop: forcing strict no-op on ${turnData.input_kind} turn (character/quest/ability/NPC/memory cleared, no dice). scene_grounding + narrative answer preserved for tabletop-style table talk.`);
     turnData.character_update = {
       health_change: 0,
       mana_change: 0,
