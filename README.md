@@ -48,12 +48,22 @@ Clone or copy the directory and run:
 npm install
 ```
 
-### 2. Configure Environment
-Create a `.env` file from the template:
-```bash
-cp .env.example .env
-```
-Fill in your API Keys (e.g. `GEMINI_API_KEY`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, or `XAI_API_KEY`). 
+### 2. Configure AI Provider & Keys (server-owned)
+AI configuration belongs to the server operator — players never supply keys or
+model choices. Configure it either way:
+
+- **Admin panel**: open **`/admin`** (not linked from the game UI) and set the
+  provider, model, keys, optional fallback tier, and voice key. Settings persist
+  in the server database and take precedence over environment variables. Gate the
+  panel with `ADMIN_SECRET` in `.env`; if unset, `/admin` is open for
+  single-operator localhost use (production refuses to serve it without the secret).
+- **Environment**: create a `.env` from the template (`cp .env.example .env`) and
+  fill in API keys (e.g. `GEMINI_API_KEY`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`,
+  or `XAI_API_KEY`).
+
+**Fallback tier**: transient provider errors (overload, rate limit, timeout) retry
+once, then fail over per-call to a backup model if configured — via `/admin` or
+`FALLBACK_AI_PROVIDER` / `FALLBACK_AI_MODEL` / `FALLBACK_API_KEY`.
 
 #### Setting Up Access Authentication (Optional)
 To lock the server endpoints from unauthorized third-party users, add a secret token in your `.env` file:
@@ -62,7 +72,7 @@ ACCESS_SECRET=your_secret_access_password
 ```
 If this is configured, click **AI Settings** in the top right of the game interface and paste this token into the **Server Access Token** field to authorize play.
 
-The campaign menu also includes **AI Settings**, so model keys and server access can be configured before the first campaign is created.
+The in-game settings panel holds player preferences only (access token, voice narration choice, diagnostics); AI provider, models, and keys are configured at `/admin` or via environment variables.
 
 #### Reverse Proxy Deployments
 If the server is behind a trusted reverse proxy, configure Express proxy handling:
@@ -140,11 +150,11 @@ Player turns use the **Council GM Pipeline**. It presents as one GM to the playe
 * **Continuity final check** verifies the ruling and prepares archive notes.
 * **Interaction narration** relays the final result in in-world terms as a single GM response.
 
-The browser UI uses one primary model configuration for the visible GM. Server operators can route context calls to different models with environment variables such as `INTERACTION_AI_PROVIDER`, `CONTINUITY_AI_PROVIDER`, `REFEREE_AI_PROVIDER`, plus matching `*_AI_MODEL`, `*_API_KEY`, `*_CUSTOM_ENDPOINT_URL`, and `*_OLLAMA_URL` values. Council turns make multiple model calls and can take longer than single-model turns.
+The server's primary AI configuration (`/admin` or env) powers the visible GM. Operators can route context calls to different models with environment variables such as `INTERACTION_AI_PROVIDER`, `CONTINUITY_AI_PROVIDER`, `REFEREE_AI_PROVIDER`, plus matching `*_AI_MODEL`, `*_API_KEY`, `*_CUSTOM_ENDPOINT_URL`, and `*_OLLAMA_URL` values. Council turns make multiple model calls per turn (2 for table talk, 5 for committed actions).
 
 ## Voice Narration
 
-Voice narration can be enabled in **AI Settings**. It uses the server endpoint `/api/audio/narrate` to generate MP3 audio from the final GM narrative via OpenAI's speech endpoint. Set `OPENAI_API_KEY` server-side or provide a voice API key in the settings panel. The app labels the feature as AI-generated voice narration for user disclosure.
+Voice narration can be enabled in the player settings panel (voice choice and style are player preferences). It uses the server endpoint `/api/audio/narrate` to generate MP3 audio from the final GM narrative via OpenAI's speech endpoint; the voice API key and TTS model are server-owned — set them at `/admin` or via `OPENAI_API_KEY` / `TTS_MODEL`. The app labels the feature as AI-generated voice narration for user disclosure.
 
 ---
 
