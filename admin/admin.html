@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Aetheria GM — Server Administration</title>
+  <style>
+    :root {
+      --bg: hsl(220, 25%, 8%);
+      --panel: hsl(220, 25%, 12%);
+      --text: hsl(210, 20%, 95%);
+      --dim: hsl(210, 10%, 65%);
+      --border: hsl(220, 20%, 20%);
+      --accent: hsl(210, 100%, 55%);
+      --danger: hsl(0, 80%, 55%);
+      --ok: hsl(150, 60%, 45%);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg); color: var(--text);
+      font-family: 'Inter', system-ui, sans-serif;
+      min-height: 100vh; display: flex; justify-content: center; padding: 40px 16px;
+    }
+    main { width: 100%; max-width: 640px; }
+    h1 { font-size: 20px; letter-spacing: 1px; margin-bottom: 4px; }
+    .subtitle { color: var(--dim); font-size: 12px; margin-bottom: 24px; }
+    section {
+      background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+      padding: 20px; margin-bottom: 16px;
+    }
+    section h2 { font-size: 13px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--accent); margin-bottom: 14px; }
+    label { display: block; font-size: 12px; color: var(--dim); margin: 10px 0 4px; }
+    input, select {
+      width: 100%; padding: 8px 10px; border-radius: 6px; font-size: 13px;
+      background: var(--bg); color: var(--text); border: 1px solid var(--border);
+    }
+    input:focus, select:focus { outline: 1px solid var(--accent); }
+    .hint { font-size: 11px; color: var(--dim); margin-top: 3px; }
+    .secret-state { font-size: 11px; margin-top: 3px; }
+    .secret-state.set { color: var(--ok); }
+    button {
+      margin-top: 16px; padding: 9px 18px; border: none; border-radius: 6px;
+      background: var(--accent); color: #fff; font-size: 13px; font-weight: 600; cursor: pointer;
+    }
+    button:hover { filter: brightness(1.15); }
+    button.link { background: transparent; color: var(--dim); font-weight: 400; padding: 4px; }
+    #status { margin-top: 12px; font-size: 12px; min-height: 16px; }
+    #status.ok { color: var(--ok); }
+    #status.error { color: var(--danger); }
+    #login-view, #panel-view { display: none; }
+    body.show-login #login-view { display: block; }
+    body.show-panel #panel-view { display: block; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Aetheria GM — Server Administration</h1>
+    <p class="subtitle">Operator-only settings. This page is not linked from the game UI. AI configuration set here is authoritative over environment variables; players cannot supply or override it.</p>
+
+    <div id="login-view">
+      <section>
+        <h2>Admin Login</h2>
+        <label for="admin-password">Master password (ADMIN_SECRET)</label>
+        <input type="password" id="admin-password" autocomplete="current-password">
+        <button id="btn-login">Unlock</button>
+        <div id="login-status"></div>
+      </section>
+    </div>
+
+    <div id="panel-view">
+      <section>
+        <h2>Primary AI Provider</h2>
+        <label for="provider">Provider</label>
+        <select id="provider">
+          <option value="">(use server environment)</option>
+          <option value="gemini">Google Gemini</option>
+          <option value="openai">OpenAI</option>
+          <option value="claude">Anthropic Claude</option>
+          <option value="grok">xAI Grok</option>
+          <option value="ollama">Ollama (local)</option>
+          <option value="custom">Custom OpenAI-compatible</option>
+        </select>
+        <label for="model">Model</label>
+        <input type="text" id="model" placeholder="blank = provider default">
+        <label for="api-key">API key</label>
+        <input type="password" id="api-key" placeholder="blank = keep current" autocomplete="off">
+        <div class="secret-state" id="api-key-state"></div>
+        <label for="base-url">Custom endpoint URL (custom provider)</label>
+        <input type="text" id="base-url" placeholder="https://...">
+        <div class="hint">In production, custom endpoints must be set via CUSTOM_ENDPOINT_URL env (SSRF guard).</div>
+        <label for="ollama-url">Ollama URL</label>
+        <input type="text" id="ollama-url" placeholder="http://localhost:11434">
+      </section>
+
+      <section>
+        <h2>Fallback Tier (transient-error failover)</h2>
+        <label for="fb-provider">Backup provider</label>
+        <select id="fb-provider">
+          <option value="">(none — retry only)</option>
+          <option value="gemini">Google Gemini</option>
+          <option value="openai">OpenAI</option>
+          <option value="claude">Anthropic Claude</option>
+          <option value="grok">xAI Grok</option>
+          <option value="ollama">Ollama (local)</option>
+          <option value="custom">Custom OpenAI-compatible</option>
+        </select>
+        <label for="fb-model">Backup model</label>
+        <input type="text" id="fb-model" placeholder="blank = provider default">
+        <label for="fb-api-key">Backup API key</label>
+        <input type="password" id="fb-api-key" placeholder="blank = keep current" autocomplete="off">
+        <div class="secret-state" id="fb-api-key-state"></div>
+      </section>
+
+      <section>
+        <h2>Voice Narration (server side)</h2>
+        <label for="voice-api-key">Voice API key (OpenAI)</label>
+        <input type="password" id="voice-api-key" placeholder="blank = keep current" autocomplete="off">
+        <div class="secret-state" id="voice-api-key-state"></div>
+        <label for="voice-model">TTS model</label>
+        <input type="text" id="voice-model" placeholder="gpt-4o-mini-tts">
+        <div class="hint">Players choose the voice and style in their own settings; the key and model live here.</div>
+      </section>
+
+      <button id="btn-save">Save Settings</button>
+      <button class="link" id="btn-clear-keys">Clear stored keys</button>
+      <div id="status"></div>
+    </div>
+  </main>
+  <script src="/admin/admin.js"></script>
+</body>
+</html>

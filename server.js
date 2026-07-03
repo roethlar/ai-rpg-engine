@@ -5,6 +5,12 @@ import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import * as db from './db.js';
 import * as rpg from './rpg-engine.js';
+import {
+  getServerAiConfig,
+  loadAdminAiConfig,
+  saveAdminAiConfig,
+  maskAiConfig
+} from './server-config.js';
 
 dotenv.config();
 
@@ -200,10 +206,65 @@ function authenticateMcpSse(req, res, next) {
   next();
 }
 
+// Admin authentication (Phase I1): gated by ADMIN_SECRET, a master password
+// distinct from the player ACCESS_SECRET. Unset ADMIN_SECRET leaves /admin open
+// for single-operator localhost dev (warned at startup); production fails closed.
+function authenticateAdmin(req, res, next) {
+  const secret = process.env.ADMIN_SECRET;
+  if (!secret) {
+    if (process.env.NODE_ENV === 'production') {
+      return res.status(403).json({ error: 'Admin panel disabled: ADMIN_SECRET is not configured.' });
+    }
+    return next();
+  }
+
+  const authHeader = req.headers.authorization;
+  const token = authHeader && authHeader.startsWith('Bearer ') ? authHeader.substring(7) : '';
+  if (!timingSafeTokenEqual(token, secret)) {
+    return res.status(401).json({ error: 'Unauthorized. Invalid admin password.' });
+  }
+  next();
+}
+
 // Apply authentication to game and MCP APIs
 app.use('/api/campaigns', authenticate);
 app.use('/api/characters', authenticate);
 app.use('/api/audio', authenticate);
+app.use('/api/admin', rateLimit(20, 60000), authenticateAdmin);
+
+// -------------------------------------------------------------
+// ADMIN PANEL (owner-only; not linked from the game UI)
+// -------------------------------------------------------------
+
+app.get('/admin', (req, res) => {
+  res.sendFile(path.join(__dirname, 'admin', 'admin.html'));
+});
+
+app.get('/admin/admin.js', (req, res) => {
+  res.sendFile(path.join(__dirname, 'admin', 'admin.js'));
+});
+
+// Login probe: 200 iff the presented password is valid (or auth is disabled).
+app.post('/api/admin/verify', (req, res) => {
+  res.json({ ok: true, authRequired: !!process.env.ADMIN_SECRET });
+});
+
+app.get('/api/admin/settings', async (req, res) => {
+  try {
+    res.json(maskAiConfig(await loadAdminAiConfig()));
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/admin/settings', async (req, res) => {
+  try {
+    const saved = await saveAdminAiConfig(req.body);
+    res.json(maskAiConfig(saved));
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
 
 // -------------------------------------------------------------
 // GAME API ENDPOINTS
@@ -236,7 +297,10 @@ app.get('/api/characters', async (req, res) => {
 // Create a new campaign (Rate limited: 5 campaigns per minute per IP)
 app.post('/api/campaigns', rateLimit(5, 60000), async (req, res) => {
   try {
-    const { genre, characterName, characterClass, characterProfileId, characterMode, apiConfig, rulesMode } = req.body;
+    // Server-owned AI config (decision 2026-06-11): client-supplied apiConfig is
+    // ignored; the operator's /admin + env configuration is authoritative.
+    const { genre, characterName, characterClass, characterProfileId, characterMode, rulesMode } = req.body;
+    const apiConfig = await getServerAiConfig();
     const cleanGenre = boundedString(genre, 'genre', MAX_GENRE_LENGTH);
     const mode = ['new', 'existing', 'copy'].includes(characterMode) ? characterMode : 'new';
     const cleanCharacterProfileId = characterProfileId ? parsePositiveInteger(characterProfileId, 'characterProfileId') : null;
@@ -292,9 +356,10 @@ app.post('/api/campaigns/:id/turn', rateLimit(10, 60000), async (req, res) => {
     if (isNaN(campaignId)) {
       return res.status(400).json({ error: 'Invalid campaign ID.' });
     }
-    const { playerAction, apiConfig } = req.body;
+    const { playerAction } = req.body;
     const cleanPlayerAction = boundedString(playerAction, 'playerAction', MAX_ACTION_LENGTH);
-    const state = await queueCampaignTask(campaignId, () => 
+    const apiConfig = await getServerAiConfig();
+    const state = await queueCampaignTask(campaignId, () =>
       rpg.takeTurn(campaignId, cleanPlayerAction, apiConfig)
     );
     res.json(state);
@@ -380,9 +445,12 @@ app.post('/api/campaigns/:id/release-character', async (req, res) => {
 
 app.post('/api/audio/narrate', rateLimit(20, 60000), async (req, res) => {
   try {
-    const { text, audioConfig = {}, apiConfig = {} } = req.body;
+    const { text, audioConfig = {} } = req.body;
     const narrationText = boundedString(stripNarrationText(text), 'text', MAX_NARRATION_LENGTH);
-    const requestedModel = audioConfig.model || process.env.TTS_MODEL;
+    // Voice API key and TTS model are server-owned (decision 2026-07-03); the
+    // voice choice and style instructions remain player preferences.
+    const serverConfig = await getServerAiConfig();
+    const requestedModel = serverConfig.voiceModel;
     const requestedVoice = audioConfig.voice || process.env.TTS_VOICE;
     const model = TTS_MODELS.has(requestedModel) ? requestedModel : 'gpt-4o-mini-tts';
     const voice = TTS_VOICES.has(requestedVoice) ? requestedVoice : 'marin';
@@ -392,7 +460,7 @@ app.post('/api/audio/narrate', rateLimit(20, 60000), async (req, res) => {
       MAX_TTS_INSTRUCTIONS_LENGTH,
       'Narrate as an atmospheric game master. Keep the delivery clear, tense, and cinematic without overacting.'
     );
-    const apiKey = audioConfig.apiKey || (apiConfig.provider === 'openai' ? apiConfig.apiKey : '') || process.env.OPENAI_API_KEY;
+    const apiKey = serverConfig.voiceApiKey;
 
     if (!apiKey) {
       return res.status(400).json({ error: 'OpenAI API key is required for voice narration.' });
@@ -693,6 +761,10 @@ db.initDb()
       console.log(`   Aetheria GM Game & MCP Server running on port ${PORT}`);
       console.log(`   Local URL: http://localhost:${PORT}`);
       console.log(`   MCP SSE Endpoint: http://localhost:${PORT}/api/mcp/sse`);
+      if (!process.env.ADMIN_SECRET) {
+        console.log(`   ⚠️  ADMIN_SECRET not set: /admin is open (single-operator dev mode).`);
+        console.log(`   Set ADMIN_SECRET before hosting for others.`);
+      }
       if (process.env.ACCESS_SECRET) {
         console.log(`   Authentication: ENABLED (Secret token configured)`);
       } else {

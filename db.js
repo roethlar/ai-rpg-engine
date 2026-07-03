@@ -265,6 +265,16 @@ export async function initDb() {
     CREATE INDEX IF NOT EXISTS idx_memories_campaign_turn ON memories (campaign_id, turn_number)
   `);
 
+  // Server-owned settings (Phase I1): operator-managed configuration such as AI
+  // provider config, persisted server-side and never player-suppliable.
+  await run(`
+    CREATE TABLE IF NOT EXISTS server_settings (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
   // Create npcs table
   await run(`
     CREATE TABLE IF NOT EXISTS npcs (

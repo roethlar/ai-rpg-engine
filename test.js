@@ -356,6 +356,57 @@ async function testTaskQueueSerialization() {
 }
 
 // -------------------------------------------------------------
+// Test: server-owned AI config resolution (Phase I1)
+// -------------------------------------------------------------
+async function testServerConfigResolution() {
+  console.log(' - Running server-owned AI config tests...');
+  const { sanitizeAdminAiConfig, mergeAiConfig, maskAiConfig, resolveSecretField } = await import('./server-config.js');
+
+  // Sanitization: unknown providers fall through, strings trimmed/bounded
+  const dirty = sanitizeAdminAiConfig({
+    provider: 'skynet',
+    model: `  ${'x'.repeat(500)}  `,
+    apiKey: ' secret ',
+    fallback: { provider: 'grok', apiKey: 'fb-key' }
+  });
+  assert.strictEqual(dirty.provider, '', 'Unknown provider must fall through to env');
+  assert.strictEqual(dirty.model.length, 400, 'Fields must be length-capped');
+  assert.strictEqual(dirty.apiKey, 'secret', 'Fields must be trimmed');
+  assert.strictEqual(dirty.fallback.provider, 'grok');
+
+  // Merge order: admin > env > default
+  const env = { AI_PROVIDER: 'openai', AI_MODEL: 'env-model', FALLBACK_AI_PROVIDER: 'gemini', OPENAI_API_KEY: 'env-voice' };
+  const adminWins = mergeAiConfig({ provider: 'claude', model: 'admin-model', apiKey: 'admin-key' }, env);
+  assert.strictEqual(adminWins.provider, 'claude', 'Admin provider must beat env');
+  assert.strictEqual(adminWins.model, 'admin-model');
+  assert.strictEqual(adminWins.apiKey, 'admin-key');
+  assert.strictEqual(adminWins.fallback.provider, 'gemini', 'Env fallback tier applies when admin sets none');
+
+  const envWins = mergeAiConfig(null, env);
+  assert.strictEqual(envWins.provider, 'openai', 'Env provider applies when no admin config');
+  assert.strictEqual(envWins.model, 'env-model');
+  assert.strictEqual(envWins.apiKey, undefined, 'No admin key → AIClient resolves the provider env key');
+  assert.strictEqual(envWins.voiceApiKey, 'env-voice', 'Voice key falls back to OPENAI_API_KEY');
+
+  const defaults = mergeAiConfig(null, {});
+  assert.strictEqual(defaults.provider, 'gemini', 'Default provider is gemini');
+  assert.strictEqual(defaults.fallback, undefined, 'No fallback tier unless configured');
+
+  // Masking: secrets must never be echoed
+  const masked = maskAiConfig({ provider: 'openai', apiKey: 'super-secret', voiceApiKey: 'v', fallback: { apiKey: 'f' } });
+  assert.strictEqual(JSON.stringify(masked).includes('super-secret'), false, 'Masked view must not contain the key');
+  assert.strictEqual(masked.apiKeySet, true);
+  assert.strictEqual(masked.voiceApiKeySet, true);
+  assert.strictEqual(masked.fallback.apiKeySet, true);
+
+  // Secret-field update semantics against a masked form
+  assert.strictEqual(resolveSecretField('', 'stored'), 'stored', 'Blank keeps the stored secret');
+  assert.strictEqual(resolveSecretField(undefined, 'stored'), 'stored', 'Missing keeps the stored secret');
+  assert.strictEqual(resolveSecretField(null, 'stored'), '', 'Explicit null clears');
+  assert.strictEqual(resolveSecretField(' new ', 'stored'), 'new', 'New value replaces (trimmed)');
+}
+
+// -------------------------------------------------------------
 // Test: provider endpoint pinning — baseUrl must never redirect keyed providers
 // -------------------------------------------------------------
 async function testProviderEndpointPin() {
@@ -446,6 +497,7 @@ async function runAll() {
     testForceNoOpTurnState();
     testRefereeDiceFlow();
     testResolveAgentConfig();
+    await testServerConfigResolution();
     await testProviderEndpointPin();
     await testTaskQueueSerialization();
     console.log('✅ All unit tests completed successfully!');
