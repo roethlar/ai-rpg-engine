@@ -117,7 +117,17 @@ Raised during planning but deliberately deferred. **Per project rule, nothing he
 
 - **Model fallback tiering on transient provider errors.** Provider overload (e.g. Gemini 503) must never surface as a raw error in the DM's voice, and the DM cannot "take a break" — that kills the session. Direction: retry once, and/or fail over to a configured backup model per request. Open questions: how backup tiers are configured (depends on the owner-settings design above), and how failover interacts with Council role separation — a mid-chain model swap must not muddy the separation of duties or change adjudication behavior within a single turn. Frontend should restore the player's input and present transient failures as retriable, outside the DM's voice.
 
-- **Spells, abilities & ruleset consistency.** Players should always be able to know what they can and cannot do (e.g. "What spells do I have available to cast?" — asked unprompted in the first Phase 0 playtest). Open fork: invent a lightweight ruleset/spell list per campaign on the fly, or adopt an open-source system (d20/SRD-style; check license terms if so). Either is acceptable; the hard requirement is **consistency within a campaign** — once the campaign's rules are set, they are canon and must not drift between turns or sessions. Implies the ruleset (or its key facts: known spells/abilities, costs, limits) must live in persistent campaign state the Council can consult and the player can view, not in transient prompt wording. Connects to the existing abilities system (`ability_updates`, character sheet) which tracks what a character *has* but not the rules for what it *does*.
+- **Spells, abilities & ruleset consistency — PROMOTED 2026-07-03** (decision in
+  `.agents/decisions.md`: selectable at campaign start, lightweight house system
+  as default, open-source systems as later options). First-cut implementation:
+  campaign creation gains a ruleset selection; the Setup role generates the
+  house ruleset for the campaign (resolution = the engine's existing d20 +
+  attribute mod vs DC; campaign-specific starting abilities/spells with costs
+  and limits) stored as `campaigns.ruleset_json`; the ruleset is injected into
+  the GM system instruction and Council context as canon; players view it in
+  the game UI. Consistency is the hard gate: rules must not drift between
+  turns. Owner judges this implementation before SRD options are added
+  (license check recorded as prerequisite for those).
 
 - **Genre atmosphere & the "empty holodeck" entry state.** Entering the server before any campaign is chosen should feel like a TNG holodeck with no program running — a deliberately blank slate with potential, not a themed default. Once a genre is chosen, the visual/audio atmosphere must convincingly match it (a cyberpunk campaign with earthy tavern tones is a failure case). The adaptive HSL theme feature partially covers in-game theming today; open questions: curated templates vs fully agent-generated theming, and which agent owns the job — a dedicated campaign-setup agent, the Continuity agent, or the existing outline-generation step. To be decided.
 
