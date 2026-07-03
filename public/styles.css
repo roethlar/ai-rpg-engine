@@ -1158,6 +1158,18 @@ body {
 .narrative-panel { position: relative; }
 .narrative-spotlight { position: absolute; top: 10px; right: 10px; z-index: 5; }
 
+/* Skip-narration pill: floats above the input area while audio is playing */
+.narration-skip {
+  position: absolute;
+  top: -40px;
+  right: 12px;
+  z-index: 6;
+  font-size: 12px;
+  padding: 6px 12px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+.input-area { position: relative; }
+
 .right-panel .panel-section {
   transition: flex-basis 0.25s ease, max-height 0.25s ease, opacity 0.25s ease;
 }

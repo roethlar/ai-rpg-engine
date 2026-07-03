@@ -289,6 +289,7 @@ function setupEventListeners() {
 
   checkboxVoiceNarration.addEventListener('change', toggleVoiceSettings);
   document.getElementById('btn-voice-preview').addEventListener('click', previewVoice);
+  document.getElementById('btn-skip-narration').addEventListener('click', stopNarration);
 
   // Spotlight controls
   document.querySelectorAll('.spotlight-btn').forEach(btn => {
@@ -817,17 +818,23 @@ function stripNarrationText(markdownText) {
     .slice(0, 4000);
 }
 
+// Stops any playing narration and hides the skip control.
+function stopNarration() {
+  if (currentNarrationAudio) {
+    currentNarrationAudio.pause();
+    URL.revokeObjectURL(currentNarrationAudio.src);
+    currentNarrationAudio = null;
+  }
+  document.getElementById('btn-skip-narration').style.display = 'none';
+}
+
 async function narrateGmResponse(markdownText) {
   if (!apiConfig.voiceNarration) return;
 
   const text = stripNarrationText(markdownText);
   if (!text) return;
 
-  if (currentNarrationAudio) {
-    currentNarrationAudio.pause();
-    URL.revokeObjectURL(currentNarrationAudio.src);
-    currentNarrationAudio = null;
-  }
+  stopNarration();
 
   try {
     const response = await fetchWithTimeout('/api/audio/narrate', {
@@ -849,10 +856,13 @@ async function narrateGmResponse(markdownText) {
     const blob = await response.blob();
     const objectUrl = URL.createObjectURL(blob);
     currentNarrationAudio = new Audio(objectUrl);
+    const skipBtn = document.getElementById('btn-skip-narration');
     currentNarrationAudio.addEventListener('ended', () => {
       URL.revokeObjectURL(objectUrl);
       currentNarrationAudio = null;
+      skipBtn.style.display = 'none';
     }, { once: true });
+    skipBtn.style.display = 'inline-flex';
     await currentNarrationAudio.play();
     voiceErrorShown = false;
   } catch (error) {
