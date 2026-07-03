@@ -145,10 +145,6 @@ async function syncPlayerCharacter(profileId, campaignId, character, status = 'c
   );
 }
 
-function isMultiAgentModeEnabled() {
-  return true;
-}
-
 function compactJson(value) {
   return JSON.stringify(value, null, 2);
 }
@@ -813,8 +809,6 @@ Output the JSON object containing the opening narrative, scene_grounding, sugges
 }
 
 export async function takeTurn(campaignId, playerAction, apiConfig) {
-  const client = new AIClient(apiConfig);
-
   // 1. Fetch current campaign details
   const campaign = await db.get(`SELECT * FROM campaigns WHERE id = ?`, [campaignId]);
   if (!campaign) throw new Error(`Campaign ${campaignId} not found.`);
@@ -938,19 +932,13 @@ Output the JSON object containing the narrative response, scene_grounding, sugge
     finalPlayerAction,
     rollResult
   });
-  const aiResponse = isMultiAgentModeEnabled(apiConfig)
-    ? await runMultiAgentTurn({ apiConfig, dmSystem, turnContext, turnPrompt })
-    : await client.sendPrompt({
-        systemInstruction: dmSystem,
-        prompt: turnPrompt,
-        jsonMode: true
-      });
+  const aiResponse = await runMultiAgentTurn({ apiConfig, dmSystem, turnContext, turnPrompt });
 
   const parsedRaw = parseJsonSafe(aiResponse);
   const turnData = validateTurnData(parsedRaw, currentAct);
 
   if (turnData.input_kind === 'clarification') {
-    console.log('[CLARIFICATION] Single-model path: forcing strict no-op (character/quest/ability/NPC/memory cleared, no dice). scene_grounding + narrative answer preserved for tabletop-style table talk.');
+    console.log('[CLARIFICATION] Engine backstop: forcing strict no-op (character/quest/ability/NPC/memory cleared, no dice). scene_grounding + narrative answer preserved for tabletop-style table talk.');
     turnData.character_update = {
       health_change: 0,
       mana_change: 0,
