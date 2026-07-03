@@ -1023,7 +1023,7 @@ CRITICAL FOR CLARIFICATION TURNS:
 
 For committed_action turns, write vivid narrative of what happens as a result.
 
-Output the JSON object containing the narrative response, scene_grounding, suggested_choices, player state updates, active quest, and any NPC updates.`;
+Output the JSON object containing the narrative response, scene_grounding, suggested_choices, player state updates, active quest, any NPC updates, and an svg_illustration of the current scene.`;
 
   console.log(`Processing Turn ${currentTurnNumber} for Campaign ${campaignId}...`);
   const turnContext = buildTurnContext({
