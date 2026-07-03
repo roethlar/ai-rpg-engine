@@ -403,8 +403,11 @@ export class AIClient {
     const key = this.apiKey;
     if (!key) throw new Error('Claude API key is not configured.');
 
-    // Directly queries Anthropic API. (CORS not an issue as we are calling from Node.js backend)
-    const url = this.baseUrl || 'https://api.anthropic.com/v1/messages';
+    // Pinned to the official endpoint: this.baseUrl carries CUSTOM_ENDPOINT_URL (or a
+    // saved UI custom URL), which is config for the 'custom' provider — honoring it here
+    // would send the Anthropic key to an unrelated host. Proxy/OpenRouter setups that
+    // serve Claude models should use the 'custom' provider instead.
+    const url = 'https://api.anthropic.com/v1/messages';
     
     const messages = [{ role: 'user', content: prompt }];
     

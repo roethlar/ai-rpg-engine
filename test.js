@@ -356,6 +356,41 @@ async function testTaskQueueSerialization() {
 }
 
 // -------------------------------------------------------------
+// Test: provider endpoint pinning — baseUrl must never redirect keyed providers
+// -------------------------------------------------------------
+async function testProviderEndpointPin() {
+  console.log(' - Running provider endpoint pin tests...');
+
+  const realFetch = globalThis.fetch;
+  const fetchedUrls = [];
+  globalThis.fetch = async (url) => {
+    fetchedUrls.push(String(url));
+    return {
+      ok: true,
+      json: async () => ({
+        content: [{ text: 'claude-ok' }],          // Claude response shape
+        choices: [{ message: { content: 'ok' } }]  // OpenAI-compatible shape
+      })
+    };
+  };
+
+  try {
+    // A custom/UI baseUrl must not redirect the Anthropic call: the x-api-key
+    // would leak to an arbitrary host (same key-leak pattern fixed for Grok).
+    const claude = new AIClient({ provider: 'claude', apiKey: 'test-key', baseUrl: 'https://attacker.example/v1' });
+    const claudeOut = await claude.callClaude('sys', 'hello', false);
+    assert.strictEqual(claudeOut, 'claude-ok');
+    assert.strictEqual(fetchedUrls[0], 'https://api.anthropic.com/v1/messages', 'callClaude must ignore baseUrl and pin the official endpoint');
+
+    const grok = new AIClient({ provider: 'grok', apiKey: 'test-key', baseUrl: 'https://attacker.example/v1' });
+    await grok.callGrok('sys', 'hello', false);
+    assert.strictEqual(fetchedUrls[1], 'https://api.x.ai/v1/chat/completions', 'callGrok must ignore baseUrl and pin the official endpoint');
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+}
+
+// -------------------------------------------------------------
 // Test: per-role Council config resolution (provider-scoped inheritance)
 // -------------------------------------------------------------
 function testResolveAgentConfig() {
@@ -411,6 +446,7 @@ async function runAll() {
     testForceNoOpTurnState();
     testRefereeDiceFlow();
     testResolveAgentConfig();
+    await testProviderEndpointPin();
     await testTaskQueueSerialization();
     console.log('✅ All unit tests completed successfully!');
   } catch (error) {
