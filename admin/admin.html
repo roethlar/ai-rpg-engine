@@ -94,6 +94,12 @@
       </section>
 
       <section>
+        <h2>AI Roles (per-role model tiering)</h2>
+        <div class="hint" style="margin-bottom:6px">Each role can run its own provider/model/key. Blank fields inherit: role env vars first, then the primary provider above (key and model inherit only when the provider matches — a role on a different provider uses that provider's own key).</div>
+        <div id="roles-grid"></div>
+      </section>
+
+      <section>
         <h2>Fallback Tier (transient-error failover)</h2>
         <label for="fb-provider">Backup provider</label>
         <select id="fb-provider">

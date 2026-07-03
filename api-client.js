@@ -216,19 +216,24 @@ function normalizeFallbackConfig(config = {}) {
  */
 export function resolveAgentConfig(apiConfig = {}, role) {
   const prefixes = {
+    setup: 'SETUP',
     interaction: 'INTERACTION',
     continuity: 'CONTINUITY',
-    referee: 'REFEREE'
+    referee: 'REFEREE',
+    narration: 'NARRATION'
   };
   const prefix = prefixes[role] || String(role).toUpperCase();
+  // Per-role admin config (decision 2026-07-03): /admin values beat role env
+  // vars, which beat the primary config.
+  const adminRole = (apiConfig.roles && apiConfig.roles[role]) || {};
 
-  const provider = process.env[`${prefix}_AI_PROVIDER`] || apiConfig.provider;
+  const provider = adminRole.provider || process.env[`${prefix}_AI_PROVIDER`] || apiConfig.provider;
   const inherit = provider === apiConfig.provider;
 
   return {
     provider,
-    model: process.env[`${prefix}_AI_MODEL`] || (inherit ? apiConfig.model : undefined),
-    apiKey: process.env[`${prefix}_API_KEY`] || (inherit ? apiConfig.apiKey : undefined),
+    model: adminRole.model || process.env[`${prefix}_AI_MODEL`] || (inherit ? apiConfig.model : undefined),
+    apiKey: adminRole.apiKey || process.env[`${prefix}_API_KEY`] || (inherit ? apiConfig.apiKey : undefined),
     baseUrl: process.env[`${prefix}_CUSTOM_ENDPOINT_URL`] || (inherit ? apiConfig.baseUrl : undefined),
     ollamaUrl: process.env[`${prefix}_OLLAMA_URL`] || (inherit ? apiConfig.ollamaUrl : undefined),
     // The fallback tier is role-independent: any role's failing call may fail

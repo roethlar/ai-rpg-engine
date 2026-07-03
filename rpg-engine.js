@@ -247,6 +247,10 @@ async function runMultiAgentTurn({ apiConfig, gmSystem, turnContext, turnPrompt 
   const interactionClient = new AIClient(resolveAgentConfig(apiConfig, 'interaction'));
   const continuityClient = new AIClient(resolveAgentConfig(apiConfig, 'continuity'));
   const refereeClient = new AIClient(resolveAgentConfig(apiConfig, 'referee'));
+  // Narration is its own role (decision 2026-07-03): the final player-facing
+  // voice can run a different (typically stronger prose) model than the
+  // classifier. Unconfigured, it inherits the primary config as before.
+  const narrationClient = new AIClient(resolveAgentConfig(apiConfig, 'narration'));
   const contextJson = compactJson(turnContext);
 
   const interactionProposalSystem = `You are the interaction context call for a single-player RPG.
@@ -544,7 +548,7 @@ ${diceResultsSection}
 
 Produce the final canonical JSON response now. The player must experience one coherent GM, not separate reviewers.`;
 
-  const finalRaw = await interactionClient.sendPrompt({
+  const finalRaw = await narrationClient.sendPrompt({
     systemInstruction: finalInteractionSystem,
     prompt: finalInteractionPrompt,
     jsonMode: true
@@ -588,7 +592,10 @@ export async function createCampaign({
   apiConfig,
   rulesMode = false
 }) {
-  const client = new AIClient(apiConfig);
+  // Setup is its own role (decision 2026-07-03): the campaign outline and
+  // opening scene are the highest-leverage calls and can run the strongest
+  // model. Unconfigured, it inherits the primary config as before.
+  const client = new AIClient(resolveAgentConfig(apiConfig, 'setup'));
   let sourceProfile = null;
 
   if (characterProfileId) {

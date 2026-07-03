@@ -9,11 +9,21 @@
 import * as db from './db.js';
 
 export const AI_PROVIDERS = ['gemini', 'openai', 'claude', 'grok', 'ollama', 'custom'];
+export const AI_ROLES = ['setup', 'interaction', 'continuity', 'referee', 'narration'];
 const SETTING_KEY = 'ai_config';
 const MAX_FIELD_LENGTH = 400;
 
 function cleanField(value) {
   return typeof value === 'string' ? value.trim().slice(0, MAX_FIELD_LENGTH) : '';
+}
+
+function sanitizeRoleConfig(raw) {
+  const data = raw && typeof raw === 'object' ? raw : {};
+  return {
+    provider: AI_PROVIDERS.includes(data.provider) ? data.provider : '',
+    model: cleanField(data.model),
+    apiKey: cleanField(data.apiKey)
+  };
 }
 
 /**
@@ -35,7 +45,10 @@ export function sanitizeAdminAiConfig(raw) {
       provider: AI_PROVIDERS.includes(fallbackRaw.provider) ? fallbackRaw.provider : '',
       model: cleanField(fallbackRaw.model),
       apiKey: cleanField(fallbackRaw.apiKey)
-    }
+    },
+    roles: Object.fromEntries(
+      AI_ROLES.map(role => [role, sanitizeRoleConfig(data.roles && data.roles[role])])
+    )
   };
 }
 
@@ -66,6 +79,19 @@ export function mergeAiConfig(adminConfig, env = process.env) {
     };
   }
 
+  // Per-role admin config rides along; resolveAgentConfig (api-client.js)
+  // applies the full precedence chain (admin role > role env > primary) at
+  // call time. Empty fields are dropped so they fall through cleanly.
+  merged.roles = {};
+  for (const role of AI_ROLES) {
+    const roleConfig = admin.roles[role];
+    const entry = {};
+    if (roleConfig.provider) entry.provider = roleConfig.provider;
+    if (roleConfig.model) entry.model = roleConfig.model;
+    if (roleConfig.apiKey) entry.apiKey = roleConfig.apiKey;
+    if (Object.keys(entry).length > 0) merged.roles[role] = entry;
+  }
+
   return merged;
 }
 
@@ -87,7 +113,14 @@ export function maskAiConfig(adminConfig) {
       provider: admin.fallback.provider,
       model: admin.fallback.model,
       apiKeySet: !!admin.fallback.apiKey
-    }
+    },
+    roles: Object.fromEntries(
+      AI_ROLES.map(role => [role, {
+        provider: admin.roles[role].provider,
+        model: admin.roles[role].model,
+        apiKeySet: !!admin.roles[role].apiKey
+      }])
+    )
   };
 }
 
@@ -116,6 +149,7 @@ export async function saveAdminAiConfig(raw) {
   const existing = sanitizeAdminAiConfig(await loadAdminAiConfig());
   const incoming = raw && typeof raw === 'object' ? raw : {};
   const incomingFallback = incoming.fallback && typeof incoming.fallback === 'object' ? incoming.fallback : {};
+  const incomingRoles = incoming.roles && typeof incoming.roles === 'object' ? incoming.roles : {};
 
   const merged = sanitizeAdminAiConfig({
     ...incoming,
@@ -124,7 +158,16 @@ export async function saveAdminAiConfig(raw) {
     fallback: {
       ...incomingFallback,
       apiKey: resolveSecretField(incomingFallback.apiKey, existing.fallback.apiKey)
-    }
+    },
+    roles: Object.fromEntries(
+      AI_ROLES.map(role => {
+        const roleIncoming = incomingRoles[role] && typeof incomingRoles[role] === 'object' ? incomingRoles[role] : {};
+        return [role, {
+          ...roleIncoming,
+          apiKey: resolveSecretField(roleIncoming.apiKey, existing.roles[role].apiKey)
+        }];
+      })
+    )
   });
 
   await db.run(

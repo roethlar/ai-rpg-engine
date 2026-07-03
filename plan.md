@@ -69,6 +69,17 @@ in `.agents/decisions.md`)
   mid-session 503 no longer reaches the narrative log as GM dialogue.
 - Files: api-client.js, server-config.js, public/app.js, test.js.
 
+**Phase I3: Five first-class AI roles, fully /admin-configurable** (decision
+2026-07-03 in `.agents/decisions.md`)
+- Split narration out of the interaction client and setup (outline + opening
+  scene) out of the primary config; add `NARRATION_*` / `SETUP_*` env prefixes.
+- Per-role provider/model/key grid in /admin, persisted in server_settings;
+  precedence admin role > role env > primary (same-provider inheritance only).
+- Success: each of the five roles can run a distinct provider/model configured
+  purely through /admin; unconfigured roles behave exactly as before; key-safety
+  tests still pass.
+- Files: api-client.js, server-config.js, rpg-engine.js, admin/, test.js.
+
 ## Non-Goals (for now)
 - Real-time simultaneous multiplayer
 - Full combat grid / tactical combat system

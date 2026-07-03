@@ -150,7 +150,7 @@ Player turns use the **Council GM Pipeline**. It presents as one GM to the playe
 * **Continuity final check** verifies the ruling and prepares archive notes.
 * **Interaction narration** relays the final result in in-world terms as a single GM response.
 
-The server's primary AI configuration (`/admin` or env) powers the visible GM. Operators can route context calls to different models with environment variables such as `INTERACTION_AI_PROVIDER`, `CONTINUITY_AI_PROVIDER`, `REFEREE_AI_PROVIDER`, plus matching `*_AI_MODEL`, `*_API_KEY`, `*_CUSTOM_ENDPOINT_URL`, and `*_OLLAMA_URL` values. Council turns make multiple model calls per turn (2 for table talk, 5 for committed actions).
+The engine has five first-class AI roles, each independently configurable in `/admin` (or via `SETUP_*`, `INTERACTION_*`, `CONTINUITY_*`, `REFEREE_*`, `NARRATION_*` env variables; admin settings win): **Setup** designs the campaign outline and opening scene (once per campaign — use your strongest model), **Interaction** classifies player input every turn (fast/cheap wins), **Continuity** grounds everything against the campaign record, **Referee** adjudicates actions and dice, and **Narration** writes the final player-facing prose (your best stylist). Unconfigured roles inherit the primary config. Council turns make 2 model calls for table talk and 5 for committed actions.
 
 ## Voice Narration
 

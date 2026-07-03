@@ -214,6 +214,37 @@ Promoted to implementation by the owner 2026-07-03.
 Supersedes:
 Nothing; implements the "Model fallback tiering" future topic in plan.md.
 
+### 2026-07-03 - Five first-class AI roles, all configurable in /admin; env vars are secondary
+
+Status: Active
+
+Decision:
+The engine has five first-class AI roles: setup (campaign outline + opening
+scene), interaction (input classification/proposal), continuity (grounding
+checks + table-talk verifier), referee (adjudication + dice), and narration
+(the final player-facing voice). Narration is separated from interaction and
+setup from the primary config so each can run a different model. Every role's
+provider/model/key is configurable in /admin (persisted in server_settings)
+with precedence: admin role config > role env vars (SETUP_*/NARRATION_* join
+the existing INTERACTION_*/CONTINUITY_*/REFEREE_*) > primary config (fields
+inherit only same-provider, preserving the cross-provider key-safety rule).
+The owner manages configuration through /admin as the primary interface; env
+vars remain supported but are not the expected workflow. Per-role custom
+endpoints (baseUrl/ollamaUrl) stay env-only for now. Which concrete models to
+assign is a playtest A/B call, never hard-coded (2026-06-13 provider-strategy
+rule).
+
+Reason:
+Owner direction 2026-07-03: "admin needs to have all the options; I abhor
+messing with env vars," plus the intent to run a strong model for campaign
+creation and a strong prose model for narration while keeping per-turn
+classification/verification cheap. The Council efficiency refactor (landed
+2026-07-03) was the recorded prerequisite for per-role tiering.
+
+Supersedes:
+Narration implicitly sharing the interaction role's model, and setup
+implicitly sharing the primary config; env-only per-role routing.
+
 ### 2026-06-05 - Council DM pipeline is canonical; clarification turns must not advance state (from plan.md + code)
 
 Status: Active

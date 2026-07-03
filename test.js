@@ -404,6 +404,24 @@ async function testServerConfigResolution() {
   assert.strictEqual(resolveSecretField(undefined, 'stored'), 'stored', 'Missing keeps the stored secret');
   assert.strictEqual(resolveSecretField(null, 'stored'), '', 'Explicit null clears');
   assert.strictEqual(resolveSecretField(' new ', 'stored'), 'new', 'New value replaces (trimmed)');
+
+  // Phase I3: per-role configs are sanitized, merged, and masked
+  const withRoles = mergeAiConfig({
+    provider: 'gemini',
+    roles: {
+      narration: { provider: 'claude', model: 'prose-model', apiKey: 'role-key' },
+      setup: { provider: 'not-a-provider', model: '' },
+      referee: {}
+    }
+  }, {});
+  assert.deepStrictEqual(withRoles.roles.narration, { provider: 'claude', model: 'prose-model', apiKey: 'role-key' });
+  assert.strictEqual(withRoles.roles.setup, undefined, 'Roles with no valid fields are dropped from the merge');
+  assert.strictEqual(withRoles.roles.referee, undefined);
+
+  const maskedRoles = maskAiConfig({ roles: { narration: { provider: 'claude', apiKey: 'role-secret' } } });
+  assert.strictEqual(JSON.stringify(maskedRoles).includes('role-secret'), false, 'Role keys must never be echoed');
+  assert.strictEqual(maskedRoles.roles.narration.apiKeySet, true);
+  assert.strictEqual(maskedRoles.roles.setup.apiKeySet, false);
 }
 
 // -------------------------------------------------------------
@@ -562,6 +580,35 @@ function testResolveAgentConfig() {
   const plain = resolveAgentConfig(uiConfig, 'interaction');
   assert.strictEqual(plain.provider, 'gemini');
   assert.strictEqual(plain.apiKey, 'ui-gemini-key');
+
+  // Phase I3: narration and setup are first-class roles that inherit the
+  // primary config when unconfigured (previous implicit behavior preserved).
+  const narrationPlain = resolveAgentConfig(uiConfig, 'narration');
+  assert.strictEqual(narrationPlain.provider, 'gemini');
+  assert.strictEqual(narrationPlain.apiKey, 'ui-gemini-key');
+  const setupPlain = resolveAgentConfig(uiConfig, 'setup');
+  assert.strictEqual(setupPlain.model, 'gemini-1.5-flash');
+
+  // Admin role config beats role env vars, which beat the primary.
+  process.env.NARRATION_AI_PROVIDER = 'openai';
+  process.env.NARRATION_AI_MODEL = 'env-model';
+  const adminConfig = {
+    ...uiConfig,
+    roles: { narration: { provider: 'claude', model: 'admin-prose-model', apiKey: 'admin-claude-key' } }
+  };
+  const narrationAdmin = resolveAgentConfig(adminConfig, 'narration');
+  assert.strictEqual(narrationAdmin.provider, 'claude', 'Admin role provider must beat role env');
+  assert.strictEqual(narrationAdmin.model, 'admin-prose-model');
+  assert.strictEqual(narrationAdmin.apiKey, 'admin-claude-key');
+  delete process.env.NARRATION_AI_PROVIDER;
+  delete process.env.NARRATION_AI_MODEL;
+
+  // Cross-provider key safety holds for admin role configs too: switching a
+  // role's provider without a role key must NOT inherit the primary's key.
+  const crossAdmin = resolveAgentConfig({ ...uiConfig, roles: { setup: { provider: 'claude' } } }, 'setup');
+  assert.strictEqual(crossAdmin.provider, 'claude');
+  assert.strictEqual(crossAdmin.apiKey, undefined, 'Admin role on a different provider must not get the primary key');
+  assert.strictEqual(crossAdmin.model, undefined, 'Admin role on a different provider must not get the primary model');
 }
 
 // Run all test functions
