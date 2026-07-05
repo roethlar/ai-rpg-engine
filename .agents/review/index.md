@@ -31,5 +31,6 @@ Intake pass result: codex (gpt-5.5, xhigh) returned 4 candidates against
 
 Loop worked to completion 2026-07-05: 4/4 verified (cr-4 via one reopen
 round — the reviewer found a sibling crash path, fixed and re-accepted).
-All four branches await the owner-gated merge; nothing is merged on agent
-authority. Verdict trail lives in each finding doc.
+CLOSED: all four branches merged to master on the owner's explicit go
+(merge commits eb5bec3/57c2451/d8fbab0/6123dff), content-verified on master,
+branches deleted after verification. Verdict trail lives in each finding doc.

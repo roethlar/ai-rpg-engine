@@ -5,7 +5,11 @@ short and update it when important repo facts change.
 
 ## Now
 
-- Active review loop: see `.agents/review/index.md`.
+- 2026-07-05: cross-model review loop (playbook reviewloop, reviewer codex)
+  CLOSED — 4/4 findings verified and merged to master on the owner's go
+  (record: `.agents/review/index.md`). Three were holes in the prior
+  same-model review's own fixes; cr-4 took one reopen round. Master pushed
+  to both remotes on the owner's go.
 
 - 2026-07-04/05: two large deliveries in one running session, all committed to master
   (working tree clean, NOT pushed — pushes need an explicit owner go).
