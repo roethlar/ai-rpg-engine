@@ -1185,6 +1185,33 @@ body {
   transition: flex-basis 0.25s ease, max-height 0.25s ease, opacity 0.25s ease;
 }
 
+/* HOLODECK ENTRY STATE (Phase H): no program running — neutral idle stage
+   with a faint amber grid; campaign themes only exist inside a program. */
+body.holodeck-idle {
+  --theme-primary: 45, 90%, 55%;
+  --theme-secondary: 45, 60%, 45%;
+  --theme-bg: 0, 0%, 4%;
+  --theme-panel: 0, 0%, 7%;
+  --theme-text: 40, 15%, 90%;
+  --theme-text-dim: 40, 8%, 60%;
+  --theme-border: 45, 40%, 22%;
+  --theme-glow: 45, 90%, 55%, 0.12;
+}
+body.holodeck-idle .screen-overlay {
+  background:
+    linear-gradient(rgba(0, 0, 0, 0.82), rgba(0, 0, 0, 0.9)),
+    repeating-linear-gradient(0deg, rgba(255, 190, 60, 0.13) 0 1px, transparent 1px 64px),
+    repeating-linear-gradient(90deg, rgba(255, 190, 60, 0.13) 0 1px, transparent 1px 64px),
+    #050505;
+}
+body.holodeck-idle .stars-bg { display: none; }
+.menu-subtitle {
+  font-size: 12px;
+  color: hsl(var(--theme-text-dim));
+  letter-spacing: 0.5px;
+  margin: 2px 0 0;
+}
+
 /* TABLE STYLE DIALS (Phase D): campaign settings in the Rules tab */
 .table-style-row { display: flex; gap: 8px; align-items: flex-end; margin-bottom: 6px; }
 .table-style-row label {

@@ -664,7 +664,22 @@ function renderSavedCharacterSummary() {
 }
 
 // Fetch list from DB and show in overlay menu
+// Holodeck entry state (Phase H, owner intent 2026-06-13): before a program
+// runs, the stage is deliberately blank — neutral engine idle, no campaign
+// theme. Clears every inline theme/font override a previous campaign left.
+function enterHolodeckIdle() {
+  document.body.className = 'holodeck-idle';
+  THEME_VAR_NAMES.forEach(name => {
+    document.body.style.removeProperty(name);
+    document.documentElement.style.removeProperty(name);
+  });
+  ['--font-title', '--font-body', '--font-dialogue'].forEach(name =>
+    document.documentElement.style.removeProperty(name)
+  );
+}
+
 async function loadCampaignsMenu() {
+  enterHolodeckIdle();
   campaignListContainer.innerHTML = `<div class="loading-state"><i class="fa-solid fa-spinner fa-spin"></i> Loading campaigns...</div>`;
   
   try {
