@@ -514,7 +514,11 @@ export function resolveHeroicSubject({ current, focal, locationChanged, location
   }
   if (!focal) return null;
   const key = focal.kind === 'location' ? String(focal.name).trim().toLowerCase() : focal.name;
-  if (current && current.subject_kind === focal.kind && current.subject_key === key) return null;
+  // Case-insensitive: the stored pointer carries the NPC's canonical name,
+  // but the referee may re-signal the same subject with different casing —
+  // that must read as "same subject", not a fresh paid render.
+  if (current && current.subject_kind === focal.kind &&
+      String(current.subject_key).toLowerCase() === key.toLowerCase()) return null;
   if (current && typeof current.generated_turn === 'number' && turnNumber - current.generated_turn < minInterval) {
     return null;
   }

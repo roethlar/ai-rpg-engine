@@ -800,13 +800,21 @@ async function testHeroicPointer() {
     null,
     'Too soon after the last swap → keep'
   );
-  // Same subject again → keep (no re-render churn)
+  // Same subject again → keep (no re-render churn), regardless of casing
   assert.strictEqual(
     resolveHeroicSubject({
       current: { subject_kind: 'npc', subject_key: 'Kessler', generated_turn: 2 },
       focal: { kind: 'npc', name: 'Kessler' }, locationChanged: false, locationKey: null, turnNumber: 9
     }),
     null
+  );
+  assert.strictEqual(
+    resolveHeroicSubject({
+      current: { subject_kind: 'npc', subject_key: 'Kessler', generated_turn: 2 },
+      focal: { kind: 'npc', name: 'KESSLER' }, locationChanged: false, locationKey: null, turnNumber: 9
+    }),
+    null,
+    'Subject matching is case-insensitive'
   );
   // No signal, no move → keep; first-ever heroic needs no interval
   assert.strictEqual(resolveHeroicSubject({ current, focal: null, locationChanged: false, locationKey: null, turnNumber: 20 }), null);
