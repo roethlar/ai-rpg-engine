@@ -482,6 +482,27 @@ identity descriptors are mechanical compositions of stored personality/quirks
 auto-reveals only from committed-action positional signals — table-talk turns
 still display it via the Situation spotlight.
 
+**2026-07-04/05 Queue — implemented (owner playtest pending)**
+
+The full delegated queue landed same-session under the recorded process
+(agent-decided calls, codex-reviewed plans, adversarial implementation
+review): Phase 3 M1–M4 (multi-character schema with atomic migration and
+arrival baselines, round-robin turn order with gate-after-classification —
+denials never consume a turn — join/release/party UI with per-browser
+identity and a gap-backfilling poll, README for hosting); V5 (opening
+location + heroic at creation, generated NPC appearance descriptors,
+sticky positional display); Phase D (helpfulness/pacing dials, classic +
+standard defaults, choice caps guard-proven, pacing enforced as recorded
+world-turn cadence); Phase H (holodeck idle entry state); Phase P
+(export/import with pinned v1 fixture as the forward-importability guard).
+A 26-agent adversarial review confirmed 21 unique defects — all fixed, one
+commit each (turn-consumption on denial, ghost profiles, duplicate campaign
+cards, bundle hardening, poll races, identity-claim theft among them).
+Suite: 23 test groups green; multiplayer live-smoked via API (join,
+CHARACTER_REQUIRED, OUT_OF_TURN after one call, single-member release);
+campaign 1 left as a ready two-character table. The owner's multiplayer
+playtest is the gate that closes all open feel verdicts.
+
 **Phase 0 — Council Efficiency Refactor (approved 2026-06-05, implemented 2026-07-03 — pending playtest)**
 
 Implemented 2026-07-03 in three commits (owner green-lit ahead of the Phase 0
