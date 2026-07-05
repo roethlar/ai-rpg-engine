@@ -1,9 +1,9 @@
 # cr-3: Pacing cadence counts unresolved committed actions as world turns
 
 **Severity**: MEDIUM — the pacing dial loosens after denials; the GM is told it has room to initiate earlier than configured.
-**Status**: In progress
+**Status**: Verified
 **Branch**: `fix/cr-3-cadence-resolved`
-**Commit**: (pending)
+**Commit**: `4693647`
 
 ## Evidence
 rpg-engine.js cadence history (takeTurn) filters records on
@@ -47,4 +47,8 @@ Pre-Phase-D records have no encounter field at all and already read as
 'none'; unchanged.
 
 ## Reviewer comments
-(pending)
+- Reviewer: codex (codex-cli 0.142.5, gpt-5.5) — 2026-07-05T11:52Z
+- Reviewed SHA `46936470a3c7b20479d3a2ee86165e223f5f21c8`, base `976cc536a3a9db25b11acca88559555120f23dbb`
+- guard_confirmed: true — reviewer ran the suite at head (PASS) and with the filter reverted to kind-only (FAIL at the new assertion), in a disposable /tmp clone
+- Verdict: **accepted** (awaiting owner-gated merge)
+- Comments: cadence now shares the resolved-action definition with turn advancement; legacy records still count; diff touches only the declared files.

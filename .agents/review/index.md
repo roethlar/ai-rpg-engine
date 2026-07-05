@@ -22,7 +22,7 @@ codex; findings will be triaged below.
 |----|----------|-------------------|--------|--------|
 | cr-1 | HIGH | Released browser silently becomes another player's character on the next poll | `[x]` | `fix/cr-1-claim-tombstone` |
 | cr-2 | MEDIUM | Campaign-card profile release reverts on restart, minting duplicate checked-out profiles | `[x]` | `fix/cr-2-backfill-once` |
-| cr-3 | MEDIUM | Denied actions inflate pacing cadence, licensing GM encounters early | `[~]` | `fix/cr-3-cadence-resolved` |
+| cr-3 | MEDIUM | Denied actions inflate pacing cadence, licensing GM encounters early | `[x]` | `fix/cr-3-cadence-resolved` |
 | cr-4 | MEDIUM | Hostile bundle field shapes crash the imported campaign's UI | `[~]` | `fix/cr-4-record-field-shapes` |
 
 Intake pass result: codex (gpt-5.5, xhigh) returned 4 candidates against
