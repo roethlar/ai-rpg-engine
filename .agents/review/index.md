@@ -23,8 +23,13 @@ codex; findings will be triaged below.
 | cr-1 | HIGH | Released browser silently becomes another player's character on the next poll | `[x]` | `fix/cr-1-claim-tombstone` |
 | cr-2 | MEDIUM | Campaign-card profile release reverts on restart, minting duplicate checked-out profiles | `[x]` | `fix/cr-2-backfill-once` |
 | cr-3 | MEDIUM | Denied actions inflate pacing cadence, licensing GM encounters early | `[x]` | `fix/cr-3-cadence-resolved` |
-| cr-4 | MEDIUM | Hostile bundle field shapes crash the imported campaign's UI | `[~]` | `fix/cr-4-record-field-shapes` |
+| cr-4 | MEDIUM | Hostile bundle field shapes crash the imported campaign's UI | `[x]` | `fix/cr-4-record-field-shapes` |
 
 Intake pass result: codex (gpt-5.5, xhigh) returned 4 candidates against
 `f9ecbd8..6c372c0`; all 4 admitted (evidence verified against code at HEAD),
 0 declined. Three are gaps in the prior same-model review's own fixes.
+
+Loop worked to completion 2026-07-05: 4/4 verified (cr-4 via one reopen
+round — the reviewer found a sibling crash path, fixed and re-accepted).
+All four branches await the owner-gated merge; nothing is merged on agent
+authority. Verdict trail lives in each finding doc.
