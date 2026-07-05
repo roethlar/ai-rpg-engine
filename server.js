@@ -56,7 +56,9 @@ app.use((req, res, next) => {
 // or it would reject the body before the route's parser ever ran.
 const smallJsonParser = express.json({ limit: '64kb' });
 app.use((req, res, next) => {
-  if (req.path === '/api/campaigns/import') return next();
+  // Express routing is case-insensitive and slash-tolerant by default, so
+  // the skip must match every variant the route itself would accept.
+  if (req.path.replace(/\/+$/, '').toLowerCase() === '/api/campaigns/import') return next();
   return smallJsonParser(req, res, next);
 });
 // Serve static frontend files
