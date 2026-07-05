@@ -992,7 +992,12 @@ function resolveMyCharacter(gameState) {
   if (!mine && !storedRaw && party.length === 1) mine = party[0];
   if (!mine && !storedRaw && gameState.character?.id && party.length <= 1) mine = gameState.character;
   if (!mine && storedRaw) {
-    localStorage.removeItem(myCharacterKey(currentCampaignId));
+    // Durable tombstone (cr-1): our character left this table. REMOVING the
+    // key would recreate the never-claimed state, and the sole-member
+    // auto-claim above would take over ANOTHER player's character on the
+    // very next poll. The sentinel keeps the guard closed until the player
+    // explicitly claims a character or joins.
+    localStorage.setItem(myCharacterKey(currentCampaignId), 'departed');
   }
   myCharacterId = mine ? mine.id : null;
   if (mine) localStorage.setItem(myCharacterKey(currentCampaignId), String(mine.id));
