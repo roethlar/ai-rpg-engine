@@ -426,8 +426,17 @@ function setupEventListeners() {
       }, TURN_TIMEOUT_MS);
 
       if (!response.ok) {
-        const message = await getResponseErrorMessage(response, 'Failed to submit action');
-        throw new Error(message);
+        // Turn-order rejections (M2) are game rulings, not provider
+        // failures: say whose turn it is, restore the input, and stop —
+        // no "retry the connection" framing.
+        const body = await response.json().catch(() => ({}));
+        if (body.code === 'OUT_OF_TURN' || body.code === 'CHARACTER_REQUIRED') {
+          appendSystemNotice(body.error || 'It is not your turn to act.');
+          actionInput.value = actionText;
+          actionInput.focus();
+          return;
+        }
+        throw new Error(body.error || 'Failed to submit action');
       }
 
       const gameState = await response.json();
