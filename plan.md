@@ -293,6 +293,42 @@ This plan will be updated as we learn from implementation and playtesting.
 - Will capture outputs, check for `sceneGrounding` "Current Situation" block, direct non-advancing answers, zero state mutations on clarification turns, and correct `input_kind`.
 - If good for several back-and-forths, mark Phase 0 complete + commit. If not, refine prompts + re-test immediately per the "review after each phase" rule.
 
+**Visual Phases V1–V4 + T1 — first implementation pass (2026-07-04, owner playtest pending)**
+
+All five slices landed with guard-proven unit tests (suite green throughout);
+functional gates closed where an agent can close them, feel gates open:
+
+- **V1 image seam**: registry (openai hosted / sdwebui local), identity-anchor
+  param end to end, /admin "Scene Images" section, key-safety proven by test
+  (a sabotaged key-leak fails the suite). No consumer runs unless a provider
+  is configured.
+- **T1 theming**: outline carries text/text_dim color slots (clamped readable/
+  dark) + a font pairing from the bundled pool; full generated themes apply at
+  body level and beat the curated presets; pre-theming campaigns verified to
+  keep their exact legacy shape (live reload of campaign 3).
+- **V2 structured locations**: live-smoked end to end on campaign 3 with the
+  configured Ollama model — one committed action produced the referee location
+  signal, a generated 4-area layout ("Ancient Ruins Chamber"), positional
+  flag, occupancy including the player, and the deterministic map SVG; all
+  persisted and correct on reload. Both no-op layers guard-proven.
+- **V3 current_heroic**: pointer + stickiness rules (thrash guard
+  guard-proven), synchronous render through the seam, identity anchors
+  committed at first render, authenticated path-confined image route.
+  **Not yet exercised with a real image provider** — needs /admin config
+  (sdwebui on the dev GPU, or an OpenAI key).
+- **V4 frontend**: heroic takes the visualizer slot via authenticated
+  blob-URL fetch (SVG fallback intact); new Situation panel (grounding text
+  always, map coexisting on positional turns or when spotlighted) joins the
+  spotlight cycle in both layouts.
+
+Known first-cut gaps (deliberate): the opening turn creates no location or
+heroic (the first committed action does); forks copy location rows wholesale
+rather than replaying to the fork point, and do not carry heroics; NPC
+identity descriptors are mechanical compositions of stored personality/quirks
+(a generated appearance descriptor is a possible later refinement); the map
+auto-reveals only from committed-action positional signals — table-talk turns
+still display it via the Situation spotlight.
+
 **Phase 0 — Council Efficiency Refactor (approved 2026-06-05, implemented 2026-07-03 — pending playtest)**
 
 Implemented 2026-07-03 in three commits (owner green-lit ahead of the Phase 0
