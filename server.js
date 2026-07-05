@@ -51,7 +51,14 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use(express.json({ limit: '64kb' }));
+// Global JSON body cap. The campaign-import route carries its own parser
+// with a bundle-sized cap (Phase P) — the global parser must skip that path
+// or it would reject the body before the route's parser ever ran.
+const smallJsonParser = express.json({ limit: '64kb' });
+app.use((req, res, next) => {
+  if (req.path === '/api/campaigns/import') return next();
+  return smallJsonParser(req, res, next);
+});
 // Serve static frontend files
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -379,6 +386,37 @@ app.post('/api/campaigns/:id/turn', rateLimit(10, 60000), async (req, res) => {
       : error.message.includes('required') || error.message.includes('characters or fewer') || error.message.includes('must be a string') ? 400
       : 500;
     res.status(status).json({ error: error.message, code: error.code });
+  }
+});
+
+// Campaign portability (Phase P): export one self-contained versioned bundle
+app.get('/api/campaigns/:id/export', async (req, res) => {
+  try {
+    const campaignId = parseInt(req.params.id, 10);
+    if (isNaN(campaignId)) {
+      return res.status(400).json({ error: 'Invalid campaign ID.' });
+    }
+    const bundle = await rpg.exportCampaign(campaignId);
+    res.setHeader('Content-Disposition', `attachment; filename="aetheria-campaign-${campaignId}.json"`);
+    res.json(bundle);
+  } catch (error) {
+    const status = error.message.includes('not found') ? 404 : 500;
+    res.status(status).json({ error: error.message });
+  }
+});
+
+// Import a bundle as a new campaign. Bundles are untrusted data — fully
+// re-validated engine-side, never treated as instructions. NOTE: the global
+// JSON parser skips this path; the 20mb cap lives here.
+app.post('/api/campaigns/import', rateLimit(5, 60000), express.json({ limit: '20mb' }), async (req, res) => {
+  try {
+    const state = await rpg.importCampaign(req.body);
+    res.json(state);
+  } catch (error) {
+    const status = error.message.includes('bundle') || error.message.includes('format_version') || error.message.includes('contains no')
+      ? 400
+      : 500;
+    res.status(status).json({ error: error.message });
   }
 });
 

@@ -721,6 +721,198 @@ export function buildVoiceScript(narrationLines, npcs = []) {
 }
 
 /**
+ * Campaign portability (Phase P, decision 2026-07-04): one self-contained
+ * versioned JSON bundle. This validator is the forward-importability
+ * boundary — every released format_version must keep importing here, with
+ * migrations applied in this function as the version grows. Bundles are
+ * untrusted DATA, never instructions: everything is re-validated through
+ * the same validators live play uses, bounded, and shape-normalized before
+ * any caller may write it.
+ */
+export const CAMPAIGN_BUNDLE_VERSION = 1;
+
+function bundleJsonObject(value, fallback = null) {
+  if (value && typeof value === 'object' && !Array.isArray(value)) return value;
+  if (typeof value === 'string') {
+    try {
+      const parsed = JSON.parse(value);
+      return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : fallback;
+    } catch (e) {
+      return fallback;
+    }
+  }
+  return fallback;
+}
+
+function bundleJsonArray(value) {
+  if (Array.isArray(value)) return value;
+  if (typeof value === 'string') {
+    try {
+      const parsed = JSON.parse(value);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (e) {
+      return [];
+    }
+  }
+  return [];
+}
+
+function bundleInt(value, fallback, min, max) {
+  const num = Number(value);
+  if (!Number.isFinite(num)) return fallback;
+  return Math.max(min, Math.min(max, Math.floor(num)));
+}
+
+export function validateCampaignBundle(raw) {
+  const bundle = raw && typeof raw === 'object' ? raw : {};
+  if (bundle.kind !== 'aetheria-campaign') {
+    throw new Error('Not an Aetheria campaign bundle (kind mismatch).');
+  }
+  if (!Number.isInteger(bundle.format_version) || bundle.format_version < 1) {
+    throw new Error('Bundle format_version is missing or invalid.');
+  }
+  if (bundle.format_version > CAMPAIGN_BUNDLE_VERSION) {
+    throw new Error(`Bundle format_version ${bundle.format_version} is newer than this engine supports (${CAMPAIGN_BUNDLE_VERSION}).`);
+  }
+  // Older versions migrate here as the format grows. v1 is current.
+
+  const rawCampaign = bundle.campaign && typeof bundle.campaign === 'object' ? bundle.campaign : {};
+  const campaign = {
+    title: cleanText(rawCampaign.title, 200) || 'Imported Campaign',
+    genre: cleanText(rawCampaign.genre, 200) || 'Unknown genre',
+    summary: cleanText(rawCampaign.summary, 2000),
+    current_act: bundleInt(rawCampaign.current_act, 1, 1, 3),
+    rules_mode: rawCampaign.rules_mode ? 1 : 0,
+    last_positional: rawCampaign.last_positional ? 1 : 0,
+    narrator_voice: bundleJsonObject(rawCampaign.narrator_voice_json ?? rawCampaign.narrator_voice)
+  };
+
+  const outline = validateOutlineData(bundleJsonObject(bundle.outline ?? bundle.outline_json, {}));
+  const ruleset = validateRulesetData(bundleJsonObject(rawCampaign.ruleset_json ?? bundle.ruleset));
+  const tableStyle = validateTableStyle(bundleJsonObject(rawCampaign.table_style_json ?? bundle.table_style));
+
+  const characters = bundleJsonArray(bundle.characters).map(row => {
+    if (!row || typeof row !== 'object') return null;
+    const name = cleanText(row.name, 80);
+    if (!name) return null;
+    return {
+      source_id: Number.isInteger(row.source_id) ? row.source_id : null,
+      name,
+      class: cleanText(row.class, 120) || 'Unformed protagonist',
+      health: bundleInt(row.health, 100, 0, 100000),
+      max_health: bundleInt(row.max_health, 100, 1, 100000),
+      mana: bundleInt(row.mana, 50, 0, 100000),
+      max_mana: bundleInt(row.max_mana, 50, 0, 100000),
+      xp: bundleInt(row.xp, 0, 0, 10000000),
+      level: bundleInt(row.level, 1, 1, 1000),
+      inventory: bundleJsonArray(row.inventory ?? row.inventory_json),
+      attributes: bundleJsonObject(row.attributes ?? row.attributes_json, {}),
+      abilities: bundleJsonArray(row.abilities ?? row.abilities_json),
+      progression_notes: cleanText(row.progression_notes, 10000),
+      status: row.status === 'released' ? 'released' : 'active'
+    };
+  }).filter(Boolean);
+  if (!characters.some(c => c.status === 'active')) {
+    throw new Error('Bundle contains no active characters.');
+  }
+
+  const npcs = bundleJsonArray(bundle.npcs).map(row => {
+    if (!row || typeof row !== 'object') return null;
+    const name = cleanText(row.name, 120);
+    if (!name) return null;
+    return {
+      name,
+      role: cleanText(row.role, 200),
+      personality: cleanText(row.personality, 2000),
+      quirks: cleanText(row.quirks, 2000),
+      relationship_value: bundleInt(row.relationship_value, 0, -100, 100),
+      notes: cleanText(row.notes, 20000),
+      status: ['alive', 'dead', 'missing'].includes(row.status) ? row.status : 'alive',
+      voice: bundleJsonObject(row.voice ?? row.voice_json),
+      anchor: bundleJsonObject(row.anchor ?? row.anchor_json)
+    };
+  }).filter(Boolean);
+
+  const locations = bundleJsonArray(bundle.locations).map(row => {
+    if (!row || typeof row !== 'object') return null;
+    const layout = validateLocationLayout(bundleJsonObject(row.layout ?? row.layout_json));
+    const name = cleanText(row.name, 120);
+    if (!layout || !name) return null;
+    return {
+      name,
+      key: cleanText(row.key, 120).toLowerCase() || name.toLowerCase(),
+      description: cleanText(row.description, 600),
+      layout,
+      occupancy: validateLocationOccupancy(bundleJsonArray(row.occupancy ?? row.occupancy_json), layout),
+      anchor: bundleJsonObject(row.anchor ?? row.anchor_json),
+      first_seen_turn: bundleInt(row.first_seen_turn, 1, 1, 1000000),
+      last_seen_turn: bundleInt(row.last_seen_turn, 1, 1, 1000000)
+    };
+  }).filter(Boolean);
+
+  const memories = bundleJsonArray(bundle.memories).map(row => {
+    if (!row || typeof row !== 'object') return null;
+    const summary = cleanText(row.summary, 2000);
+    if (!summary) return null;
+    return {
+      turn_number: Number.isInteger(row.turn_number) ? row.turn_number : null,
+      importance: bundleInt(row.importance, 3, 1, 5),
+      summary,
+      keywords: cleanText(row.keywords, 500)
+    };
+  }).filter(Boolean);
+
+  const seenTurnNumbers = new Set();
+  const turns = bundleJsonArray(bundle.turns).map(row => {
+    if (!row || typeof row !== 'object') return null;
+    const turnNumber = bundleInt(row.turn_number, 0, 1, 1000000);
+    if (!turnNumber || seenTurnNumbers.has(turnNumber)) return null;
+    seenTurnNumbers.add(turnNumber);
+    const narrative = cleanText(row.narrative, 60000) || 'The scene continues...';
+    let stateChanges = '{}';
+    if (typeof row.state_changes_json === 'string' && row.state_changes_json.length <= 500000) {
+      try {
+        JSON.parse(row.state_changes_json);
+        stateChanges = row.state_changes_json;
+      } catch (e) { /* keep '{}' */ }
+    } else if (row.state_changes && typeof row.state_changes === 'object') {
+      stateChanges = JSON.stringify(row.state_changes);
+    }
+    const svg = typeof row.svg_illustration === 'string' && row.svg_illustration.includes('<svg') && row.svg_illustration.length <= 500000
+      ? row.svg_illustration
+      : null;
+    return {
+      turn_number: turnNumber,
+      source_character_id: Number.isInteger(row.source_character_id) ? row.source_character_id : null,
+      player_action: cleanText(row.player_action, 5000) || null,
+      narrative,
+      state_changes_json: stateChanges,
+      svg_illustration: svg
+    };
+  }).filter(Boolean).sort((a, b) => a.turn_number - b.turn_number);
+  if (turns.length === 0) {
+    throw new Error('Bundle contains no turns.');
+  }
+
+  const rawPointers = bundle.pointers && typeof bundle.pointers === 'object' ? bundle.pointers : {};
+  const locationKeys = new Set(locations.map(l => l.key));
+  const activeSourceIds = new Set(characters.filter(c => c.status === 'active' && c.source_id !== null).map(c => c.source_id));
+  const rawOrder = bundleJsonArray(rawPointers.turn_order?.order).filter(id => activeSourceIds.has(id));
+  const pointers = {
+    current_location_key: locationKeys.has(cleanText(rawPointers.current_location_key, 120).toLowerCase())
+      ? cleanText(rawPointers.current_location_key, 120).toLowerCase()
+      : null,
+    turn_order: {
+      order: rawOrder,
+      current_index: bundleInt(rawPointers.turn_order?.current_index, 0, 0, Math.max(0, rawOrder.length - 1)),
+      round: bundleInt(rawPointers.turn_order?.round, 1, 1, 1000000)
+    }
+  };
+
+  return { format_version: bundle.format_version, campaign, outline, ruleset, tableStyle, characters, npcs, locations, memories, turns, pointers };
+}
+
+/**
  * Applies a validated character_update to a character in place: health/mana
  * clamped to their maxima, XP with level-up mechanics (level = floor(xp/100)+1;
  * each level grants +15 max HP / +10 max mana and a full refill), and inventory

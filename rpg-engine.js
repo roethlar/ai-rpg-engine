@@ -27,6 +27,8 @@ import {
   validateTableStyle,
   computeEncounterCadence,
   PACING_TARGETS,
+  validateCampaignBundle,
+  CAMPAIGN_BUNDLE_VERSION,
   LOCATION_CANVAS,
   TABLE_TALK_KINDS
 } from './rpg-state.js';
@@ -2121,6 +2123,231 @@ export async function releaseCampaignCharacters(campaignId, options = {}) {
       );
     }
   });
+}
+
+/**
+ * Campaign portability (Phase P): one self-contained versioned JSON bundle
+ * carrying the structured state the Council consults. Image binaries stay
+ * behind (identity anchors travel; renders regenerate), so the heroic
+ * pointer is deliberately not exported.
+ */
+export async function exportCampaign(campaignId) {
+  const campaign = await db.get(`SELECT * FROM campaigns WHERE id = ?`, [campaignId]);
+  if (!campaign) throw new Error(`Campaign ${campaignId} not found.`);
+  const outlineRow = await db.get(`SELECT outline_json FROM campaign_outlines WHERE campaign_id = ?`, [campaignId]);
+  const characterRows = await db.all(`SELECT * FROM characters WHERE campaign_id = ? ORDER BY id ASC`, [campaignId]);
+  const npcRows = await db.all(`SELECT * FROM npcs WHERE campaign_id = ? ORDER BY id ASC`, [campaignId]);
+  const locationRows = await db.all(`SELECT * FROM locations WHERE campaign_id = ? ORDER BY id ASC`, [campaignId]);
+  const memoryRows = await db.all(`SELECT * FROM memories WHERE campaign_id = ? ORDER BY id ASC`, [campaignId]);
+  const turnRows = await db.all(`SELECT * FROM turns WHERE campaign_id = ? ORDER BY turn_number ASC`, [campaignId]);
+  const currentLocationRow = campaign.current_location_id
+    ? locationRows.find(row => row.id === campaign.current_location_id)
+    : null;
+  const turnState = validateTurnState(
+    parseJsonObject(campaign.turn_state_json, null),
+    characterRows.filter(row => (row.status || 'active') === 'active').map(row => row.id)
+  );
+
+  return {
+    kind: 'aetheria-campaign',
+    format_version: CAMPAIGN_BUNDLE_VERSION,
+    exported_at: new Date().toISOString(),
+    campaign: {
+      title: campaign.title,
+      genre: campaign.genre,
+      summary: campaign.summary,
+      current_act: campaign.current_act,
+      rules_mode: !!campaign.rules_mode,
+      last_positional: !!campaign.last_positional,
+      ruleset_json: campaign.ruleset_json,
+      table_style_json: campaign.table_style_json,
+      narrator_voice_json: campaign.narrator_voice_json
+    },
+    outline_json: outlineRow ? outlineRow.outline_json : '{}',
+    characters: characterRows.map(row => ({
+      source_id: row.id,
+      name: row.name,
+      class: row.class,
+      health: row.health,
+      max_health: row.max_health,
+      mana: row.mana,
+      max_mana: row.max_mana,
+      xp: row.xp,
+      level: row.level,
+      inventory_json: row.inventory_json,
+      attributes_json: row.attributes_json,
+      abilities_json: row.abilities_json,
+      progression_notes: row.progression_notes,
+      status: row.status || 'active'
+    })),
+    npcs: npcRows.map(row => ({
+      name: row.name,
+      role: row.role,
+      personality: row.personality,
+      quirks: row.quirks,
+      relationship_value: row.relationship_value,
+      notes: row.notes,
+      status: row.status,
+      voice_json: row.voice_json,
+      anchor_json: row.anchor_json
+    })),
+    locations: locationRows.map(row => ({
+      name: row.name,
+      key: row.key,
+      description: row.description,
+      layout_json: row.layout_json,
+      occupancy_json: row.occupancy_json,
+      anchor_json: row.anchor_json,
+      first_seen_turn: row.first_seen_turn,
+      last_seen_turn: row.last_seen_turn
+    })),
+    memories: memoryRows.map(row => ({
+      turn_number: row.turn_number,
+      importance: row.importance,
+      summary: row.summary,
+      keywords: row.keywords
+    })),
+    turns: turnRows.map(row => ({
+      turn_number: row.turn_number,
+      source_character_id: row.character_id,
+      player_action: row.player_action,
+      narrative: row.narrative,
+      state_changes_json: row.state_changes_json,
+      svg_illustration: row.svg_illustration
+    })),
+    pointers: {
+      current_location_key: currentLocationRow ? currentLocationRow.key : null,
+      turn_order: turnState
+    }
+  };
+}
+
+/**
+ * Imports a bundle as a NEW campaign: everything re-validated
+ * (validateCampaignBundle), every id-bearing pointer remapped to the fresh
+ * ids, active characters get fresh checked-out profiles, and the heroic
+ * pointer starts empty (renders regenerate from the imported anchors).
+ */
+export async function importCampaign(rawBundle) {
+  const bundle = validateCampaignBundle(rawBundle);
+
+  let newCampaignId;
+  await db.withWriteTransaction(async () => {
+    const campaignResult = await db.run(
+      `INSERT INTO campaigns (title, genre, summary, current_act, rules_mode, ruleset_json, table_style_json, narrator_voice_json, last_positional)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        bundle.campaign.title, bundle.campaign.genre, bundle.campaign.summary, bundle.campaign.current_act,
+        bundle.campaign.rules_mode,
+        bundle.ruleset ? JSON.stringify(bundle.ruleset) : null,
+        JSON.stringify(bundle.tableStyle),
+        bundle.campaign.narrator_voice ? JSON.stringify(bundle.campaign.narrator_voice) : null,
+        bundle.campaign.last_positional
+      ]
+    );
+    newCampaignId = campaignResult.id;
+
+    await db.run(
+      `INSERT INTO campaign_outlines (campaign_id, outline_json) VALUES (?, ?)`,
+      [newCampaignId, JSON.stringify(bundle.outline)]
+    );
+
+    const characterIdMap = new Map();
+    for (const character of bundle.characters) {
+      let profileId = null;
+      if (character.status === 'active') {
+        const profileResult = await db.run(
+          `INSERT INTO player_characters (
+            name, archetype, status, active_campaign_id, origin_campaign_id,
+            health, max_health, mana, max_mana, xp, level, inventory_json, attributes_json, abilities_json, progression_notes
+          ) VALUES (?, ?, 'checked_out', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            character.name, character.class, newCampaignId, newCampaignId,
+            character.health, character.max_health, character.mana, character.max_mana,
+            character.xp, character.level,
+            JSON.stringify(character.inventory), JSON.stringify(character.attributes),
+            JSON.stringify(character.abilities), character.progression_notes
+          ]
+        );
+        profileId = profileResult.id;
+      }
+      const characterResult = await db.run(
+        `INSERT INTO characters (campaign_id, player_character_id, name, class, health, max_health, mana, max_mana, xp, level, inventory_json, attributes_json, abilities_json, progression_notes, status)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          newCampaignId, profileId, character.name, character.class,
+          character.health, character.max_health, character.mana, character.max_mana,
+          character.xp, character.level,
+          JSON.stringify(character.inventory), JSON.stringify(character.attributes),
+          JSON.stringify(character.abilities), character.progression_notes, character.status
+        ]
+      );
+      if (character.source_id !== null) characterIdMap.set(character.source_id, characterResult.id);
+    }
+
+    for (const npc of bundle.npcs) {
+      await db.run(
+        `INSERT INTO npcs (campaign_id, name, role, personality, quirks, relationship_value, notes, status, voice_json, anchor_json)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [newCampaignId, npc.name, npc.role, npc.personality, npc.quirks, npc.relationship_value,
+         npc.notes, npc.status, npc.voice ? JSON.stringify(npc.voice) : null, npc.anchor ? JSON.stringify(npc.anchor) : null]
+      );
+    }
+
+    const locationIdByKey = new Map();
+    for (const location of bundle.locations) {
+      const locationResult = await db.run(
+        `INSERT INTO locations (campaign_id, name, key, description, layout_json, occupancy_json, anchor_json, first_seen_turn, last_seen_turn)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [newCampaignId, location.name, location.key, location.description,
+         JSON.stringify(location.layout), JSON.stringify(location.occupancy),
+         location.anchor ? JSON.stringify(location.anchor) : null,
+         location.first_seen_turn, location.last_seen_turn]
+      );
+      locationIdByKey.set(location.key, locationResult.id);
+    }
+
+    for (const memory of bundle.memories) {
+      await db.run(
+        `INSERT INTO memories (campaign_id, turn_number, importance, summary, keywords) VALUES (?, ?, ?, ?, ?)`,
+        [newCampaignId, memory.turn_number, memory.importance, memory.summary, memory.keywords]
+      );
+    }
+
+    for (const turn of bundle.turns) {
+      await db.run(
+        `INSERT INTO turns (campaign_id, turn_number, character_id, player_action, narrative, state_changes_json, svg_illustration)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [newCampaignId, turn.turn_number,
+         characterIdMap.get(turn.source_character_id) ?? null,
+         turn.player_action, turn.narrative, turn.state_changes_json, turn.svg_illustration]
+      );
+    }
+
+    // Pointers, remapped to the fresh ids (heroic deliberately absent)
+    const remappedOrder = bundle.pointers.turn_order.order
+      .map(sourceId => characterIdMap.get(sourceId))
+      .filter(id => id !== undefined);
+    const activeIds = bundle.characters
+      .filter(c => c.status === 'active' && c.source_id !== null)
+      .map(c => characterIdMap.get(c.source_id))
+      .filter(id => id !== undefined);
+    const turnState = validateTurnState({
+      order: remappedOrder,
+      current_index: bundle.pointers.turn_order.current_index,
+      round: bundle.pointers.turn_order.round
+    }, activeIds);
+    await db.run(`UPDATE campaigns SET turn_state_json = ? WHERE id = ?`, [JSON.stringify(turnState), newCampaignId]);
+
+    if (bundle.pointers.current_location_key && locationIdByKey.has(bundle.pointers.current_location_key)) {
+      await db.run(
+        `UPDATE campaigns SET current_location_id = ? WHERE id = ?`,
+        [locationIdByKey.get(bundle.pointers.current_location_key), newCampaignId]
+      );
+    }
+  });
+
+  return getCampaignState(newCampaignId);
 }
 
 /**

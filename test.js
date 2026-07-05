@@ -877,6 +877,54 @@ async function testHeroicPointer() {
 }
 
 // -------------------------------------------------------------
+// Test: campaign bundle — the pinned-fixture forward-importability guard (Phase P)
+// -------------------------------------------------------------
+async function testCampaignBundle() {
+  console.log(' - Running campaign bundle tests...');
+  const { validateCampaignBundle, CAMPAIGN_BUNDLE_VERSION } = await import('./rpg-state.js');
+  const fs = await import('fs');
+
+  // THE GUARANTEE: this committed v1 fixture (a real export) must validate
+  // in every future engine version. If a state-shape change breaks this
+  // test, add a migration in validateCampaignBundle — do not regenerate the
+  // fixture.
+  const fixture = JSON.parse(fs.readFileSync(new URL('./test-fixtures/campaign-bundle-v1.json', import.meta.url)));
+  const bundle = validateCampaignBundle(fixture);
+  assert.strictEqual(bundle.format_version, 1);
+  assert.strictEqual(bundle.campaign.title, 'Shadows of the Sunken Sands');
+  assert.strictEqual(bundle.characters.filter(c => c.status === 'active').length >= 1, true, 'Active character survives');
+  assert.strictEqual(bundle.turns.length, 3, 'All turns survive, deduped and sorted');
+  assert.strictEqual(bundle.turns.every((t, i) => i === 0 || t.turn_number > bundle.turns[i - 1].turn_number), true, 'Turns sorted');
+  assert.strictEqual(bundle.locations.length, 1, 'Structured location survives with a valid layout');
+  assert.strictEqual(bundle.pointers.current_location_key, 'ancient ruins chamber', 'Location pointer resolves by key');
+  const activeIds = new Set(bundle.characters.filter(c => c.status === 'active').map(c => c.source_id));
+  assert.strictEqual(bundle.pointers.turn_order.order.every(id => activeIds.has(id)), true, 'Turn order references active characters only');
+  assert.strictEqual(CAMPAIGN_BUNDLE_VERSION >= 1, true);
+
+  // Rejections: garbage, missing version, future version
+  assert.throws(() => validateCampaignBundle({ kind: 'not-a-bundle' }), /kind mismatch/);
+  assert.throws(() => validateCampaignBundle({ kind: 'aetheria-campaign' }), /format_version/);
+  assert.throws(() => validateCampaignBundle({ ...fixture, format_version: CAMPAIGN_BUNDLE_VERSION + 1 }), /newer than this engine/);
+  assert.throws(() => validateCampaignBundle({ ...fixture, characters: [] }), /no active characters/);
+  assert.throws(() => validateCampaignBundle({ ...fixture, turns: [] }), /no turns/);
+
+  // Hostile shapes are normalized as data, never trusted
+  const hostile = validateCampaignBundle({
+    ...fixture,
+    characters: [{ source_id: 1, name: '  Vex  ', health: 'NaNish', level: -5, status: 'weird' }],
+    turns: [{ turn_number: 1, narrative: 'n', state_changes_json: 'not json{{' }, { turn_number: 1, narrative: 'dupe' }],
+    pointers: { current_location_key: 'nowhere', turn_order: { order: [99], current_index: 9, round: -2 } }
+  });
+  assert.strictEqual(hostile.characters[0].name, 'Vex');
+  assert.strictEqual(hostile.characters[0].level, 1, 'Numbers clamp');
+  assert.strictEqual(hostile.characters[0].status, 'active', 'Unknown statuses normalize');
+  assert.strictEqual(hostile.turns.length, 1, 'Duplicate turn numbers dropped');
+  assert.strictEqual(hostile.turns[0].state_changes_json, '{}', 'Unparseable state records become empty');
+  assert.strictEqual(hostile.pointers.current_location_key, null, 'Unknown location pointers cleared');
+  assert.deepStrictEqual(hostile.pointers.turn_order.order, [], 'Order references only known active characters');
+}
+
+// -------------------------------------------------------------
 // Test: table-style dials — validation, choice caps, pacing state (Phase D)
 // -------------------------------------------------------------
 async function testTableStyle() {
@@ -1292,6 +1340,7 @@ async function runAll() {
     await testHeroicPointer();
     await testNpcAppearance();
     await testTableStyle();
+    await testCampaignBundle();
     await testThemeGeneration();
     await testVoiceScript();
     await testTtsProviderSeam();
