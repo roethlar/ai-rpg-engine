@@ -173,8 +173,10 @@ function hydrateCharacterRow(row) {
 }
 
 async function loadParty(campaignId) {
+  // Released members keep their row for history but leave the table (M3);
+  // legacy rows predate the status column and count as active.
   const rows = await db.all(
-    `SELECT * FROM characters WHERE campaign_id = ? ORDER BY id ASC`,
+    `SELECT * FROM characters WHERE campaign_id = ? AND COALESCE(status, 'active') = 'active' ORDER BY id ASC`,
     [campaignId]
   );
   return rows.map(hydrateCharacterRow);
@@ -1082,6 +1084,7 @@ Output the JSON object containing the opening narrative, scene_grounding, sugges
     : createFallbackSvg(outline.title, outline.theme_colors?.primary, outline.theme_colors?.secondary);
 
   let campaignId;
+  let newCharacterRowId;
   let playerCharacterId = sourceProfile && characterMode === 'existing' ? sourceProfile.id : null;
   const rulesModeInt = rulesMode ? 1 : 0;
   await db.withWriteTransaction(async () => {
@@ -1156,6 +1159,8 @@ Output the JSON object containing the opening narrative, scene_grounding, sugges
       ]
     );
 
+    newCharacterRowId = characterInsert.id;
+
     // Turn order starts as an order of one (Phase 3 M2)
     await db.run(
       `UPDATE campaigns SET turn_state_json = ? WHERE id = ?`,
@@ -1202,6 +1207,7 @@ Output the JSON object containing the opening narrative, scene_grounding, sugges
     rulesMode: !!rulesModeInt,
     ruleset: rulesetData,
     character: {
+      id: newCharacterRowId,
       name: resolvedCharacterName,
       class: resolvedCharacterArchetype,
       health: character.health,
@@ -1807,6 +1813,99 @@ export async function listPlayerCharacters() {
 }
 
 /**
+ * Phase 3 M3: a new character joins an existing campaign's table — created
+ * fresh or checked out from an available profile — and enters the
+ * round-robin at the end of the order. Mirrors createCampaign's character
+ * sourcing; no AI calls (the GM meets them in fiction on their first turn).
+ */
+export async function joinCampaign(campaignId, { characterName, characterClass, characterProfileId, characterMode = 'new' } = {}) {
+  const campaign = await db.get(`SELECT * FROM campaigns WHERE id = ?`, [campaignId]);
+  if (!campaign) throw new Error(`Campaign ${campaignId} not found.`);
+
+  let sourceProfile = null;
+  if (characterProfileId) {
+    sourceProfile = await getPlayerCharacter(characterProfileId);
+    if (!sourceProfile) throw new Error(`Character profile ${characterProfileId} not found.`);
+    if (characterMode === 'existing' && sourceProfile.status !== 'available') {
+      throw new Error(`Character "${sourceProfile.name}" is checked out to another active campaign. Copy the character to branch them into a new campaign.`);
+    }
+  }
+
+  const name = sourceProfile ? sourceProfile.name : (typeof characterName === 'string' ? characterName.trim() : '');
+  if (!name) throw new Error('characterName is required to join.');
+  const archetype = sourceProfile ? sourceProfile.archetype : ((characterClass || '').trim() || 'Unformed protagonist');
+  const attributes = sourceProfile
+    ? parseJsonObject(sourceProfile.attributes_json, defaultAttributesForConcept(archetype))
+    : defaultAttributesForConcept(archetype);
+  const character = {
+    name,
+    class: archetype,
+    health: sourceProfile?.health ?? 100,
+    max_health: sourceProfile?.max_health ?? 100,
+    mana: sourceProfile?.mana ?? 50,
+    max_mana: sourceProfile?.max_mana ?? 50,
+    xp: sourceProfile?.xp ?? 0,
+    level: sourceProfile?.level ?? 1,
+    inventory: sourceProfile ? parseJsonArray(sourceProfile.inventory_json) : createStarterInventory(),
+    attributes,
+    abilities: sourceProfile ? parseJsonArray(sourceProfile.abilities_json) : [],
+    progression_notes: sourceProfile?.progression_notes || ''
+  };
+
+  let newCharacterId;
+  await db.withWriteTransaction(async () => {
+    let profileId = sourceProfile && characterMode === 'existing' ? sourceProfile.id : null;
+    if (profileId) {
+      const latest = await getPlayerCharacter(profileId);
+      if (!latest || latest.status !== 'available') {
+        throw new Error(`Character "${sourceProfile.name}" is no longer available.`);
+      }
+      await syncPlayerCharacter(profileId, campaignId, character);
+    } else {
+      const profileResult = await db.run(
+        `INSERT INTO player_characters (
+          name, archetype, status, active_campaign_id, origin_campaign_id, copied_from_character_id,
+          health, max_health, mana, max_mana, xp, level, inventory_json, attributes_json, abilities_json, progression_notes
+        ) VALUES (?, ?, 'checked_out', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          character.name, character.class, campaignId, campaignId, sourceProfile?.id || null,
+          character.health, character.max_health, character.mana, character.max_mana,
+          character.xp, character.level,
+          JSON.stringify(character.inventory), JSON.stringify(character.attributes),
+          JSON.stringify(character.abilities), character.progression_notes || ''
+        ]
+      );
+      profileId = profileResult.id;
+    }
+
+    const characterResult = await db.run(
+      `INSERT INTO characters (campaign_id, player_character_id, name, class, health, max_health, mana, max_mana, xp, level, inventory_json, attributes_json, abilities_json, progression_notes)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        campaignId, profileId, character.name, character.class,
+        character.health, character.max_health, character.mana, character.max_mana,
+        character.xp, character.level,
+        JSON.stringify(character.inventory), JSON.stringify(character.attributes),
+        JSON.stringify(character.abilities), character.progression_notes || ''
+      ]
+    );
+    newCharacterId = characterResult.id;
+
+    // Enter the round-robin at the end of the order (active members only)
+    const partyRows = await db.all(
+      `SELECT id FROM characters WHERE campaign_id = ? AND COALESCE(status, 'active') = 'active' ORDER BY id ASC`,
+      [campaignId]
+    );
+    const turnState = validateTurnState(parseJsonObject(campaign.turn_state_json, null), partyRows.map(row => row.id));
+    await db.run(`UPDATE campaigns SET turn_state_json = ? WHERE id = ?`, [JSON.stringify(turnState), campaignId]);
+  });
+
+  const state = await getCampaignState(campaignId);
+  state.joinedCharacterId = newCharacterId;
+  return state;
+}
+
+/**
  * Phase 3 M2: one character leaves the table. Their profile is released
  * with current state written back and they drop out of the turn order; the
  * character row (and the campaign history it anchors) stays. The
@@ -1822,7 +1921,9 @@ export async function releaseCharacter(campaignId, characterId) {
 
   await db.withWriteTransaction(async () => {
     await syncPlayerCharacter(character.player_character_id, campaignId, character, 'available');
-    await db.run(`UPDATE characters SET player_character_id = NULL WHERE id = ?`, [character.id]);
+    // 'released' takes the row out of loadParty (so order normalization can
+    // never re-seat them) while history keeps its attribution.
+    await db.run(`UPDATE characters SET player_character_id = NULL, status = 'released' WHERE id = ?`, [character.id]);
     const turnState = validateTurnState(parseJsonObject(campaign.turn_state_json, null), party.map(c => c.id));
     const nextState = removeFromTurnOrder(turnState, character.id);
     await db.run(`UPDATE campaigns SET turn_state_json = ? WHERE id = ?`, [JSON.stringify(nextState), campaignId]);
@@ -1862,8 +1963,11 @@ export async function forkCampaign(campaignId, turnNumber, newTitle) {
   // Phase 3 M1: fork the whole party. Each member's state is reconstructed
   // by replaying the turns THEY acted in (turns.character_id; legacy turns
   // with no character_id belong to the first member).
+  // Active members only: released characters stay in the source history but
+  // do not join the forked table (their old turns attribute to the first
+  // member on replay, same as legacy turns).
   const sourceParty = await db.all(
-    `SELECT * FROM characters WHERE campaign_id = ? ORDER BY id ASC`,
+    `SELECT * FROM characters WHERE campaign_id = ? AND COALESCE(status, 'active') = 'active' ORDER BY id ASC`,
     [campaignId]
   );
   if (sourceParty.length === 0) throw new Error(`Character not found for campaign ${campaignId}.`);

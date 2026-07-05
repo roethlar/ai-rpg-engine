@@ -380,6 +380,29 @@ app.post('/api/campaigns/:id/turn', rateLimit(10, 60000), async (req, res) => {
   }
 });
 
+// A character joins an existing campaign's table (Phase 3 M3)
+app.post('/api/campaigns/:id/join', rateLimit(10, 60000), async (req, res) => {
+  try {
+    const campaignId = parseInt(req.params.id, 10);
+    if (isNaN(campaignId)) {
+      return res.status(400).json({ error: 'Invalid campaign ID.' });
+    }
+    const { characterName, characterClass, characterProfileId, characterMode } = req.body;
+    const state = await queueCampaignTask(campaignId, () => rpg.joinCampaign(campaignId, {
+      characterName: optionalBoundedString(characterName, 'characterName', 80, ''),
+      characterClass: optionalBoundedString(characterClass, 'characterClass', 120, ''),
+      characterProfileId: characterProfileId ? parsePositiveInteger(characterProfileId, 'characterProfileId') : null,
+      characterMode: characterMode === 'existing' ? 'existing' : 'new'
+    }));
+    res.json(state);
+  } catch (error) {
+    const status = error.message.includes('required') || error.message.includes('checked out') ? 400
+      : error.message.includes('not found') ? 404
+      : 500;
+    res.status(status).json({ error: error.message });
+  }
+});
+
 // One character leaves the table (Phase 3 M2): releases the profile and
 // drops them from the turn order; campaign history keeps the character row.
 app.post('/api/campaigns/:id/characters/:characterId/release', async (req, res) => {

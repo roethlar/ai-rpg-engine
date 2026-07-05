@@ -188,6 +188,14 @@ export async function initDb() {
     // Ignore error if column already exists
   }
 
+  // Phase 3 M3: released members leave the table but keep their row (turn
+  // history attribution). null/'active' = seated; 'released' = departed.
+  try {
+    await run("ALTER TABLE characters ADD COLUMN status TEXT DEFAULT 'active';");
+  } catch (e) {
+    // Ignore error if column already exists
+  }
+
   await run(`
     CREATE INDEX IF NOT EXISTS idx_characters_campaign ON characters (campaign_id)
   `);

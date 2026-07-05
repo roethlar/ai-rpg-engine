@@ -1185,6 +1185,40 @@ body {
   transition: flex-basis 0.25s ease, max-height 0.25s ease, opacity 0.25s ease;
 }
 
+/* PARTY STRIP (Phase 3 M3): the table — members, acting marker, join */
+.party-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 8px 0 10px;
+}
+.party-member {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 9px;
+  font-size: 11px;
+  font-family: var(--font-body);
+  color: hsl(var(--theme-text));
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid hsl(var(--theme-border));
+  border-radius: 999px;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+.party-member:hover { border-color: hsl(var(--theme-primary)); }
+.party-member.is-acting { border-color: hsl(var(--theme-primary)); color: hsl(var(--theme-primary)); }
+.party-member.is-you { border-color: hsl(var(--theme-secondary)); }
+.party-you {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: hsl(var(--theme-secondary));
+}
+.party-hp { font-size: 10px; color: hsl(var(--theme-text-dim)); }
+.party-join { color: hsl(var(--theme-text-dim)); border-style: dashed; }
+.action-form.off-turn input::placeholder { color: hsl(var(--theme-secondary)); opacity: 0.9; }
+
 /* SITUATION SURFACE (Phase V4): grounding text always; the deterministic
    location map coexists with it, revealed on positional turns or spotlight */
 .situation-section { flex: 0 0 auto; }

@@ -414,7 +414,9 @@ function setupEventListeners() {
       const response = await fetchWithTimeout(`/api/campaigns/${currentCampaignId}/turn`, {
         method: 'POST',
         body: JSON.stringify({
-          playerAction: actionText
+          playerAction: actionText,
+          // Which character is speaking (Phase 3 M2/M3); harmless when solo
+          characterId: myCharacterId ?? undefined
         })
       }, TURN_TIMEOUT_MS);
 
@@ -774,33 +776,14 @@ function renderGame(gameState, resetNarrative = false, options = {}) {
   // Update Outline List
   renderOutline(gameState.outline, gameState.currentAct);
 
-  // Update Character Sheet (Sanitized)
-  const char = gameState.character;
-  charName.textContent = char.name;
-  charClass.textContent = char.class || char.archetype || 'Developing concept';
-  charLevel.textContent = char.level;
-
-  healthText.textContent = `${char.health}/${char.max_health}`;
-  const hpPercent = char.max_health > 0 ? Math.max(0, Math.min(100, (char.health / char.max_health) * 100)) : 0;
-  healthFill.style.width = `${hpPercent}%`;
-
-  manaText.textContent = `${char.mana}/${char.max_mana}`;
-  const manaPercent = char.max_mana > 0 ? Math.max(0, Math.min(100, (char.mana / char.max_mana) * 100)) : 0;
-  manaFill.style.width = `${manaPercent}%`;
-
-  const relativeXp = char.xp % 100;
-  xpText.textContent = `${relativeXp}/100`;
-  xpFill.style.width = `${relativeXp}%`;
-
-  // Attributes
-  attrStr.textContent = char.attributes.strength || 10;
-  attrAgi.textContent = char.attributes.agility || 10;
-  attrInt.textContent = char.attributes.intellect || 10;
-  attrWil.textContent = char.attributes.willpower || 10;
-
-  // Inventory
-  renderInventory(char.inventory);
-  renderAbilities(char.abilities || []);
+  // Party & turn order (Phase 3 M3): who this browser plays, the party
+  // strip, and the off-turn input state. The sheet shows YOUR character.
+  lastGameState = gameState;
+  lastRenderedTurnNumber = gameState.turn?.number ?? lastRenderedTurnNumber;
+  resolveMyCharacter(gameState);
+  renderParty(gameState);
+  updateTurnBanner(gameState);
+  renderCharacterSheet(displayedCharacter(gameState));
 
   // Render Codex (NPC Dossiers)
   renderCodex(gameState.npcs || []);
@@ -894,6 +877,131 @@ async function updateHeroicImage(heroic) {
     console.warn(`Heroic render unavailable (${error.message}); keeping the current visual.`);
   }
 }
+
+// ---------------------------------------------------------------
+// Party & turn order (Phase 3 M3): which character this browser plays,
+// the party strip, the off-turn input state, and the join flow.
+// ---------------------------------------------------------------
+const DEFAULT_ACTION_PLACEHOLDER = "Act or ask the GM (e.g., 'Scan the corridor', 'Do I know this symbol?', 'Take cover')...";
+let myCharacterId = null;
+let lastGameState = null;
+let lastRenderedTurnNumber = null;
+
+function myCharacterKey(campaignId) {
+  return `aetheria_my_character_${campaignId}`;
+}
+
+// Resolves which party member this browser plays: stored claim first, then
+// the only member of a solo campaign, then a fresh join.
+function resolveMyCharacter(gameState) {
+  const party = gameState.party || [];
+  const stored = Number(localStorage.getItem(myCharacterKey(currentCampaignId)));
+  let mine = party.find(c => c.id === stored) || null;
+  if (!mine && gameState.joinedCharacterId) {
+    mine = party.find(c => c.id === gameState.joinedCharacterId) || null;
+  }
+  if (!mine && party.length === 1) mine = party[0];
+  if (!mine && gameState.character?.id && party.length <= 1) mine = gameState.character;
+  myCharacterId = mine ? mine.id : null;
+  if (mine) localStorage.setItem(myCharacterKey(currentCampaignId), String(mine.id));
+  return mine;
+}
+
+function renderParty(gameState) {
+  const strip = document.getElementById('party-strip');
+  const party = gameState.party || [];
+  const actingId = gameState.turnOrder?.actingCharacterId ?? null;
+  strip.style.display = '';
+  strip.innerHTML = party.map(member => {
+    const classes = ['party-member'];
+    if (member.id === myCharacterId) classes.push('is-you');
+    if (member.id === actingId) classes.push('is-acting');
+    return `<button type="button" class="${classes.join(' ')}" data-character-id="${member.id}" title="Play as ${escapeHtml(member.name)}">` +
+      `${member.id === actingId ? '<i class="fa-solid fa-circle-play"></i> ' : ''}${escapeHtml(member.name)}` +
+      `${member.id === myCharacterId ? ' <span class="party-you">you</span>' : ''}` +
+      `<span class="party-hp">${member.health}/${member.max_health}</span></button>`;
+  }).join('') +
+    `<button type="button" class="party-member party-join" id="party-join-btn" title="Join this table with a new character"><i class="fa-solid fa-user-plus"></i> Join</button>`;
+
+  strip.querySelectorAll('.party-member[data-character-id]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      myCharacterId = Number(btn.dataset.characterId);
+      localStorage.setItem(myCharacterKey(currentCampaignId), String(myCharacterId));
+      if (lastGameState) renderPartyState(lastGameState);
+    });
+  });
+  strip.querySelector('#party-join-btn').addEventListener('click', joinTableFlow);
+}
+
+async function joinTableFlow() {
+  const name = window.prompt('Character name for this table:');
+  if (!name || !name.trim()) return;
+  const concept = window.prompt('Character concept (e.g. "Wry salvage pilot", "Disgraced court mage"):') || '';
+  try {
+    showLoadingOverlay('Joining the table...');
+    const response = await fetchWithTimeout(`/api/campaigns/${currentCampaignId}/join`, {
+      method: 'POST',
+      body: JSON.stringify({ characterName: name.trim(), characterClass: concept.trim() })
+    });
+    if (!response.ok) throw new Error(await getResponseErrorMessage(response, 'Failed to join'));
+    const state = await response.json();
+    localStorage.setItem(myCharacterKey(currentCampaignId), String(state.joinedCharacterId));
+    myCharacterId = state.joinedCharacterId;
+    renderGame(state, false);
+    appendSystemNotice(`${name.trim()} joins the table. The GM will meet them in the fiction on their first turn.`);
+  } catch (error) {
+    showToast(`Join failed: ${error.message}`, 'error');
+  } finally {
+    hideLoadingOverlay();
+  }
+}
+
+// Off-turn state: the input stays enabled — table talk is always open — but
+// says whose turn it is; committed actions come back rejected server-side.
+function updateTurnBanner(gameState) {
+  const order = gameState.turnOrder;
+  const party = gameState.party || [];
+  const offTurn = order && party.length > 1 && myCharacterId !== null && order.actingCharacterId !== myCharacterId;
+  if (offTurn) {
+    const actingName = order.order.find(entry => entry.id === order.actingCharacterId)?.name || 'another player';
+    actionInput.placeholder = `Table talk — waiting for ${actingName} to act…`;
+  } else {
+    actionInput.placeholder = DEFAULT_ACTION_PLACEHOLDER;
+  }
+  actionForm.classList.toggle('off-turn', !!offTurn);
+}
+
+// Re-resolve identity-dependent surfaces without appending to the log.
+function renderPartyState(gameState) {
+  resolveMyCharacter(gameState);
+  renderParty(gameState);
+  updateTurnBanner(gameState);
+  renderCharacterSheet(displayedCharacter(gameState));
+}
+
+function displayedCharacter(gameState) {
+  const party = gameState.party || [];
+  return party.find(c => c.id === myCharacterId) || gameState.character;
+}
+
+// Shared-table freshness (v1): while another character is acting, poll for
+// new turns so every browser sees the shared narrative without reloading.
+setInterval(async () => {
+  if (!currentCampaignId || document.hidden || !lastGameState) return;
+  const party = lastGameState.party || [];
+  if (party.length <= 1) return;
+  try {
+    const response = await fetchWithTimeout(`/api/campaigns/${currentCampaignId}`, {}, 15000);
+    if (!response.ok) return;
+    const state = await response.json();
+    if (state.turn?.number !== lastRenderedTurnNumber) {
+      if (state.turn?.playerAction) appendPlayerAction(state.turn.playerAction);
+      renderGame(state, false);
+    } else {
+      renderPartyState(state);
+    }
+  } catch (e) { /* transient — next poll retries */ }
+}, 12000);
 
 // Clears the situation surface: campaigns must never inherit another
 // campaign's map, location label, grounding text, or positional state.
@@ -1107,6 +1215,34 @@ function applyCampaignTheme(genre, colors, fonts) {
   } else {
     document.body.classList.add('theme-default');
   }
+}
+
+// Character sheet renderer (extracted for party support — Phase 3 M3)
+function renderCharacterSheet(char) {
+  if (!char) return;
+  charName.textContent = char.name;
+  charClass.textContent = char.class || char.archetype || 'Developing concept';
+  charLevel.textContent = char.level;
+
+  healthText.textContent = `${char.health}/${char.max_health}`;
+  const hpPercent = char.max_health > 0 ? Math.max(0, Math.min(100, (char.health / char.max_health) * 100)) : 0;
+  healthFill.style.width = `${hpPercent}%`;
+
+  manaText.textContent = `${char.mana}/${char.max_mana}`;
+  const manaPercent = char.max_mana > 0 ? Math.max(0, Math.min(100, (char.mana / char.max_mana) * 100)) : 0;
+  manaFill.style.width = `${manaPercent}%`;
+
+  const relativeXp = char.xp % 100;
+  xpText.textContent = `${relativeXp}/100`;
+  xpFill.style.width = `${relativeXp}%`;
+
+  attrStr.textContent = char.attributes.strength || 10;
+  attrAgi.textContent = char.attributes.agility || 10;
+  attrInt.textContent = char.attributes.intellect || 10;
+  attrWil.textContent = char.attributes.willpower || 10;
+
+  renderInventory(char.inventory);
+  renderAbilities(char.abilities || []);
 }
 
 // Render campaign outline in the sidebar
