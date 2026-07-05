@@ -405,7 +405,9 @@ app.get('/api/campaigns/:id/export', async (req, res) => {
     if (isNaN(campaignId)) {
       return res.status(400).json({ error: 'Invalid campaign ID.' });
     }
-    const bundle = await rpg.exportCampaign(campaignId);
+    // Serialized with the campaign's mutations so a concurrent turn commit
+    // can never produce a torn bundle.
+    const bundle = await queueCampaignTask(campaignId, () => rpg.exportCampaign(campaignId));
     res.setHeader('Content-Disposition', `attachment; filename="aetheria-campaign-${campaignId}.json"`);
     res.json(bundle);
   } catch (error) {
