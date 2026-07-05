@@ -877,6 +877,40 @@ async function testHeroicPointer() {
 }
 
 // -------------------------------------------------------------
+// Test: generated NPC appearance descriptors (Phase V5b)
+// -------------------------------------------------------------
+async function testNpcAppearance() {
+  console.log(' - Running NPC appearance descriptor tests...');
+  const { generateNpcAppearance } = await import('./rpg-engine.js');
+  const npc = { name: 'Kessler', role: 'Dock boss', personality: 'Cold, patient predator', quirks: 'Never raises his voice' };
+
+  const good = await generateNpcAppearance(
+    { sendPrompt: async ({ systemInstruction, prompt }) => {
+      assert.strictEqual(prompt.includes('Kessler'), true, 'NPC identity reaches the call');
+      assert.strictEqual(systemInstruction.includes('appearance'), true);
+      return '{"appearance": "  A broad, gray-bearded man with a milky left eye and a docker\'s slicker.  "}';
+    } },
+    npc, 'Harbor Noir'
+  );
+  assert.strictEqual(good, "Kessler: A broad, gray-bearded man with a milky left eye and a docker's slicker.",
+    'Generated appearance is name-prefixed and trimmed (committed as the anchor descriptor)');
+
+  const bounded = await generateNpcAppearance(
+    { sendPrompt: async () => JSON.stringify({ appearance: 'x'.repeat(2000) }) }, npc, 'G'
+  );
+  assert.strictEqual(bounded.length <= 'Kessler: '.length + 700, true, 'Appearance is bounded');
+
+  assert.strictEqual(
+    await generateNpcAppearance({ sendPrompt: async () => { throw new Error('provider down'); } }, npc, 'G'),
+    null, 'Call failure → null (caller falls back to character-notes composition)'
+  );
+  assert.strictEqual(
+    await generateNpcAppearance({ sendPrompt: async () => '"just a string"' }, npc, 'G'),
+    null, 'Shapeless output → null fallback'
+  );
+}
+
+// -------------------------------------------------------------
 // Test: agent-generated genre theming (Phase T1)
 // -------------------------------------------------------------
 async function testThemeGeneration() {
@@ -1207,6 +1241,7 @@ async function runAll() {
     await testTurnOrder();
     await testStructuredLocations();
     await testHeroicPointer();
+    await testNpcAppearance();
     await testThemeGeneration();
     await testVoiceScript();
     await testTtsProviderSeam();

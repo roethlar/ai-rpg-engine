@@ -406,6 +406,15 @@ export async function initDb() {
     // Ignore error if column already exists
   }
 
+  // Sticky positional flag (Phase V5c): whether the last committed action
+  // left the scene positional, so table-talk turns during a fight keep
+  // showing the map (display only — table talk still mutates nothing).
+  try {
+    await run('ALTER TABLE campaigns ADD COLUMN last_positional INTEGER DEFAULT 0;');
+  } catch (e) {
+    // Ignore error if column already exists
+  }
+
   // Visual identity anchor per NPC (Phase V3): descriptor + seed recorded at
   // first render so the same NPC renders as the same person (the visual
   // analog of the sticky voice profile below).

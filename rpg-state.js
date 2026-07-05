@@ -91,9 +91,10 @@ function escapeXmlText(value) {
 /**
  * Validates and sanitizes LLM JSON output to prevent malformed values from corrupting the DB/UI.
  */
-export function validateTurnData(raw, currentAct = 1) {
+export function validateTurnData(raw, currentAct = 1, tableStyle = null) {
   const data = raw || {};
   const validated = {};
+  const style = validateTableStyle(tableStyle);
 
   const inputKinds = ['clarification', 'dialogue', 'committed_action'];
   validated.input_kind = inputKinds.includes(data.input_kind)
@@ -105,15 +106,23 @@ export function validateTurnData(raw, currentAct = 1) {
     ? data.narrative.trim()
     : 'The scene continues...';
 
-  // 2. Suggested choices
+  // 2. Suggested choices — style-aware caps (Phase D, decision 2026-07-04):
+  // choices are unsolicited hints, so they fade with the helpfulness dial.
+  // hardline shows none regardless of what the model emitted; classic keeps
+  // at most 3 with no invented backfill; helpful keeps today's behavior.
   validated.suggested_choices = [];
   if (Array.isArray(data.suggested_choices)) {
     validated.suggested_choices = data.suggested_choices
       .filter(item => typeof item === 'string' && item.trim() !== '')
       .map(item => item.trim());
   }
-  if (validated.suggested_choices.length === 0) {
-    validated.suggested_choices = ['Continue exploring', 'Look around carefully', 'Prepare yourself'];
+  if (style.helpfulness === 'hardline') {
+    validated.suggested_choices = [];
+  } else {
+    validated.suggested_choices = validated.suggested_choices.slice(0, style.helpfulness === 'classic' ? 3 : 4);
+    if (validated.suggested_choices.length === 0 && style.helpfulness === 'helpful') {
+      validated.suggested_choices = ['Continue exploring', 'Look around carefully', 'Prepare yourself'];
+    }
   }
 
   // 3. Character updates
@@ -214,6 +223,12 @@ export function validateTurnData(raw, currentAct = 1) {
   // consumed by the heroic stickiness rules. State, not presentation.
   validated.focal_subject = data.focal_subject ? validateFocalSubject(data.focal_subject) : null;
 
+  // 5g. Encounter report (Phase D): engine-stamped from the Referee; the
+  // recorded fact behind the pacing dial's cadence rule.
+  validated.encounter = ['none', 'player_sought', 'gm_initiated'].includes(data.encounter)
+    ? data.encounter
+    : 'none';
+
   // 5d. Voice script (Phase 2): speaker+tone-tagged segments mirroring the
   // narrative, emitted at generation time so dialogue attribution comes from
   // the narrator, not post-hoc parsing. Presentation data, not game state —
@@ -312,10 +327,11 @@ export function validateTurnData(raw, currentAct = 1) {
     validated.memory_keywords = '';
     validated.dice_rolls = [];
     validated.roll_result = null;
-    // Location and heroic state never mutate on table talk (the display path
-    // is separate: the engine still returns the current stored state).
+    // Location, heroic, and pacing state never mutate on table talk (the
+    // display path is separate: the engine still returns stored state).
     validated.location_update = null;
     validated.focal_subject = null;
+    validated.encounter = 'none';
   }
 
   return validated;
@@ -352,6 +368,7 @@ export function forceNoOpTurnState(finalData, turnContext, inputKind) {
   finalData.dice_rolls = [];
   finalData.location_update = null;
   finalData.focal_subject = null;
+  finalData.encounter = 'none';
   return finalData;
 }
 
@@ -478,6 +495,48 @@ export function validateLocationUpdate(raw) {
     occupancy: validateLocationOccupancy(data.occupancy),
     generated_layout: data.generated_layout ? validateLocationLayout(data.generated_layout) : null
   };
+}
+
+/**
+ * Table-style dials (Phase D, decision 2026-07-04): two campaign-level
+ * settings stored as campaigns.table_style_json and enforced structurally —
+ * the helpfulness dial shapes prompts AND caps suggested choices in
+ * validation; the pacing dial is a recorded cadence rule, never a mood.
+ */
+export const TABLE_STYLE_OPTIONS = {
+  helpfulness: ['helpful', 'classic', 'hardline'],
+  pacing: ['slow_burn', 'standard', 'action_heavy', 'player_driven']
+};
+export const TABLE_STYLE_DEFAULTS = { helpfulness: 'classic', pacing: 'standard' };
+
+/** GM-initiated encounters: at most ~1 per N world turns (null = never). */
+export const PACING_TARGETS = { slow_burn: 8, standard: 5, action_heavy: 3, player_driven: null };
+
+export function validateTableStyle(raw) {
+  const data = raw && typeof raw === 'object' ? raw : {};
+  return {
+    helpfulness: TABLE_STYLE_OPTIONS.helpfulness.includes(data.helpfulness)
+      ? data.helpfulness
+      : TABLE_STYLE_DEFAULTS.helpfulness,
+    pacing: TABLE_STYLE_OPTIONS.pacing.includes(data.pacing)
+      ? data.pacing
+      : TABLE_STYLE_DEFAULTS.pacing
+  };
+}
+
+/**
+ * Turns since the last GM-initiated encounter, from the turn records'
+ * engine-stamped encounter field (oldest → newest). null = none recorded in
+ * the window (the GM has room to initiate).
+ */
+export function computeEncounterCadence(encounterHistory) {
+  if (!Array.isArray(encounterHistory)) return null;
+  for (let i = encounterHistory.length - 1; i >= 0; i--) {
+    if (encounterHistory[i] === 'gm_initiated') {
+      return encounterHistory.length - 1 - i;
+    }
+  }
+  return null;
 }
 
 /**
