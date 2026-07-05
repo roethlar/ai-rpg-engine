@@ -1744,6 +1744,11 @@ export async function forkCampaign(campaignId, turnNumber, newTitle) {
   }));
 
   let lastAct = 1;
+  // Location state is replayed to the fork point like character/NPC state:
+  // each committed turn's location_update carries where the player was and
+  // that location's occupancy at the time.
+  let forkLocationKey = null;
+  const forkLocationState = new Map();
   for (const turn of turns) {
     if (!turn.state_changes_json) continue;
     let turnData;
@@ -1751,6 +1756,15 @@ export async function forkCampaign(campaignId, turnNumber, newTitle) {
       turnData = JSON.parse(turn.state_changes_json);
     } catch (e) {
       continue;
+    }
+
+    if (turnData.location_update?.name) {
+      const key = locationKey(turnData.location_update.name);
+      forkLocationKey = key;
+      forkLocationState.set(key, {
+        occupancy: Array.isArray(turnData.location_update.occupancy) ? turnData.location_update.occupancy : [],
+        lastSeen: turn.turn_number
+      });
     }
 
     // Replay the turn's character update (health/mana/XP/level-up/inventory)
@@ -1860,17 +1874,28 @@ export async function forkCampaign(campaignId, turnNumber, newTitle) {
       );
     }
 
-    // Copy structured locations (canon once created); remap the engine-owned
-    // current-location pointer to the copied row.
-    const locationRows = await db.all(`SELECT * FROM locations WHERE campaign_id = ?`, [campaignId]);
+    // Copy structured locations as they stood at the fork point: only places
+    // discovered by then, with occupancy and last-seen replayed from the turn
+    // records (a location's layout and identity anchor are canon once
+    // created, so those copy verbatim). The engine-owned pointer goes to the
+    // location the player was in at the fork turn — not the source
+    // campaign's latest position.
+    const locationRows = await db.all(
+      `SELECT * FROM locations WHERE campaign_id = ? AND first_seen_turn <= ?`,
+      [campaignId, turnNumber]
+    );
     for (const location of locationRows) {
+      const replayed = forkLocationState.get(location.key);
+      const layout = validateLocationLayout(parseJsonObject(location.layout_json, null));
+      const occupancy = replayed ? validateLocationOccupancy(replayed.occupancy, layout) : [];
       const copied = await db.run(
         `INSERT INTO locations (campaign_id, name, key, description, layout_json, occupancy_json, anchor_json, first_seen_turn, last_seen_turn, created_at)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [newCampaignId, location.name, location.key, location.description, location.layout_json,
-         location.occupancy_json, location.anchor_json, location.first_seen_turn, location.last_seen_turn, location.created_at]
+         JSON.stringify(occupancy), location.anchor_json, location.first_seen_turn,
+         replayed ? replayed.lastSeen : location.first_seen_turn, location.created_at]
       );
-      if (location.id === campaign.current_location_id) {
+      if (location.key === forkLocationKey) {
         await db.run(`UPDATE campaigns SET current_location_id = ? WHERE id = ?`, [copied.id, newCampaignId]);
       }
     }
