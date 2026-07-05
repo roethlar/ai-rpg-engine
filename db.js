@@ -305,6 +305,39 @@ export async function initDb() {
     CREATE INDEX IF NOT EXISTS idx_npcs_campaign ON npcs (campaign_id)
   `);
 
+  // Structured location state (Phase V2): locations are first-class entities
+  // with a stored layout (areas/exits/features), a mutable occupancy layer,
+  // and an identity anchor for future renders. Generated on first entry,
+  // loaded on revisit, mutated only through the referee/continuity gate.
+  await run(`
+    CREATE TABLE IF NOT EXISTS locations (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      campaign_id INTEGER NOT NULL,
+      name TEXT NOT NULL,
+      key TEXT NOT NULL,
+      description TEXT,
+      layout_json TEXT NOT NULL,
+      occupancy_json TEXT DEFAULT '[]',
+      anchor_json TEXT,
+      first_seen_turn INTEGER,
+      last_seen_turn INTEGER,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (campaign_id) REFERENCES campaigns(id) ON DELETE CASCADE
+    )
+  `);
+
+  await run(`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_locations_campaign_key ON locations (campaign_id, key)
+  `);
+
+  // Engine-owned pointer to where the player currently is (the model never
+  // "remembers" position; the engine holds it).
+  try {
+    await run('ALTER TABLE campaigns ADD COLUMN current_location_id INTEGER;');
+  } catch (e) {
+    // Ignore error if column already exists
+  }
+
   // Voice identity as recorded state (Phase 2 groundwork, decision context in
   // plan.md "Voice of the Council"): stable voice profiles for the GM narrator
   // (per campaign) and each NPC — the audio analog of canon commitment.

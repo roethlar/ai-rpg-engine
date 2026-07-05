@@ -12,8 +12,13 @@ import {
   applyDiceConsequences,
   buildVoiceScript,
   validateRulesetData,
+  validateLocationLayout,
+  validateLocationOccupancy,
+  validateLocationUpdate,
+  LOCATION_CANVAS,
   TABLE_TALK_KINDS
 } from './rpg-state.js';
+import { renderLocationMap } from './map-render.js';
 import { assignNpcVoiceProfile } from './tts-providers.js';
 import { getGMSystemInstruction, getOutlineSystemInstruction } from './rpg-prompts.js';
 
@@ -157,6 +162,89 @@ function compactJson(value) {
   return JSON.stringify(value, null, 2);
 }
 
+/**
+ * Structured location state (Phase V2): DB row ↔ engine shape helpers.
+ * The lookup key is the normalized name so the Referee can reference
+ * locations by name without knowing row ids.
+ */
+function locationKey(name) {
+  return String(name).trim().toLowerCase();
+}
+
+function hydrateLocationRow(row) {
+  if (!row) return null;
+  const layout = validateLocationLayout(parseJsonObject(row.layout_json, null));
+  if (!layout) return null;
+  return {
+    id: row.id,
+    name: row.name,
+    layout,
+    occupancy: validateLocationOccupancy(parseJsonArray(row.occupancy_json), layout)
+  };
+}
+
+async function getCurrentLocation(campaign) {
+  if (!campaign.current_location_id) return null;
+  const row = await db.get(
+    `SELECT * FROM locations WHERE id = ? AND campaign_id = ?`,
+    [campaign.current_location_id, campaign.id]
+  );
+  return hydrateLocationRow(row);
+}
+
+/**
+ * Builds the player-facing location view on a turn payload: the stored
+ * structured state plus its deterministic map render. Display only — the
+ * mutation path runs through the referee/continuity gate.
+ */
+function buildLocationView(location, positional = false) {
+  if (!location) return null;
+  return {
+    name: location.name,
+    positional: !!positional,
+    layout: location.layout,
+    occupancy: location.occupancy,
+    mapSvg: renderLocationMap(location.layout, location.occupancy)
+  };
+}
+
+/**
+ * One-time structured layout generation on first entry (Phase V2). The
+ * continuity role does it — the agent that "knows what's around the next
+ * twelve corners". Failure returns null: the turn proceeds untracked rather
+ * than failing or storing garbage.
+ */
+async function generateLocationLayout(client, turnContext, name) {
+  const system = `You design the persistent structured layout of one RPG location for a top-down tactical map.
+Return a JSON object ONLY matching:
+{
+  "name": "Location name",
+  "description": "One or two sentences of stable identity: what this place is and feels like",
+  "areas": [ { "id": "short-slug", "name": "Area name", "x": 0, "y": 0, "w": 30, "h": 20 } ],
+  "exits": [ { "from": "area id", "to": "area id, or out:<where it leads> for exits leaving the location", "label": "door / path / stair" } ],
+  "features": [ { "area": "area id", "name": "Fixed feature (altar, bar, wreck)", "kind": "door|furniture|hazard|cover|device|nature|other" } ]
+}
+The canvas is ${LOCATION_CANVAS.width} wide by ${LOCATION_CANVAS.height} tall in abstract units, origin top-left.
+Use 2 to 6 areas that tile the space sensibly without overlapping. Areas are zones (rooms, clearings, decks), not grid squares — this supports theater-of-mind play, not tactical simulation. Only include features that are fixed parts of the place; people and movable things are tracked separately.`;
+
+  const prompt = `Campaign: "${turnContext.campaign.title}" (${turnContext.campaign.genre}).
+The player has just entered a location called "${name}".
+Recent context: ${turnContext.recent_turns.slice(-2).map(t => t.narrative_excerpt).join(' ... ') || 'campaign opening'}
+Design the persistent layout for "${name}" now. Stay consistent with everything already narrated about it.`;
+
+  try {
+    const response = await client.sendPrompt({ systemInstruction: system, prompt, jsonMode: true });
+    const layout = validateLocationLayout(parseJsonSafe(response));
+    if (!layout) {
+      console.warn(`[LOCATION] Generated layout for "${name}" was unusable; turn proceeds untracked.`);
+    }
+    return layout;
+  } catch (error) {
+    console.warn(`[LOCATION] Layout generation for "${name}" failed (${error.message}); turn proceeds untracked.`);
+    return null;
+  }
+}
+
 function buildTurnContext({
   campaign,
   outline,
@@ -170,7 +258,9 @@ function buildTurnContext({
   activeQuestDesc,
   playerAction,
   finalPlayerAction,
-  ruleset
+  ruleset,
+  currentLocation,
+  knownLocations
 }) {
   // GM omniscience (decision 2026-06-11): the mechanical record — dice rolls, applied
   // damage and its causes — must be visible to the Council on later turns, so the GM
@@ -228,7 +318,13 @@ function buildTurnContext({
     recent_turns: recentTurns,
     player_input: playerAction,
     final_player_input: finalPlayerAction,
-    campaign_rules: ruleset || null
+    campaign_rules: ruleset || null,
+    // Structured location record (Phase V2, omniscience): where the player
+    // is, what the place looks like, and who is present — canon, not vibes.
+    current_location: currentLocation
+      ? { name: currentLocation.name, layout: currentLocation.layout, occupancy: currentLocation.occupancy }
+      : null,
+    known_locations: Array.isArray(knownLocations) ? knownLocations : []
   };
 }
 
@@ -411,11 +507,24 @@ Dice are a service you order for the table, not a tax on acting. The engine roll
 - required_checks must be [] when: rules_mode is false, the action is denied or needs clarification, input_kind is not committed_action, or the action simply doesn't warrant one.
 - For each required check YOU decide the attribute, the DC (5 easy – 25 near-impossible), why it is needed, and the concrete failure consequence under this campaign's rules and fiction. health_change/mana_change are 0 or negative; 0 is legitimate — failure can be purely narrative (noticed, blocked, lost time).
 
+=== LOCATION & POSITION (structured location record) ===
+The engine keeps a persistent structured record per location (layout + occupancy). Known locations: ${(turnContext.known_locations || []).join('; ') || 'none recorded yet'}. The player is currently in: ${turnContext.current_location?.name || 'no recorded location yet'}.
+- "location.name": where the player is AFTER this action resolves. Reuse the EXACT known-location name when it is the same place; introduce a new name only when the fiction genuinely moves somewhere new.
+- "location.positional": true only when position materially matters this turn (combat, stealth, a chase, climbing, ranged positioning). Most turns are false.
+- "location.occupancy": everyone and everything notable present there after the action — always include the player character. kind is player|npc|creature|object; "area" uses the area ids from the current location record when known.
+
 Return JSON matching:
 {
   "referee_status": "approved|denied|needs_clarification",
   "input_kind": "clarification|dialogue|committed_action",
   "ruling": "The fair outcome or reason for denial",
+  "location": {
+    "name": "Location name after this action",
+    "positional": false,
+    "occupancy": [
+      { "name": "Name", "kind": "player|npc|creature|object", "area": "area id", "note": "brief state note" }
+    ]
+  },
   "required_checks": [
     {
       "attribute": "strength|agility|intellect|willpower",
@@ -446,6 +555,7 @@ For clarification, denial, or needs_clarification, approved_state_policy must be
     referee_status: 'needs_clarification',
     input_kind: interactionProposal.input_kind || 'clarification',
     ruling: 'Unable to parse referee decision.',
+    location: null,
     required_checks: [],
     approved_state_policy: 'none',
     allowed_character_update: { health_change: 0, mana_change: 0, xp_gain: 0, inventory_changes: [] },
@@ -476,6 +586,25 @@ For clarification, denial, or needs_clarification, approved_state_policy must be
 
   const diceResultsSection = `=== DICE RESULTS (ENGINE-ROLLED, ALREADY FINAL) ===
 ${diceRolls.length > 0 ? compactJson(diceRolls) : 'No checks were required this turn.'}`;
+
+  // Structured location resolution (Phase V2): the Referee's location block
+  // is the gated signal. On first entry to an unknown location, the
+  // continuity role generates the persistent layout now — one call, once per
+  // location — so the whole round is ready before it is sent.
+  let locationUpdate = null;
+  if (refereeDecision.referee_status === 'approved' && refereeDecision.input_kind === 'committed_action') {
+    locationUpdate = validateLocationUpdate(refereeDecision.location);
+    if (locationUpdate) {
+      const known = (turnContext.known_locations || [])
+        .some(name => name.toLowerCase() === locationUpdate.name.toLowerCase());
+      locationUpdate.generated_layout = known
+        ? null
+        : await generateLocationLayout(continuityClient, turnContext, locationUpdate.name);
+      if (!known && !locationUpdate.generated_layout) {
+        locationUpdate = null;
+      }
+    }
+  }
 
   const continuityFinalSystem = `You are the final continuity context call for a persistent single-player RPG.
 You receive the referee decision and the engine-rolled dice results, perform a final consistency check, and prepare archive notes.
@@ -565,6 +694,8 @@ Produce the final canonical JSON response now. The player must experience one co
     const finalData = parseJsonSafe(finalRaw);
     // The engine's roll records are canonical; whatever the narrator emitted is discarded.
     finalData.dice_rolls = diceRolls;
+    // Same for the location signal: referee-emitted, engine-stamped.
+    finalData.location_update = locationUpdate;
     const noStateChange = continuityFinal.final_status !== 'approved' ||
       TABLE_TALK_KINDS.includes(continuityFinal.final_input_kind) ||
       continuityFinal.state_change_policy === 'none' ||
@@ -891,7 +1022,10 @@ Output the JSON object containing the opening narrative, scene_grounding, sugges
       suggestedChoices: turnData.suggested_choices || [],
       rollResults: [],
       voiceLines: buildVoiceScript(turnData.narration_lines, finalNpcList),
-      inputKind: turnData.input_kind || 'dialogue'
+      inputKind: turnData.input_kind || 'dialogue',
+      // Structured locations begin with the first committed action (the
+      // referee's gated signal); the opening scene has none yet.
+      location: null
     }
   };
 }
@@ -925,6 +1059,14 @@ export async function takeTurn(campaignId, playerAction, apiConfig) {
 
   const npcs = await db.all(`SELECT * FROM npcs WHERE campaign_id = ?`, [campaignId]);
 
+  // Structured location state (Phase V2): where the player is (engine-owned
+  // pointer) and which locations already exist for name reuse.
+  const currentLocation = await getCurrentLocation(campaign);
+  const knownLocationRows = await db.all(
+    `SELECT id, name, key FROM locations WHERE campaign_id = ?`,
+    [campaignId]
+  );
+
   // Fetch last 6 turns for immediate context
   const pastTurns = await db.all(
     `SELECT * FROM turns WHERE campaign_id = ? ORDER BY turn_number DESC LIMIT 6`,
@@ -948,7 +1090,7 @@ export async function takeTurn(campaignId, playerAction, apiConfig) {
 
   // 2. Build the context prompt
   const rulesetData = validateRulesetData(parseJsonObject(campaign.ruleset_json, null));
-  const gmSystem = getGMSystemInstruction(outline, character, npcs, currentAct, rulesetData);
+  const gmSystem = getGMSystemInstruction(outline, character, npcs, currentAct, rulesetData, currentLocation);
 
   let historyPrompt = `=== CAMPAIGN HISTORY ===\n`;
   if (memories.length > 0) {
@@ -1020,7 +1162,9 @@ Output the JSON object containing the narrative response, scene_grounding, sugge
     activeQuestDesc,
     playerAction,
     finalPlayerAction,
-    ruleset: rulesetData
+    ruleset: rulesetData,
+    currentLocation,
+    knownLocations: knownLocationRows.map(row => row.name)
   });
   const aiResponse = await runMultiAgentTurn({ apiConfig, gmSystem, turnContext, turnPrompt });
 
@@ -1048,6 +1192,7 @@ Output the JSON object containing the narrative response, scene_grounding, sugge
     turnData.memory_summary = null;
     turnData.memory_keywords = '';
     turnData.dice_rolls = [];
+    turnData.location_update = null;
   }
 
   // Dice results are referee-adjudicated and engine-rolled inside the Council pipeline;
@@ -1066,9 +1211,13 @@ Output the JSON object containing the narrative response, scene_grounding, sugge
   const nextAct = turnData.quest_update?.current_act || currentAct;
 
   // Fallback for SVG
-  const svg = turnData.svg_illustration && turnData.svg_illustration.includes('<svg') 
-    ? turnData.svg_illustration 
+  const svg = turnData.svg_illustration && turnData.svg_illustration.includes('<svg')
+    ? turnData.svg_illustration
     : createFallbackSvg(activeQuestName, outline.theme_colors?.primary, outline.theme_colors?.secondary);
+
+  // Resolved location for this turn (display + pointer update). Starts as the
+  // current one; a gated location_update may move or refresh it below.
+  let activeLocation = currentLocation;
 
   await db.withWriteTransaction(async () => {
     // A. Check unique constraint race conditions
@@ -1124,6 +1273,46 @@ Output the JSON object containing the narrative response, scene_grounding, sugge
       }
     }
 
+    // D2. Apply the gated location update (Phase V2): create on first entry,
+    // refresh occupancy on revisit, move the engine-owned pointer.
+    if (turnData.location_update) {
+      const update = turnData.location_update;
+      const key = locationKey(update.name);
+      let locationRow = await db.get(
+        `SELECT * FROM locations WHERE campaign_id = ? AND key = ?`,
+        [campaignId, key]
+      );
+
+      if (!locationRow && update.generated_layout) {
+        const layout = update.generated_layout;
+        const insert = await db.run(
+          `INSERT INTO locations (campaign_id, name, key, description, layout_json, occupancy_json, first_seen_turn, last_seen_turn)
+           VALUES (?, ?, ?, ?, ?, '[]', ?, ?)`,
+          [campaignId, update.name, key, layout.description || '', JSON.stringify(layout), currentTurnNumber, currentTurnNumber]
+        );
+        locationRow = await db.get(`SELECT * FROM locations WHERE id = ?`, [insert.id]);
+        console.log(`[LOCATION] First entry: created structured layout for "${update.name}" (${layout.areas.length} areas).`);
+      }
+
+      const hydrated = hydrateLocationRow(locationRow);
+      if (hydrated) {
+        // The referee reports full occupancy (always including the player);
+        // an empty list means it omitted the block — keep the prior layer.
+        const occupancy = update.occupancy.length > 0
+          ? validateLocationOccupancy(update.occupancy, hydrated.layout)
+          : hydrated.occupancy;
+        await db.run(
+          `UPDATE locations SET occupancy_json = ?, last_seen_turn = ? WHERE id = ?`,
+          [JSON.stringify(occupancy), currentTurnNumber, hydrated.id]
+        );
+        await db.run(
+          `UPDATE campaigns SET current_location_id = ? WHERE id = ?`,
+          [hydrated.id, campaignId]
+        );
+        activeLocation = { ...hydrated, occupancy };
+      }
+    }
+
     // E. Save turn
     await db.run(
       `INSERT INTO turns (campaign_id, turn_number, player_action, narrative, state_changes_json, svg_illustration)
@@ -1175,7 +1364,8 @@ Output the JSON object containing the narrative response, scene_grounding, sugge
       svg,
       suggestedChoices: turnData.suggested_choices || [],
       rollResults: diceRolls,
-      voiceLines: buildVoiceScript(turnData.narration_lines, updatedNpcs)
+      voiceLines: buildVoiceScript(turnData.narration_lines, updatedNpcs),
+      location: buildLocationView(activeLocation, turnData.location_update?.positional)
     }
   };
 }
@@ -1220,6 +1410,7 @@ export async function getCampaignState(campaignId) {
   let rollResults = [];
   let inputKind = 'committed_action';
   let lastTurnData = null;
+  const currentLocation = await getCurrentLocation(campaign);
 
   if (lastTurn) {
     try {
@@ -1261,7 +1452,8 @@ export async function getCampaignState(campaignId) {
       sceneGrounding: lastTurnData ? lastTurnData.scene_grounding || null : null,
       svg: lastTurn ? lastTurn.svg_illustration : createFallbackSvg(campaign.title),
       suggestedChoices,
-      rollResults
+      rollResults,
+      location: buildLocationView(currentLocation, lastTurnData?.location_update?.positional)
     }
   };
 }
@@ -1484,6 +1676,21 @@ export async function forkCampaign(campaignId, turnNumber, newTitle) {
         [newCampaignId, npc.name, npc.role, npc.personality, npc.quirks, npc.relationship_value, npc.notes, npc.status,
          JSON.stringify(assignNpcVoiceProfile(npc, npcIndex))]
       );
+    }
+
+    // Copy structured locations (canon once created); remap the engine-owned
+    // current-location pointer to the copied row.
+    const locationRows = await db.all(`SELECT * FROM locations WHERE campaign_id = ?`, [campaignId]);
+    for (const location of locationRows) {
+      const copied = await db.run(
+        `INSERT INTO locations (campaign_id, name, key, description, layout_json, occupancy_json, anchor_json, first_seen_turn, last_seen_turn, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [newCampaignId, location.name, location.key, location.description, location.layout_json,
+         location.occupancy_json, location.anchor_json, location.first_seen_turn, location.last_seen_turn, location.created_at]
+      );
+      if (location.id === campaign.current_location_id) {
+        await db.run(`UPDATE campaigns SET current_location_id = ? WHERE id = ?`, [copied.id, newCampaignId]);
+      }
     }
 
     // Copy Turns up to turnNumber

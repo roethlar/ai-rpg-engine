@@ -56,7 +56,20 @@ The visual theme is part of the atmosphere: choose colors and a font pairing who
 /**
  * System Instruction Compiler for the Game Master LLM.
  */
-export function getGMSystemInstruction(outline, character, npcs = [], currentAct = 1, ruleset = null) {
+export function getGMSystemInstruction(outline, character, npcs = [], currentAct = 1, ruleset = null, location = null) {
+  // Structured location state (Phase V2): the current location's stored
+  // layout and occupancy are canon — answers about "what's around" come from
+  // this record (omniscience decision 2026-06-11), not improvisation.
+  const locationSection = location && location.layout ? `
+=== CURRENT LOCATION (CANON — the structured record of where the player is) ===
+Location: ${location.name}${location.layout.description ? `
+About: ${location.layout.description}` : ''}
+Areas: ${location.layout.areas.map(a => `${a.name} [${a.id}]`).join('; ')}
+Exits: ${(location.layout.exits || []).map(e => `${e.from} → ${e.to}${e.label ? ` (${e.label})` : ''}`).join('; ') || 'none recorded'}
+Fixed features: ${(location.layout.features || []).map(f => `${f.name} (${f.kind}, in ${f.area})`).join('; ') || 'none recorded'}
+Currently present: ${(location.occupancy || []).map(o => `${o.name} (${o.kind}, in ${o.area})${o.note ? ` — ${o.note}` : ''}`).join('; ') || 'no one recorded'}
+Answer spatial questions ("what's around?", "which exit?", "who is here?") from this record. Scene descriptions and scene_grounding must stay consistent with it.
+` : '';
   // Ruleset is canon campaign state (decision 2026-07-03): applied identically
   // every turn, never drifting, and every answer about "what can I do" comes
   // from this sheet.
@@ -118,7 +131,7 @@ Known Abilities:
 ${character.abilities && character.abilities.length > 0 ? character.abilities.map(ability => `- ${ability.name} [${ability.tier || 'emerging'}]: ${ability.description}`).join('\n') : '- None established yet. Reveal or develop abilities through play when earned.'}
 Progression Notes:
 ${character.progression_notes || 'No long-term progression notes yet.'}
-${rulesetSection}
+${rulesetSection}${locationSection}
 === GM RULES ===
 1. Narrative Quality: Write vivid, rich description with high atmospheric focus. Write 2-3 paragraphs. If any NPCs speak, use their unique voice, habits, or stuttering quirks.
 2. Coherence: Ensure you keep the story aligned with the current Act and Quest. Do not jump to the conclusion early. Let the player explore.

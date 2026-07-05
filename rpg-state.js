@@ -205,6 +205,11 @@ export function validateTurnData(raw, currentAct = 1) {
     });
   }
 
+  // 5e. Location signal (Phase V2): engine-stamped from the Referee's
+  // location block on committed actions; sanitized here so the durable turn
+  // record — which forks and later turns replay — stays well-formed.
+  validated.location_update = data.location_update ? validateLocationUpdate(data.location_update) : null;
+
   // 5d. Voice script (Phase 2): speaker+tone-tagged segments mirroring the
   // narrative, emitted at generation time so dialogue attribution comes from
   // the narrator, not post-hoc parsing. Presentation data, not game state —
@@ -303,6 +308,9 @@ export function validateTurnData(raw, currentAct = 1) {
     validated.memory_keywords = '';
     validated.dice_rolls = [];
     validated.roll_result = null;
+    // Location state never mutates on table talk (the display path is
+    // separate: the engine still returns the current stored location).
+    validated.location_update = null;
   }
 
   return validated;
@@ -337,7 +345,133 @@ export function forceNoOpTurnState(finalData, turnContext, inputKind) {
   finalData.memory_summary = null;
   finalData.memory_keywords = '';
   finalData.dice_rolls = [];
+  finalData.location_update = null;
   return finalData;
+}
+
+/**
+ * Structured location state (Phase V2, owner direction 2026-06-11/13):
+ * locations are first-class entities with a stored layout — areas on a coarse
+ * 100x70 canvas, exits, fixed features — plus a mutable occupancy layer.
+ * Generated once on first entry, loaded on revisit, mutated only through the
+ * referee/continuity gate. A map is the structured evolution of
+ * scene_grounding; the render is deterministic (map-render.js), never AI.
+ */
+export const LOCATION_CANVAS = { width: 100, height: 70 };
+const OCCUPANT_KINDS = ['player', 'npc', 'creature', 'object'];
+const MAX_AREAS = 8;
+const MAX_FEATURES = 16;
+const MAX_OCCUPANTS = 16;
+
+function cleanText(value, max) {
+  return typeof value === 'string' ? value.trim().slice(0, max) : '';
+}
+
+/**
+ * Validates a generated location layout. Returns null when there is no
+ * usable area list — callers treat that as "no structured layout" and skip
+ * location tracking for the turn rather than storing garbage.
+ */
+export function validateLocationLayout(raw) {
+  const data = raw && typeof raw === 'object' ? raw : {};
+
+  const areas = [];
+  if (Array.isArray(data.areas)) {
+    data.areas.slice(0, MAX_AREAS).forEach((area, index) => {
+      if (!area || typeof area !== 'object') return;
+      const name = cleanText(area.name, 60);
+      if (!name) return;
+      const clampNum = (value, min, max, fallback) =>
+        typeof value === 'number' && !isNaN(value) ? Math.max(min, Math.min(max, Math.round(value))) : fallback;
+      areas.push({
+        id: cleanText(area.id, 40) || `area-${index + 1}`,
+        name,
+        x: clampNum(area.x, 0, LOCATION_CANVAS.width - 8, (index * 20) % 80),
+        y: clampNum(area.y, 0, LOCATION_CANVAS.height - 8, 10),
+        w: clampNum(area.w, 8, LOCATION_CANVAS.width, 20),
+        h: clampNum(area.h, 8, LOCATION_CANVAS.height, 15)
+      });
+    });
+  }
+  if (areas.length === 0) return null;
+  const areaIds = new Set(areas.map(a => a.id));
+
+  const exits = [];
+  if (Array.isArray(data.exits)) {
+    data.exits.slice(0, MAX_FEATURES).forEach(exit => {
+      if (!exit || typeof exit !== 'object') return;
+      const from = cleanText(exit.from, 40);
+      const to = cleanText(exit.to, 60);
+      // Exits connect two areas, or lead out of the location ("out:" targets).
+      if (!areaIds.has(from)) return;
+      if (!areaIds.has(to) && !to.startsWith('out:')) return;
+      exits.push({ from, to, label: cleanText(exit.label, 60) });
+    });
+  }
+
+  const features = [];
+  if (Array.isArray(data.features)) {
+    data.features.slice(0, MAX_FEATURES).forEach(feature => {
+      if (!feature || typeof feature !== 'object') return;
+      const name = cleanText(feature.name, 60);
+      if (!name) return;
+      features.push({
+        area: areaIds.has(cleanText(feature.area, 40)) ? cleanText(feature.area, 40) : areas[0].id,
+        name,
+        kind: cleanText(feature.kind, 30) || 'feature'
+      });
+    });
+  }
+
+  return {
+    name: cleanText(data.name, 120) || 'Unnamed location',
+    description: cleanText(data.description, 600),
+    areas,
+    exits,
+    features
+  };
+}
+
+/**
+ * Validates an occupancy list (the mutable layer over a stored layout).
+ * Area references are resolved against the layout when provided; unknown
+ * areas fall back to the first area so tokens never vanish off-map.
+ */
+export function validateLocationOccupancy(raw, layout = null) {
+  if (!Array.isArray(raw)) return [];
+  const areaIds = layout && Array.isArray(layout.areas) ? new Set(layout.areas.map(a => a.id)) : null;
+  const fallbackArea = layout && layout.areas?.[0]?.id ? layout.areas[0].id : '';
+  const occupants = [];
+  raw.slice(0, MAX_OCCUPANTS).forEach(entry => {
+    if (!entry || typeof entry !== 'object') return;
+    const name = cleanText(entry.name, 80);
+    if (!name) return;
+    const area = cleanText(entry.area, 40);
+    occupants.push({
+      name,
+      kind: OCCUPANT_KINDS.includes(entry.kind) ? entry.kind : 'object',
+      area: areaIds ? (areaIds.has(area) ? area : fallbackArea) : area,
+      note: cleanText(entry.note, 200)
+    });
+  });
+  return occupants;
+}
+
+/**
+ * Validates the engine-stamped location signal on a turn record (emitted by
+ * the Referee on committed actions, never on table talk). Returns null when
+ * there is no usable location name.
+ */
+export function validateLocationUpdate(raw) {
+  const data = raw && typeof raw === 'object' ? raw : {};
+  const name = cleanText(data.name, 120);
+  if (!name) return null;
+  return {
+    name,
+    positional: !!data.positional,
+    occupancy: validateLocationOccupancy(data.occupancy),
+    generated_layout: data.generated_layout ? validateLocationLayout(data.generated_layout) : null
+  };
 }
 
 /**

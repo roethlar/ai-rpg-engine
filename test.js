@@ -652,6 +652,112 @@ async function testTtsProviderSeam() {
 }
 
 // -------------------------------------------------------------
+// Test: structured location state (Phase V2)
+// -------------------------------------------------------------
+async function testStructuredLocations() {
+  console.log(' - Running structured location state tests...');
+  const {
+    validateLocationLayout, validateLocationOccupancy, validateLocationUpdate,
+    validateTurnData: validate, forceNoOpTurnState: forceNoOp
+  } = await import('./rpg-state.js');
+  const { renderLocationMap } = await import('./map-render.js');
+  const { getGMSystemInstruction } = await import('./rpg-prompts.js');
+
+  // Layout validation: clamps coordinates, drops broken pieces, null when unusable
+  const layout = validateLocationLayout({
+    name: `  ${'n'.repeat(200)}  `,
+    description: 'A drowned chapel beneath the reef.',
+    areas: [
+      { id: 'nave', name: 'Flooded Nave', x: -20, y: 5, w: 500, h: 30 },
+      { id: 'crypt', name: 'Crypt', x: 60, y: 40, w: 30, h: 20 },
+      { name: '' },
+      'garbage'
+    ],
+    exits: [
+      { from: 'nave', to: 'crypt', label: 'broken stair' },
+      { from: 'nave', to: 'out:the reef', label: 'shattered doors' },
+      { from: 'nowhere', to: 'crypt' },
+      { from: 'nave', to: 'atlantis' }
+    ],
+    features: [
+      { area: 'crypt', name: 'Coral altar', kind: 'furniture' },
+      { area: 'unknown-area', name: 'Anchor chain', kind: 'device' },
+      { area: 'nave', name: '' }
+    ]
+  });
+  assert.strictEqual(layout.name.length, 120, 'Location names are bounded');
+  assert.strictEqual(layout.areas.length, 2, 'Nameless/garbage areas dropped');
+  assert.strictEqual(layout.areas[0].x, 0, 'Coordinates clamp into the canvas');
+  assert.strictEqual(layout.areas[0].w, 100, 'Sizes clamp into the canvas');
+  assert.strictEqual(layout.exits.length, 2, 'Exits referencing unknown areas dropped; out: targets allowed');
+  assert.strictEqual(layout.features.length, 2, 'Nameless features dropped');
+  assert.strictEqual(layout.features[1].area, 'nave', 'Features in unknown areas fall back to the first area');
+  assert.strictEqual(validateLocationLayout({ name: 'No areas' }), null, 'No usable areas → null (turn proceeds untracked)');
+
+  // Occupancy: kinds whitelisted, unknown areas fall back on-map
+  const occupancy = validateLocationOccupancy([
+    { name: 'Vex', kind: 'player', area: 'crypt' },
+    { name: 'Reef Warden', kind: 'creature', area: 'not-an-area', note: 'circling' },
+    { name: 'Chest', kind: 'mimic' },
+    { name: '' }
+  ], layout);
+  assert.strictEqual(occupancy.length, 3, 'Nameless occupants dropped');
+  assert.strictEqual(occupancy[1].area, 'nave', 'Unknown areas fall back to the first area');
+  assert.strictEqual(occupancy[2].kind, 'object', 'Unknown kinds fall back to object');
+
+  // The turn-record signal: engine-stamped, wiped by BOTH no-op layers
+  const update = validateLocationUpdate({ name: ' The Sunken Chapel ', positional: 1, occupancy: [{ name: 'Vex', kind: 'player' }] });
+  assert.strictEqual(update.name, 'The Sunken Chapel');
+  assert.strictEqual(update.positional, true);
+  assert.strictEqual(validateLocationUpdate({ positional: true }), null, 'No name → no signal');
+
+  const clarified = validate({
+    input_kind: 'clarification', narrative: 'Answer.',
+    location_update: { name: 'Somewhere New', positional: true, occupancy: [] }
+  }, 1);
+  assert.strictEqual(clarified.location_update, null, 'Clarification net wipes the location signal');
+
+  const acted = validate({
+    input_kind: 'committed_action', narrative: 'You dive.',
+    location_update: { name: 'The Sunken Chapel', positional: true }
+  }, 1);
+  assert.strictEqual(acted.location_update.name, 'The Sunken Chapel', 'Committed actions keep the signal');
+
+  const turnContext = {
+    campaign: { current_act: 1 },
+    active_quest: { title: 'Q', description: 'D' }
+  };
+  for (const kind of TABLE_TALK_KINDS) {
+    const forced = forceNoOp({ location_update: { name: 'X', positional: true } }, turnContext, kind);
+    assert.strictEqual(forced.location_update, null, `forceNoOpTurnState clears location state on ${kind}`);
+  }
+
+  // Deterministic render: same state → same SVG; names escaped; player ringed
+  const svg1 = renderLocationMap(layout, occupancy);
+  const svg2 = renderLocationMap(layout, occupancy);
+  assert.strictEqual(svg1, svg2, 'Render is deterministic');
+  assert.strictEqual(svg1.includes('Flooded Nave'), true, 'Area labels drawn');
+  assert.strictEqual(svg1.includes('<circle'), true, 'Occupancy tokens drawn');
+  assert.strictEqual(renderLocationMap(null, []), null, 'No layout → no map');
+  const hostile = renderLocationMap(
+    validateLocationLayout({ name: 'X', areas: [{ id: 'a', name: '<script>alert(1)</script>', x: 0, y: 0, w: 20, h: 20 }] }),
+    [{ name: '"quoted" & <tagged>', kind: 'npc', area: 'a', note: '' }]
+  );
+  assert.strictEqual(hostile.includes('<script>'), false, 'Model-supplied names are XML-escaped');
+  assert.strictEqual(hostile.includes('&lt;script&gt;'), true);
+
+  // Canon injection: the GM sees the structured record (omniscience)
+  const outline = { title: 'T', setting: 'S', acts: [], major_locations: [{ name: 'L', description: 'D' }], key_npcs: [{ name: 'N', role: 'R', personality: 'P' }], starting_quest: { title: 'Q', description: 'D' }, theme_colors: {} };
+  const character = { name: 'Vex', class: 'Diver', attributes: {}, health: 100, max_health: 100, mana: 50, max_mana: 50, xp: 0, level: 1, inventory: [], abilities: [] };
+  const withLocation = getGMSystemInstruction(outline, character, [], 1, null, { name: 'The Sunken Chapel', layout, occupancy });
+  assert.strictEqual(withLocation.includes('CURRENT LOCATION (CANON'), true, 'Location section present when tracked');
+  assert.strictEqual(withLocation.includes('Flooded Nave'), true, 'Areas listed');
+  assert.strictEqual(withLocation.includes('Reef Warden'), true, 'Occupancy listed');
+  const withoutLocation = getGMSystemInstruction(outline, character, [], 1, null, null);
+  assert.strictEqual(withoutLocation.includes('CURRENT LOCATION'), false, 'No section before first tracked entry');
+}
+
+// -------------------------------------------------------------
 // Test: agent-generated genre theming (Phase T1)
 // -------------------------------------------------------------
 async function testThemeGeneration() {
@@ -975,6 +1081,7 @@ async function runAll() {
     testRefereeDiceFlow();
     testResolveAgentConfig();
     await testRulesetCanon();
+    await testStructuredLocations();
     await testThemeGeneration();
     await testVoiceScript();
     await testTtsProviderSeam();
