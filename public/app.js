@@ -853,9 +853,13 @@ function renderGame(gameState, resetNarrative = false, options = {}) {
 // fetched with the access token and shown via an object URL (CSP allows
 // blob: for img-src). Failures leave the previous visual in place.
 let currentHeroicUrl = null;
+let heroicRequestToken = 0;
 async function updateHeroicImage(heroic) {
   const img = document.getElementById('heroic-image');
   const svgHost = document.getElementById('visualizer-svg');
+  // Overlapping requests (fast campaign switches) must resolve in call
+  // order, not completion order: stale responses are abandoned.
+  const token = ++heroicRequestToken;
   if (!heroic || !heroic.imageUrl) {
     // This campaign/turn has no heroic: restore the SVG surface so a
     // previous campaign's render can never impersonate this one.
@@ -874,6 +878,7 @@ async function updateHeroicImage(heroic) {
     const response = await fetchWithTimeout(heroic.imageUrl, {}, 60000);
     if (!response.ok) throw new Error(`status ${response.status}`);
     const blob = await response.blob();
+    if (token !== heroicRequestToken) return; // superseded while in flight
     if (img.dataset.objectUrl) URL.revokeObjectURL(img.dataset.objectUrl);
     const objectUrl = URL.createObjectURL(blob);
     img.src = objectUrl;
