@@ -255,9 +255,28 @@ export async function initDb() {
 
   // Backfill reusable character profiles for campaigns created before the
   // player_characters table existed. Existing campaigns are treated as active.
+  // One-shot migration guard (cr-2): this backfill exists to migrate
+  // pre-profile-era rows exactly once. Campaign-card release deliberately
+  // leaves ACTIVE rows with a NULL profile link ("release the profile, keep
+  // the campaign snapshot"), which is indistinguishable from a legacy
+  // orphan — so after the first successful run this must never run again,
+  // or every restart resurrects released profiles as checked-out
+  // duplicates. server_settings is created here (idempotent) because the
+  // flag read precedes the table's normal creation point below.
+  await run(`
+    CREATE TABLE IF NOT EXISTS server_settings (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+  const backfillDone = await get(
+    `SELECT value FROM server_settings WHERE key = 'character_profile_backfill_done'`
+  );
+
   // Released members (M3) intentionally have a NULL profile link and must
   // never be resurrected as fresh checked-out profiles here.
-  const orphanCharacterRows = await all(`
+  const orphanCharacterRows = backfillDone ? [] : await all(`
     SELECT *
     FROM characters
     WHERE player_character_id IS NULL
@@ -292,6 +311,13 @@ export async function initDb() {
     await run(
       `UPDATE characters SET player_character_id = ? WHERE id = ?`,
       [profileResult.id, character.id]
+    );
+  }
+
+  if (!backfillDone) {
+    await run(
+      `INSERT INTO server_settings (key, value, updated_at) VALUES ('character_profile_backfill_done', '1', CURRENT_TIMESTAMP)
+       ON CONFLICT(key) DO UPDATE SET value = '1', updated_at = CURRENT_TIMESTAMP`
     );
   }
 
