@@ -49,4 +49,9 @@ sanitizers already; suggested_choices was the crash-capable one codex
 demonstrated. If the reviewer sees another crash-capable field, reopen.
 
 ## Reviewer comments
-(pending)
+### Round 1 — 2026-07-05T11:59Z
+- Reviewer: codex (codex-cli 0.142.5, gpt-5.5)
+- Reviewed SHA `4cd869b2153a5ef1e35fc517b2b09f1daebd2ef6`, base `d1cc409ebcfe08c83be60211df8eafd8f09b915d`
+- guard_confirmed: true (both directions observed in a disposable /tmp clone)
+- Verdict: **reopened** — the suggested_choices fix is confirmed closed at both layers, but the same render path crashes on other imported interior shapes: dice_rolls entries pass the consumer's Array.isArray as [null] (app.js roll bubble dereferences roll.success) and a non-string attribute crashes the bubble formatting; legacy roll_result is equally unshaped.
+- Fix-up: extract live play's dice-record coercion into sanitizeDiceRollRecords, apply it to imported dice_rolls (and roll_result) at the trust boundary, and element-filter the getCampaignState consumers.
