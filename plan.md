@@ -104,10 +104,92 @@ in `.agents/decisions.md`)
   tests still pass.
 - Files: api-client.js, server-config.js, rpg-engine.js, admin/, test.js.
 
+## Visual Phases (promoted 2026-07-04 — from the maps/heroic and genre-atmosphere topics)
+
+Promoted on the owner's standing go ("do as much as you can" on the buildable
+queue recorded in `.agents/state.md` 2026-07-03) against the recorded designs:
+owner directions 2026-06-11/2026-06-13 in the "Maps & Character Miniatures"
+topic below, plus decisions 2026-07-03 (image seam, genre theming) in
+`.agents/decisions.md`. Functional gates (unit tests + smoke) close per slice;
+the *feel* gate — heroics look right in play, map communicates, theming lands —
+remains an owner playtest verdict on the whole phase.
+
+**Phase V1: Image provider seam** (decision 2026-07-03)
+- `image-providers.js` registry mirroring `tts-providers.js`: `generateImage()`
+  behind a provider registry, no hard-coded vendor. The interface carries an
+  **identity-anchor parameter from day one** (stable subject descriptor + seed +
+  optional reference image) even where a provider ignores it.
+- Providers: `openai` (hosted Images API) and `sdwebui` (any local
+  Stable-Diffusion-WebUI-compatible `/sdapi/v1/txt2img` endpoint — the owner's
+  RTX 5090 dev path; supports seed conditioning for identity).
+- /admin gains an Images section (provider, model, API key, local endpoint URL),
+  persisted in `server_settings` with the same secret-masking flow as voice.
+  Unconfigured = feature inert; the engine renders no images and the SVG
+  visualizer path is untouched.
+- Success: unit tests prove registry dispatch, unknown-provider rejection,
+  identity-anchor pass-through, config resolution/masking; suite green.
+- Files: image-providers.js (new), server-config.js, admin/, db.js (none —
+  server_settings exists), test.js.
+
+**Phase V2: Structured location state** (owner direction 2026-06-11/13)
+- Locations become first-class entities: `locations` table per campaign with a
+  stored layout (areas with coarse coordinates, exits, fixed features), a
+  mutable occupancy layer, and an identity descriptor for future renders.
+- Generated once on first entry (one gated generation call), loaded on revisit,
+  injected into Council context (omniscience: the record answers "what's
+  around?"), mutated only through the referee/continuity gate — never on
+  table-talk turns (existing no-op net extended to location fields).
+- Deterministic SVG map render from layout + occupancy (no AI in the render
+  path), suitable for the conditional map surface.
+- Success: unit tests prove validation, no-op protection on table talk,
+  create-once/load-on-revisit, deterministic render; suite green.
+- Files: db.js, rpg-state.js, rpg-engine.js, map-render.js (new), test.js.
+
+**Phase V3: Engine-owned current_heroic** (owner direction 2026-06-13)
+- `campaigns.current_heroic_json`: the engine holds the pointer to the current
+  focal visual; the model never "remembers" what is displayed.
+- Focal-subject signal (`focal_subject`: location | npc | none) emitted by the
+  Referee and confirmed by the final continuity check — full-chain turns only;
+  the table-talk path never changes the heroic.
+- Engine-side stickiness: a new heroic only on entering a new location or an
+  NPC taking prominence, with a threshold against thrash; generation is
+  synchronous in the turn (whole round ready before send) when an image
+  provider is configured, and a generation failure keeps the previous heroic —
+  it never kills the turn.
+- Identity persistence: per-entity identity descriptor + seed anchor recorded at
+  first render (NPC and location), reused for every later render of the same
+  subject.
+- Success: unit tests prove signal validation, stickiness/threshold rules,
+  no-op on table talk, anchor reuse; suite green; smoke with provider stub.
+- Files: db.js, rpg-state.js, rpg-engine.js, server.js, test.js.
+
+**Phase V4: Heroic + conditional map in the Layout D shell**
+- The heroic render takes the visualizer slot Layout D already provides (SVG
+  fallback stays for campaigns/turns without one); the map surface shows
+  scene-grounding text by default and the deterministic map when the turn is
+  positional. Map and grounding text always coexist (owner Layout D pick).
+- Success: functional gate — owner opens the app and clicks through; no play
+  session required for the layout itself (same gate as the spotlight slice).
+- Files: public/index.html, public/app.js, public/styles.css, server.js.
+
+**Phase T1: Agent-generated genre theming at setup** (decision 2026-07-03)
+- Extend the Setup role's outline generation (`theme_colors`) to a fuller
+  theme: text/surface accent colors and a font pairing chosen from the app's
+  bundled-safe font set, all validated server-side like theme colors today.
+  Custom accent graphics stay deferred; the "empty holodeck" pre-campaign state
+  stays unscheduled.
+- Success: unit tests prove validation/fallbacks (bad fonts/colors rejected to
+  defaults); existing campaigns unaffected; suite green.
+- Files: rpg-engine.js, rpg-state.js, public/app.js, public/styles.css, test.js.
+
 ## Non-Goals (for now)
 - Real-time simultaneous multiplayer
 - Full combat grid / tactical combat system
-- New AI image generation (unless it emerges naturally from improving visuals in Phase 1)
+- ~~New AI image generation~~ — superseded 2026-07-03 by the image-seam decision
+  (`.agents/decisions.md`) and promoted into the Visual Phases above; the
+  original caution survives as scope discipline: images are set pieces behind a
+  provider seam, not per-turn dependencies, and the game stays fully playable
+  with no image provider configured
 
 ## Future Topics for Discussion (not yet scheduled)
 
@@ -129,7 +211,7 @@ Raised during planning but deliberately deferred. **Per project rule, nothing he
   turns. Owner judges this implementation before SRD options are added
   (license check recorded as prerequisite for those).
 
-- **Genre atmosphere & the "empty holodeck" entry state.** Entering the server before any campaign is chosen should feel like a TNG holodeck with no program running — a deliberately blank slate with potential, not a themed default. Once a genre is chosen, the visual/audio atmosphere must convincingly match it (a cyberpunk campaign with earthy tavern tones is a failure case). The adaptive HSL theme feature partially covers in-game theming today; open questions: curated templates vs fully agent-generated theming, and which agent owns the job — a dedicated campaign-setup agent, the Continuity agent, or the existing outline-generation step. To be decided.
+- **Genre atmosphere & the "empty holodeck" entry state — theming half PROMOTED 2026-07-04** (decision 2026-07-03 in `.agents/decisions.md`: agent-generated at campaign setup, owned by the Setup step; implementation is Phase T1 in the Visual Phases above; accent graphics deferred). The "empty holodeck" entry state below remains unscheduled. Entering the server before any campaign is chosen should feel like a TNG holodeck with no program running — a deliberately blank slate with potential, not a themed default. Once a genre is chosen, the visual/audio atmosphere must convincingly match it (a cyberpunk campaign with earthy tavern tones is a failure case). The adaptive HSL theme feature partially covers in-game theming today; open questions: curated templates vs fully agent-generated theming, and which agent owns the job — a dedicated campaign-setup agent, the Continuity agent, or the existing outline-generation step. To be decided.
 
 - **GM helpfulness / adversarial-style dial.** First Phase 0 playtest: asked a tactical question ("if I extinguish the light, can I still see?"), the DM volunteered a thorough answer with implicit odds and an unprompted middle-option tactic. Not wrong — but it's a notably *helpful* table style (a typical LLM trait); many human GMs would answer "You think so." and let the player own the risk. Direction: a campaign-start setting ("GM helpfulness" / table difficulty) selecting how much the DM volunteers — odds, tactical options, hints — implemented as narrator/interaction prompt variants. Default and option set to be decided.
 
@@ -137,7 +219,7 @@ Raised during planning but deliberately deferred. **Per project rule, nothing he
 
 - **Player authority boundary — settled.** Promoted to a durable decision (2026-06-11, `.agents/decisions.md`): the player is not in control of the game, the GM's decisions are final, out-of-character pressure is deflected in persona, with continuity gate + engine validation as backstop. Remaining open here: how the resistance prompts interact with the GM helpfulness dial above (both shape the GM-player relationship), and prompt implementation when promoted into a phase.
 
-- **Maps & Character Miniatures.** Can the DM Council generate an encounter map and keep it coherent across revisits, so returning to an area isn't foreign? Key requirement identified during discussion: coherence demands *persistent, structured location state* — promote locations to first-class entities with a stored layout (areas, exits, fixed features) plus a mutable occupancy layer; generate once on first entry, load on revisit, and mutate only through the referee/continuity gate (never on clarification turns). A regenerated image cannot do this (image-gen won't reproduce a layout), so it implies structured data + a deterministic render; top-down maps suit SVG, which may keep SVG for maps even after scene illustration moves to image-gen. A map is essentially the persistent, structured evolution of `scene_grounding`. Open fork — how tactical: (a) structured/theater-of-mind zone positions only, (b) visual top-down map + tokens with purely narrative resolution, (c) full tactical grid / VTT with coordinates, movement, line-of-sight. **Tension:** (c) collides with the "Full combat grid / tactical combat system" non-goal above and with the Phase 0 anti-"video-gamey" principle; (b) is the likely sweet spot if pursued.
+- **Maps & Character Miniatures — PROMOTED 2026-07-04** into the Visual Phases above (V1 image seam, V2 structured locations, V3 current_heroic, V4 layout wiring), built on the owner directions recorded below and the 2026-07-03 image-seam decision. The discussion below is retained as the design record. Can the DM Council generate an encounter map and keep it coherent across revisits, so returning to an area isn't foreign? Key requirement identified during discussion: coherence demands *persistent, structured location state* — promote locations to first-class entities with a stored layout (areas, exits, fixed features) plus a mutable occupancy layer; generate once on first entry, load on revisit, and mutate only through the referee/continuity gate (never on clarification turns). A regenerated image cannot do this (image-gen won't reproduce a layout), so it implies structured data + a deterministic render; top-down maps suit SVG, which may keep SVG for maps even after scene illustration moves to image-gen. A map is essentially the persistent, structured evolution of `scene_grounding`. Open fork — how tactical: (a) structured/theater-of-mind zone positions only, (b) visual top-down map + tokens with purely narrative resolution, (c) full tactical grid / VTT with coordinates, movement, line-of-sight. **Tension:** (c) collides with the "Full combat grid / tactical combat system" non-goal above and with the Phase 0 anti-"video-gamey" principle; (b) is the likely sweet spot if pursued.
 
   Owner direction (2026-06-11, from first Phase 0 playtest): leaning (b), and further — the overhead map with simple tokens should *replace* the per-turn scene SVG as the visualizer entirely. The current AI-drawn scene SVGs communicate poorly (abstract to the point of guessing games); a simple grid with plainly-represented objects and characters would look better and carry real information, and it is the only visual that needs updating every turn. Scene *illustration* then becomes an occasional, higher-quality concern for a later phase: an image-generation model rendering hero images on notable encounters ("this is what you're interacting with" — e.g. the blight-twisted stag when first met), placed in the chat log or a persistent encounter panel, generated once per subject rather than per turn. This also resolves the Phase 1 "replace weak SVG" question: map = turn-to-turn canonical visual (persistent structured location state, mutated only through the referee/continuity gate); image-gen = on-demand set pieces. Tactical depth stays at (b): tokens inform theater-of-mind play, resolution remains narrative.
 
