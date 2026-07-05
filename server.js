@@ -358,16 +358,41 @@ app.post('/api/campaigns/:id/turn', rateLimit(10, 60000), async (req, res) => {
     if (isNaN(campaignId)) {
       return res.status(400).json({ error: 'Invalid campaign ID.' });
     }
-    const { playerAction } = req.body;
+    const { playerAction, characterId } = req.body;
     const cleanPlayerAction = boundedString(playerAction, 'playerAction', MAX_ACTION_LENGTH);
+    // Phase 3 M2: which character is speaking (required once a campaign
+    // seats more than one; single-character campaigns may omit it).
+    const speakingCharacterId = characterId === undefined || characterId === null
+      ? null
+      : parsePositiveInteger(characterId, 'characterId');
     const apiConfig = await getServerAiConfig();
     const state = await queueCampaignTask(campaignId, () =>
-      rpg.takeTurn(campaignId, cleanPlayerAction, apiConfig)
+      rpg.takeTurn(campaignId, cleanPlayerAction, apiConfig, speakingCharacterId)
     );
     res.json(state);
   } catch (error) {
     console.error('Error processing turn:', error);
-    const status = error.message.includes('required') || error.message.includes('characters or fewer') || error.message.includes('must be a string') ? 400 : 500;
+    const status = error.code === 'OUT_OF_TURN' ? 409
+      : error.code === 'CHARACTER_REQUIRED' ? 400
+      : error.message.includes('required') || error.message.includes('characters or fewer') || error.message.includes('must be a string') ? 400
+      : 500;
+    res.status(status).json({ error: error.message, code: error.code });
+  }
+});
+
+// One character leaves the table (Phase 3 M2): releases the profile and
+// drops them from the turn order; campaign history keeps the character row.
+app.post('/api/campaigns/:id/characters/:characterId/release', async (req, res) => {
+  try {
+    const campaignId = parseInt(req.params.id, 10);
+    const characterId = parseInt(req.params.characterId, 10);
+    if (isNaN(campaignId) || isNaN(characterId)) {
+      return res.status(400).json({ error: 'Invalid campaign or character ID.' });
+    }
+    await queueCampaignTask(campaignId, () => rpg.releaseCharacter(campaignId, characterId));
+    res.json({ success: true });
+  } catch (error) {
+    const status = error.message.includes('not found') ? 404 : 500;
     res.status(status).json({ error: error.message });
   }
 });

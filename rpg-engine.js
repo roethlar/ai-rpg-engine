@@ -20,6 +20,10 @@ import {
   validateLocationUpdate,
   validateFocalSubject,
   resolveHeroicSubject,
+  validateTurnState,
+  actingCharacterId,
+  advanceTurnOrder,
+  removeFromTurnOrder,
   LOCATION_CANVAS,
   TABLE_TALK_KINDS
 } from './rpg-state.js';
@@ -333,6 +337,18 @@ async function generateHeroicRender({ apiConfig, campaignId, subject, npcs, loca
 }
 
 /**
+ * Player-facing turn-order view (Phase 3 M2).
+ */
+function buildTurnOrderView(turnState, party) {
+  const byId = new Map(party.map(member => [member.id, member]));
+  return {
+    round: turnState.round,
+    actingCharacterId: actingCharacterId(turnState),
+    order: turnState.order.map(id => ({ id, name: byId.get(id)?.name || `#${id}` }))
+  };
+}
+
+/**
  * The player-facing heroic view from the engine-owned pointer.
  */
 function buildHeroicView(campaignId, heroicPointer) {
@@ -397,7 +413,10 @@ function buildTurnContext({
   finalPlayerAction,
   ruleset,
   currentLocation,
-  knownLocations
+  knownLocations,
+  party,
+  actingCharacter,
+  speakingCharacter
 }) {
   // GM omniscience (decision 2026-06-11): the mechanical record — dice rolls, applied
   // damage and its causes — must be visible to the Council on later turns, so the GM
@@ -461,7 +480,21 @@ function buildTurnContext({
     current_location: currentLocation
       ? { name: currentLocation.name, layout: currentLocation.layout, occupancy: currentLocation.occupancy }
       : null,
-    known_locations: Array.isArray(knownLocations) ? knownLocations : []
+    known_locations: Array.isArray(knownLocations) ? knownLocations : [],
+    // Phase 3 M2: the table. `character` above is the SPEAKING character
+    // (whose sheet answers table talk); only the acting character commits.
+    party: Array.isArray(party) && party.length > 1
+      ? party.map(member => ({
+          name: member.name,
+          class: member.class,
+          level: member.level,
+          health: `${member.health}/${member.max_health}`,
+          acting: member.id === actingCharacter?.id,
+          speaking: member.id === speakingCharacter?.id
+        }))
+      : null,
+    acting_character: actingCharacter?.name || null,
+    speaking_character: speakingCharacter?.name || null
   };
 }
 
@@ -498,7 +531,7 @@ async function callJsonAgent(client, systemInstruction, prompt, fallback) {
   }
 }
 
-async function runMultiAgentTurn({ apiConfig, gmSystem, turnContext, turnPrompt }) {
+async function runMultiAgentTurn({ apiConfig, gmSystem, turnContext, turnPrompt, turnGate = null }) {
   const interactionClient = new AIClient(resolveAgentConfig(apiConfig, 'interaction'));
   const continuityClient = new AIClient(resolveAgentConfig(apiConfig, 'continuity'));
   const refereeClient = new AIClient(resolveAgentConfig(apiConfig, 'referee'));
@@ -544,6 +577,16 @@ Return JSON matching:
     stakes: '',
     suggested_next_actions: []
   });
+
+  // Turn gate (Phase 3 M2): gating happens AFTER classification because only
+  // the Interaction agent knows what the input is. Off-turn table talk is
+  // answered for anyone; an off-turn committed action stops here — one call
+  // spent, no adjudication, no state.
+  if (turnGate && !turnGate.allowCommitted && interactionProposal.input_kind === 'committed_action') {
+    const gateError = new Error(`It is ${turnGate.actingName}'s turn to act. You can still ask questions or talk (table talk is always open) — committed actions wait for your turn.`);
+    gateError.code = 'OUT_OF_TURN';
+    throw gateError;
+  }
 
   // 2-call table-talk path: a question or in-character conversation must not cost the
   // full 5-call chain when its state outcome is forced to no-op anyway. The Interaction
@@ -1092,7 +1135,7 @@ Output the JSON object containing the opening narrative, scene_grounding, sugges
       await syncPlayerCharacter(playerCharacterId, campaignId, character);
     }
 
-    await db.run(
+    const characterInsert = await db.run(
       `INSERT INTO characters (campaign_id, player_character_id, name, class, health, max_health, mana, max_mana, xp, level, inventory_json, attributes_json, abilities_json, progression_notes)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
@@ -1111,6 +1154,12 @@ Output the JSON object containing the opening narrative, scene_grounding, sugges
         JSON.stringify(character.abilities),
         character.progression_notes || ''
       ]
+    );
+
+    // Turn order starts as an order of one (Phase 3 M2)
+    await db.run(
+      `UPDATE campaigns SET turn_state_json = ? WHERE id = ?`,
+      [JSON.stringify({ order: [characterInsert.id], current_index: 0, round: 1 }), campaignId]
     );
 
     // Insert NPCs
@@ -1192,7 +1241,7 @@ Output the JSON object containing the opening narrative, scene_grounding, sugges
   };
 }
 
-export async function takeTurn(campaignId, playerAction, apiConfig) {
+export async function takeTurn(campaignId, playerAction, apiConfig, submittingCharacterId = null) {
   // 1. Fetch current campaign details
   const campaign = await db.get(`SELECT * FROM campaigns WHERE id = ?`, [campaignId]);
   if (!campaign) throw new Error(`Campaign ${campaignId} not found.`);
@@ -1201,12 +1250,28 @@ export async function takeTurn(campaignId, playerAction, apiConfig) {
   if (!outlineRow) throw new Error(`Campaign outline not found for campaign ${campaignId}.`);
   const outline = validateOutlineData(JSON.parse(outlineRow.outline_json));
 
-  // Phase 3 M1: campaigns hold a party. The acting character is the first
-  // member for now; M2 selects it from the turn order and the submitting
-  // character id.
+  // Phase 3 M2: the party, the round-robin order, and who is speaking. The
+  // SPEAKING character (which browser typed) supplies the perspective for
+  // table talk; the ACTING character (whose turn it is) is the only one who
+  // may commit actions. Single-character campaigns are an order of one.
   const party = await loadParty(campaignId);
   if (party.length === 0) throw new Error(`Character not found for campaign ${campaignId}.`);
-  const character = party[0];
+  const turnState = validateTurnState(parseJsonObject(campaign.turn_state_json, null), party.map(c => c.id));
+  const actingId = actingCharacterId(turnState);
+  const actingCharacter = party.find(c => c.id === actingId) || party[0];
+
+  let character; // the speaking character — perspective and (gated) writes
+  if (party.length === 1) {
+    character = party[0];
+  } else {
+    character = party.find(c => c.id === Number(submittingCharacterId));
+    if (!character) {
+      const err = new Error('This campaign seats multiple characters: the request must say which character is speaking (characterId).');
+      err.code = 'CHARACTER_REQUIRED';
+      throw err;
+    }
+  }
+  const allowCommitted = party.length === 1 || character.id === actingCharacter.id;
 
   const npcs = await db.all(`SELECT * FROM npcs WHERE campaign_id = ?`, [campaignId]);
 
@@ -1241,7 +1306,15 @@ export async function takeTurn(campaignId, playerAction, apiConfig) {
 
   // 2. Build the context prompt
   const rulesetData = validateRulesetData(parseJsonObject(campaign.ruleset_json, null));
-  const gmSystem = getGMSystemInstruction(outline, character, npcs, currentAct, rulesetData, currentLocation);
+  const partyPromptView = party.map(member => ({
+    name: member.name,
+    class: member.class,
+    level: member.level,
+    health: `${member.health}/${member.max_health}`,
+    acting: member.id === actingCharacter.id,
+    speaking: member.id === character.id
+  }));
+  const gmSystem = getGMSystemInstruction(outline, character, npcs, currentAct, rulesetData, currentLocation, partyPromptView);
 
   let historyPrompt = `=== CAMPAIGN HISTORY ===\n`;
   if (memories.length > 0) {
@@ -1315,12 +1388,30 @@ Output the JSON object containing the narrative response, scene_grounding, sugge
     finalPlayerAction,
     ruleset: rulesetData,
     currentLocation,
-    knownLocations: knownLocationRows.map(row => row.name)
+    knownLocations: knownLocationRows.map(row => row.name),
+    party,
+    actingCharacter,
+    speakingCharacter: character
   });
-  const aiResponse = await runMultiAgentTurn({ apiConfig, gmSystem, turnContext, turnPrompt });
+  const aiResponse = await runMultiAgentTurn({
+    apiConfig,
+    gmSystem,
+    turnContext,
+    turnPrompt,
+    turnGate: { allowCommitted, actingName: actingCharacter.name }
+  });
 
   const parsedRaw = parseJsonSafe(aiResponse);
   const turnData = validateTurnData(parsedRaw, currentAct);
+
+  // Off-turn belt-and-braces (M2): the classification gate already rejected
+  // off-turn committed actions; if a later call relabeled table talk as
+  // committed, force it back to stateless dialogue rather than let an
+  // off-turn actor mutate the world.
+  if (!allowCommitted && turnData.input_kind === 'committed_action') {
+    console.warn('[TURN ORDER] Off-turn input relabeled committed_action downstream; forcing table-talk no-op.');
+    turnData.input_kind = 'dialogue';
+  }
 
   // Decision 2026-06-05: dialogue is table talk too — no state mutation. The opening
   // turn (pinned to 'dialogue' in createCampaign so starting state survives the
@@ -1373,6 +1464,7 @@ Output the JSON object containing the narrative response, scene_grounding, sugge
   // Resolved location for this turn (display + pointer update). Starts as the
   // current one; a gated location_update may move or refresh it below.
   let activeLocation = currentLocation;
+  let nextTurnState = turnState;
 
   // Heroic pipeline (Phase V3): engine-owned pointer + stickiness. Generation
   // is synchronous within the turn (whole round ready before send, owner
@@ -1536,6 +1628,14 @@ Output the JSON object containing the narrative response, scene_grounding, sugge
       }
     }
 
+    // D4. Advance the round-robin on committed actions (M2); table talk
+    // never advances. The normalized state persists either way so legacy
+    // campaigns pick up a valid order on their first post-migration turn.
+    nextTurnState = turnData.input_kind === 'committed_action'
+      ? advanceTurnOrder(turnState)
+      : turnState;
+    await db.run(`UPDATE campaigns SET turn_state_json = ? WHERE id = ?`, [JSON.stringify(nextTurnState), campaignId]);
+
     // E. Save turn (character_id records who acted — Phase 3 M1)
     await db.run(
       `INSERT INTO turns (campaign_id, turn_number, character_id, player_action, narrative, state_changes_json, svg_illustration)
@@ -1573,6 +1673,7 @@ Output the JSON object containing the narrative response, scene_grounding, sugge
     themeFonts: outline.theme_fonts,
     character,
     party,
+    turnOrder: buildTurnOrderView(nextTurnState, party),
     npcs: updatedNpcs,
     outline,
     currentQuest: turnData.quest_update || { active_quest: activeQuestName, quest_description: activeQuestDesc },
@@ -1605,7 +1706,8 @@ export async function getCampaignState(campaignId) {
 
   const party = await loadParty(campaignId);
   if (party.length === 0) throw new Error(`Character not found for campaign ${campaignId}.`);
-  const character = party[0];
+  const turnState = validateTurnState(parseJsonObject(campaign.turn_state_json, null), party.map(c => c.id));
+  const character = party.find(c => c.id === actingCharacterId(turnState)) || party[0];
 
   const npcs = await db.all(`SELECT * FROM npcs WHERE campaign_id = ?`, [campaignId]);
 
@@ -1652,6 +1754,7 @@ export async function getCampaignState(campaignId) {
     ruleset: validateRulesetData(parseJsonObject(campaign.ruleset_json, null)),
     character,
     party,
+    turnOrder: buildTurnOrderView(turnState, party),
     npcs,
     outline,
     currentQuest: { active_quest: activeQuestName, quest_description: activeQuestDesc },
@@ -1701,6 +1804,29 @@ export async function listPlayerCharacters() {
     created_at: row.created_at,
     updated_at: row.updated_at
   }));
+}
+
+/**
+ * Phase 3 M2: one character leaves the table. Their profile is released
+ * with current state written back and they drop out of the turn order; the
+ * character row (and the campaign history it anchors) stays. The
+ * campaign-scoped release below still frees the whole party when a campaign
+ * ends.
+ */
+export async function releaseCharacter(campaignId, characterId) {
+  const campaign = await db.get(`SELECT * FROM campaigns WHERE id = ?`, [campaignId]);
+  if (!campaign) throw new Error(`Campaign ${campaignId} not found.`);
+  const party = await loadParty(campaignId);
+  const character = party.find(c => c.id === Number(characterId));
+  if (!character) throw new Error(`Character ${characterId} not found in campaign ${campaignId}.`);
+
+  await db.withWriteTransaction(async () => {
+    await syncPlayerCharacter(character.player_character_id, campaignId, character, 'available');
+    await db.run(`UPDATE characters SET player_character_id = NULL WHERE id = ?`, [character.id]);
+    const turnState = validateTurnState(parseJsonObject(campaign.turn_state_json, null), party.map(c => c.id));
+    const nextState = removeFromTurnOrder(turnState, character.id);
+    await db.run(`UPDATE campaigns SET turn_state_json = ? WHERE id = ?`, [JSON.stringify(nextState), campaignId]);
+  });
 }
 
 export async function releaseCampaignCharacters(campaignId, options = {}) {
@@ -1907,6 +2033,16 @@ export async function forkCampaign(campaignId, turnNumber, newTitle) {
       );
       characterIdMap.set(forked.sourceId, characterResult.id);
     }
+
+    // Fresh round-robin over the forked party in source order (M2)
+    await db.run(
+      `UPDATE campaigns SET turn_state_json = ? WHERE id = ?`,
+      [JSON.stringify({
+        order: sourceParty.map(row => characterIdMap.get(row.id)),
+        current_index: 0,
+        round: 1
+      }), newCampaignId]
+    );
 
     // NPCs
     for (const [npcIndex, npc] of npcs.entries()) {

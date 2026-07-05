@@ -390,6 +390,14 @@ export async function initDb() {
     // Ignore error if column already exists
   }
 
+  // Turn order (Phase 3 M2): round-robin state {order, current_index, round},
+  // engine-owned like the location/heroic pointers.
+  try {
+    await run('ALTER TABLE campaigns ADD COLUMN turn_state_json TEXT;');
+  } catch (e) {
+    // Ignore error if column already exists
+  }
+
   // Visual identity anchor per NPC (Phase V3): descriptor + seed recorded at
   // first render so the same NPC renders as the same person (the visual
   // analog of the sticky voice profile below).

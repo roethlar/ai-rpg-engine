@@ -56,7 +56,15 @@ The visual theme is part of the atmosphere: choose colors and a font pairing who
 /**
  * System Instruction Compiler for the Game Master LLM.
  */
-export function getGMSystemInstruction(outline, character, npcs = [], currentAct = 1, ruleset = null, location = null) {
+export function getGMSystemInstruction(outline, character, npcs = [], currentAct = 1, ruleset = null, location = null, party = null) {
+  // Phase 3 M2: shared campaigns seat a party. The character sheet below is
+  // the SPEAKING player's; the GM must keep other members present in the
+  // fiction and never resolve actions for anyone but the acting character.
+  const partySection = Array.isArray(party) && party.length > 1 ? `
+=== THE TABLE (shared campaign — multiple player characters) ===
+${party.map(m => `- ${m.name} (${m.class}, L${m.level}, HP ${m.health})${m.acting ? ' — ACTING: it is this character\'s turn' : ''}${m.speaking ? ' — SPEAKING: this player typed the current input' : ''}`).join('\n')}
+Answer the speaking player from their own character's knowledge and perspective. Keep every party member present and coherent in scenes. Only the acting character's committed actions resolve this turn; other players' inputs are table talk.
+` : '';
   // Structured location state (Phase V2): the current location's stored
   // layout and occupancy are canon — answers about "what's around" come from
   // this record (omniscience decision 2026-06-11), not improvisation.
@@ -131,7 +139,7 @@ Known Abilities:
 ${character.abilities && character.abilities.length > 0 ? character.abilities.map(ability => `- ${ability.name} [${ability.tier || 'emerging'}]: ${ability.description}`).join('\n') : '- None established yet. Reveal or develop abilities through play when earned.'}
 Progression Notes:
 ${character.progression_notes || 'No long-term progression notes yet.'}
-${rulesetSection}${locationSection}
+${rulesetSection}${locationSection}${partySection}
 === GM RULES ===
 1. Narrative Quality: Write vivid, rich description with high atmospheric focus. Write 2-3 paragraphs. If any NPCs speak, use their unique voice, habits, or stuttering quirks.
 2. Coherence: Ensure you keep the story aligned with the current Act and Quest. Do not jump to the conclusion early. Let the player explore.

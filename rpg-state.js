@@ -481,6 +481,77 @@ export function validateLocationUpdate(raw) {
 }
 
 /**
+ * Turn order (Phase 3 M2): round-robin over the party, engine-owned and
+ * persisted as campaigns.turn_state_json. Pure helpers over plain objects —
+ * DB truth comes in via the party id list. Single-character campaigns are an
+ * order of one and behave exactly like before (every action is your turn).
+ */
+export function validateTurnState(raw, partyIds = []) {
+  const data = raw && typeof raw === 'object' ? raw : {};
+  const known = new Set(partyIds);
+  const seen = new Set();
+  const order = [];
+  if (Array.isArray(data.order)) {
+    for (const id of data.order) {
+      if (known.has(id) && !seen.has(id)) {
+        seen.add(id);
+        order.push(id);
+      }
+    }
+  }
+  // Party members missing from the order (fresh state, or joined before the
+  // order existed) append in party order.
+  for (const id of partyIds) {
+    if (!seen.has(id)) {
+      seen.add(id);
+      order.push(id);
+    }
+  }
+  const rawIndex = typeof data.current_index === 'number' && !isNaN(data.current_index)
+    ? Math.floor(data.current_index)
+    : 0;
+  return {
+    order,
+    current_index: order.length > 0 ? Math.max(0, Math.min(order.length - 1, rawIndex)) : 0,
+    round: typeof data.round === 'number' && data.round >= 1 ? Math.floor(data.round) : 1
+  };
+}
+
+export function actingCharacterId(turnState) {
+  return turnState.order.length > 0 ? turnState.order[turnState.current_index] : null;
+}
+
+/**
+ * Round-robin advance after a committed action: next member, wrapping into
+ * a new round. Table talk never advances (it is stateless — decision
+ * 2026-06-05), so rounds count real actions even solo.
+ */
+export function advanceTurnOrder(turnState) {
+  if (turnState.order.length === 0) return turnState;
+  const nextIndex = (turnState.current_index + 1) % turnState.order.length;
+  return {
+    order: [...turnState.order],
+    current_index: nextIndex,
+    round: nextIndex === 0 ? turnState.round + 1 : turnState.round
+  };
+}
+
+/**
+ * Removes a leaving character, keeping the current turn pointed at the same
+ * member when possible (or the next one when the leaver was acting).
+ */
+export function removeFromTurnOrder(turnState, characterId) {
+  const index = turnState.order.indexOf(characterId);
+  if (index === -1) return turnState;
+  const order = turnState.order.filter(id => id !== characterId);
+  let currentIndex = turnState.current_index;
+  if (index < currentIndex) currentIndex -= 1;
+  if (order.length === 0) currentIndex = 0;
+  else currentIndex = currentIndex % order.length;
+  return { order, current_index: currentIndex, round: turnState.round };
+}
+
+/**
  * Engine-owned current_heroic (Phase V3, owner direction 2026-06-13): the
  * heroic visual persists until the game moves past it. The Referee emits a
  * small focal-subject signal through the gate; the engine holds the pointer

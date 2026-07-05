@@ -652,6 +652,47 @@ async function testTtsProviderSeam() {
 }
 
 // -------------------------------------------------------------
+// Test: round-robin turn order (Phase 3 M2)
+// -------------------------------------------------------------
+async function testTurnOrder() {
+  console.log(' - Running turn order tests...');
+  const { validateTurnState, actingCharacterId, advanceTurnOrder, removeFromTurnOrder } = await import('./rpg-state.js');
+
+  // Normalization: unknown ids dropped, missing members appended, index clamped
+  const state = validateTurnState({ order: [7, 99, 7, 3], current_index: 9, round: 0 }, [3, 5, 7]);
+  assert.deepStrictEqual(state.order, [7, 3, 5], 'Unknown ids dropped, dupes removed, missing members appended');
+  assert.strictEqual(state.current_index, 2, 'Index clamps into range');
+  assert.strictEqual(state.round, 1, 'Round floors at 1');
+  const fresh = validateTurnState(null, [4, 8]);
+  assert.deepStrictEqual(fresh, { order: [4, 8], current_index: 0, round: 1 }, 'No stored state → party order, round 1');
+  assert.strictEqual(actingCharacterId(fresh), 4);
+  assert.strictEqual(actingCharacterId(validateTurnState(null, [])), null, 'Empty party → no acting character');
+
+  // Round-robin advance: wraps into a new round; single member = order of one
+  const two = validateTurnState(null, [4, 8]);
+  const afterOne = advanceTurnOrder(two);
+  assert.strictEqual(actingCharacterId(afterOne), 8);
+  assert.strictEqual(afterOne.round, 1, 'Mid-round advance keeps the round');
+  const afterWrap = advanceTurnOrder(afterOne);
+  assert.strictEqual(actingCharacterId(afterWrap), 4);
+  assert.strictEqual(afterWrap.round, 2, 'Wrapping starts a new round');
+  const solo = advanceTurnOrder(validateTurnState(null, [4]));
+  assert.strictEqual(actingCharacterId(solo), 4, 'Order of one: always your turn');
+  assert.strictEqual(solo.round, 2, 'Solo rounds still count actions');
+
+  // Leaving: order shrinks, the turn stays with (or passes to) the right member
+  const three = { order: [4, 8, 12], current_index: 1, round: 3 };
+  const midLeft = removeFromTurnOrder(three, 4);
+  assert.deepStrictEqual(midLeft.order, [8, 12]);
+  assert.strictEqual(actingCharacterId(midLeft), 8, 'Removing an earlier member keeps the acting one');
+  const actorLeft = removeFromTurnOrder(three, 8);
+  assert.strictEqual(actingCharacterId(actorLeft), 12, 'Removing the acting member passes to the next');
+  const wrapLeft = removeFromTurnOrder({ order: [4, 8], current_index: 1, round: 2 }, 8);
+  assert.strictEqual(actingCharacterId(wrapLeft), 4, 'Removing the last acting member wraps');
+  assert.deepStrictEqual(removeFromTurnOrder(three, 99), three, 'Unknown leaver is a no-op');
+}
+
+// -------------------------------------------------------------
 // Test: structured location state (Phase V2)
 // -------------------------------------------------------------
 async function testStructuredLocations() {
@@ -1163,6 +1204,7 @@ async function runAll() {
     testRefereeDiceFlow();
     testResolveAgentConfig();
     await testRulesetCanon();
+    await testTurnOrder();
     await testStructuredLocations();
     await testHeroicPointer();
     await testThemeGeneration();
