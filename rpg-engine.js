@@ -1464,17 +1464,24 @@ export async function takeTurn(campaignId, playerAction, apiConfig, submittingCh
   // Table style + pacing cadence (Phase D): the dial values and the recorded
   // fact the Council checks as a rule.
   const tableStyle = validateTableStyle(parseJsonObject(campaign.table_style_json, null));
+  // Cadence counts WORLD turns (committed actions) only — table talk must
+  // not stretch the recorded gap and shift what the GM may initiate.
   const encounterRows = await db.all(
-    `SELECT state_changes_json FROM turns WHERE campaign_id = ? ORDER BY turn_number DESC LIMIT 12`,
+    `SELECT state_changes_json FROM turns WHERE campaign_id = ? ORDER BY turn_number DESC LIMIT 48`,
     [campaignId]
   );
   const encounterHistory = encounterRows.reverse().map(row => {
     try {
-      return JSON.parse(row.state_changes_json || '{}').encounter || 'none';
+      const record = JSON.parse(row.state_changes_json || '{}');
+      return record && typeof record === 'object'
+        ? { kind: record.input_kind, encounter: record.encounter || 'none' }
+        : null;
     } catch (e) {
-      return 'none';
+      return null;
     }
-  });
+  }).filter(entry => entry && entry.kind === 'committed_action')
+    .map(entry => entry.encounter)
+    .slice(-12);
   const pacing = {
     style: tableStyle.pacing,
     target: PACING_TARGETS[tableStyle.pacing],
