@@ -1185,14 +1185,44 @@ body {
   transition: flex-basis 0.25s ease, max-height 0.25s ease, opacity 0.25s ease;
 }
 
+/* SITUATION SURFACE (Phase V4): grounding text always; the deterministic
+   location map coexists with it, revealed on positional turns or spotlight */
+.situation-section { flex: 0 0 auto; }
+.situation-map {
+  display: none;
+  background: hsl(var(--theme-bg));
+  border: 1px solid hsl(var(--theme-border));
+  border-radius: 8px;
+  margin-bottom: 8px;
+  overflow: hidden;
+}
+.situation-map svg { width: 100%; height: auto; display: block; }
+.main-layout.positional-turn .situation-map,
+.main-layout[data-focus="situation"] .situation-map { display: block; }
+.situation-text {
+  font-size: 12.5px;
+  font-style: italic;
+  color: hsl(var(--theme-text-dim));
+  line-height: 1.5;
+  max-height: 110px;
+  overflow-y: auto;
+}
+.situation-location { font-size: 11px; font-weight: 400; color: hsl(var(--theme-text-dim)); margin-left: 4px; }
+
+/* Heroic render shares the visualizer slot with the SVG fallback */
+.visualizer-svg { width: 100%; height: 100%; }
+.visualizer-frame img.heroic-image { width: 100%; height: 100%; object-fit: cover; }
+
 /* Right-side spotlights: the story becomes the rail, the right column the stage */
 .main-layout.immersive-layout[data-focus="visualizer"],
+.main-layout.immersive-layout[data-focus="situation"],
 .main-layout.immersive-layout[data-focus="character"],
 .main-layout.immersive-layout[data-focus="tabs"] {
   grid-template-columns: 340px 1fr;
 }
 /* Diagnostics (3-column) mode keeps its outline rail */
 .main-layout:not(.immersive-layout)[data-focus="visualizer"],
+.main-layout:not(.immersive-layout)[data-focus="situation"],
 .main-layout:not(.immersive-layout)[data-focus="character"],
 .main-layout:not(.immersive-layout)[data-focus="tabs"] {
   grid-template-columns: 280px 340px 1fr;
@@ -1201,10 +1231,16 @@ body {
 /* Demoted sections collapse to their header strip */
 [data-focus="visualizer"] .right-panel .character-section,
 [data-focus="visualizer"] .right-panel .inventory-section,
+[data-focus="visualizer"] .right-panel .situation-section,
+[data-focus="situation"] .right-panel .illustration-section,
+[data-focus="situation"] .right-panel .character-section,
+[data-focus="situation"] .right-panel .inventory-section,
 [data-focus="character"] .right-panel .illustration-section,
 [data-focus="character"] .right-panel .inventory-section,
+[data-focus="character"] .right-panel .situation-section,
 [data-focus="tabs"] .right-panel .illustration-section,
-[data-focus="tabs"] .right-panel .character-section {
+[data-focus="tabs"] .right-panel .character-section,
+[data-focus="tabs"] .right-panel .situation-section {
   flex: 0 0 auto;
   max-height: 56px;
   overflow: hidden;
@@ -1213,6 +1249,8 @@ body {
 
 /* The promoted section takes the stage */
 [data-focus="visualizer"] .right-panel .illustration-section { flex: 1 1 auto; }
+[data-focus="situation"] .right-panel .situation-section { flex: 1 1 auto; overflow-y: auto; }
+[data-focus="situation"] .right-panel .situation-section .situation-text { max-height: none; }
 [data-focus="character"] .right-panel .character-section { flex: 1 1 auto; overflow-y: auto; }
 [data-focus="tabs"] .right-panel .inventory-section { flex: 1 1 auto; }
 

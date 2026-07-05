@@ -90,8 +90,20 @@
       <div class="panel-section illustration-section">
         <h3><i class="fa-solid fa-image"></i> Scene Visualizer <button type="button" class="spotlight-btn" data-spotlight="visualizer" title="Spotlight (Esc restores)" aria-pressed="false"><i class="fa-solid fa-expand"></i></button></h3>
         <div id="visualizer-frame" class="visualizer-frame">
-          <!-- Rendered SVG inline -->
+          <div id="visualizer-svg" class="visualizer-svg">
+            <!-- Rendered SVG inline -->
+          </div>
+          <img id="heroic-image" class="heroic-image" alt="Current scene render" style="display: none;">
         </div>
+      </div>
+
+      <!-- SITUATION: grounding text always, tactical map when position matters -->
+      <div class="panel-section situation-section" id="situation-section" style="display: none;">
+        <h3><i class="fa-solid fa-map"></i> Situation <span id="situation-location-name" class="situation-location"></span> <button type="button" class="spotlight-btn" data-spotlight="situation" title="Spotlight (Esc restores)" aria-pressed="false"><i class="fa-solid fa-expand"></i></button></h3>
+        <div id="situation-map" class="situation-map">
+          <!-- Deterministic location map SVG -->
+        </div>
+        <div id="situation-text" class="situation-text"></div>
       </div>
 
       <!-- CHARACTER STATS -->

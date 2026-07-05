@@ -811,8 +811,16 @@ function renderGame(gameState, resetNarrative = false, options = {}) {
   // Graphic illustration (Sanitized using DOMPurify SVG profile)
   if (gameState.turn.svg) {
     const cleanSvg = DOMPurify.sanitize(gameState.turn.svg, { USE_PROFILES: { svg: true } });
-    visualizerFrame.innerHTML = cleanSvg;
+    document.getElementById('visualizer-svg').innerHTML = cleanSvg;
   }
+
+  // Heroic render (Phase V4): when the engine holds a heroic pointer, the
+  // image takes the visualizer slot; the SVG stays as the fallback surface.
+  updateHeroicImage(gameState.turn.heroic);
+
+  // Situation surface (Phase V4): grounding text always; the deterministic
+  // location map joins it when position matters (or when spotlighted).
+  renderSituation(gameState.turn);
 
   // Text narrative & roll checks
   if (resetNarrative) {
@@ -839,6 +847,50 @@ function renderGame(gameState, resetNarrative = false, options = {}) {
 
   // Suggested choices
   renderChoices(gameState.turn.suggestedChoices || []);
+}
+
+// Heroic image loader: the image route is authenticated, so the bytes are
+// fetched with the access token and shown via an object URL (CSP allows
+// blob: for img-src). Failures leave the previous visual in place.
+let currentHeroicUrl = null;
+async function updateHeroicImage(heroic) {
+  if (!heroic || !heroic.imageUrl || heroic.imageUrl === currentHeroicUrl) return;
+  const img = document.getElementById('heroic-image');
+  const svgHost = document.getElementById('visualizer-svg');
+  try {
+    const response = await fetchWithTimeout(heroic.imageUrl, {}, 60000);
+    if (!response.ok) throw new Error(`status ${response.status}`);
+    const blob = await response.blob();
+    if (img.dataset.objectUrl) URL.revokeObjectURL(img.dataset.objectUrl);
+    const objectUrl = URL.createObjectURL(blob);
+    img.src = objectUrl;
+    img.dataset.objectUrl = objectUrl;
+    img.style.display = 'block';
+    svgHost.style.display = 'none';
+    currentHeroicUrl = heroic.imageUrl;
+  } catch (error) {
+    console.warn(`Heroic render unavailable (${error.message}); keeping the current visual.`);
+  }
+}
+
+// Situation surface: map + grounding text always coexist (owner Layout D
+// pick) — the text is always present once known; the map is revealed on
+// positional turns and whenever the panel is spotlighted (CSS rules).
+function renderSituation(turn) {
+  const location = turn.location;
+  const grounding = turn.sceneGrounding;
+  if (!location && !grounding) return; // keep the previous situation visible
+
+  document.getElementById('situation-section').style.display = '';
+  if (grounding) {
+    document.getElementById('situation-text').textContent = grounding;
+  }
+  document.getElementById('situation-location-name').textContent = location?.name || '';
+  if (location?.mapSvg) {
+    document.getElementById('situation-map').innerHTML =
+      DOMPurify.sanitize(location.mapSvg, { USE_PROFILES: { svg: true } });
+  }
+  mainGameScreen.classList.toggle('positional-turn', !!location?.positional);
 }
 
 function stripNarrationText(markdownText) {
