@@ -13,6 +13,7 @@ import {
   maskAiConfig
 } from './server-config.js';
 import { synthesizeSpeech, TTS_VOICES } from './tts-providers.js';
+import { looksLikeSeatToken, hashSeatToken, mintSeatToken } from './seat-auth.js';
 
 dotenv.config();
 
@@ -179,23 +180,62 @@ setInterval(() => {
 // AUTHENTICATION MIDDLEWARE
 // -------------------------------------------------------------
 
-function authenticate(req, res, next) {
+// Phase S1: two credential kinds. The HOST (ACCESS_SECRET) has full table
+// authority; a SEAT is bound server-side to exactly one character of one
+// campaign. req.auth carries the resolved credential for the route guards.
+async function authenticate(req, res, next) {
   const secret = process.env.ACCESS_SECRET;
-  if (!secret) {
-    return next(); // Auth disabled if ACCESS_SECRET is not set
+  const authHeader = req.headers.authorization;
+  const token = authHeader && authHeader.startsWith('Bearer ') ? authHeader.substring(7) : null;
+
+  // Seat tokens authenticate regardless of whether a host secret is set.
+  if (token && looksLikeSeatToken(token)) {
+    try {
+      const seat = await db.get(
+        `SELECT * FROM seats WHERE token_hash = ? AND revoked_at IS NULL`,
+        [hashSeatToken(token)]
+      );
+      if (!seat) {
+        return res.status(401).json({ error: 'Unauthorized. This seat token is invalid or revoked.' });
+      }
+      req.auth = { kind: 'seat', campaignId: seat.campaign_id, characterId: seat.character_id, seatId: seat.id };
+      return next();
+    } catch (error) {
+      return res.status(500).json({ error: 'Seat authentication failed.' });
+    }
   }
 
-  const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+  if (!secret) {
+    // Auth disabled (single-operator localhost dev): requests are the host.
+    req.auth = { kind: 'host' };
+    return next();
+  }
+
+  if (!token) {
     return res.status(401).json({ error: 'Unauthorized. Access token is required.' });
   }
-
-  const token = authHeader.substring(7);
   if (!timingSafeTokenEqual(token, secret)) {
     return res.status(401).json({ error: 'Unauthorized. Invalid access token.' });
   }
 
+  req.auth = { kind: 'host' };
   next();
+}
+
+// Host-only surfaces: campaign lifecycle, character library, meta-actions.
+function requireHost(req, res, next) {
+  if (req.auth?.kind === 'host') return next();
+  return res.status(403).json({ error: 'This action belongs to the table host.' });
+}
+
+// Seats may reach play routes on their own campaign only; the host passes.
+function requireSeatCampaign(req, res, next) {
+  if (req.auth?.kind === 'host') return next();
+  const campaignId = parseInt(req.params.id, 10);
+  if (req.auth?.kind === 'seat' && Number.isInteger(campaignId) && req.auth.campaignId === campaignId) {
+    return next();
+  }
+  return res.status(403).json({ error: 'This seat does not belong to that campaign.' });
 }
 
 function authenticateMcpSse(req, res, next) {
@@ -239,6 +279,7 @@ function authenticateAdmin(req, res, next) {
 app.use('/api/campaigns', authenticate);
 app.use('/api/characters', authenticate);
 app.use('/api/audio', authenticate);
+app.use('/api/seat', authenticate);
 app.use('/api/admin', rateLimit(20, 60000), authenticateAdmin);
 
 // -------------------------------------------------------------
@@ -280,7 +321,7 @@ app.post('/api/admin/settings', async (req, res) => {
 // -------------------------------------------------------------
 
 // List all campaigns
-app.get('/api/campaigns', async (req, res) => {
+app.get('/api/campaigns', requireHost, async (req, res) => {
   try {
     // One row per campaign (M1 made characters 1:N): the card shows the
     // active party as a name list; the first active member's profile link
@@ -301,7 +342,7 @@ app.get('/api/campaigns', async (req, res) => {
   }
 });
 
-app.get('/api/characters', async (req, res) => {
+app.get('/api/characters', requireHost, async (req, res) => {
   try {
     const characters = await rpg.listPlayerCharacters();
     res.json(characters);
@@ -311,7 +352,7 @@ app.get('/api/characters', async (req, res) => {
 });
 
 // Create a new campaign (Rate limited: 5 campaigns per minute per IP)
-app.post('/api/campaigns', rateLimit(5, 60000), async (req, res) => {
+app.post('/api/campaigns', rateLimit(5, 60000), requireHost, async (req, res) => {
   try {
     // Server-owned AI config (decision 2026-06-11): client-supplied apiConfig is
     // ignored; the operator's /admin + env configuration is authoritative.
@@ -353,7 +394,7 @@ app.post('/api/campaigns', rateLimit(5, 60000), async (req, res) => {
 });
 
 // Load an existing campaign
-app.get('/api/campaigns/:id', async (req, res) => {
+app.get('/api/campaigns/:id', requireSeatCampaign, async (req, res) => {
   try {
     const campaignId = parseInt(req.params.id, 10);
     if (isNaN(campaignId)) {
@@ -370,7 +411,7 @@ app.get('/api/campaigns/:id', async (req, res) => {
 });
 
 // Process a game turn (serialized per campaign and rate limited)
-app.post('/api/campaigns/:id/turn', rateLimit(10, 60000), async (req, res) => {
+app.post('/api/campaigns/:id/turn', rateLimit(10, 60000), requireSeatCampaign, async (req, res) => {
   try {
     const campaignId = parseInt(req.params.id, 10);
     if (isNaN(campaignId)) {
@@ -378,11 +419,14 @@ app.post('/api/campaigns/:id/turn', rateLimit(10, 60000), async (req, res) => {
     }
     const { playerAction, characterId } = req.body;
     const cleanPlayerAction = boundedString(playerAction, 'playerAction', MAX_ACTION_LENGTH);
-    // Phase 3 M2: which character is speaking (required once a campaign
-    // seats more than one; single-character campaigns may omit it).
-    const speakingCharacterId = characterId === undefined || characterId === null
-      ? null
-      : parsePositiveInteger(characterId, 'characterId');
+    // Phase S1: for seats the speaking character DERIVES from the
+    // credential — the body parameter is ignored entirely (nothing to
+    // spoof). The host keeps explicit selection for solo/hosted play.
+    const speakingCharacterId = req.auth?.kind === 'seat'
+      ? req.auth.characterId
+      : (characterId === undefined || characterId === null
+        ? null
+        : parsePositiveInteger(characterId, 'characterId'));
     const apiConfig = await getServerAiConfig();
     const state = await queueCampaignTask(campaignId, () =>
       rpg.takeTurn(campaignId, cleanPlayerAction, apiConfig, speakingCharacterId)
@@ -399,7 +443,7 @@ app.post('/api/campaigns/:id/turn', rateLimit(10, 60000), async (req, res) => {
 });
 
 // Campaign portability (Phase P): export one self-contained versioned bundle
-app.get('/api/campaigns/:id/export', async (req, res) => {
+app.get('/api/campaigns/:id/export', requireHost, async (req, res) => {
   try {
     const campaignId = parseInt(req.params.id, 10);
     if (isNaN(campaignId)) {
@@ -419,7 +463,7 @@ app.get('/api/campaigns/:id/export', async (req, res) => {
 // Import a bundle as a new campaign. Bundles are untrusted data — fully
 // re-validated engine-side, never treated as instructions. NOTE: the global
 // JSON parser skips this path; the 20mb cap lives here.
-app.post('/api/campaigns/import', rateLimit(5, 60000), express.json({ limit: '20mb' }), async (req, res) => {
+app.post('/api/campaigns/import', rateLimit(5, 60000), requireHost, express.json({ limit: '20mb' }), async (req, res) => {
   try {
     const state = await rpg.importCampaign(req.body);
     res.json(state);
@@ -432,7 +476,7 @@ app.post('/api/campaigns/import', rateLimit(5, 60000), express.json({ limit: '20
 });
 
 // Table-style dials (Phase D): adjustable mid-campaign, effect next turn
-app.post('/api/campaigns/:id/table-style', async (req, res) => {
+app.post('/api/campaigns/:id/table-style', requireHost, async (req, res) => {
   try {
     const campaignId = parseInt(req.params.id, 10);
     if (isNaN(campaignId)) {
@@ -447,7 +491,7 @@ app.post('/api/campaigns/:id/table-style', async (req, res) => {
 });
 
 // A character joins an existing campaign's table (Phase 3 M3)
-app.post('/api/campaigns/:id/join', rateLimit(10, 60000), async (req, res) => {
+app.post('/api/campaigns/:id/join', rateLimit(10, 60000), requireHost, async (req, res) => {
   try {
     const campaignId = parseInt(req.params.id, 10);
     if (isNaN(campaignId)) {
@@ -469,9 +513,76 @@ app.post('/api/campaigns/:id/join', rateLimit(10, 60000), async (req, res) => {
   }
 });
 
+// Seat lifecycle (Phase S1, host-only): mint issues (or rotates) the one
+// credential bound to a character — plaintext returned exactly once, only
+// the hash is stored. Revoke kills it immediately.
+app.post('/api/campaigns/:id/characters/:characterId/seat', requireHost, async (req, res) => {
+  try {
+    const campaignId = parseInt(req.params.id, 10);
+    const characterId = parseInt(req.params.characterId, 10);
+    if (isNaN(campaignId) || isNaN(characterId)) {
+      return res.status(400).json({ error: 'Invalid campaign or character ID.' });
+    }
+    const character = await db.get(
+      `SELECT id, name FROM characters WHERE id = ? AND campaign_id = ? AND COALESCE(status, 'active') = 'active'`,
+      [characterId, campaignId]
+    );
+    if (!character) {
+      return res.status(404).json({ error: 'No active character with that ID in this campaign.' });
+    }
+    const token = mintSeatToken();
+    // Rotation semantics: minting again replaces the old seat — the previous
+    // token stops working the moment a new one exists.
+    await db.run(`DELETE FROM seats WHERE character_id = ?`, [characterId]);
+    await db.run(
+      `INSERT INTO seats (campaign_id, character_id, token_hash, label) VALUES (?, ?, ?, ?)`,
+      [campaignId, characterId, hashSeatToken(token), character.name]
+    );
+    res.json({ seatToken: token, characterId, characterName: character.name, note: 'Shown once — share it with that player only.' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.delete('/api/campaigns/:id/characters/:characterId/seat', requireHost, async (req, res) => {
+  try {
+    const campaignId = parseInt(req.params.id, 10);
+    const characterId = parseInt(req.params.characterId, 10);
+    if (isNaN(campaignId) || isNaN(characterId)) {
+      return res.status(400).json({ error: 'Invalid campaign or character ID.' });
+    }
+    const result = await db.run(
+      `UPDATE seats SET revoked_at = CURRENT_TIMESTAMP WHERE campaign_id = ? AND character_id = ? AND revoked_at IS NULL`,
+      [campaignId, characterId]
+    );
+    res.json({ revoked: result.changes > 0 });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Seat bootstrap (Phase S1): a seat token resolves straight to its campaign
+// — seats never see the campaign list. Visibility scoping arrives in S2;
+// until then the payload is the full state (disclosed limitation).
+app.get('/api/seat/session', async (req, res) => {
+  try {
+    if (req.auth?.kind !== 'seat') {
+      return res.status(403).json({ error: 'Seat tokens only. Hosts load campaigns from the list.' });
+    }
+    const state = await rpg.getCampaignState(req.auth.campaignId);
+    if (!state) {
+      return res.status(404).json({ error: 'This seat\'s campaign no longer exists.' });
+    }
+    state.seatCharacterId = req.auth.characterId;
+    res.json(state);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // One character leaves the table (Phase 3 M2): releases the profile and
 // drops them from the turn order; campaign history keeps the character row.
-app.post('/api/campaigns/:id/characters/:characterId/release', async (req, res) => {
+app.post('/api/campaigns/:id/characters/:characterId/release', requireHost, async (req, res) => {
   try {
     const campaignId = parseInt(req.params.id, 10);
     const characterId = parseInt(req.params.characterId, 10);
@@ -487,7 +598,7 @@ app.post('/api/campaigns/:id/characters/:characterId/release', async (req, res) 
 });
 
 // Fork campaign at a specific turn number (serialized per campaign)
-app.post('/api/campaigns/:id/fork', async (req, res) => {
+app.post('/api/campaigns/:id/fork', requireHost, async (req, res) => {
   try {
     const campaignId = parseInt(req.params.id, 10);
     if (isNaN(campaignId)) {
@@ -508,7 +619,7 @@ app.post('/api/campaigns/:id/fork', async (req, res) => {
 });
 
 // Fetch journal history for timeline
-app.get('/api/campaigns/:id/journal', async (req, res) => {
+app.get('/api/campaigns/:id/journal', requireSeatCampaign, async (req, res) => {
   try {
     const campaignId = parseInt(req.params.id, 10);
     if (isNaN(campaignId)) {
@@ -530,7 +641,7 @@ app.get('/api/campaigns/:id/journal', async (req, res) => {
 });
 
 // Delete a campaign (serialized per campaign)
-app.delete('/api/campaigns/:id', async (req, res) => {
+app.delete('/api/campaigns/:id', requireHost, async (req, res) => {
   try {
     const campaignId = parseInt(req.params.id, 10);
     if (isNaN(campaignId)) {
@@ -546,7 +657,7 @@ app.delete('/api/campaigns/:id', async (req, res) => {
   }
 });
 
-app.post('/api/campaigns/:id/release-character', async (req, res) => {
+app.post('/api/campaigns/:id/release-character', requireHost, async (req, res) => {
   try {
     const campaignId = parseInt(req.params.id, 10);
     if (isNaN(campaignId)) {
@@ -561,7 +672,7 @@ app.post('/api/campaigns/:id/release-character', async (req, res) => {
 
 // Generated renders (Phase V3): served from the campaign_images index under
 // the authenticated /api/campaigns mount. Renders are immutable once written.
-app.get('/api/campaigns/:id/images/:imageId', async (req, res) => {
+app.get('/api/campaigns/:id/images/:imageId', requireSeatCampaign, async (req, res) => {
   try {
     const campaignId = Number(req.params.id);
     const imageId = Number(req.params.imageId);

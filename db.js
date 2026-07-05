@@ -383,6 +383,22 @@ export async function initDb() {
     )
   `);
 
+  // Seats (Phase S1): one revocable credential per character — what makes
+  // players distinct users. Only the token hash is stored.
+  await run(`
+    CREATE TABLE IF NOT EXISTS seats (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      campaign_id INTEGER NOT NULL,
+      character_id INTEGER NOT NULL UNIQUE,
+      token_hash TEXT NOT NULL UNIQUE,
+      label TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      revoked_at DATETIME,
+      FOREIGN KEY (campaign_id) REFERENCES campaigns(id) ON DELETE CASCADE,
+      FOREIGN KEY (character_id) REFERENCES characters(id) ON DELETE CASCADE
+    )
+  `);
+
   // Create npcs table
   await run(`
     CREATE TABLE IF NOT EXISTS npcs (

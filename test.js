@@ -1388,6 +1388,27 @@ function testResolveAgentConfig() {
   assert.strictEqual(crossAdmin.model, undefined, 'Admin role on a different provider must not get the primary model');
 }
 
+// -------------------------------------------------------------
+// Test: seat credentials (Phase S1)
+// -------------------------------------------------------------
+async function testSeatAuth() {
+  console.log(' - Running seat credential tests...');
+  const { mintSeatToken, looksLikeSeatToken, hashSeatToken } = await import('./seat-auth.js');
+
+  const token = mintSeatToken();
+  assert.strictEqual(looksLikeSeatToken(token), true, 'Minted tokens carry the seat prefix');
+  assert.strictEqual(token.length >= 53, true, 'Tokens carry 24 bytes of entropy');
+  assert.notStrictEqual(mintSeatToken(), token, 'Every mint is unique');
+
+  assert.strictEqual(hashSeatToken(token), hashSeatToken(token), 'Hashing is deterministic');
+  assert.notStrictEqual(hashSeatToken(token), hashSeatToken(mintSeatToken()), 'Different tokens, different hashes');
+  assert.strictEqual(hashSeatToken(token).includes(token.slice(5, 20)), false, 'The hash does not embed the token');
+
+  assert.strictEqual(looksLikeSeatToken('not-a-seat'), false);
+  assert.strictEqual(looksLikeSeatToken('seat_short'), false, 'Truncated tokens rejected by shape');
+  assert.strictEqual(looksLikeSeatToken(null), false);
+}
+
 // Run all test functions
 async function runAll() {
   try {
@@ -1406,6 +1427,7 @@ async function runAll() {
     await testNpcAppearance();
     await testTableStyle();
     await testCampaignBundle();
+    await testSeatAuth();
     await testThemeGeneration();
     await testVoiceScript();
     await testTtsProviderSeam();
