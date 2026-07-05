@@ -309,6 +309,34 @@ plumbing that must be designed in rather than bolted on.
 Supersedes:
 Nothing; concretizes the provider-strategy topic for images.
 
+### 2026-07-04 - Ruleset licensing constraint: no whole-work attribution framing
+
+Status: Active
+
+Decision:
+Open rulesets may be adopted only under licenses whose obligations stay
+scoped to the ruleset content itself. Any license requiring the product to be
+characterized as "based on" the licensed system — Fate's specified CC-BY-3.0
+attribution block, ORC's Article III attribution-notice pattern — is
+unacceptable: Aetheria is a complete engine and a ruleset option is a minor
+addition to it, so whole-work framing misrepresents the product. Clearly
+compliant: CC0 (no attribution at all — Worlds/Cities Without Number SRDs).
+Factual, containment-scoped mandated statements (the D&D SRD's "This work
+includes material taken from…" line, placeable on a ruleset credits surface)
+are not auto-excluded but need explicit owner sign-off per option at adoption
+time. ShareAlike options were already an owner-decision item and remain so.
+
+Reason:
+Owner direction 2026-07-04 after reviewing docs/ruleset-licensing.md: the
+required "based on Fate Core System" statement is "massively overstated …
+not that one. nothing like that. this is a minor addition to a complete
+project."
+
+Supersedes:
+The candidate ranking in docs/ruleset-licensing.md as first written (Fate
+listed as the top genre-neutral option; Fate and ORC now excluded). The
+underlying license *facts* in that doc remain valid evidence.
+
 ### 2026-06-05 - Council DM pipeline is canonical; clarification turns must not advance state (from plan.md + code)
 
 Status: Active

@@ -12,28 +12,43 @@ refute each claim. All four verification verdicts: accurate, with the
 corrections folded in below. Re-verify anything marked ⚠ before commercial
 adoption; licenses named "as of" July 2026.
 
+## Owner constraint (decision 2026-07-04, `.agents/decisions.md`)
+
+License obligations must stay scoped to the ruleset content: any license
+requiring the product to be described as **"based on"** the licensed system
+is unacceptable — Aetheria is a complete engine and a ruleset option is a
+minor addition to it. This excludes **Fate** (Evil Hat's specified CC-BY-3.0
+attribution block opens "This work is based on Fate Core System…") and
+**ORC / Pathfinder 2e** (the required Attribution Notice pattern is "This
+product is based on the following Licensed Material: …"). Factual
+containment statements (the D&D SRD's "This work includes material taken
+from…" line) are not auto-excluded but need explicit owner sign-off at
+adoption time.
+
 ## Recommendation ranking for this engine
 
-1. **CC0 (zero obligation, safest for AI remixing):** Worlds Without Number
-   SRD (fantasy/post-apoc) and Cities Without Number SRD (cyberpunk/noir),
-   Sine Nomine / Kevin Crawford. Verbatim copying, modification, commercial
-   use — no attribution, no ShareAlike, nothing carried into generated
-   output. One shared chassis across two genres. Constraint: may not present
-   products as official Sine Nomine offerings; the SRDs exclude the books'
-   setting/GM-tool material (tag *structure* reusable, tag *text* not).
-2. **CC-BY (attribution only):** D&D SRD 5.1 / 5.2.1 (CC-BY-4.0) for the
-   classic heroic-fantasy slot; Fate Condensed/Core (CC-BY-**3.0**, note the
-   version) as the genre-neutral narrative option; Knave 1e (CC-BY-4.0)
-   as a light classless fantasy toolkit. Obligation: exact attribution
-   statements (below) surfaced wherever the ruleset ships.
-3. **CC-BY-SA (viral — decide before adopting):** Basic Fantasy RPG 4e,
-   Cairn. Fine licenses, but ShareAlike means any derivative ruleset text
-   the engine ships (including agent-generated text mixing it in) must
-   itself be CC-BY-SA — a policy decision for the owner, not a default.
-4. **ORC:** Pathfinder 2e Remaster — legally solid and explicitly
-   AI/video-game friendly, but the heaviest compliance (four notices,
-   mechanics license-back, strip all proper nouns). Consider only if
-   high-crunch tactical fantasy is actually wanted.
+1. **CC0 (zero obligation — cleanly satisfies the owner constraint):**
+   Worlds Without Number SRD (fantasy/post-apoc) and Cities Without Number
+   SRD (cyberpunk/noir), Sine Nomine / Kevin Crawford. Verbatim copying,
+   modification, commercial use — no attribution, no ShareAlike, nothing
+   carried into generated output. One shared chassis across two genres.
+   Constraint: may not present products as official Sine Nomine offerings;
+   the SRDs exclude the books' setting/GM-tool material (tag *structure*
+   reusable, tag *text* not).
+2. **CC-BY with factual, scoped wording (owner sign-off required per
+   option):** D&D SRD 5.1 / 5.2.1 (CC-BY-4.0; mandated sentence is
+   "includes material taken from", placeable on a ruleset credits surface)
+   for the classic heroic-fantasy slot; Knave 1e (CC-BY-4.0, credit "in any
+   reasonable manner", no mandated sentence) as a light classless fantasy
+   toolkit.
+3. **Excluded by the owner constraint:** Fate Core/Condensed (specified
+   "based on Fate Core System" attribution) and Pathfinder 2e Remaster /
+   ORC ("This product is based on…" notice) — regardless of their otherwise
+   workable terms. The generated house system covers the genre-neutral slot
+   Fate would have filled.
+4. **CC-BY-SA (viral — an owner decision, and now unlikely):** Basic
+   Fantasy RPG 4e, Cairn. ShareAlike would force any derivative ruleset
+   text the engine ships to carry CC-BY-SA itself.
 5. **Avoid / not usable:**
    - **OGL 1.0a-only content** (Cepheus Engine SRD, 2008 Traveller SRD, OSE
      SRD): usable in principle, but full-OGL-text boilerplate plus residual
@@ -76,17 +91,10 @@ compatibility phrasings are "compatible with fifth edition" / "5E
 compatible". 5.1 and 5.2.1 encode different rules editions — offer as
 distinct options, never silently mixed.)
 
-**Fate Core/Accelerated** (CC-BY-3.0 — include the trailing URL):
-> This work is based on Fate Core System and Fate Accelerated Edition (found
-> at https://www.faterpg.com/), products of Evil Hat Productions, LLC,
-> developed, authored, and edited by Leonard Balsera, Brian Engard, Jeremy
-> Keller, Ryan Macklin, Mike Olson, Clark Valentine, Amanda Valentine, Fred
-> Hicks, and Rob Donoghue, and licensed for our use under the Creative
-> Commons Attribution 3.0 Unported license
-> (https://creativecommons.org/licenses/by/3.0/).
-
-**Fate Condensed** (CC-BY-3.0): same form, crediting PK Sullivan, Lara
-Turner, Fred Hicks, Richard Bellingham, Robert Hanz, and Sophie Lagacé.
+**Fate Core/Condensed** — EXCLUDED (decision 2026-07-04): the specified
+attribution block opens "This work is based on Fate Core System…", which is
+whole-work framing the owner rejects. Recorded here only as the evidence
+behind the exclusion.
 
 **Knave 1e** (CC-BY-4.0): credit Ben Milton / Questing Beast, link the
 license, indicate changes.
@@ -122,13 +130,13 @@ SRD files at adoption time.
 
 | Slot | Best-fit verified option | License |
 |---|---|---|
-| Heroic fantasy (classic) | D&D SRD 5.1 or 5.2.1 | CC-BY-4.0 |
+| Heroic fantasy (classic) | D&D SRD 5.1 or 5.2.1 (owner sign-off on the "includes material" line) | CC-BY-4.0 |
 | Fantasy sandbox / post-apoc | Worlds Without Number SRD | CC0 |
 | Cyberpunk / noir | Cities Without Number SRD | CC0 |
-| Genre-neutral narrative | Fate Condensed / Core | CC-BY-3.0 |
-| OSR rules-light fantasy | Knave 1e (or Cairn if BY-SA accepted) | CC-BY-4.0 / CC-BY-SA-4.0 |
+| Genre-neutral narrative | Generated house system (Fate excluded 2026-07-04) | — |
+| OSR rules-light fantasy | Knave 1e (Cairn only if BY-SA ever accepted) | CC-BY-4.0 / CC-BY-SA-4.0 |
 | 2d6 sci-fi (Traveller-feel) | FTL: Nomad ⚠ (evaluate) — else Cepheus (OGL) | CC-BY-4.0 / OGL 1.0a |
-| High-crunch tactical fantasy | Pathfinder 2e Remaster | ORC |
+| High-crunch tactical fantasy | (Pathfinder 2e / ORC excluded 2026-07-04 — "based on" notice) | — |
 
 ## Primary sources consulted
 
