@@ -983,6 +983,9 @@ Produce the final canonical JSON response now. The player must experience one co
     finalData.encounter = committedApproved && ['player_sought', 'gm_initiated'].includes(refereeDecision.encounter)
       ? refereeDecision.encounter
       : 'none';
+    // A committed action "resolved" only when the whole gate approved it —
+    // denials and needs_clarification narrate but do not consume the turn.
+    finalData.action_resolved = committedApproved;
     const noStateChange = continuityFinal.final_status !== 'approved' ||
       TABLE_TALK_KINDS.includes(continuityFinal.final_input_kind) ||
       continuityFinal.state_change_policy === 'none' ||
@@ -1801,10 +1804,12 @@ Output the JSON object containing the narrative response, scene_grounding, sugge
       currentHeroic = await commitHeroicRender(campaignId, heroicRender, currentTurnNumber);
     }
 
-    // D4. Advance the round-robin on committed actions (M2); table talk
-    // never advances. The normalized state persists either way so legacy
-    // campaigns pick up a valid order on their first post-migration turn.
-    nextTurnState = turnData.input_kind === 'committed_action'
+    // D4. Advance the round-robin only when a committed action actually
+    // RESOLVED (M2 + review fix): table talk never advances, and neither do
+    // denials, needs_clarification, or referee parse failures — a player
+    // never loses their turn to a "no". The normalized state persists either
+    // way so legacy campaigns pick up a valid order on their first turn.
+    nextTurnState = turnData.input_kind === 'committed_action' && turnData.action_resolved
       ? advanceTurnOrder(turnState)
       : turnState;
     await db.run(`UPDATE campaigns SET turn_state_json = ? WHERE id = ?`, [JSON.stringify(nextTurnState), campaignId]);

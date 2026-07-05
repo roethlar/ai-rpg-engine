@@ -229,6 +229,11 @@ export function validateTurnData(raw, currentAct = 1, tableStyle = null) {
     ? data.encounter
     : 'none';
 
+  // 5h. Did a committed action actually resolve? Engine-stamped (M2 review
+  // fix): denials and needs_clarification keep input_kind committed_action
+  // for narration but must not consume the acting player's turn.
+  validated.action_resolved = !!data.action_resolved;
+
   // 5d. Voice script (Phase 2): speaker+tone-tagged segments mirroring the
   // narrative, emitted at generation time so dialogue attribution comes from
   // the narrator, not post-hoc parsing. Presentation data, not game state —
@@ -332,6 +337,7 @@ export function validateTurnData(raw, currentAct = 1, tableStyle = null) {
     validated.location_update = null;
     validated.focal_subject = null;
     validated.encounter = 'none';
+    validated.action_resolved = false;
   }
 
   return validated;
@@ -369,6 +375,7 @@ export function forceNoOpTurnState(finalData, turnContext, inputKind) {
   finalData.location_update = null;
   finalData.focal_subject = null;
   finalData.encounter = 'none';
+  finalData.action_resolved = false;
   return finalData;
 }
 

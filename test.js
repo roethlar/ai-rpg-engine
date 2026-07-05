@@ -690,6 +690,14 @@ async function testTurnOrder() {
   const wrapLeft = removeFromTurnOrder({ order: [4, 8], current_index: 1, round: 2 }, 8);
   assert.strictEqual(actingCharacterId(wrapLeft), 4, 'Removing the last acting member wraps');
   assert.deepStrictEqual(removeFromTurnOrder(three, 99), three, 'Unknown leaver is a no-op');
+
+  // A committed action consumes the turn only when it actually resolved:
+  // denials/needs_clarification stamp action_resolved false engine-side.
+  assert.strictEqual(validateTurnData({ input_kind: 'committed_action', narrative: 'N.', action_resolved: true }, 1).action_resolved, true);
+  assert.strictEqual(validateTurnData({ input_kind: 'committed_action', narrative: 'N.' }, 1).action_resolved, false, 'Unstamped → not resolved');
+  assert.strictEqual(validateTurnData({ input_kind: 'clarification', narrative: 'N.', action_resolved: true }, 1).action_resolved, false, 'Clarification net clears resolution');
+  const forcedTurn = forceNoOpTurnState({ action_resolved: true }, { campaign: { current_act: 1 }, active_quest: { title: 'Q', description: 'D' } }, 'dialogue');
+  assert.strictEqual(forcedTurn.action_resolved, false, 'forceNoOpTurnState clears resolution');
 }
 
 // -------------------------------------------------------------
