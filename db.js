@@ -205,6 +205,15 @@ export async function initDb() {
     // Ignore error if column already exists
   }
 
+  // Arrival snapshot (review fix): the state a character entered the
+  // campaign with — what fork replay seeds from. Legacy rows (null) fall
+  // back to the starter baseline, as before.
+  try {
+    await run('ALTER TABLE characters ADD COLUMN baseline_json TEXT;');
+  } catch (e) {
+    // Ignore error if column already exists
+  }
+
   await run(`
     CREATE INDEX IF NOT EXISTS idx_characters_campaign ON characters (campaign_id)
   `);

@@ -187,6 +187,20 @@ async function loadParty(campaignId) {
   return rows.map(hydrateCharacterRow);
 }
 
+function characterBaselineJson(seed) {
+  return JSON.stringify({
+    health: seed.health,
+    max_health: seed.max_health,
+    mana: seed.mana,
+    max_mana: seed.max_mana,
+    xp: seed.xp,
+    level: seed.level,
+    inventory: seed.inventory,
+    abilities: seed.abilities,
+    progression_notes: seed.progression_notes || ''
+  });
+}
+
 async function saveCharacterState(character) {
   await db.run(
     `UPDATE characters SET health = ?, max_health = ?, mana = ?, max_mana = ?, xp = ?, level = ?,
@@ -1159,6 +1173,8 @@ Output the JSON object containing the opening narrative, scene_grounding, sugges
     abilities: [...abilities],
     progression_notes: progressionNotes
   };
+  // Arrival snapshot BEFORE turn-1 updates: what fork replay seeds from.
+  const characterBaseline = characterBaselineJson(character);
 
   // Apply Turn 1 character updates so state matches the turn data
   const turn1Level = applyCharacterUpdate(character, turnData.character_update);
@@ -1236,8 +1252,8 @@ Output the JSON object containing the opening narrative, scene_grounding, sugges
     }
 
     const characterInsert = await db.run(
-      `INSERT INTO characters (campaign_id, player_character_id, name, class, health, max_health, mana, max_mana, xp, level, inventory_json, attributes_json, abilities_json, progression_notes)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO characters (campaign_id, player_character_id, name, class, health, max_health, mana, max_mana, xp, level, inventory_json, attributes_json, abilities_json, progression_notes, baseline_json)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         campaignId,
         playerCharacterId,
@@ -1252,7 +1268,8 @@ Output the JSON object containing the opening narrative, scene_grounding, sugges
         JSON.stringify(character.inventory),
         JSON.stringify(character.attributes),
         JSON.stringify(character.abilities),
-        character.progression_notes || ''
+        character.progression_notes || '',
+        characterBaseline
       ]
     );
 
@@ -2070,14 +2087,15 @@ export async function joinCampaign(campaignId, { characterName, characterClass, 
     }
 
     const characterResult = await db.run(
-      `INSERT INTO characters (campaign_id, player_character_id, name, class, health, max_health, mana, max_mana, xp, level, inventory_json, attributes_json, abilities_json, progression_notes)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO characters (campaign_id, player_character_id, name, class, health, max_health, mana, max_mana, xp, level, inventory_json, attributes_json, abilities_json, progression_notes, baseline_json)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         campaignId, profileId, character.name, character.class,
         character.health, character.max_health, character.mana, character.max_mana,
         character.xp, character.level,
         JSON.stringify(character.inventory), JSON.stringify(character.attributes),
-        JSON.stringify(character.abilities), character.progression_notes || ''
+        JSON.stringify(character.abilities), character.progression_notes || '',
+        characterBaselineJson(character)
       ]
     );
     newCharacterId = characterResult.id;
@@ -2288,14 +2306,15 @@ export async function importCampaign(rawBundle) {
         profileId = profileResult.id;
       }
       const characterResult = await db.run(
-        `INSERT INTO characters (campaign_id, player_character_id, name, class, health, max_health, mana, max_mana, xp, level, inventory_json, attributes_json, abilities_json, progression_notes, status)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO characters (campaign_id, player_character_id, name, class, health, max_health, mana, max_mana, xp, level, inventory_json, attributes_json, abilities_json, progression_notes, status, baseline_json)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           newCampaignId, profileId, character.name, character.class,
           character.health, character.max_health, character.mana, character.max_mana,
           character.xp, character.level,
           JSON.stringify(character.inventory), JSON.stringify(character.attributes),
-          JSON.stringify(character.abilities), character.progression_notes, character.status
+          JSON.stringify(character.abilities), character.progression_notes, character.status,
+          characterBaselineJson(character)
         ]
       );
       if (character.source_id !== null) characterIdMap.set(character.source_id, characterResult.id);
@@ -2401,21 +2420,26 @@ export async function forkCampaign(campaignId, turnNumber, newTitle) {
   // C. Reconstruct per-character state and NPC states up to turnNumber
   const forkCharacters = new Map();
   for (const row of sourceParty) {
+    // Seed from the member's arrival snapshot (review fix): a joiner who
+    // arrived at level 5 replays from level 5, not from a fresh sheet.
+    // Legacy rows without a baseline keep the old starter seed.
+    const baseline = parseJsonObject(row.baseline_json, null);
     forkCharacters.set(row.id, {
       sourceId: row.id,
       sourceProfileId: row.player_character_id,
+      baselineJson: row.baseline_json || null,
       name: row.name,
       class: row.class,
-      health: 100,
-      max_health: 100,
-      mana: 50,
-      max_mana: 50,
-      xp: 0,
-      level: 1,
-      inventory: createStarterInventory(),
+      health: baseline?.health ?? 100,
+      max_health: baseline?.max_health ?? 100,
+      mana: baseline?.mana ?? 50,
+      max_mana: baseline?.max_mana ?? 50,
+      xp: baseline?.xp ?? 0,
+      level: baseline?.level ?? 1,
+      inventory: Array.isArray(baseline?.inventory) ? baseline.inventory : createStarterInventory(),
       attributes: JSON.parse(row.attributes_json),
-      abilities: [],
-      progression_notes: ''
+      abilities: Array.isArray(baseline?.abilities) ? baseline.abilities : [],
+      progression_notes: baseline?.progression_notes || ''
     });
   }
   const firstSourceId = sourceParty[0].id;
@@ -2535,8 +2559,8 @@ export async function forkCampaign(campaignId, turnNumber, newTitle) {
       if (!newPlayerCharacterId) newPlayerCharacterId = profileResult.id;
 
       const characterResult = await db.run(
-        `INSERT INTO characters (campaign_id, player_character_id, name, class, health, max_health, mana, max_mana, xp, level, inventory_json, attributes_json, abilities_json, progression_notes)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO characters (campaign_id, player_character_id, name, class, health, max_health, mana, max_mana, xp, level, inventory_json, attributes_json, abilities_json, progression_notes, baseline_json)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           newCampaignId,
           profileResult.id,
@@ -2551,7 +2575,8 @@ export async function forkCampaign(campaignId, turnNumber, newTitle) {
           JSON.stringify(forked.inventory),
           JSON.stringify(forked.attributes),
           JSON.stringify(forked.abilities),
-          forked.progression_notes || ''
+          forked.progression_notes || '',
+          forked.baselineJson
         ]
       );
       characterIdMap.set(forked.sourceId, characterResult.id);
