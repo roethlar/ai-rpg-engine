@@ -280,10 +280,17 @@ app.post('/api/admin/settings', async (req, res) => {
 // List all campaigns
 app.get('/api/campaigns', async (req, res) => {
   try {
+    // One row per campaign (M1 made characters 1:N): the card shows the
+    // active party as a name list; the first active member's profile link
+    // keeps the release-character button working as before.
     const campaigns = await db.all(
-      `SELECT campaigns.*, characters.name AS character_name, characters.player_character_id
+      `SELECT campaigns.*,
+              (SELECT group_concat(c2.name, ', ') FROM characters c2
+                WHERE c2.campaign_id = campaigns.id AND COALESCE(c2.status, 'active') = 'active') AS character_name,
+              (SELECT c3.player_character_id FROM characters c3
+                WHERE c3.campaign_id = campaigns.id AND COALESCE(c3.status, 'active') = 'active'
+                ORDER BY c3.id ASC LIMIT 1) AS player_character_id
        FROM campaigns
-       LEFT JOIN characters ON characters.campaign_id = campaigns.id
        ORDER BY campaigns.created_at DESC`
     );
     res.json(campaigns);
