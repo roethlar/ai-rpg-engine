@@ -652,6 +652,45 @@ async function testTtsProviderSeam() {
 }
 
 // -------------------------------------------------------------
+// Test: agent-generated genre theming (Phase T1)
+// -------------------------------------------------------------
+async function testThemeGeneration() {
+  console.log(' - Running agent-generated theming tests...');
+  const { validateOutlineData, THEME_FONT_OPTIONS } = await import('./rpg-state.js');
+  const { getOutlineSystemInstruction } = await import('./rpg-prompts.js');
+
+  const outline = validateOutlineData({
+    title: 'T', setting: 'S',
+    theme_colors: { primary: '320, 100%, 55%', background: '275, 45%, 60%', text: '180, 100%, 30%', text_dim: '320, 30%, 70%' },
+    theme_fonts: { title: 'orbitron', body: 'Comic Sans MS', dialogue: 'Cormorant Garamond' }
+  });
+  assert.strictEqual(outline.theme_colors.background, '275, 45%, 30%', 'Backgrounds are clamped dark');
+  assert.strictEqual(outline.theme_colors.text, '180, 100%, 60%', 'Generated text is clamped readable');
+  assert.strictEqual(outline.theme_colors.text_dim, '320, 30%, 70%');
+  assert.strictEqual(outline.theme_fonts.title, 'Orbitron', 'Pool matching is case-insensitive');
+  assert.strictEqual(outline.theme_fonts.body, 'Inter', 'Off-pool fonts fall back to the slot default');
+  assert.strictEqual(outline.theme_fonts.dialogue, 'Cormorant Garamond');
+
+  // Pre-theming outlines keep their legacy shape so old campaigns render unchanged
+  const legacy = validateOutlineData({ title: 'Old', theme_colors: { primary: '210, 100%, 50%' } });
+  assert.strictEqual(legacy.theme_colors.text, undefined, 'No generated text slot → legacy shape (client keeps preset behavior)');
+  assert.deepStrictEqual(legacy.theme_fonts, { title: 'Outfit', body: 'Inter', dialogue: 'Playfair Display' }, 'Base pairing injected for pre-theming outlines');
+
+  const junk = validateOutlineData({ theme_colors: { primary: 'red', text: 'not-hsl' } });
+  assert.strictEqual(junk.theme_colors.primary, '210, 100%, 50%', 'Unparseable colors fall back to defaults');
+  assert.strictEqual(junk.theme_colors.text, '210, 20%, 95%', 'Unparseable generated text falls back bright');
+
+  // The Setup prompt requests the theme and constrains fonts to the pool
+  const prompt = getOutlineSystemInstruction('Cyberpunk Noir');
+  assert.strictEqual(prompt.includes('Cyberpunk Noir'), true);
+  assert.strictEqual(prompt.includes('"theme_fonts"'), true, 'Outline schema requests a font pairing');
+  assert.strictEqual(prompt.includes('"text_dim"'), true, 'Outline schema requests text colors');
+  for (const slot of Object.keys(THEME_FONT_OPTIONS)) {
+    assert.strictEqual(prompt.includes(THEME_FONT_OPTIONS[slot].join(' | ')), true, `Prompt lists the ${slot} font pool`);
+  }
+}
+
+// -------------------------------------------------------------
 // Test: image provider seam + identity anchors (Phase V1)
 // -------------------------------------------------------------
 async function testImageProviderSeam() {
@@ -936,6 +975,7 @@ async function runAll() {
     testRefereeDiceFlow();
     testResolveAgentConfig();
     await testRulesetCanon();
+    await testThemeGeneration();
     await testVoiceScript();
     await testTtsProviderSeam();
     await testImageProviderSeam();

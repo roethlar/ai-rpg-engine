@@ -15,7 +15,7 @@ import {
   TABLE_TALK_KINDS
 } from './rpg-state.js';
 import { assignNpcVoiceProfile } from './tts-providers.js';
-import { getGMSystemInstruction } from './rpg-prompts.js';
+import { getGMSystemInstruction, getOutlineSystemInstruction } from './rpg-prompts.js';
 
 // Export these so index/test scripts still have direct access
 export { parseJsonSafe, createFallbackSvg };
@@ -617,40 +617,9 @@ export async function createCampaign({
   const resolvedCharacterName = sourceProfile ? sourceProfile.name : characterName;
   const resolvedCharacterArchetype = sourceProfile ? sourceProfile.archetype : (characterClass || 'Unformed protagonist');
 
-  const outlineSystem = `You are a legendary RPG game designer and Game Master.
-Your job is to draft a coherent, epic 2-4 hour single-player campaign outline for the genre: "${genre}".
-You MUST return a JSON object ONLY matching this schema, with no additional text:
-{
-  "title": "Campaign Title",
-  "setting": "Detailed description of the setting and its atmosphere",
-  "theme_colors": {
-     "primary": "HSL color (e.g. '210, 100%, 50%')",
-     "secondary": "HSL color (e.g. '330, 100%, 50%')",
-     "background": "HSL color for deep dark backgrounds (e.g. '220, 30%, 8%')"
-  },
-  "acts": [
-    { "act": 1, "title": "Act I Name", "objective": "Act I core objective", "key_events": ["event 1", "event 2"] },
-    { "act": 2, "title": "Act II Name", "objective": "Act II core objective", "key_events": ["event 1", "event 2", "event 3"] },
-    { "act": 3, "title": "Act III Name", "objective": "Act III core objective (Climax and Resolution)", "key_events": ["event 1", "event 2"] }
-  ],
-  "major_locations": [
-    { "name": "Location Name", "description": "Atmospheric details" }
-  ],
-  "key_npcs": [
-    { 
-      "name": "NPC Name", 
-      "role": "Their role in the plot (e.g., local blacksmith, rebel spy)", 
-      "personality": "Fleshed-out persistent personality traits, values, and flaws", 
-      "quirks": "Speech patterns, dialogue habits, physical ticks, or obsessions" 
-    }
-  ],
-  "starting_quest": {
-    "title": "Starting Quest Name",
-    "description": "Initial task for the player"
-  }
-}`;
+  const outlineSystem = getOutlineSystemInstruction(genre);
 
-  const outlinePrompt = `Draft an epic, highly coherent RPG campaign structure for the genre: "${genre}". Provide 3 to 5 key NPCs with highly distinct, fleshed-out personalities and memorable quirks. Specify rich HSL theme colors appropriate for the genre. Ensure the outline maps out a complete 2-4 hour questline.`;
+  const outlinePrompt = `Draft an epic, highly coherent RPG campaign structure for the genre: "${genre}". Provide 3 to 5 key NPCs with highly distinct, fleshed-out personalities and memorable quirks. Specify rich HSL theme colors and a font pairing that match the genre's atmosphere. Ensure the outline maps out a complete 2-4 hour questline.`;
 
   console.log(`Generating campaign outline for genre: ${genre}...`);
   const outlineResponse = await client.sendPrompt({
@@ -888,6 +857,7 @@ Output the JSON object containing the opening narrative, scene_grounding, sugges
     genre,
     setting: outline.setting,
     themeColors: outline.theme_colors,
+    themeFonts: outline.theme_fonts,
     rulesMode: !!rulesModeInt,
     ruleset: rulesetData,
     character: {
@@ -1188,6 +1158,7 @@ Output the JSON object containing the narrative response, scene_grounding, sugge
     genre: campaign.genre,
     setting: campaign.summary,
     themeColors: outline.theme_colors,
+    themeFonts: outline.theme_fonts,
     character,
     npcs: updatedNpcs,
     outline,
@@ -1274,6 +1245,7 @@ export async function getCampaignState(campaignId) {
     genre: campaign.genre,
     setting: campaign.summary,
     themeColors: outline.theme_colors,
+    themeFonts: outline.theme_fonts,
     rulesMode: !!campaign.rules_mode,
     ruleset: validateRulesetData(parseJsonObject(campaign.ruleset_json, null)),
     character,

@@ -1,6 +1,57 @@
 /**
  * RPG Prompt Compilation Submodule
  */
+import { THEME_FONT_OPTIONS } from './rpg-state.js';
+
+/**
+ * System Instruction Compiler for the campaign-outline Setup call.
+ * Phase T1 (decision 2026-07-03): the outline carries the campaign's full
+ * visual theme — colors and a font pairing from the bundled pool — generated
+ * by the agent, not picked from curated templates.
+ */
+export function getOutlineSystemInstruction(genre) {
+  return `You are a legendary RPG game designer and Game Master.
+Your job is to draft a coherent, epic 2-4 hour single-player campaign outline for the genre: "${genre}".
+You MUST return a JSON object ONLY matching this schema, with no additional text:
+{
+  "title": "Campaign Title",
+  "setting": "Detailed description of the setting and its atmosphere",
+  "theme_colors": {
+     "primary": "HSL color (e.g. '210, 100%, 50%')",
+     "secondary": "HSL color (e.g. '330, 100%, 50%')",
+     "background": "HSL color for deep dark backgrounds (e.g. '220, 30%, 8%')",
+     "text": "HSL for primary reading text — bright and readable on that dark background (e.g. '40, 30%, 92%')",
+     "text_dim": "HSL for muted secondary text (e.g. '35, 10%, 65%')"
+  },
+  "theme_fonts": {
+     "title": "One of: ${THEME_FONT_OPTIONS.title.join(' | ')}",
+     "body": "One of: ${THEME_FONT_OPTIONS.body.join(' | ')}",
+     "dialogue": "One of: ${THEME_FONT_OPTIONS.dialogue.join(' | ')}"
+  },
+  "acts": [
+    { "act": 1, "title": "Act I Name", "objective": "Act I core objective", "key_events": ["event 1", "event 2"] },
+    { "act": 2, "title": "Act II Name", "objective": "Act II core objective", "key_events": ["event 1", "event 2", "event 3"] },
+    { "act": 3, "title": "Act III Name", "objective": "Act III core objective (Climax and Resolution)", "key_events": ["event 1", "event 2"] }
+  ],
+  "major_locations": [
+    { "name": "Location Name", "description": "Atmospheric details" }
+  ],
+  "key_npcs": [
+    {
+      "name": "NPC Name",
+      "role": "Their role in the plot (e.g., local blacksmith, rebel spy)",
+      "personality": "Fleshed-out persistent personality traits, values, and flaws",
+      "quirks": "Speech patterns, dialogue habits, physical ticks, or obsessions"
+    }
+  ],
+  "starting_quest": {
+    "title": "Starting Quest Name",
+    "description": "Initial task for the player"
+  }
+}
+
+The visual theme is part of the atmosphere: choose colors and a font pairing whose character evokes this genre (angular tech sans for cyberpunk, carved serifs for high fantasy, typewriter for noir). Body text must stay effortlessly readable, and fonts must come from the given lists only.`;
+}
 
 /**
  * System Instruction Compiler for the Game Master LLM.

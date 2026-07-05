@@ -761,9 +761,9 @@ function renderGame(gameState, resetNarrative = false, options = {}) {
   // Apply layout diagnostics toggle
   applyLayoutMode();
 
-  // Apply genre HSL colors dynamically
+  // Apply genre theme dynamically (colors + generated font pairing)
   if (gameState.themeColors) {
-    applyCampaignTheme(gameState.genre, gameState.themeColors);
+    applyCampaignTheme(gameState.genre, gameState.themeColors, gameState.themeFonts);
   }
 
   // Update Quest Details (Sanitized)
@@ -941,13 +941,62 @@ async function narrateGmResponse(turn) {
   }
 }
 
+// Font stacks for agent-generated pairings (Phase T1). Families must match
+// the Google Fonts loaded in index.html and the server-side pool in
+// rpg-state.js THEME_FONT_OPTIONS; anything else is ignored.
+const THEME_FONT_STACKS = {
+  'Outfit': "'Outfit', 'Inter', sans-serif",
+  'Inter': "'Inter', sans-serif",
+  'Rajdhani': "'Rajdhani', 'Inter', sans-serif",
+  'Orbitron': "'Orbitron', 'Outfit', sans-serif",
+  'Cinzel': "'Cinzel', serif",
+  'Playfair Display': "'Playfair Display', serif",
+  'Cormorant Garamond': "'Cormorant Garamond', serif",
+  'Lora': "'Lora', serif",
+  'Special Elite': "'Special Elite', serif"
+};
+const THEME_FONT_SLOT_DEFAULTS = { title: 'Outfit', body: 'Inter', dialogue: 'Playfair Display' };
+const THEME_VAR_NAMES = ['--theme-primary', '--theme-secondary', '--theme-bg', '--theme-panel', '--theme-border', '--theme-text', '--theme-text-dim', '--theme-glow'];
+
 // Generate HSL styles and apply class theme
-function applyCampaignTheme(genre, colors) {
+function applyCampaignTheme(genre, colors, fonts) {
   document.body.className = '';
-  
+  // A previously loaded full-theme campaign may have left body-level variable
+  // overrides behind; clear them so this campaign starts from a clean slate.
+  THEME_VAR_NAMES.forEach(name => document.body.style.removeProperty(name));
+
   const primary = (typeof colors?.primary === 'string') ? colors.primary.trim() : '210, 100%, 50%';
   const secondary = (typeof colors?.secondary === 'string') ? colors.secondary.trim() : '330, 100%, 50%';
   const background = (typeof colors?.background === 'string') ? colors.background.trim() : '220, 30%, 8%';
+
+  // Font pairing (Phase T1): generated at setup, validated server-side.
+  // Preset classes never set fonts, so root-level values apply cleanly.
+  for (const [slot, fallback] of Object.entries(THEME_FONT_SLOT_DEFAULTS)) {
+    const family = THEME_FONT_STACKS[fonts?.[slot]] ? fonts[slot] : fallback;
+    document.documentElement.style.setProperty(`--font-${slot}`, THEME_FONT_STACKS[family]);
+  }
+
+  // A generated text slot marks a full agent-generated theme (decision
+  // 2026-07-03: generated theming beats curated presets). Apply it at body
+  // level — where the preset classes define their variables — so it wins,
+  // and skip the genre keyword matching entirely.
+  if (typeof colors?.text === 'string') {
+    const set = (name, value) => document.body.style.setProperty(name, value);
+    set('--theme-primary', primary);
+    set('--theme-secondary', secondary);
+    set('--theme-bg', background);
+    set('--theme-text', colors.text.trim());
+    if (typeof colors.text_dim === 'string') set('--theme-text-dim', colors.text_dim.trim());
+    set('--theme-glow', `${primary}, 0.18`);
+    const bgParts = background.match(/\d+/g);
+    if (bgParts && bgParts.length >= 3) {
+      const l = Math.min(95, parseInt(bgParts[2]) + 4);
+      set('--theme-panel', `${bgParts[0]}, ${bgParts[1]}%, ${l}%`);
+      set('--theme-border', `${bgParts[0]}, ${bgParts[1]}%, ${l + 8}%`);
+    }
+    document.body.classList.add('theme-default');
+    return;
+  }
 
   document.documentElement.style.setProperty('--theme-primary', primary);
   document.documentElement.style.setProperty('--theme-secondary', secondary);
