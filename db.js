@@ -237,10 +237,13 @@ export async function initDb() {
 
   // Backfill reusable character profiles for campaigns created before the
   // player_characters table existed. Existing campaigns are treated as active.
+  // Released members (M3) intentionally have a NULL profile link and must
+  // never be resurrected as fresh checked-out profiles here.
   const orphanCharacterRows = await all(`
     SELECT *
     FROM characters
     WHERE player_character_id IS NULL
+      AND COALESCE(status, 'active') = 'active'
   `);
 
   for (const character of orphanCharacterRows) {
