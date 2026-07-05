@@ -22,3 +22,6 @@ desktop/src-tauri/gen/
 # OS files
 .DS_Store
 Thumbs.db
+
+# Machine-local harness state
+.claude/settings.local.json

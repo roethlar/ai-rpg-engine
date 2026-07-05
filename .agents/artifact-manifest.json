@@ -1,12 +1,12 @@
 {
   "validated_against": {
-    "commit": "f3d528d9eac9bd975bfa058ab62533c81d60da55",
-    "date": "2026-07-02"
+    "commit": "6c372c00f028f7910a9c92f061dbbb4cc2089cc9",
+    "date": "2026-07-05"
   },
   "artifacts": [
     {
       "path": "AGENTS.md",
-      "purpose": "Canonical agent guidance: toolkit template verbatim (templateVersion 2026-07-02.1) with Prime Invariants, universal invariants, operators, verification and git-safety rules; replaced whole on governance refresh, never hand-edited",
+      "purpose": "Canonical agent guidance: toolkit template verbatim (templateVersion 2026-07-04.1) with Prime Invariants, universal invariants, operators, verification and git-safety rules; replaced whole on governance refresh, never hand-edited",
       "custody": "tracked"
     },
     {
@@ -40,8 +40,23 @@
       "custody": "tracked"
     },
     {
+      "path": ".agents/playbooks/reviewloop.md",
+      "purpose": "Approved durable workflow: two-agent review loop, invoked via the 'playbook' operator (toolkit playbook, installed by the 2026-07-05 governance refresh)",
+      "custody": "tracked"
+    },
+    {
+      "path": ".agents/hooks.json",
+      "purpose": "agy harness re-ground hook: prints a pointer to AGENTS.md Prime Invariants after context compaction (inert until the harness trusts the workspace)",
+      "custody": "tracked"
+    },
+    {
       "path": "CLAUDE.md",
       "purpose": "Thin root shim pointing Claude-family harnesses at AGENTS.md (canonical lives in AGENTS.md)",
+      "custody": "tracked"
+    },
+    {
+      "path": "GEMINI.md",
+      "purpose": "Thin root shim pointing Gemini-family harnesses at AGENTS.md (canonical lives in AGENTS.md)",
       "custody": "tracked"
     },
     {
@@ -87,6 +102,21 @@
     {
       "path": ".claude/agents-md-tripwire.py",
       "purpose": "Stdlib-Python script for the advisory AGENTS.md pre-edit tripwire hook (emits a governance-boundary reminder; never blocks edits)",
+      "custody": "tracked"
+    },
+    {
+      "path": ".codex/hooks.json",
+      "purpose": "Codex harness hooks: re-ground pointer to AGENTS.md Prime Invariants plus the advisory AGENTS.md pre-edit tripwire (inert until the harness trusts the workspace)",
+      "custody": "tracked"
+    },
+    {
+      "path": ".codex/agents-md-tripwire.py",
+      "purpose": "Stdlib-Python tripwire script for the Codex harness, byte-identical to .claude/agents-md-tripwire.py",
+      "custody": "tracked"
+    },
+    {
+      "path": ".grok/hooks/reground.json",
+      "purpose": "Grok harness re-ground hook: prints a pointer to AGENTS.md Prime Invariants after context compaction (inert until the harness trusts the workspace)",
       "custody": "tracked"
     }
   ]
