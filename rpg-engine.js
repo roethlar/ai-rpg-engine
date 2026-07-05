@@ -1287,6 +1287,10 @@ Output the JSON object containing the narrative response, scene_grounding, sugge
     turnData.memory_keywords = '';
     turnData.dice_rolls = [];
     turnData.location_update = null;
+    // The heroic pipeline keys off this signal; a table-talk turn must not
+    // trigger a render or move the heroic pointer any more than it may move
+    // the location pointer above.
+    turnData.focal_subject = null;
   }
 
   // Dice results are referee-adjudicated and engine-rolled inside the Council pipeline;
