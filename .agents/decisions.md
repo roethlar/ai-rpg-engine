@@ -406,9 +406,39 @@ Supersedes:
 The open artifact-format question in the plan.md portability topic; other
 open questions there (ownership locks, cross-instance auth) remain future.
 
-### 2026-07-04 - Multiplayer v1 shape: shared token, round-robin turns, in-app-later chat
+### 2026-07-05 - Multiplayer means multi-USER: per-seat credentials, server-side character binding, scoped visibility
 
 Status: Active
+
+Decision:
+"Multiplayer" requires distinct users, each able to act only as — and see
+only — their own character. Mechanism (owner requirement 2026-07-05, design
+surfaced and approved in chat): (1) per-seat invite tokens minted by the
+host, stored hashed, revocable — the smallest credential that makes users
+distinct; accounts/passwords remain future. (2) The characterId request
+parameter is removed; the server derives the speaking character from the
+seat credential. ACCESS_SECRET becomes the HOST credential with full view
+and authority. (3) Seat-scoped payloads: own sheet full; partymates as
+name/class/level/HP silhouette; no outline, no NPC personalities/notes, no
+memories — the shared narrative/scene/map/heroic remain table-public.
+(4) Meta-actions (delete, fork, export/import, releasing others, table-style
+dials) are host-only, enforcing the 2026-06-11 owner-channels decision.
+(5) Campaigns with no seats minted behave exactly as before (solo/dev).
+
+Reason:
+Owner 2026-07-05: the shared-token v1 "isn't multi-player, it's
+multi-character... we need two distinct users, each with access only to
+their character, able to respond only for their character." Per-user access
+control is intrinsic to the word multiplayer, not an optional later layer.
+
+Supersedes:
+The "shared ACCESS_SECRET, per-player auth stays future" half of the
+2026-07-04 multiplayer-v1 decision below. Its turn-order, round-robin, and
+in-app-chat-later parts stand.
+
+### 2026-07-04 - Multiplayer v1 shape: shared token, round-robin turns, in-app-later chat
+
+Status: Superseded (in part — see 2026-07-05 multi-user decision above)
 
 Decision:
 The first multiplayer cut (Phase 3) is deliberately minimal: players share

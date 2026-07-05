@@ -335,6 +335,55 @@ bundle, export first, forward importability is the hard requirement)
 - Files: server.js, rpg-engine.js (bundle build/restore), rpg-state.js,
   test.js.
 
+## Phase S: Seats — multi-user access control (promoted 2026-07-05, owner requirement)
+
+Multiplayer means multi-USER (decision 2026-07-05): two distinct users, each
+able to act only as, and see only, their own character. Design surfaced to
+the owner in chat and not objected to. Supersedes the shared-token identity
+model everywhere a seat exists; solo/dev campaigns (no seats) are unchanged.
+
+**S1 — Seats + server-side binding (the security floor)**
+- `seats` table: campaign_id, character_id (unique), token_hash, label,
+  created/revoked timestamps. Host mints a seat token per character (route +
+  UI on the party strip / campaign card); token shown once; revocable.
+- Request authentication: seat token accepted via the same Authorization
+  header; resolves to (campaign, character). ACCESS_SECRET remains the host
+  credential (full authority). A seat may only call play routes on its own
+  campaign; `characterId` is REMOVED from the turn API — the speaking
+  character derives from the seat; host requests keep an explicit
+  characterId for solo/hosted play.
+- Meta-actions host-only: create/delete/fork/export/import campaigns,
+  release others' characters, table-style changes, seat mint/revoke.
+- Success: with two seats, seat A physically cannot act as B (no parameter
+  exists), cannot call meta routes (403), and a revoked seat is dead; solo
+  campaigns and every existing test behave unchanged; suite + live smoke.
+
+**S2 — Seat-scoped visibility**
+- Per-viewer state payloads: seats get their own character in full;
+  partymates as silhouette (name, class, level, HP); shared surfaces
+  (narrative, scene grounding, map, heroic, suggested choices) unchanged;
+  NO outline acts, NO NPC personalities/relationship notes/Codex, NO
+  memories, NO ruleset? — ruleset is player-viewable canon (2026-07-03
+  decision): seats keep the Rules sheet, lose the dials (host-only).
+  Journal for seats: turn narratives only, no memory records.
+- MCP endpoint stays host-credential-only.
+- Frontend: seat sessions hide host-only UI (dials, fork buttons, codex/
+  outline panels) and render silhouettes.
+- Success: a seat's raw API responses contain no outline/NPC-notes/memory
+  strings (asserted by test where pure, by live smoke otherwise); host view
+  unchanged; suite green.
+
+**S3 — Join & invite flow rewire**
+- Host flow: "mint seat" per character (existing or newly created at join);
+  join-by-invite replaces open join: POST join requires either host
+  credential (creates character + seat, returns token once) or a seat token.
+  Player UI: paste seat token → bound character loads automatically (no
+  claim/click flow, no localStorage identity — the tombstone machinery from
+  cr-1 becomes host-mode-only or is removed where superseded).
+- README hosting section updated to the seat flow.
+- Success: two browsers with two seat tokens each control exactly their own
+  character end-to-end; the party-strip claim UI is gone for seat sessions.
+
 ## Non-Goals (for now)
 - Real-time simultaneous multiplayer
 - Full combat grid / tactical combat system
