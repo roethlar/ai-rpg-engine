@@ -2219,7 +2219,8 @@ export async function exportCampaign(campaignId) {
       turn_number: row.turn_number,
       importance: row.importance,
       summary: row.summary,
-      keywords: row.keywords
+      keywords: row.keywords,
+      created_at: row.created_at
     })),
     turns: turnRows.map(row => ({
       turn_number: row.turn_number,
@@ -2227,7 +2228,8 @@ export async function exportCampaign(campaignId) {
       player_action: row.player_action,
       narrative: row.narrative,
       state_changes_json: row.state_changes_json,
-      svg_illustration: row.svg_illustration
+      svg_illustration: row.svg_illustration,
+      created_at: row.created_at
     })),
     pointers: {
       current_location_key: currentLocationRow ? currentLocationRow.key : null,
@@ -2323,18 +2325,19 @@ export async function importCampaign(rawBundle) {
 
     for (const memory of bundle.memories) {
       await db.run(
-        `INSERT INTO memories (campaign_id, turn_number, importance, summary, keywords) VALUES (?, ?, ?, ?, ?)`,
-        [newCampaignId, memory.turn_number, memory.importance, memory.summary, memory.keywords]
+        `INSERT INTO memories (campaign_id, turn_number, importance, summary, keywords, created_at)
+         VALUES (?, ?, ?, ?, ?, COALESCE(?, CURRENT_TIMESTAMP))`,
+        [newCampaignId, memory.turn_number, memory.importance, memory.summary, memory.keywords, memory.created_at]
       );
     }
 
     for (const turn of bundle.turns) {
       await db.run(
-        `INSERT INTO turns (campaign_id, turn_number, character_id, player_action, narrative, state_changes_json, svg_illustration)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO turns (campaign_id, turn_number, character_id, player_action, narrative, state_changes_json, svg_illustration, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, COALESCE(?, CURRENT_TIMESTAMP))`,
         [newCampaignId, turn.turn_number,
          characterIdMap.get(turn.source_character_id) ?? null,
-         turn.player_action, turn.narrative, turn.state_changes_json, turn.svg_illustration]
+         turn.player_action, turn.narrative, turn.state_changes_json, turn.svg_illustration, turn.created_at]
       );
     }
 

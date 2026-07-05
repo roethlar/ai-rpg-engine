@@ -907,7 +907,8 @@ export function validateCampaignBundle(raw) {
       turn_number: Number.isInteger(row.turn_number) ? row.turn_number : null,
       importance: bundleInt(row.importance, 3, 1, 5),
       summary,
-      keywords: cleanText(row.keywords, 500)
+      keywords: cleanText(row.keywords, 500),
+      created_at: cleanText(row.created_at, 40) || null
     };
   }).filter(Boolean);
 
@@ -941,7 +942,8 @@ export function validateCampaignBundle(raw) {
       player_action: cleanText(row.player_action, 5000) || null,
       narrative,
       state_changes_json: stateChanges,
-      svg_illustration: svg
+      svg_illustration: svg,
+      created_at: cleanText(row.created_at, 40) || null
     };
   }).filter(Boolean).sort((a, b) => a.turn_number - b.turn_number);
   if (turns.length === 0) {
