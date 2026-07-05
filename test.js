@@ -965,6 +965,23 @@ async function testTableStyle() {
   const forced = forceNoOpTurnState({ encounter: 'gm_initiated' }, { campaign: { current_act: 1 }, active_quest: { title: 'Q', description: 'D' } }, 'dialogue');
   assert.strictEqual(forced.encounter, 'none', 'forceNoOpTurnState clears the encounter report');
 
+  // Cadence history counts RESOLVED world turns only (cr-3): denied and
+  // needs-clarification attempts keep committed_action but must not widen
+  // the window; pre-flag records (no action_resolved) count as resolved.
+  const { buildEncounterHistory } = await import('./rpg-state.js');
+  const rows = [
+    { state_changes_json: JSON.stringify({ input_kind: 'committed_action', action_resolved: true, encounter: 'gm_initiated' }) },
+    { state_changes_json: JSON.stringify({ input_kind: 'clarification', encounter: 'none' }) },
+    { state_changes_json: JSON.stringify({ input_kind: 'committed_action', action_resolved: false, encounter: 'none' }) },
+    { state_changes_json: JSON.stringify({ input_kind: 'committed_action', action_resolved: false, encounter: 'none' }) },
+    { state_changes_json: JSON.stringify({ input_kind: 'committed_action', action_resolved: true, encounter: 'none' }) },
+    { state_changes_json: 'not json' },
+    { state_changes_json: JSON.stringify({ input_kind: 'committed_action', encounter: 'none' }) } // legacy, counts
+  ];
+  const history = buildEncounterHistory(rows);
+  assert.deepStrictEqual(history, ['gm_initiated', 'none', 'none'], 'Only resolved world turns enter the window');
+  assert.strictEqual(computeEncounterCadence(history), 2, 'Denied attempts do not inflate the cadence');
+
   // Cadence: turns since the last GM-initiated encounter
   assert.strictEqual(computeEncounterCadence(['none', 'gm_initiated', 'none', 'none']), 2);
   assert.strictEqual(computeEncounterCadence(['player_sought', 'none']), null, 'Player-sought danger never counts against the GM');
