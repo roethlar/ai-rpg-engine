@@ -981,13 +981,19 @@ function myCharacterKey(campaignId) {
 // the only member of a solo campaign, then a fresh join.
 function resolveMyCharacter(gameState) {
   const party = gameState.party || [];
-  const stored = Number(localStorage.getItem(myCharacterKey(currentCampaignId)));
-  let mine = party.find(c => c.id === stored) || null;
+  const storedRaw = localStorage.getItem(myCharacterKey(currentCampaignId));
+  let mine = storedRaw ? party.find(c => c.id === Number(storedRaw)) || null : null;
   if (!mine && gameState.joinedCharacterId) {
     mine = party.find(c => c.id === gameState.joinedCharacterId) || null;
   }
-  if (!mine && party.length === 1) mine = party[0];
-  if (!mine && gameState.character?.id && party.length <= 1) mine = gameState.character;
+  // Auto-claim the sole member only when this browser never claimed anyone:
+  // if OUR character left the party, the remaining member belongs to another
+  // player — never silently take over their character.
+  if (!mine && !storedRaw && party.length === 1) mine = party[0];
+  if (!mine && !storedRaw && gameState.character?.id && party.length <= 1) mine = gameState.character;
+  if (!mine && storedRaw) {
+    localStorage.removeItem(myCharacterKey(currentCampaignId));
+  }
   myCharacterId = mine ? mine.id : null;
   if (mine) localStorage.setItem(myCharacterKey(currentCampaignId), String(mine.id));
   return mine;
