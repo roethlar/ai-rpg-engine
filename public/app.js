@@ -413,6 +413,7 @@ function setupEventListeners() {
     appendPlayerAction(actionText);
 
     setActionInputState(false);
+    turnSubmitInFlight = true;
 
     try {
       const response = await fetchWithTimeout(`/api/campaigns/${currentCampaignId}/turn`, {
@@ -442,6 +443,7 @@ function setupEventListeners() {
         openSettingsModal();
       }
     } finally {
+      turnSubmitInFlight = false;
       setActionInputState(true);
     }
   });
@@ -1050,10 +1052,14 @@ function displayedCharacter(gameState) {
 // shared narrative without reloading. Runs for ANY loaded campaign — the
 // founding browser must discover joiners, and its own lastGameState only
 // changes when someone else acts (a stale party-size gate would never open).
+let turnSubmitInFlight = false;
 setInterval(async () => {
   if (!currentCampaignId || document.hidden || !lastGameState) return;
+  // Never race an in-flight submit: the submit's own render owns that turn.
+  if (turnSubmitInFlight) return;
   try {
     const response = await fetchWithTimeout(`/api/campaigns/${currentCampaignId}`, {}, 15000);
+    if (turnSubmitInFlight) return; // submit started while we were fetching
     if (!response.ok) return;
     const state = await response.json();
     if (state.turn?.number !== lastRenderedTurnNumber) {
