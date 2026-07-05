@@ -1046,12 +1046,12 @@ function displayedCharacter(gameState) {
   return party.find(c => c.id === myCharacterId) || gameState.character;
 }
 
-// Shared-table freshness (v1): while another character is acting, poll for
-// new turns so every browser sees the shared narrative without reloading.
+// Shared-table freshness (v1): poll for new turns so every browser sees the
+// shared narrative without reloading. Runs for ANY loaded campaign — the
+// founding browser must discover joiners, and its own lastGameState only
+// changes when someone else acts (a stale party-size gate would never open).
 setInterval(async () => {
   if (!currentCampaignId || document.hidden || !lastGameState) return;
-  const party = lastGameState.party || [];
-  if (party.length <= 1) return;
   try {
     const response = await fetchWithTimeout(`/api/campaigns/${currentCampaignId}`, {}, 15000);
     if (!response.ok) return;
