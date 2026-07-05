@@ -1614,6 +1614,8 @@ Output the JSON object containing the narrative response, scene_grounding, sugge
     // trigger a render or move the heroic pointer any more than it may move
     // the location pointer above.
     turnData.focal_subject = null;
+    // Pacing state is recorded from committed actions only.
+    turnData.encounter = 'none';
   }
 
   // Dice results are referee-adjudicated and engine-rolled inside the Council pipeline;
