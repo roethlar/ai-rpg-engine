@@ -210,6 +210,10 @@ export function validateTurnData(raw, currentAct = 1) {
   // record — which forks and later turns replay — stays well-formed.
   validated.location_update = data.location_update ? validateLocationUpdate(data.location_update) : null;
 
+  // 5f. Focal-subject signal (Phase V3): engine-stamped from the Referee,
+  // consumed by the heroic stickiness rules. State, not presentation.
+  validated.focal_subject = data.focal_subject ? validateFocalSubject(data.focal_subject) : null;
+
   // 5d. Voice script (Phase 2): speaker+tone-tagged segments mirroring the
   // narrative, emitted at generation time so dialogue attribution comes from
   // the narrator, not post-hoc parsing. Presentation data, not game state —
@@ -308,9 +312,10 @@ export function validateTurnData(raw, currentAct = 1) {
     validated.memory_keywords = '';
     validated.dice_rolls = [];
     validated.roll_result = null;
-    // Location state never mutates on table talk (the display path is
-    // separate: the engine still returns the current stored location).
+    // Location and heroic state never mutate on table talk (the display path
+    // is separate: the engine still returns the current stored state).
     validated.location_update = null;
+    validated.focal_subject = null;
   }
 
   return validated;
@@ -346,6 +351,7 @@ export function forceNoOpTurnState(finalData, turnContext, inputKind) {
   finalData.memory_keywords = '';
   finalData.dice_rolls = [];
   finalData.location_update = null;
+  finalData.focal_subject = null;
   return finalData;
 }
 
@@ -472,6 +478,47 @@ export function validateLocationUpdate(raw) {
     occupancy: validateLocationOccupancy(data.occupancy),
     generated_layout: data.generated_layout ? validateLocationLayout(data.generated_layout) : null
   };
+}
+
+/**
+ * Engine-owned current_heroic (Phase V3, owner direction 2026-06-13): the
+ * heroic visual persists until the game moves past it. The Referee emits a
+ * small focal-subject signal through the gate; the engine holds the pointer
+ * and applies stickiness — the model never "remembers" what is displayed.
+ */
+const FOCAL_KINDS = ['location', 'npc'];
+
+/**
+ * Validates the Referee's focal-subject signal. "none"/invalid → null (keep
+ * the current visual), which is the expected answer on most turns.
+ */
+export function validateFocalSubject(raw) {
+  const data = raw && typeof raw === 'object' ? raw : {};
+  if (!FOCAL_KINDS.includes(data.kind)) return null;
+  const name = cleanText(data.name, 120);
+  if (!name) return null;
+  return { kind: data.kind, name, reason: cleanText(data.reason, 200) };
+}
+
+/**
+ * Engine-side stickiness for the heroic pointer. Returns the new subject
+ * { kind, key } when the visual should change, or null to keep the current
+ * one. Rules (owner direction 2026-06-13): entering a new location always
+ * retargets; an NPC taking prominence retargets unless it is already the
+ * subject or the last swap was too recent (thrash guard).
+ */
+export function resolveHeroicSubject({ current, focal, locationChanged, locationKey, turnNumber, minInterval = 2 }) {
+  if (locationChanged && locationKey) {
+    if (current && current.subject_kind === 'location' && current.subject_key === locationKey) return null;
+    return { kind: 'location', key: locationKey };
+  }
+  if (!focal) return null;
+  const key = focal.kind === 'location' ? String(focal.name).trim().toLowerCase() : focal.name;
+  if (current && current.subject_kind === focal.kind && current.subject_key === key) return null;
+  if (current && typeof current.generated_turn === 'number' && turnNumber - current.generated_turn < minInterval) {
+    return null;
+  }
+  return { kind: focal.kind, key };
 }
 
 /**

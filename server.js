@@ -1,5 +1,6 @@
 import express from 'express';
 import path from 'path';
+import fs from 'fs';
 import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
@@ -439,6 +440,36 @@ app.post('/api/campaigns/:id/release-character', async (req, res) => {
     }
     await queueCampaignTask(campaignId, () => rpg.releaseCampaignCharacters(campaignId, { detachCampaign: true }));
     res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Generated renders (Phase V3): served from the campaign_images index under
+// the authenticated /api/campaigns mount. Renders are immutable once written.
+app.get('/api/campaigns/:id/images/:imageId', async (req, res) => {
+  try {
+    const campaignId = Number(req.params.id);
+    const imageId = Number(req.params.imageId);
+    if (!Number.isInteger(campaignId) || !Number.isInteger(imageId)) {
+      return res.status(400).json({ error: 'Invalid image reference.' });
+    }
+    const row = await db.get(
+      `SELECT * FROM campaign_images WHERE id = ? AND campaign_id = ?`,
+      [imageId, campaignId]
+    );
+    if (!row) {
+      return res.status(404).json({ error: 'Image not found.' });
+    }
+    // file_path is stored relative to data/; resolve and confine it there.
+    const dataDir = path.resolve(__dirname, 'data');
+    const filePath = path.resolve(dataDir, row.file_path);
+    if (!filePath.startsWith(dataDir + path.sep) || !fs.existsSync(filePath)) {
+      return res.status(404).json({ error: 'Image data unavailable.' });
+    }
+    res.setHeader('Content-Type', row.mime_type || 'image/png');
+    res.setHeader('Cache-Control', 'private, max-age=31536000, immutable');
+    res.send(fs.readFileSync(filePath));
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

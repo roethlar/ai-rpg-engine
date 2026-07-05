@@ -758,6 +758,76 @@ async function testStructuredLocations() {
 }
 
 // -------------------------------------------------------------
+// Test: engine-owned current_heroic — focal signal + stickiness (Phase V3)
+// -------------------------------------------------------------
+async function testHeroicPointer() {
+  console.log(' - Running current_heroic stickiness tests...');
+  const {
+    validateFocalSubject, resolveHeroicSubject,
+    validateTurnData: validate, forceNoOpTurnState: forceNoOp
+  } = await import('./rpg-state.js');
+
+  // Signal validation: none/invalid → null (keep current visual)
+  assert.deepStrictEqual(
+    validateFocalSubject({ kind: 'npc', name: ' Kessler ', reason: 'combat' }),
+    { kind: 'npc', name: 'Kessler', reason: 'combat' }
+  );
+  assert.strictEqual(validateFocalSubject({ kind: 'none', name: 'X' }), null, '"none" keeps the current visual');
+  assert.strictEqual(validateFocalSubject({ kind: 'npc', name: '' }), null, 'No name → no signal');
+  assert.strictEqual(validateFocalSubject(null), null);
+
+  // Stickiness rules (owner direction 2026-06-13)
+  const current = { subject_kind: 'location', subject_key: 'the drowned bar', image_id: 1, generated_turn: 5 };
+
+  // Entering a new location always retargets — even one turn later
+  assert.deepStrictEqual(
+    resolveHeroicSubject({ current, focal: null, locationChanged: true, locationKey: 'the reef road', turnNumber: 6 }),
+    { kind: 'location', key: 'the reef road' }
+  );
+  // ...unless the "new" location is already the subject
+  assert.strictEqual(
+    resolveHeroicSubject({ current, focal: null, locationChanged: true, locationKey: 'the drowned bar', turnNumber: 6 }),
+    null
+  );
+  // NPC prominence retargets after the thrash interval
+  assert.deepStrictEqual(
+    resolveHeroicSubject({ current, focal: { kind: 'npc', name: 'Kessler' }, locationChanged: false, locationKey: 'the drowned bar', turnNumber: 9 }),
+    { kind: 'npc', key: 'Kessler' }
+  );
+  // ...but not immediately after the last swap (thrash guard)
+  assert.strictEqual(
+    resolveHeroicSubject({ current, focal: { kind: 'npc', name: 'Kessler' }, locationChanged: false, locationKey: 'the drowned bar', turnNumber: 6 }),
+    null,
+    'Too soon after the last swap → keep'
+  );
+  // Same subject again → keep (no re-render churn)
+  assert.strictEqual(
+    resolveHeroicSubject({
+      current: { subject_kind: 'npc', subject_key: 'Kessler', generated_turn: 2 },
+      focal: { kind: 'npc', name: 'Kessler' }, locationChanged: false, locationKey: null, turnNumber: 9
+    }),
+    null
+  );
+  // No signal, no move → keep; first-ever heroic needs no interval
+  assert.strictEqual(resolveHeroicSubject({ current, focal: null, locationChanged: false, locationKey: null, turnNumber: 20 }), null);
+  assert.deepStrictEqual(
+    resolveHeroicSubject({ current: null, focal: { kind: 'npc', name: 'Kessler' }, locationChanged: false, locationKey: null, turnNumber: 2 }),
+    { kind: 'npc', key: 'Kessler' }
+  );
+
+  // Both no-op layers wipe the focal signal (state, not presentation)
+  const clarified = validate({ input_kind: 'clarification', narrative: 'A.', focal_subject: { kind: 'npc', name: 'Kessler' } }, 1);
+  assert.strictEqual(clarified.focal_subject, null, 'Clarification net wipes the focal signal');
+  const acted = validate({ input_kind: 'committed_action', narrative: 'A.', focal_subject: { kind: 'npc', name: 'Kessler' } }, 1);
+  assert.strictEqual(acted.focal_subject.name, 'Kessler', 'Committed actions keep the signal');
+  const turnContext = { campaign: { current_act: 1 }, active_quest: { title: 'Q', description: 'D' } };
+  for (const kind of TABLE_TALK_KINDS) {
+    const forced = forceNoOp({ focal_subject: { kind: 'npc', name: 'X' } }, turnContext, kind);
+    assert.strictEqual(forced.focal_subject, null, `forceNoOpTurnState clears the focal signal on ${kind}`);
+  }
+}
+
+// -------------------------------------------------------------
 // Test: agent-generated genre theming (Phase T1)
 // -------------------------------------------------------------
 async function testThemeGeneration() {
@@ -1082,6 +1152,7 @@ async function runAll() {
     testResolveAgentConfig();
     await testRulesetCanon();
     await testStructuredLocations();
+    await testHeroicPointer();
     await testThemeGeneration();
     await testVoiceScript();
     await testTtsProviderSeam();

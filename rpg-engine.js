@@ -1,5 +1,8 @@
 import * as db from './db.js';
 import { AIClient, resolveAgentConfig } from './api-client.js';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import {
   parseJsonSafe,
   createFallbackSvg,
@@ -15,10 +18,16 @@ import {
   validateLocationLayout,
   validateLocationOccupancy,
   validateLocationUpdate,
+  validateFocalSubject,
+  resolveHeroicSubject,
   LOCATION_CANVAS,
   TABLE_TALK_KINDS
 } from './rpg-state.js';
 import { renderLocationMap } from './map-render.js';
+import { generateImage, validateIdentityAnchor } from './image-providers.js';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const imagesDir = path.join(__dirname, 'data', 'images');
 import { assignNpcVoiceProfile } from './tts-providers.js';
 import { getGMSystemInstruction, getOutlineSystemInstruction } from './rpg-prompts.js';
 
@@ -205,6 +214,81 @@ function buildLocationView(location, positional = false) {
     layout: location.layout,
     occupancy: location.occupancy,
     mapSvg: renderLocationMap(location.layout, location.occupancy)
+  };
+}
+
+/**
+ * Heroic render pipeline (Phase V3): given the engine's stickiness decision,
+ * compose the prompt (identity anchor + current mutable state), call the
+ * image seam, and hand back everything the turn transaction needs to commit.
+ * Any failure returns null — the previous heroic persists and the turn is
+ * never killed by image generation.
+ */
+async function generateHeroicRender({ apiConfig, campaignId, subject, npcs, locationName, locationDescription, outline, genre, currentTurnNumber }) {
+  let prompt;
+  let anchor;
+  let npcRow = null;
+
+  if (subject.kind === 'npc') {
+    npcRow = npcs.find(npc => npc.name.toLowerCase() === subject.key.toLowerCase());
+    if (!npcRow) return null;
+    anchor = validateIdentityAnchor(parseJsonObject(npcRow.anchor_json, null));
+    if (!anchor.descriptor) {
+      // First render: commit the identity descriptor as visual canon so every
+      // later render of this NPC is conditioned on the same identity, even if
+      // the NPC's mutable notes drift.
+      anchor.descriptor = `${npcRow.name} — ${npcRow.role || 'a notable figure'}. Personality: ${npcRow.personality || 'unknown'}. Habits: ${npcRow.quirks || 'none recorded'}.`.slice(0, 800);
+    }
+    prompt = `Cinematic heroic portrait for a ${genre} tabletop RPG: ${npcRow.name}, ${npcRow.role || 'a notable figure'}. Backdrop: ${locationDescription || locationName || outline.setting}. Atmospheric dramatic lighting, painterly, high detail, no text, no UI elements.`;
+  } else {
+    const description = locationDescription || outline.setting;
+    anchor = validateIdentityAnchor({ descriptor: `${locationName}: ${description}`.slice(0, 800) });
+    prompt = `Cinematic establishing shot of ${locationName} — ${description}. Genre: ${genre}. Atmospheric, painterly, dramatic lighting, no text, no characters in close focus.`;
+  }
+
+  try {
+    const render = await generateImage({
+      provider: apiConfig.imageProvider,
+      apiKey: apiConfig.imageApiKey,
+      model: apiConfig.imageModel,
+      endpoint: apiConfig.imageEndpoint,
+      prompt,
+      identityAnchor: anchor,
+      width: 1216,
+      height: 704
+    });
+
+    const relPath = path.join('images', `campaign-${campaignId}`, `heroic-t${currentTurnNumber}.png`);
+    const absPath = path.join(__dirname, 'data', relPath);
+    fs.mkdirSync(path.dirname(absPath), { recursive: true });
+    fs.writeFileSync(absPath, render.image);
+    console.log(`[HEROIC] Rendered ${subject.kind} "${subject.key}" via ${apiConfig.imageProvider} (turn ${currentTurnNumber}).`);
+
+    return {
+      subjectKind: subject.kind,
+      subjectKey: subject.kind === 'npc' ? npcRow.name : subject.key,
+      npcId: npcRow ? npcRow.id : null,
+      relPath,
+      mimeType: render.mimeType,
+      // Persist the anchor with the seed that actually produced this render.
+      anchor: { descriptor: anchor.descriptor, seed: render.seed ?? anchor.seed }
+    };
+  } catch (error) {
+    console.warn(`[HEROIC] Render failed (${error.message}); keeping the previous heroic.`);
+    return null;
+  }
+}
+
+/**
+ * The player-facing heroic view from the engine-owned pointer.
+ */
+function buildHeroicView(campaignId, heroicPointer) {
+  if (!heroicPointer || !heroicPointer.image_id) return null;
+  return {
+    imageUrl: `/api/campaigns/${campaignId}/images/${heroicPointer.image_id}`,
+    subjectKind: heroicPointer.subject_kind,
+    subjectKey: heroicPointer.subject_key,
+    generatedTurn: heroicPointer.generated_turn
   };
 }
 
@@ -513,6 +597,10 @@ The engine keeps a persistent structured record per location (layout + occupancy
 - "location.positional": true only when position materially matters this turn (combat, stealth, a chase, climbing, ranged positioning). Most turns are false.
 - "location.occupancy": everyone and everything notable present there after the action — always include the player character. kind is player|npc|creature|object; "area" uses the area ids from the current location record when known.
 
+=== FOCAL SUBJECT (persistent heroic visual) ===
+The engine keeps one persistent "heroic" visual of the current focal subject; it changes rarely and the engine enforces stickiness.
+- "focal_subject": who or what deserves the table's visual focus after this action. kind "npc" only when an NPC takes real prominence (an extended conversation, a combat confrontation, a dramatic reveal — use their EXACT name). kind "location" when the place itself is the moment. kind "none" on ordinary turns — most turns are "none" and the current visual persists.
+
 Return JSON matching:
 {
   "referee_status": "approved|denied|needs_clarification",
@@ -525,6 +613,7 @@ Return JSON matching:
       { "name": "Name", "kind": "player|npc|creature|object", "area": "area id", "note": "brief state note" }
     ]
   },
+  "focal_subject": { "kind": "location|npc|none", "name": "", "reason": "" },
   "required_checks": [
     {
       "attribute": "strength|agility|intellect|willpower",
@@ -556,6 +645,7 @@ For clarification, denial, or needs_clarification, approved_state_policy must be
     input_kind: interactionProposal.input_kind || 'clarification',
     ruling: 'Unable to parse referee decision.',
     location: null,
+    focal_subject: null,
     required_checks: [],
     approved_state_policy: 'none',
     allowed_character_update: { health_change: 0, mana_change: 0, xp_gain: 0, inventory_changes: [] },
@@ -694,8 +784,11 @@ Produce the final canonical JSON response now. The player must experience one co
     const finalData = parseJsonSafe(finalRaw);
     // The engine's roll records are canonical; whatever the narrator emitted is discarded.
     finalData.dice_rolls = diceRolls;
-    // Same for the location signal: referee-emitted, engine-stamped.
+    // Same for the location and focal signals: referee-emitted, engine-stamped.
     finalData.location_update = locationUpdate;
+    finalData.focal_subject = refereeDecision.referee_status === 'approved' && refereeDecision.input_kind === 'committed_action'
+      ? validateFocalSubject(refereeDecision.focal_subject)
+      : null;
     const noStateChange = continuityFinal.final_status !== 'approved' ||
       TABLE_TALK_KINDS.includes(continuityFinal.final_input_kind) ||
       continuityFinal.state_change_policy === 'none' ||
@@ -1023,9 +1116,10 @@ Output the JSON object containing the opening narrative, scene_grounding, sugges
       rollResults: [],
       voiceLines: buildVoiceScript(turnData.narration_lines, finalNpcList),
       inputKind: turnData.input_kind || 'dialogue',
-      // Structured locations begin with the first committed action (the
-      // referee's gated signal); the opening scene has none yet.
-      location: null
+      // Structured locations and heroics begin with the first committed
+      // action (the referee's gated signals); the opening scene has none yet.
+      location: null,
+      heroic: null
     }
   };
 }
@@ -1219,6 +1313,44 @@ Output the JSON object containing the narrative response, scene_grounding, sugge
   // current one; a gated location_update may move or refresh it below.
   let activeLocation = currentLocation;
 
+  // Heroic pipeline (Phase V3): engine-owned pointer + stickiness. Generation
+  // is synchronous within the turn (whole round ready before send, owner
+  // direction 2026-06-13) but only runs when an image provider is configured;
+  // otherwise the feature is inert and the SVG visualizer path is untouched.
+  let currentHeroic = parseJsonObject(campaign.current_heroic_json, null);
+  let heroicRender = null;
+  if (apiConfig?.imageProvider) {
+    const targetLocationName = turnData.location_update?.name || currentLocation?.name || null;
+    const targetKey = targetLocationName ? locationKey(targetLocationName) : null;
+    const locationChanged = !!(turnData.location_update && (!currentLocation || locationKey(currentLocation.name) !== targetKey));
+    const subject = resolveHeroicSubject({
+      current: currentHeroic,
+      focal: turnData.focal_subject,
+      locationChanged,
+      locationKey: targetKey,
+      turnNumber: currentTurnNumber
+    });
+    if (subject) {
+      // Location identity comes from the stored/generated record, not vibes.
+      let locationDescription = turnData.location_update?.generated_layout?.description || '';
+      if (!locationDescription && targetKey) {
+        const row = await db.get(`SELECT description FROM locations WHERE campaign_id = ? AND key = ?`, [campaignId, targetKey]);
+        locationDescription = row?.description || '';
+      }
+      heroicRender = await generateHeroicRender({
+        apiConfig,
+        campaignId,
+        subject,
+        npcs,
+        locationName: targetLocationName,
+        locationDescription,
+        outline,
+        genre: campaign.genre,
+        currentTurnNumber
+      });
+    }
+  }
+
   await db.withWriteTransaction(async () => {
     // A. Check unique constraint race conditions
     const checkTurnExists = await db.get(
@@ -1313,6 +1445,31 @@ Output the JSON object containing the narrative response, scene_grounding, sugge
       }
     }
 
+    // D3. Commit the heroic render (Phase V3): image index row, the
+    // engine-owned pointer, and the subject's identity anchor (visual canon).
+    if (heroicRender) {
+      const imageInsert = await db.run(
+        `INSERT INTO campaign_images (campaign_id, kind, subject_key, file_path, mime_type, created_turn)
+         VALUES (?, 'heroic', ?, ?, ?, ?)`,
+        [campaignId, heroicRender.subjectKey, heroicRender.relPath, heroicRender.mimeType, currentTurnNumber]
+      );
+      currentHeroic = {
+        subject_kind: heroicRender.subjectKind,
+        subject_key: heroicRender.subjectKind === 'location' ? locationKey(heroicRender.subjectKey) : heroicRender.subjectKey,
+        image_id: imageInsert.id,
+        generated_turn: currentTurnNumber
+      };
+      await db.run(`UPDATE campaigns SET current_heroic_json = ? WHERE id = ?`, [JSON.stringify(currentHeroic), campaignId]);
+      if (heroicRender.subjectKind === 'npc' && heroicRender.npcId) {
+        await db.run(`UPDATE npcs SET anchor_json = ? WHERE id = ?`, [JSON.stringify(heroicRender.anchor), heroicRender.npcId]);
+      } else if (heroicRender.subjectKind === 'location') {
+        await db.run(
+          `UPDATE locations SET anchor_json = ? WHERE campaign_id = ? AND key = ?`,
+          [JSON.stringify(heroicRender.anchor), campaignId, currentHeroic.subject_key]
+        );
+      }
+    }
+
     // E. Save turn
     await db.run(
       `INSERT INTO turns (campaign_id, turn_number, player_action, narrative, state_changes_json, svg_illustration)
@@ -1365,7 +1522,8 @@ Output the JSON object containing the narrative response, scene_grounding, sugge
       suggestedChoices: turnData.suggested_choices || [],
       rollResults: diceRolls,
       voiceLines: buildVoiceScript(turnData.narration_lines, updatedNpcs),
-      location: buildLocationView(activeLocation, turnData.location_update?.positional)
+      location: buildLocationView(activeLocation, turnData.location_update?.positional),
+      heroic: buildHeroicView(campaignId, currentHeroic)
     }
   };
 }
@@ -1453,7 +1611,8 @@ export async function getCampaignState(campaignId) {
       svg: lastTurn ? lastTurn.svg_illustration : createFallbackSvg(campaign.title),
       suggestedChoices,
       rollResults,
-      location: buildLocationView(currentLocation, lastTurnData?.location_update?.positional)
+      location: buildLocationView(currentLocation, lastTurnData?.location_update?.positional),
+      heroic: buildHeroicView(campaignId, parseJsonObject(campaign.current_heroic_json, null))
     }
   };
 }

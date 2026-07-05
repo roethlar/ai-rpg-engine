@@ -338,6 +338,44 @@ export async function initDb() {
     // Ignore error if column already exists
   }
 
+  // Engine-owned current_heroic pointer (Phase V3): which subject the heroic
+  // visual shows, which render backs it, and when it last changed.
+  try {
+    await run('ALTER TABLE campaigns ADD COLUMN current_heroic_json TEXT;');
+  } catch (e) {
+    // Ignore error if column already exists
+  }
+
+  // Visual identity anchor per NPC (Phase V3): descriptor + seed recorded at
+  // first render so the same NPC renders as the same person (the visual
+  // analog of the sticky voice profile below).
+  try {
+    await run('ALTER TABLE npcs ADD COLUMN anchor_json TEXT;');
+  } catch (e) {
+    // Ignore error if column already exists
+  }
+
+  // Generated renders (Phase V3): bytes live on disk under data/images/
+  // (gitignored); this table is the authoritative index the authenticated
+  // image route serves from.
+  await run(`
+    CREATE TABLE IF NOT EXISTS campaign_images (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      campaign_id INTEGER NOT NULL,
+      kind TEXT DEFAULT 'heroic',
+      subject_key TEXT,
+      file_path TEXT NOT NULL,
+      mime_type TEXT DEFAULT 'image/png',
+      created_turn INTEGER,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (campaign_id) REFERENCES campaigns(id) ON DELETE CASCADE
+    )
+  `);
+
+  await run(`
+    CREATE INDEX IF NOT EXISTS idx_campaign_images_campaign ON campaign_images (campaign_id)
+  `);
+
   // Voice identity as recorded state (Phase 2 groundwork, decision context in
   // plan.md "Voice of the Council"): stable voice profiles for the GM narrator
   // (per campaign) and each NPC — the audio analog of canon commitment.
