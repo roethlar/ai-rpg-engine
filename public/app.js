@@ -469,6 +469,13 @@ function renderRules(ruleset, tableStyle) {
   }
   tabRulesBtn.style.display = 'block';
   const rulesContainer = document.getElementById('rules-container');
+  // Re-render only when the underlying state changed: every renderGame call
+  // hits this, and rebuilding unconditionally would reset the dial selects
+  // while the player is choosing (or right after Apply, before the next
+  // turn carries the new values back).
+  const signature = JSON.stringify({ ruleset, tableStyle });
+  if (rulesContainer.dataset.signature === signature) return;
+  rulesContainer.dataset.signature = signature;
   const abilities = ruleset ? (ruleset.abilities || []).map(a => `
     <div class="rules-ability">
       <div class="rules-ability-head"><strong>${escapeHtml(a.name)}</strong><span class="rules-cost">${escapeHtml(a.cost)}</span></div>
