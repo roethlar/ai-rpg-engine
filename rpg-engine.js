@@ -142,6 +142,59 @@ async function getPlayerCharacter(profileId) {
   return db.get(`SELECT * FROM player_characters WHERE id = ?`, [profileId]);
 }
 
+/**
+ * Phase 3 M1: a campaign holds a party. Rows hydrate to the engine's
+ * character shape (now carrying id + initiative); the acting character is
+ * selected by the caller (v1 turn order in M2; first member for legacy
+ * single-character flows).
+ */
+function hydrateCharacterRow(row) {
+  return {
+    id: row.id,
+    name: row.name,
+    class: row.class,
+    health: row.health,
+    max_health: row.max_health,
+    mana: row.mana,
+    max_mana: row.max_mana,
+    xp: row.xp,
+    level: row.level,
+    initiative: row.initiative ?? null,
+    inventory: parseJsonArray(row.inventory_json),
+    attributes: parseJsonObject(row.attributes_json),
+    abilities: parseJsonArray(row.abilities_json),
+    progression_notes: row.progression_notes || '',
+    player_character_id: row.player_character_id
+  };
+}
+
+async function loadParty(campaignId) {
+  const rows = await db.all(
+    `SELECT * FROM characters WHERE campaign_id = ? ORDER BY id ASC`,
+    [campaignId]
+  );
+  return rows.map(hydrateCharacterRow);
+}
+
+async function saveCharacterState(character) {
+  await db.run(
+    `UPDATE characters SET health = ?, max_health = ?, mana = ?, max_mana = ?, xp = ?, level = ?,
+     inventory_json = ?, abilities_json = ?, progression_notes = ? WHERE id = ?`,
+    [
+      character.health,
+      character.max_health,
+      character.mana,
+      character.max_mana,
+      character.xp,
+      character.level,
+      JSON.stringify(character.inventory),
+      JSON.stringify(character.abilities),
+      character.progression_notes || '',
+      character.id
+    ]
+  );
+}
+
 async function syncPlayerCharacter(profileId, campaignId, character, status = 'checked_out') {
   if (!profileId) return;
   await db.run(
@@ -1148,23 +1201,12 @@ export async function takeTurn(campaignId, playerAction, apiConfig) {
   if (!outlineRow) throw new Error(`Campaign outline not found for campaign ${campaignId}.`);
   const outline = validateOutlineData(JSON.parse(outlineRow.outline_json));
 
-  const characterRow = await db.get(`SELECT * FROM characters WHERE campaign_id = ?`, [campaignId]);
-  if (!characterRow) throw new Error(`Character not found for campaign ${campaignId}.`);
-  const character = {
-    name: characterRow.name,
-    class: characterRow.class,
-    health: characterRow.health,
-    max_health: characterRow.max_health,
-    mana: characterRow.mana,
-    max_mana: characterRow.max_mana,
-    xp: characterRow.xp,
-    level: characterRow.level,
-    inventory: JSON.parse(characterRow.inventory_json),
-    attributes: JSON.parse(characterRow.attributes_json),
-    abilities: parseJsonArray(characterRow.abilities_json),
-    progression_notes: characterRow.progression_notes || '',
-    player_character_id: characterRow.player_character_id
-  };
+  // Phase 3 M1: campaigns hold a party. The acting character is the first
+  // member for now; M2 selects it from the turn order and the submitting
+  // character id.
+  const party = await loadParty(campaignId);
+  if (party.length === 0) throw new Error(`Character not found for campaign ${campaignId}.`);
+  const character = party[0];
 
   const npcs = await db.all(`SELECT * FROM npcs WHERE campaign_id = ?`, [campaignId]);
 
@@ -1399,22 +1441,8 @@ Output the JSON object containing the narrative response, scene_grounding, sugge
       throw new Error(`Turn ${currentTurnNumber} has already been written. Transaction aborted.`);
     }
 
-    // B. Save character updates
-    await db.run(
-      `UPDATE characters SET health = ?, max_health = ?, mana = ?, max_mana = ?, xp = ?, level = ?, inventory_json = ?, abilities_json = ?, progression_notes = ? WHERE campaign_id = ?`,
-      [
-        character.health,
-        character.max_health,
-        character.mana,
-        character.max_mana,
-        character.xp,
-        character.level,
-        JSON.stringify(character.inventory),
-        JSON.stringify(character.abilities),
-        character.progression_notes || '',
-        campaignId
-      ]
-    );
+    // B. Save the acting character's updates (by character id — party-safe)
+    await saveCharacterState(character);
     await syncPlayerCharacter(character.player_character_id, campaignId, character);
 
     // C. Save campaign progress (current act)
@@ -1508,11 +1536,11 @@ Output the JSON object containing the narrative response, scene_grounding, sugge
       }
     }
 
-    // E. Save turn
+    // E. Save turn (character_id records who acted — Phase 3 M1)
     await db.run(
-      `INSERT INTO turns (campaign_id, turn_number, player_action, narrative, state_changes_json, svg_illustration)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      [campaignId, currentTurnNumber, playerAction, turnData.narrative, JSON.stringify(turnData), svg]
+      `INSERT INTO turns (campaign_id, turn_number, character_id, player_action, narrative, state_changes_json, svg_illustration)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [campaignId, currentTurnNumber, character.id, playerAction, turnData.narrative, JSON.stringify(turnData), svg]
     );
 
     // F. Save memories with dynamic importance
@@ -1544,6 +1572,7 @@ Output the JSON object containing the narrative response, scene_grounding, sugge
     themeColors: outline.theme_colors,
     themeFonts: outline.theme_fonts,
     character,
+    party,
     npcs: updatedNpcs,
     outline,
     currentQuest: turnData.quest_update || { active_quest: activeQuestName, quest_description: activeQuestDesc },
@@ -1574,23 +1603,9 @@ export async function getCampaignState(campaignId) {
   if (!outlineRow) throw new Error(`Campaign outline not found for campaign ${campaignId}.`);
   const outline = validateOutlineData(JSON.parse(outlineRow.outline_json));
 
-  const characterRow = await db.get(`SELECT * FROM characters WHERE campaign_id = ?`, [campaignId]);
-  if (!characterRow) throw new Error(`Character not found for campaign ${campaignId}.`);
-  const character = {
-    name: characterRow.name,
-    class: characterRow.class,
-    health: characterRow.health,
-    max_health: characterRow.max_health,
-    mana: characterRow.mana,
-    max_mana: characterRow.max_mana,
-    xp: characterRow.xp,
-    level: characterRow.level,
-    inventory: JSON.parse(characterRow.inventory_json),
-    attributes: JSON.parse(characterRow.attributes_json),
-    abilities: parseJsonArray(characterRow.abilities_json),
-    progression_notes: characterRow.progression_notes || '',
-    player_character_id: characterRow.player_character_id
-  };
+  const party = await loadParty(campaignId);
+  if (party.length === 0) throw new Error(`Character not found for campaign ${campaignId}.`);
+  const character = party[0];
 
   const npcs = await db.all(`SELECT * FROM npcs WHERE campaign_id = ?`, [campaignId]);
 
@@ -1636,6 +1651,7 @@ export async function getCampaignState(campaignId) {
     rulesMode: !!campaign.rules_mode,
     ruleset: validateRulesetData(parseJsonObject(campaign.ruleset_json, null)),
     character,
+    party,
     npcs,
     outline,
     currentQuest: { active_quest: activeQuestName, quest_description: activeQuestDesc },
@@ -1717,10 +1733,14 @@ export async function forkCampaign(campaignId, turnNumber, newTitle) {
   if (!outlineRow) throw new Error(`Campaign outline not found for campaign ${campaignId}.`);
   const outline = validateOutlineData(JSON.parse(outlineRow.outline_json));
 
-  const characterRow = await db.get(`SELECT * FROM characters WHERE campaign_id = ?`, [campaignId]);
-  if (!characterRow) throw new Error(`Character not found for campaign ${campaignId}.`);
-  const characterArchetype = characterRow.class;
-  const characterName = characterRow.name;
+  // Phase 3 M1: fork the whole party. Each member's state is reconstructed
+  // by replaying the turns THEY acted in (turns.character_id; legacy turns
+  // with no character_id belong to the first member).
+  const sourceParty = await db.all(
+    `SELECT * FROM characters WHERE campaign_id = ? ORDER BY id ASC`,
+    [campaignId]
+  );
+  if (sourceParty.length === 0) throw new Error(`Character not found for campaign ${campaignId}.`);
 
   // B. Fetch all turns up to turnNumber
   const turns = await db.all(
@@ -1729,24 +1749,27 @@ export async function forkCampaign(campaignId, turnNumber, newTitle) {
   );
   if (turns.length === 0) throw new Error(`No turns found up to turn ${turnNumber}.`);
 
-  // C. Reconstruct character state and NPC states up to turnNumber
-  const attributes = JSON.parse(characterRow.attributes_json);
-  const inventory = createStarterInventory();
-
-  const character = {
-    name: characterName,
-    class: characterArchetype,
-    health: 100,
-    max_health: 100,
-    mana: 50,
-    max_mana: 50,
-    xp: 0,
-    level: 1,
-    inventory,
-    attributes,
-    abilities: [],
-    progression_notes: ''
-  };
+  // C. Reconstruct per-character state and NPC states up to turnNumber
+  const forkCharacters = new Map();
+  for (const row of sourceParty) {
+    forkCharacters.set(row.id, {
+      sourceId: row.id,
+      sourceProfileId: row.player_character_id,
+      name: row.name,
+      class: row.class,
+      health: 100,
+      max_health: 100,
+      mana: 50,
+      max_mana: 50,
+      xp: 0,
+      level: 1,
+      inventory: createStarterInventory(),
+      attributes: JSON.parse(row.attributes_json),
+      abilities: [],
+      progression_notes: ''
+    });
+  }
+  const firstSourceId = sourceParty[0].id;
 
   const npcs = (outline.key_npcs || []).map((npc, idx) => ({
     name: npc.name,
@@ -1782,7 +1805,8 @@ export async function forkCampaign(campaignId, turnNumber, newTitle) {
       });
     }
 
-    // Replay the turn's character update (health/mana/XP/level-up/inventory)
+    // Replay the turn's character update against whoever acted that turn
+    const character = forkCharacters.get(turn.character_id) || forkCharacters.get(firstSourceId);
     applyCharacterUpdate(character, turnData.character_update);
 
     // Applying failed roll penalty if turn is not the first one and a failed roll is logged in state changes
@@ -1826,58 +1850,63 @@ export async function forkCampaign(campaignId, turnNumber, newTitle) {
     );
     newCampaignId = campaignResult.id;
 
-    const profileResult = await db.run(
-      `INSERT INTO player_characters (
-        name, archetype, status, active_campaign_id, origin_campaign_id, copied_from_character_id,
-        health, max_health, mana, max_mana, xp, level, inventory_json, attributes_json, abilities_json, progression_notes
-      ) VALUES (?, ?, 'checked_out', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        character.name,
-        character.class,
-        newCampaignId,
-        newCampaignId,
-        characterRow.player_character_id || null,
-        character.health,
-        character.max_health,
-        character.mana,
-        character.max_mana,
-        character.xp,
-        character.level,
-        JSON.stringify(character.inventory),
-        JSON.stringify(character.attributes),
-        JSON.stringify(character.abilities),
-        character.progression_notes || ''
-      ]
-    );
-    newPlayerCharacterId = profileResult.id;
-
     // Outline
     await db.run(
       `INSERT INTO campaign_outlines (campaign_id, outline_json) VALUES (?, ?)`,
       [newCampaignId, JSON.stringify(outline)]
     );
 
-    // Character
-    await db.run(
-      `INSERT INTO characters (campaign_id, player_character_id, name, class, health, max_health, mana, max_mana, xp, level, inventory_json, attributes_json, abilities_json, progression_notes)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        newCampaignId,
-        newPlayerCharacterId,
-        character.name,
-        character.class,
-        character.health,
-        character.max_health,
-        character.mana,
-        character.max_mana,
-        character.xp,
-        character.level,
-        JSON.stringify(character.inventory),
-        JSON.stringify(character.attributes),
-        JSON.stringify(character.abilities),
-        character.progression_notes || ''
-      ]
-    );
+    // Characters: every party member forks with a fresh profile branch;
+    // source ids map to new ids so copied turns stay attributed.
+    const characterIdMap = new Map();
+    for (const forked of forkCharacters.values()) {
+      const profileResult = await db.run(
+        `INSERT INTO player_characters (
+          name, archetype, status, active_campaign_id, origin_campaign_id, copied_from_character_id,
+          health, max_health, mana, max_mana, xp, level, inventory_json, attributes_json, abilities_json, progression_notes
+        ) VALUES (?, ?, 'checked_out', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          forked.name,
+          forked.class,
+          newCampaignId,
+          newCampaignId,
+          forked.sourceProfileId || null,
+          forked.health,
+          forked.max_health,
+          forked.mana,
+          forked.max_mana,
+          forked.xp,
+          forked.level,
+          JSON.stringify(forked.inventory),
+          JSON.stringify(forked.attributes),
+          JSON.stringify(forked.abilities),
+          forked.progression_notes || ''
+        ]
+      );
+      if (!newPlayerCharacterId) newPlayerCharacterId = profileResult.id;
+
+      const characterResult = await db.run(
+        `INSERT INTO characters (campaign_id, player_character_id, name, class, health, max_health, mana, max_mana, xp, level, inventory_json, attributes_json, abilities_json, progression_notes)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          newCampaignId,
+          profileResult.id,
+          forked.name,
+          forked.class,
+          forked.health,
+          forked.max_health,
+          forked.mana,
+          forked.max_mana,
+          forked.xp,
+          forked.level,
+          JSON.stringify(forked.inventory),
+          JSON.stringify(forked.attributes),
+          JSON.stringify(forked.abilities),
+          forked.progression_notes || ''
+        ]
+      );
+      characterIdMap.set(forked.sourceId, characterResult.id);
+    }
 
     // NPCs
     for (const [npcIndex, npc] of npcs.entries()) {
@@ -1915,12 +1944,14 @@ export async function forkCampaign(campaignId, turnNumber, newTitle) {
       }
     }
 
-    // Copy Turns up to turnNumber
+    // Copy Turns up to turnNumber (acting-character ids remapped to the
+    // forked party; legacy/opening turns keep null)
     for (const turn of turns) {
       await db.run(
-        `INSERT INTO turns (campaign_id, turn_number, player_action, narrative, state_changes_json, svg_illustration, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
-        [newCampaignId, turn.turn_number, turn.player_action, turn.narrative, turn.state_changes_json, turn.svg_illustration, turn.created_at]
+        `INSERT INTO turns (campaign_id, turn_number, character_id, player_action, narrative, state_changes_json, svg_illustration, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [newCampaignId, turn.turn_number, characterIdMap.get(turn.character_id) ?? null,
+         turn.player_action, turn.narrative, turn.state_changes_json, turn.svg_illustration, turn.created_at]
       );
     }
 

@@ -712,11 +712,13 @@ async function handleToolCall(toolName, args) {
       }
 
       case 'get_character_state': {
-        const row = await db.get(`SELECT * FROM characters WHERE campaign_id = ?`, [args.campaign_id]);
-        if (!row) {
+        // Phase 3 M1: campaigns hold a party; report every member.
+        const rows = await db.all(`SELECT * FROM characters WHERE campaign_id = ? ORDER BY id ASC`, [args.campaign_id]);
+        if (rows.length === 0) {
           contentText = 'Character state not found.';
         } else {
-          contentText = JSON.stringify({
+          contentText = JSON.stringify(rows.map(row => ({
+            character_id: row.id,
             name: row.name,
             class: row.class,
             archetype: row.class,
@@ -729,7 +731,7 @@ async function handleToolCall(toolName, args) {
             attributes: JSON.parse(row.attributes_json),
             abilities: JSON.parse(row.abilities_json || '[]'),
             progression_notes: row.progression_notes || ''
-          }, null, 2);
+          })), null, 2);
         }
         break;
       }

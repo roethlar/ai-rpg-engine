@@ -117,10 +117,13 @@ export async function initDb() {
     )
   `);
 
-  // Create characters table
+  // Create characters table (Phase 3 M1: many characters per campaign — a
+  // surrogate id primary key; campaign_id is an indexed foreign key).
+  // initiative is stored for future turn ordering (unused by v1 round-robin).
   await run(`
     CREATE TABLE IF NOT EXISTS characters (
-      campaign_id INTEGER PRIMARY KEY,
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      campaign_id INTEGER NOT NULL,
       player_character_id INTEGER,
       name TEXT NOT NULL,
       class TEXT NOT NULL,
@@ -130,6 +133,7 @@ export async function initDb() {
       max_mana INTEGER NOT NULL,
       xp INTEGER DEFAULT 0,
       level INTEGER DEFAULT 1,
+      initiative INTEGER,
       inventory_json TEXT NOT NULL,
       attributes_json TEXT NOT NULL,
       abilities_json TEXT DEFAULT '[]',
@@ -138,23 +142,55 @@ export async function initDb() {
     )
   `);
 
+  // Migration (M1): the original table used campaign_id as its PRIMARY KEY —
+  // structurally one character per campaign. Detect the id-less legacy shape
+  // and rebuild, preserving rows.
+  const characterColumns = await all(`PRAGMA table_info(characters)`);
+  if (characterColumns.length > 0 && !characterColumns.some(col => col.name === 'id')) {
+    await run('ALTER TABLE characters RENAME TO characters_legacy;');
+    await run(`
+      CREATE TABLE characters (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        campaign_id INTEGER NOT NULL,
+        player_character_id INTEGER,
+        name TEXT NOT NULL,
+        class TEXT NOT NULL,
+        health INTEGER NOT NULL,
+        max_health INTEGER NOT NULL,
+        mana INTEGER NOT NULL,
+        max_mana INTEGER NOT NULL,
+        xp INTEGER DEFAULT 0,
+        level INTEGER DEFAULT 1,
+        initiative INTEGER,
+        inventory_json TEXT NOT NULL,
+        attributes_json TEXT NOT NULL,
+        abilities_json TEXT DEFAULT '[]',
+        progression_notes TEXT,
+        FOREIGN KEY (campaign_id) REFERENCES campaigns(id) ON DELETE CASCADE
+      )
+    `);
+    await run(`
+      INSERT INTO characters (campaign_id, player_character_id, name, class, health, max_health,
+                              mana, max_mana, xp, level, inventory_json, attributes_json,
+                              abilities_json, progression_notes)
+      SELECT campaign_id, player_character_id, name, class, health, max_health,
+             mana, max_mana, xp, level, inventory_json, attributes_json,
+             COALESCE(abilities_json, '[]'), progression_notes
+      FROM characters_legacy
+    `);
+    await run('DROP TABLE characters_legacy;');
+    console.log('Migrated characters to the multi-character schema (Phase 3 M1).');
+  }
+
   try {
-    await run('ALTER TABLE characters ADD COLUMN player_character_id INTEGER;');
+    await run('ALTER TABLE characters ADD COLUMN initiative INTEGER;');
   } catch (e) {
     // Ignore error if column already exists
   }
 
-  try {
-    await run("ALTER TABLE characters ADD COLUMN abilities_json TEXT DEFAULT '[]';");
-  } catch (e) {
-    // Ignore error if column already exists
-  }
-
-  try {
-    await run('ALTER TABLE characters ADD COLUMN progression_notes TEXT;');
-  } catch (e) {
-    // Ignore error if column already exists
-  }
+  await run(`
+    CREATE INDEX IF NOT EXISTS idx_characters_campaign ON characters (campaign_id)
+  `);
 
   await run(`
     CREATE INDEX IF NOT EXISTS idx_characters_player_profile ON characters (player_character_id)
@@ -225,8 +261,8 @@ export async function initDb() {
     );
 
     await run(
-      `UPDATE characters SET player_character_id = ? WHERE campaign_id = ?`,
-      [profileResult.id, character.campaign_id]
+      `UPDATE characters SET player_character_id = ? WHERE id = ?`,
+      [profileResult.id, character.id]
     );
   }
 
@@ -249,6 +285,14 @@ export async function initDb() {
   await run(`
     CREATE UNIQUE INDEX IF NOT EXISTS idx_turns_campaign_turn ON turns (campaign_id, turn_number)
   `);
+
+  // Phase 3 M1: which character acted this turn (null on legacy turns and
+  // turns with no acting character, e.g. the opening scene).
+  try {
+    await run('ALTER TABLE turns ADD COLUMN character_id INTEGER;');
+  } catch (e) {
+    // Ignore error if column already exists
+  }
 
   // Create memories table
   await run(`
