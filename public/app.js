@@ -1105,6 +1105,9 @@ setInterval(async () => {
       if (state.turn?.playerAction) appendPlayerAction(state.turn.playerAction);
       renderGame(state, false);
     } else {
+      // Same turn, possibly changed table (joins, releases, style edits):
+      // adopt the fresh snapshot so chip clicks re-render current data.
+      lastGameState = state;
       renderPartyState(state);
     }
   } catch (e) { /* transient — next poll retries */ }
