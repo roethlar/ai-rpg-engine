@@ -1335,23 +1335,42 @@ Output the JSON object containing the narrative response, scene_grounding, sugge
       turnNumber: currentTurnNumber
     });
     if (subject) {
-      // Location identity comes from the stored/generated record, not vibes.
-      let locationDescription = turnData.location_update?.generated_layout?.description || '';
-      if (!locationDescription && targetKey) {
-        const row = await db.get(`SELECT description FROM locations WHERE campaign_id = ? AND key = ?`, [campaignId, targetKey]);
-        locationDescription = row?.description || '';
+      // The render is conditioned on the SUBJECT's identity record: for a
+      // location subject that is the focal location itself (which may differ
+      // from where the player stands); for an NPC the current location is
+      // only the backdrop. Anchors are visual canon — a mismatched lookup
+      // here would permanently cross-contaminate identities.
+      let subjectLocationName = null;
+      let subjectLocationDescription = '';
+      const lookupKey = subject.kind === 'location' ? subject.key : targetKey;
+      if (turnData.location_update && locationKey(turnData.location_update.name) === lookupKey) {
+        subjectLocationName = turnData.location_update.name;
+        subjectLocationDescription = turnData.location_update.generated_layout?.description || '';
       }
-      heroicRender = await generateHeroicRender({
-        apiConfig,
-        campaignId,
-        subject,
-        npcs,
-        locationName: targetLocationName,
-        locationDescription,
-        outline,
-        genre: campaign.genre,
-        currentTurnNumber
-      });
+      if (lookupKey && (!subjectLocationName || !subjectLocationDescription)) {
+        const row = await db.get(`SELECT name, description FROM locations WHERE campaign_id = ? AND key = ?`, [campaignId, lookupKey]);
+        if (row) {
+          subjectLocationName = subjectLocationName || row.name;
+          subjectLocationDescription = subjectLocationDescription || row.description || '';
+        }
+      }
+      if (subject.kind === 'location' && !subjectLocationName) {
+        // A focal location with no structured record has no identity to
+        // anchor; skip rather than render (and anchor) the wrong place.
+        console.warn(`[HEROIC] Focal location "${subject.key}" has no location record; skipping render.`);
+      } else {
+        heroicRender = await generateHeroicRender({
+          apiConfig,
+          campaignId,
+          subject,
+          npcs,
+          locationName: subjectLocationName,
+          locationDescription: subjectLocationDescription,
+          outline,
+          genre: campaign.genre,
+          currentTurnNumber
+        });
+      }
     }
   }
 
