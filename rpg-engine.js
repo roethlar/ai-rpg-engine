@@ -412,6 +412,21 @@ function buildTurnContext({
   };
 }
 
+/**
+ * The Council contract is one JSON object, but jsonMode providers (local
+ * models especially) can emit arrays or bare scalars. Coerce to a plain
+ * object so the no-op forcing and the engine-stamped fields can never be
+ * dropped by serialization (arrays lose named props) or throw (scalars).
+ */
+function coerceTurnObject(parsed) {
+  if (Array.isArray(parsed)) {
+    return parsed.find(item => item && typeof item === 'object' && !Array.isArray(item)) || {};
+  }
+  return parsed && typeof parsed === 'object'
+    ? parsed
+    : { narrative: typeof parsed === 'string' ? parsed : '' };
+}
+
 async function callJsonAgent(client, systemInstruction, prompt, fallback) {
   const response = await client.sendPrompt({
     systemInstruction,
@@ -521,7 +536,7 @@ Verify the proposed answer against the campaign context and produce the final ca
     });
 
     try {
-      const finalData = parseJsonSafe(finalRaw);
+      const finalData = coerceTurnObject(parseJsonSafe(finalRaw));
       console.log(`[CLARIFICATION] Table-talk path: forcing strict no-op (${kind}). scene_grounding + direct answer expected from verifier narration.`);
       return JSON.stringify(forceNoOpTurnState(finalData, turnContext, kind));
     } catch (error) {
@@ -781,7 +796,7 @@ Produce the final canonical JSON response now. The player must experience one co
   });
 
   try {
-    const finalData = parseJsonSafe(finalRaw);
+    const finalData = coerceTurnObject(parseJsonSafe(finalRaw));
     // The engine's roll records are canonical; whatever the narrator emitted is discarded.
     finalData.dice_rolls = diceRolls;
     // Same for the location and focal signals: referee-emitted, engine-stamped.
