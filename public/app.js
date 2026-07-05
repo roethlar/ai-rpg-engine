@@ -820,6 +820,10 @@ function renderGame(gameState, resetNarrative = false, options = {}) {
 
   // Situation surface (Phase V4): grounding text always; the deterministic
   // location map joins it when position matters (or when spotlighted).
+  // A campaign switch clears it first so nothing bleeds between campaigns.
+  if (resetNarrative) {
+    resetSituationPanel();
+  }
   renderSituation(gameState.turn);
 
   // Text narrative & roll checks
@@ -889,6 +893,16 @@ async function updateHeroicImage(heroic) {
   } catch (error) {
     console.warn(`Heroic render unavailable (${error.message}); keeping the current visual.`);
   }
+}
+
+// Clears the situation surface: campaigns must never inherit another
+// campaign's map, location label, grounding text, or positional state.
+function resetSituationPanel() {
+  document.getElementById('situation-section').style.display = 'none';
+  document.getElementById('situation-map').innerHTML = '';
+  document.getElementById('situation-text').textContent = '';
+  document.getElementById('situation-location-name').textContent = '';
+  mainGameScreen.classList.remove('positional-turn');
 }
 
 // Situation surface: map + grounding text always coexist (owner Layout D
