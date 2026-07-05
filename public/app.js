@@ -681,6 +681,12 @@ function enterHolodeckIdle() {
 }
 
 async function loadCampaignsMenu() {
+  // Leaving a campaign for the menu: stop the poll and drop per-campaign
+  // state so a stale campaign can never render over the holodeck idle.
+  currentCampaignId = null;
+  lastGameState = null;
+  lastRenderedTurnNumber = null;
+  myCharacterId = null;
   enterHolodeckIdle();
   campaignListContainer.innerHTML = `<div class="loading-state"><i class="fa-solid fa-spinner fa-spin"></i> Loading campaigns...</div>`;
   
