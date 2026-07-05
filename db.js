@@ -406,6 +406,14 @@ export async function initDb() {
     // Ignore error if column already exists
   }
 
+  // Table-style dials (Phase D): {helpfulness, pacing}, campaign state,
+  // adjustable mid-campaign (decision 2026-07-04).
+  try {
+    await run('ALTER TABLE campaigns ADD COLUMN table_style_json TEXT;');
+  } catch (e) {
+    // Ignore error if column already exists
+  }
+
   // Sticky positional flag (Phase V5c): whether the last committed action
   // left the scene positional, so table-talk turns during a fight keep
   // showing the map (display only — table talk still mutates nothing).

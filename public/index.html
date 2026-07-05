@@ -320,6 +320,28 @@
             <span class="form-tip">House Rules generates a canon rule sheet — your abilities, costs, and limits — viewable in the Rules tab and applied identically every turn.</span>
           </div>
 
+          <!-- Table-style dials (Phase D) -->
+          <div class="form-row" style="margin-top: 12px;">
+            <div class="form-group flex-1">
+              <label for="select-helpfulness">GM Style</label>
+              <select id="select-helpfulness">
+                <option value="classic" selected>Classic — answers what's asked, volunteers nothing</option>
+                <option value="helpful">Helpful — volunteers odds, hints, and options</option>
+                <option value="hardline">Hardline — bare in-fiction answers only</option>
+              </select>
+            </div>
+            <div class="form-group flex-1">
+              <label for="select-pacing">Encounter Pacing</label>
+              <select id="select-pacing">
+                <option value="standard" selected>Standard (~1 per 5 turns)</option>
+                <option value="slow_burn">Slow burn (~1 per 8+)</option>
+                <option value="action_heavy">Action-heavy (~1 per 3)</option>
+                <option value="player_driven">Player-driven (GM never initiates)</option>
+              </select>
+            </div>
+          </div>
+          <span class="form-tip">Both are adjustable mid-campaign from the Rules tab. Pacing limits what the GM initiates, never what you may do.</span>
+
           <div class="form-actions">
             <button type="button" class="btn btn-secondary" id="btn-cancel-wizard">Cancel</button>
             <button type="submit" class="btn btn-primary" id="btn-submit-wizard">

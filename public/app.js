@@ -351,7 +351,11 @@ function setupEventListeners() {
       genre,
       characterMode,
       rulesMode,
-      ruleset: document.getElementById('select-ruleset').value
+      ruleset: document.getElementById('select-ruleset').value,
+      tableStyle: {
+        helpfulness: document.getElementById('select-helpfulness').value,
+        pacing: document.getElementById('select-pacing').value
+      }
     };
 
     if (characterMode === 'new') {
@@ -443,27 +447,70 @@ function setupEventListeners() {
   });
 }
 
-// Renders the campaign's canon rule sheet into the Rules tab.
-function renderRules(ruleset) {
-  if (!ruleset) {
+// Renders the campaign's canon rule sheet + table-style dials into the
+// Rules tab. The dials (Phase D) are adjustable mid-campaign and show even
+// for freeform campaigns.
+function renderRules(ruleset, tableStyle) {
+  if (!ruleset && !tableStyle) {
     tabRulesBtn.style.display = 'none';
     if (tabRulesBtn.classList.contains('active')) setActiveTab('inventory');
     return;
   }
   tabRulesBtn.style.display = 'block';
   const rulesContainer = document.getElementById('rules-container');
-  const abilities = (ruleset.abilities || []).map(a => `
+  const abilities = ruleset ? (ruleset.abilities || []).map(a => `
     <div class="rules-ability">
       <div class="rules-ability-head"><strong>${escapeHtml(a.name)}</strong><span class="rules-cost">${escapeHtml(a.cost)}</span></div>
       <div class="rules-effect">${escapeHtml(a.effect)}</div>
       <div class="rules-limits"><i class="fa-solid fa-ban"></i> ${escapeHtml(a.limits)}</div>
-    </div>`).join('');
+    </div>`).join('') : '';
+  const styleBlock = tableStyle ? `
+    <div class="rules-section-label">Table Style</div>
+    <div class="table-style-row">
+      <label>GM Style
+        <select id="rules-helpfulness">
+          <option value="classic">Classic</option>
+          <option value="helpful">Helpful</option>
+          <option value="hardline">Hardline</option>
+        </select>
+      </label>
+      <label>Pacing
+        <select id="rules-pacing">
+          <option value="standard">Standard</option>
+          <option value="slow_burn">Slow burn</option>
+          <option value="action_heavy">Action-heavy</option>
+          <option value="player_driven">Player-driven</option>
+        </select>
+      </label>
+      <button type="button" class="btn btn-secondary" id="btn-save-table-style">Apply</button>
+    </div>
+    <span class="form-tip">Takes effect next turn. Pacing limits what the GM initiates, never what you may do.</span>` : '';
   rulesContainer.innerHTML = DOMPurify.sanitize(`
-    <div class="rules-title">${escapeHtml(ruleset.name)}</div>
-    ${ruleset.resolution ? `<p class="rules-resolution">${escapeHtml(ruleset.resolution)}</p>` : ''}
+    ${ruleset ? `<div class="rules-title">${escapeHtml(ruleset.name)}</div>` : ''}
+    ${ruleset?.resolution ? `<p class="rules-resolution">${escapeHtml(ruleset.resolution)}</p>` : ''}
+    ${styleBlock}
     ${abilities ? `<div class="rules-section-label">Abilities &amp; Spells</div>${abilities}` : ''}
-    ${ruleset.notes ? `<div class="rules-section-label">House Notes</div><p class="rules-notes">${escapeHtml(ruleset.notes)}</p>` : ''}
+    ${ruleset?.notes ? `<div class="rules-section-label">House Notes</div><p class="rules-notes">${escapeHtml(ruleset.notes)}</p>` : ''}
   `);
+  if (tableStyle) {
+    rulesContainer.querySelector('#rules-helpfulness').value = tableStyle.helpfulness;
+    rulesContainer.querySelector('#rules-pacing').value = tableStyle.pacing;
+    rulesContainer.querySelector('#btn-save-table-style').addEventListener('click', async () => {
+      try {
+        const response = await fetchWithTimeout(`/api/campaigns/${currentCampaignId}/table-style`, {
+          method: 'POST',
+          body: JSON.stringify({
+            helpfulness: rulesContainer.querySelector('#rules-helpfulness').value,
+            pacing: rulesContainer.querySelector('#rules-pacing').value
+          })
+        });
+        if (!response.ok) throw new Error(await getResponseErrorMessage(response, 'Failed to save'));
+        showToast('Table style applied — takes effect next turn.', 'success');
+      } catch (error) {
+        showToast(`Table style: ${error.message}`, 'error');
+      }
+    });
+  }
 }
 
 // Voice preview: audition the selected voice + direction on a sample line
@@ -788,8 +835,8 @@ function renderGame(gameState, resetNarrative = false, options = {}) {
   // Render Codex (NPC Dossiers)
   renderCodex(gameState.npcs || []);
 
-  // Campaign rule sheet (canon; tab hidden for freeform campaigns)
-  renderRules(gameState.ruleset || null);
+  // Campaign rule sheet + table-style dials (canon surfaces)
+  renderRules(gameState.ruleset || null, gameState.tableStyle || null);
 
   // Graphic illustration (Sanitized using DOMPurify SVG profile)
   if (gameState.turn.svg) {

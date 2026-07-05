@@ -56,7 +56,22 @@ The visual theme is part of the atmosphere: choose colors and a font pairing who
 /**
  * System Instruction Compiler for the Game Master LLM.
  */
-export function getGMSystemInstruction(outline, character, npcs = [], currentAct = 1, ruleset = null, location = null, party = null) {
+/**
+ * Helpfulness dial (Phase D, decision 2026-07-04): how much the GM
+ * volunteers. Enforced here at the prompt layer AND structurally in
+ * validateTurnData (choice caps) — never prompt-adjectives alone.
+ */
+const HELPFULNESS_RULES = {
+  helpful: `Table style: HELPFUL. Be a generous table: volunteer odds, tactical context, and alternative approaches when they would help the player decide. Offer 3-4 suggested_choices.`,
+  classic: `Table style: CLASSIC. Answer what is asked — honestly and completely — but volunteer nothing beyond it: no unprompted odds, no hints, no tactical menus. "Can I make the jump?" gets "You think so." — not a risk analysis. The player owns their risks. Offer at most 2-3 neutral, obvious suggested_choices (doors that plainly exist, never clever tactics).`,
+  hardline: `Table style: HARDLINE. Bare, in-fiction answers only: what the character perceives and knows, nothing more. Never volunteer odds, hints, reassurance, or option lists. suggested_choices must be an empty array — the player types what they do.`
+};
+
+export function getGMSystemInstruction(outline, character, npcs = [], currentAct = 1, ruleset = null, location = null, party = null, tableStyle = null) {
+  const styleSection = tableStyle && HELPFULNESS_RULES[tableStyle.helpfulness] ? `
+=== TABLE STYLE (campaign setting — applies to every answer) ===
+${HELPFULNESS_RULES[tableStyle.helpfulness]}
+` : '';
   // Phase 3 M2: shared campaigns seat a party. The character sheet below is
   // the SPEAKING player's; the GM must keep other members present in the
   // fiction and never resolve actions for anyone but the acting character.
@@ -139,7 +154,7 @@ Known Abilities:
 ${character.abilities && character.abilities.length > 0 ? character.abilities.map(ability => `- ${ability.name} [${ability.tier || 'emerging'}]: ${ability.description}`).join('\n') : '- None established yet. Reveal or develop abilities through play when earned.'}
 Progression Notes:
 ${character.progression_notes || 'No long-term progression notes yet.'}
-${rulesetSection}${locationSection}${partySection}
+${rulesetSection}${locationSection}${partySection}${styleSection}
 === GM RULES ===
 1. Narrative Quality: Write vivid, rich description with high atmospheric focus. Write 2-3 paragraphs. If any NPCs speak, use their unique voice, habits, or stuttering quirks.
 2. Coherence: Ensure you keep the story aligned with the current Act and Quest. Do not jump to the conclusion early. Let the player explore.

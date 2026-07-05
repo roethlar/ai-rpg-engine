@@ -299,7 +299,7 @@ app.post('/api/campaigns', rateLimit(5, 60000), async (req, res) => {
   try {
     // Server-owned AI config (decision 2026-06-11): client-supplied apiConfig is
     // ignored; the operator's /admin + env configuration is authoritative.
-    const { genre, characterName, characterClass, characterProfileId, characterMode, rulesMode, ruleset } = req.body;
+    const { genre, characterName, characterClass, characterProfileId, characterMode, rulesMode, ruleset, tableStyle } = req.body;
     const cleanRuleset = ['house', 'none'].includes(ruleset) ? ruleset : 'house';
     const apiConfig = await getServerAiConfig();
     const cleanGenre = boundedString(genre, 'genre', MAX_GENRE_LENGTH);
@@ -318,7 +318,9 @@ app.post('/api/campaigns', rateLimit(5, 60000), async (req, res) => {
       characterMode: mode,
       apiConfig,
       rulesMode,
-      ruleset: cleanRuleset
+      ruleset: cleanRuleset,
+      // Validated engine-side against the option whitelist (Phase D)
+      tableStyle: tableStyle && typeof tableStyle === 'object' ? tableStyle : null
     });
     res.json(state);
   } catch (error) {
@@ -377,6 +379,21 @@ app.post('/api/campaigns/:id/turn', rateLimit(10, 60000), async (req, res) => {
       : error.message.includes('required') || error.message.includes('characters or fewer') || error.message.includes('must be a string') ? 400
       : 500;
     res.status(status).json({ error: error.message, code: error.code });
+  }
+});
+
+// Table-style dials (Phase D): adjustable mid-campaign, effect next turn
+app.post('/api/campaigns/:id/table-style', async (req, res) => {
+  try {
+    const campaignId = parseInt(req.params.id, 10);
+    if (isNaN(campaignId)) {
+      return res.status(400).json({ error: 'Invalid campaign ID.' });
+    }
+    const style = await queueCampaignTask(campaignId, () => rpg.setTableStyle(campaignId, req.body));
+    res.json({ tableStyle: style });
+  } catch (error) {
+    const status = error.message.includes('not found') ? 404 : 500;
+    res.status(status).json({ error: error.message });
   }
 });
 

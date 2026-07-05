@@ -877,6 +877,55 @@ async function testHeroicPointer() {
 }
 
 // -------------------------------------------------------------
+// Test: table-style dials — validation, choice caps, pacing state (Phase D)
+// -------------------------------------------------------------
+async function testTableStyle() {
+  console.log(' - Running table-style dial tests...');
+  const { validateTableStyle, computeEncounterCadence } = await import('./rpg-state.js');
+  const { getGMSystemInstruction } = await import('./rpg-prompts.js');
+
+  // Validation: whitelists with the decided defaults (classic + standard)
+  assert.deepStrictEqual(validateTableStyle(null), { helpfulness: 'classic', pacing: 'standard' });
+  assert.deepStrictEqual(validateTableStyle({ helpfulness: 'sycophant', pacing: 'chaos' }),
+    { helpfulness: 'classic', pacing: 'standard' }, 'Unknown values fall to defaults');
+  assert.deepStrictEqual(validateTableStyle({ helpfulness: 'hardline', pacing: 'player_driven' }),
+    { helpfulness: 'hardline', pacing: 'player_driven' });
+
+  // Choice caps are structural (validateTurnData), not prompt hopes
+  const chatty = { input_kind: 'dialogue', narrative: 'N.', suggested_choices: ['a', 'b', 'c', 'd', 'e'] };
+  assert.strictEqual(validateTurnData(chatty, 1, { helpfulness: 'helpful' }).suggested_choices.length, 4, 'Helpful caps at 4');
+  assert.strictEqual(validateTurnData(chatty, 1, { helpfulness: 'classic' }).suggested_choices.length, 3, 'Classic caps at 3');
+  assert.deepStrictEqual(validateTurnData(chatty, 1, { helpfulness: 'hardline' }).suggested_choices, [],
+    'Hardline shows no choices even when the model emits them');
+  const silent = { input_kind: 'dialogue', narrative: 'N.' };
+  assert.strictEqual(validateTurnData(silent, 1, { helpfulness: 'helpful' }).suggested_choices.length, 3, 'Helpful backfills when empty');
+  assert.deepStrictEqual(validateTurnData(silent, 1, { helpfulness: 'classic' }).suggested_choices, [],
+    'Classic never invents choices');
+
+  // Encounter report: engine-recorded fact behind the pacing rule
+  assert.strictEqual(validateTurnData({ input_kind: 'committed_action', narrative: 'N.', encounter: 'gm_initiated' }, 1).encounter, 'gm_initiated');
+  assert.strictEqual(validateTurnData({ input_kind: 'committed_action', narrative: 'N.', encounter: 'ambush!!' }, 1).encounter, 'none', 'Unknown reports fall to none');
+  assert.strictEqual(validateTurnData({ input_kind: 'clarification', narrative: 'N.', encounter: 'gm_initiated' }, 1).encounter, 'none', 'Clarification net wipes the encounter report');
+  const forced = forceNoOpTurnState({ encounter: 'gm_initiated' }, { campaign: { current_act: 1 }, active_quest: { title: 'Q', description: 'D' } }, 'dialogue');
+  assert.strictEqual(forced.encounter, 'none', 'forceNoOpTurnState clears the encounter report');
+
+  // Cadence: turns since the last GM-initiated encounter
+  assert.strictEqual(computeEncounterCadence(['none', 'gm_initiated', 'none', 'none']), 2);
+  assert.strictEqual(computeEncounterCadence(['player_sought', 'none']), null, 'Player-sought danger never counts against the GM');
+  assert.strictEqual(computeEncounterCadence([]), null);
+  assert.strictEqual(computeEncounterCadence(['gm_initiated']), 0, 'Encounter this turn → zero turns ago');
+
+  // Prompt layer: the style section rides the GM system instruction
+  const outline = { title: 'T', setting: 'S', acts: [], major_locations: [{ name: 'L', description: 'D' }], key_npcs: [{ name: 'N', role: 'R', personality: 'P' }], starting_quest: { title: 'Q', description: 'D' }, theme_colors: {} };
+  const character = { name: 'Vex', class: 'Diver', attributes: {}, health: 100, max_health: 100, mana: 50, max_mana: 50, xp: 0, level: 1, inventory: [], abilities: [] };
+  const hardline = getGMSystemInstruction(outline, character, [], 1, null, null, null, { helpfulness: 'hardline', pacing: 'standard' });
+  assert.strictEqual(hardline.includes('TABLE STYLE'), true, 'Style section present');
+  assert.strictEqual(hardline.includes('HARDLINE'), true);
+  const unstyled = getGMSystemInstruction(outline, character, [], 1, null, null, null, null);
+  assert.strictEqual(unstyled.includes('TABLE STYLE'), false, 'No section without a style (legacy campaigns)');
+}
+
+// -------------------------------------------------------------
 // Test: generated NPC appearance descriptors (Phase V5b)
 // -------------------------------------------------------------
 async function testNpcAppearance() {
@@ -1242,6 +1291,7 @@ async function runAll() {
     await testStructuredLocations();
     await testHeroicPointer();
     await testNpcAppearance();
+    await testTableStyle();
     await testThemeGeneration();
     await testVoiceScript();
     await testTtsProviderSeam();

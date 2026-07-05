@@ -24,6 +24,9 @@ import {
   actingCharacterId,
   advanceTurnOrder,
   removeFromTurnOrder,
+  validateTableStyle,
+  computeEncounterCadence,
+  PACING_TARGETS,
   LOCATION_CANVAS,
   TABLE_TALK_KINDS
 } from './rpg-state.js';
@@ -472,7 +475,8 @@ function buildTurnContext({
   knownLocations,
   party,
   actingCharacter,
-  speakingCharacter
+  speakingCharacter,
+  pacing
 }) {
   // GM omniscience (decision 2026-06-11): the mechanical record — dice rolls, applied
   // damage and its causes — must be visible to the Council on later turns, so the GM
@@ -531,6 +535,9 @@ function buildTurnContext({
     player_input: playerAction,
     final_player_input: finalPlayerAction,
     campaign_rules: ruleset || null,
+    // Pacing as recorded state (Phase D): the cadence fact every agent can
+    // check as a rule, injected by takeTurn.
+    pacing: pacing || null,
     // Structured location record (Phase V2, omniscience): where the player
     // is, what the place looks like, and who is present — canon, not vibes.
     current_location: currentLocation
@@ -764,6 +771,19 @@ The engine keeps a persistent structured record per location (layout + occupancy
 - "location.positional": true only when position materially matters this turn (combat, stealth, a chase, climbing, ranged positioning). Most turns are false.
 - "location.occupancy": everyone and everything notable present there after the action — always include the player character. kind is player|npc|creature|object; "area" uses the area ids from the current location record when known.
 
+=== ENCOUNTER PACING (recorded state — check it as a rule, not a mood) ===
+${turnContext.pacing ? `Table pacing: ${turnContext.pacing.style} — ${turnContext.pacing.target === null
+    ? 'the GM NEVER initiates encounters at this table; danger only answers player action.'
+    : `target at most ~1 GM-initiated encounter per ${turnContext.pacing.target} world turns.`}
+Last GM-initiated encounter: ${turnContext.pacing.turns_since_gm_encounter === null ? 'none recorded in the recent window.' : `${turnContext.pacing.turns_since_gm_encounter} turn(s) ago.`}
+${turnContext.pacing.target === null
+    ? 'Do not introduce GM-initiated threats.'
+    : (turnContext.pacing.turns_since_gm_encounter !== null && turnContext.pacing.turns_since_gm_encounter < turnContext.pacing.target
+      ? 'Do NOT introduce a new GM-initiated threat this turn unless the player is deliberately seeking danger.'
+      : 'You have room to initiate an encounter if the fiction genuinely calls for one — never forced.')}` : 'No pacing dial recorded (legacy campaign): use good-table judgment; most turns need no new threat.'}
+- The dial governs what the GM initiates, never what the player may do: player-sought danger always resolves normally.
+- In your JSON, report "encounter": "none" | "player_sought" (the player went looking for this danger) | "gm_initiated" (you introduced the threat this turn).
+
 === FOCAL SUBJECT (persistent heroic visual) ===
 The engine keeps one persistent "heroic" visual of the current focal subject; it changes rarely and the engine enforces stickiness.
 - "focal_subject": who or what deserves the table's visual focus after this action. kind "npc" only when an NPC takes real prominence (an extended conversation, a combat confrontation, a dramatic reveal — use their EXACT name). kind "location" when the place itself is the moment. kind "none" on ordinary turns — most turns are "none" and the current visual persists.
@@ -781,6 +801,7 @@ Return JSON matching:
     ]
   },
   "focal_subject": { "kind": "location|npc|none", "name": "", "reason": "" },
+  "encounter": "none|player_sought|gm_initiated",
   "required_checks": [
     {
       "attribute": "strength|agility|intellect|willpower",
@@ -813,6 +834,7 @@ For clarification, denial, or needs_clarification, approved_state_policy must be
     ruling: 'Unable to parse referee decision.',
     location: null,
     focal_subject: null,
+    encounter: 'none',
     required_checks: [],
     approved_state_policy: 'none',
     allowed_character_update: { health_change: 0, mana_change: 0, xp_gain: 0, inventory_changes: [] },
@@ -951,11 +973,14 @@ Produce the final canonical JSON response now. The player must experience one co
     const finalData = coerceTurnObject(parseJsonSafe(finalRaw));
     // The engine's roll records are canonical; whatever the narrator emitted is discarded.
     finalData.dice_rolls = diceRolls;
-    // Same for the location and focal signals: referee-emitted, engine-stamped.
+    // Same for the location, focal, and encounter signals: referee-emitted,
+    // engine-stamped.
     finalData.location_update = locationUpdate;
-    finalData.focal_subject = refereeDecision.referee_status === 'approved' && refereeDecision.input_kind === 'committed_action'
-      ? validateFocalSubject(refereeDecision.focal_subject)
-      : null;
+    const committedApproved = refereeDecision.referee_status === 'approved' && refereeDecision.input_kind === 'committed_action';
+    finalData.focal_subject = committedApproved ? validateFocalSubject(refereeDecision.focal_subject) : null;
+    finalData.encounter = committedApproved && ['player_sought', 'gm_initiated'].includes(refereeDecision.encounter)
+      ? refereeDecision.encounter
+      : 'none';
     const noStateChange = continuityFinal.final_status !== 'approved' ||
       TABLE_TALK_KINDS.includes(continuityFinal.final_input_kind) ||
       continuityFinal.state_change_policy === 'none' ||
@@ -989,8 +1014,12 @@ export async function createCampaign({
   characterMode = 'new',
   apiConfig,
   rulesMode = false,
-  ruleset = 'house'
+  ruleset = 'house',
+  tableStyle = null
 }) {
+  // Table-style dials (Phase D): chosen in the wizard, defaults classic +
+  // standard (decision 2026-07-04), adjustable later via setTableStyle.
+  const tableStyleData = validateTableStyle(tableStyle);
   // Setup is its own role (decision 2026-07-03): the campaign outline and
   // opening scene are the highest-leverage calls and can run the strongest
   // model. Unconfigured, it inherits the primary config as before.
@@ -1086,7 +1115,7 @@ Give the player character 4 to 8 starting abilities fitting their concept and th
     attributes,
     abilities,
     progression_notes: progressionNotes
-  }, npcList, 1, rulesetData);
+  }, npcList, 1, rulesetData, null, null, tableStyleData);
 
   const turn1Prompt = `Set the scene and begin the campaign.
 Start the story at the beginning of Act I. Introduce the starting quest: "${outline.starting_quest.title}".
@@ -1109,7 +1138,7 @@ Output the JSON object containing the opening narrative, scene_grounding, sugges
   if (parsedRaw && typeof parsedRaw === 'object') {
     parsedRaw.input_kind = 'dialogue';
   }
-  const turnData = validateTurnData(parsedRaw, 1);
+  const turnData = validateTurnData(parsedRaw, 1, tableStyleData);
 
   const character = {
     name: resolvedCharacterName,
@@ -1160,8 +1189,8 @@ Output the JSON object containing the opening narrative, scene_grounding, sugges
 
     // Insert campaign into DB
     const campaignResult = await db.run(
-      `INSERT INTO campaigns (title, genre, summary, current_act, rules_mode, ruleset_json) VALUES (?, ?, ?, 1, ?, ?)`,
-      [outline.title, genre, outline.setting, rulesModeInt, rulesetData ? JSON.stringify(rulesetData) : null]
+      `INSERT INTO campaigns (title, genre, summary, current_act, rules_mode, ruleset_json, table_style_json) VALUES (?, ?, ?, 1, ?, ?, ?)`,
+      [outline.title, genre, outline.setting, rulesModeInt, rulesetData ? JSON.stringify(rulesetData) : null, JSON.stringify(tableStyleData)]
     );
     campaignId = campaignResult.id;
 
@@ -1317,6 +1346,7 @@ Output the JSON object containing the opening narrative, scene_grounding, sugges
     themeFonts: outline.theme_fonts,
     rulesMode: !!rulesModeInt,
     ruleset: rulesetData,
+    tableStyle: tableStyleData,
     character: {
       id: newCharacterRowId,
       name: resolvedCharacterName,
@@ -1429,6 +1459,25 @@ export async function takeTurn(campaignId, playerAction, apiConfig, submittingCh
 
   // 2. Build the context prompt
   const rulesetData = validateRulesetData(parseJsonObject(campaign.ruleset_json, null));
+  // Table style + pacing cadence (Phase D): the dial values and the recorded
+  // fact the Council checks as a rule.
+  const tableStyle = validateTableStyle(parseJsonObject(campaign.table_style_json, null));
+  const encounterRows = await db.all(
+    `SELECT state_changes_json FROM turns WHERE campaign_id = ? ORDER BY turn_number DESC LIMIT 12`,
+    [campaignId]
+  );
+  const encounterHistory = encounterRows.reverse().map(row => {
+    try {
+      return JSON.parse(row.state_changes_json || '{}').encounter || 'none';
+    } catch (e) {
+      return 'none';
+    }
+  });
+  const pacing = {
+    style: tableStyle.pacing,
+    target: PACING_TARGETS[tableStyle.pacing],
+    turns_since_gm_encounter: computeEncounterCadence(encounterHistory)
+  };
   const partyPromptView = party.map(member => ({
     name: member.name,
     class: member.class,
@@ -1437,7 +1486,7 @@ export async function takeTurn(campaignId, playerAction, apiConfig, submittingCh
     acting: member.id === actingCharacter.id,
     speaking: member.id === character.id
   }));
-  const gmSystem = getGMSystemInstruction(outline, character, npcs, currentAct, rulesetData, currentLocation, partyPromptView);
+  const gmSystem = getGMSystemInstruction(outline, character, npcs, currentAct, rulesetData, currentLocation, partyPromptView, tableStyle);
 
   let historyPrompt = `=== CAMPAIGN HISTORY ===\n`;
   if (memories.length > 0) {
@@ -1514,7 +1563,8 @@ Output the JSON object containing the narrative response, scene_grounding, sugge
     knownLocations: knownLocationRows.map(row => row.name),
     party,
     actingCharacter,
-    speakingCharacter: character
+    speakingCharacter: character,
+    pacing
   });
   const aiResponse = await runMultiAgentTurn({
     apiConfig,
@@ -1525,7 +1575,7 @@ Output the JSON object containing the narrative response, scene_grounding, sugge
   });
 
   const parsedRaw = parseJsonSafe(aiResponse);
-  const turnData = validateTurnData(parsedRaw, currentAct);
+  const turnData = validateTurnData(parsedRaw, currentAct, tableStyle);
 
   // Off-turn belt-and-braces (M2): the classification gate already rejected
   // off-turn committed actions; if a later call relabeled table talk as
@@ -1783,6 +1833,7 @@ Output the JSON object containing the narrative response, scene_grounding, sugge
     setting: campaign.summary,
     themeColors: outline.theme_colors,
     themeFonts: outline.theme_fonts,
+    tableStyle,
     character,
     party,
     turnOrder: buildTurnOrderView(nextTurnState, party),
@@ -1869,6 +1920,7 @@ export async function getCampaignState(campaignId) {
     themeFonts: outline.theme_fonts,
     rulesMode: !!campaign.rules_mode,
     ruleset: validateRulesetData(parseJsonObject(campaign.ruleset_json, null)),
+    tableStyle: validateTableStyle(parseJsonObject(campaign.table_style_json, null)),
     character,
     party,
     turnOrder: buildTurnOrderView(turnState, party),
@@ -1921,6 +1973,18 @@ export async function listPlayerCharacters() {
     created_at: row.created_at,
     updated_at: row.updated_at
   }));
+}
+
+/**
+ * Table-style dials (Phase D): adjustable mid-campaign (decision
+ * 2026-07-04); takes effect on the next turn.
+ */
+export async function setTableStyle(campaignId, rawStyle) {
+  const campaign = await db.get(`SELECT id FROM campaigns WHERE id = ?`, [campaignId]);
+  if (!campaign) throw new Error(`Campaign ${campaignId} not found.`);
+  const style = validateTableStyle(rawStyle);
+  await db.run(`UPDATE campaigns SET table_style_json = ? WHERE id = ?`, [JSON.stringify(style), campaignId]);
+  return style;
 }
 
 /**
@@ -2186,8 +2250,8 @@ export async function forkCampaign(campaignId, turnNumber, newTitle) {
   let newPlayerCharacterId;
   await db.withWriteTransaction(async () => {
     const campaignResult = await db.run(
-      `INSERT INTO campaigns (title, genre, summary, current_act, rules_mode, ruleset_json) VALUES (?, ?, ?, ?, ?, ?)`,
-      [newTitle, campaign.genre, campaign.summary, lastAct, campaign.rules_mode, campaign.ruleset_json || null]
+      `INSERT INTO campaigns (title, genre, summary, current_act, rules_mode, ruleset_json, table_style_json) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [newTitle, campaign.genre, campaign.summary, lastAct, campaign.rules_mode, campaign.ruleset_json || null, campaign.table_style_json || null]
     );
     newCampaignId = campaignResult.id;
 
