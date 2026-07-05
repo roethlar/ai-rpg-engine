@@ -1,9 +1,9 @@
 # cr-2: Profile release is undone by startup backfill
 
 **Severity**: MEDIUM — a user-visible release silently reverts on restart and mints duplicate checked-out profiles.
-**Status**: In progress
+**Status**: Verified
 **Branch**: `fix/cr-2-backfill-once`
-**Commit**: (pending)
+**Commit**: `05c4d67`
 
 ## Evidence
 Campaign-card release (`server.js` release-character route →
@@ -51,4 +51,8 @@ data dir, the flag travels with the DB (it is in server_settings), so this
 stays correct.
 
 ## Reviewer comments
-(pending)
+- Reviewer: codex (codex-cli 0.142.5, gpt-5.5) — 2026-07-05T11:47Z
+- Reviewed SHA `05c4d67598a6672e9ea111a9ee26d9636cb95628`, base `e061199f2dfe414d4a12ee42a28e982790dcfeea`
+- guard_confirmed: true — reviewer ran both proof directions itself (fix PASS 0->0; base FAIL 1->2). Main .git/worktrees was read-only under its sandbox, so it used a disposable bare clone under /tmp for its two worktrees, then removed everything.
+- Verdict: **accepted** (awaiting owner-gated merge)
+- Comments: root cause closed (flag read precedes backfill; legacy first-boot path preserved; flag set after the single run).

@@ -21,7 +21,7 @@ codex; findings will be triaged below.
 | ID | Severity | Impact (one line) | Status | Branch |
 |----|----------|-------------------|--------|--------|
 | cr-1 | HIGH | Released browser silently becomes another player's character on the next poll | `[x]` | `fix/cr-1-claim-tombstone` |
-| cr-2 | MEDIUM | Campaign-card profile release reverts on restart, minting duplicate checked-out profiles | `[~]` | `fix/cr-2-backfill-once` |
+| cr-2 | MEDIUM | Campaign-card profile release reverts on restart, minting duplicate checked-out profiles | `[x]` | `fix/cr-2-backfill-once` |
 | cr-3 | MEDIUM | Denied actions inflate pacing cadence, licensing GM encounters early | `[~]` | `fix/cr-3-cadence-resolved` |
 | cr-4 | MEDIUM | Hostile bundle field shapes crash the imported campaign's UI | `[~]` | `fix/cr-4-record-field-shapes` |
 
