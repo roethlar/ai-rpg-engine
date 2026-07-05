@@ -1,9 +1,9 @@
 # cr-1: Released browser can silently reclaim the remaining player's character
 
 **Severity**: HIGH — a browser can end up submitting turns as another player's character with no explicit claim.
-**Status**: In progress
+**Status**: Verified
 **Branch**: `fix/cr-1-claim-tombstone`
-**Commit**: (pending)
+**Commit**: `1748304`
 
 ## Evidence
 `public/app.js:982-999`. Condition: this browser's stored character id is no
@@ -36,7 +36,7 @@ or a join overwrites the tombstone with a real id.
 ## Guard proof
 `public/app.js` is a browser script outside the node suite (no exports, DOM +
 localStorage dependencies), so this is covered by a manual check, not a unit
-test: scripted DOM-free simulation of the resolve sequence (stale claim →
+test: `.agents/review/checks/cr-1-guard.mjs` — DOM-free simulation of the resolve sequence (stale claim →
 resolve → resolve again) executed via node with localStorage/document stubs,
 confirming no auto-claim occurs after the tombstone. Reverting the fix makes
 the second resolve claim the remaining member; with the fix it stays null.
@@ -49,4 +49,8 @@ The tombstone is per-campaign localStorage; clearing browser storage clears it
 (acceptable: that genuinely is a fresh browser).
 
 ## Reviewer comments
-(pending)
+- Reviewer: codex (codex-cli 0.142.5, model gpt-5.5) — 2026-07-05T11:40Z
+- Reviewed SHA `1748304961dd42c7cf76a07b961c499ae0aa016a`, base `39637074e46816cf7f80627e1051b0dbd10756cc`
+- guard_confirmed: true — reviewer independently ran the check in its own /tmp worktree: head PASS/exit 0, base FAIL/exit 1, worktree removed
+- Verdict: **accepted** (awaiting owner-gated merge)
+- Comments: fix closes the root failure (tombstone instead of removal keeps the auto-claim path blocked until explicit claim/join); runtime change limited to public/app.js plus the declared guard check.
