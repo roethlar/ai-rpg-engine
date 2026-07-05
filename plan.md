@@ -58,10 +58,69 @@ voice; graceful fallback when the model omits the script.
 
 ## Phase 3: Character & Campaign Foundations for Multiplayer
 
-- Improve the `player_characters` / `characters` relationship so a character can be "active" in only one campaign at a time but easily ported.
-- Add optional `initiative` stat to characters.
-- Add campaign-level `turn_order` array or simple round tracking.
-- UI improvements for selecting/switching active character and viewing multiple character sheets.
+**Promoted to concrete slices 2026-07-04** (decision "Multiplayer v1 shape" in
+`.agents/decisions.md`; plan approved via the delegated codex review loop).
+V1 is deliberately minimal: shared ACCESS_SECRET token, multiple characters
+per campaign, each browser plays one character, server-enforced round-robin
+turns. Per-player auth, initiative-based ordering, and the in-app player
+chat channel are recorded as later slices. Single-player campaigns must
+behave exactly as today (an order of one). Feel gate: the owner's next
+playtest is this phase, with other people.
+
+**M1 — Schema: many characters per campaign.** `characters` today has
+`campaign_id` as its PRIMARY KEY — structurally one character per campaign.
+Rebuild as `id INTEGER PRIMARY KEY AUTOINCREMENT` + non-unique
+`campaign_id` index (SQLite table-rebuild migration copying existing rows);
+add `initiative INTEGER` (stored for future ordering, unused in v1); add
+`turns.character_id` (nullable; legacy turns have none). Every
+one-character assumption (`WHERE campaign_id = ?` single-row loads in
+rpg-engine.js, server.js, MCP tools) becomes party-aware, with "the acting
+character" threaded where a single character is meant.
+Success: suite green; existing campaigns load and play with their one
+character; fork/release/checkout still correct.
+Files: db.js, rpg-engine.js, server.js, test.js.
+
+**M2 — Turn order + acting character.** `campaigns.turn_state_json`
+{order: [character_id…], current_index, round}; joining appends; a new
+per-character release route (POST `/api/campaigns/:id/characters/:cid/release`)
+removes ONE character from the order and frees its profile — the existing
+campaign-scoped release (which frees the whole party) remains for ending a
+campaign. Turn gating happens AFTER classification, because only the
+Interaction agent knows what the input is: off-turn submissions run the
+normal pipeline, table talk (stateless per decision 2026-06-05) is answered
+for anyone, and an off-turn input classified committed_action is rejected
+at that point with a clear retriable error that restores the typed input
+(same surface as the fallback-tier failure UX). Single-character campaigns
+auto-pass all gating. Every turn request carries the SUBMITTING
+character id (which character this browser plays — required once a campaign
+has more than one character); the Council context distinguishes the acting
+character (whose turn it is) from the speaking character (who typed), so
+off-turn table talk is answered from the asker's own sheet and perspective,
+never the acting character's. Round-robin advances on committed actions
+only.
+Success: unit tests for the order state machine (join/leave/advance/skip);
+out-of-turn committed actions rejected, off-turn table talk answered;
+single-player unchanged.
+Files: db.js, rpg-state.js (pure order helpers), rpg-engine.js, server.js,
+test.js.
+
+**M3 — Join & party UI.** Join flow on an existing campaign: create a new
+character (name + concept) or check out an available profile via
+POST `/api/campaigns/:id/join`; the browser remembers which character it
+plays (localStorage); party panel lists all characters (acting character
+highlighted, others read-only); off-turn the input stays ENABLED but is
+labeled "table talk — waiting for X" (off-turn committed actions come back
+rejected with the input restored); turn/round indicator.
+Success: two browser windows, two characters, alternating committed
+actions, both seeing one shared narrative; reload-safe.
+Files: server.js, rpg-engine.js, public/index.html, public/app.js,
+public/styles.css.
+
+**M4 — README for hosting a table.** Hosting instructions (ACCESS_SECRET,
+share URL + token, join flow) plus documentation of the landed Visual
+Phases features (theming, locations/map, heroics, Situation panel) so
+playtesters have accurate setup docs.
+Files: README.md.
 
 **Multiplayer end state vision**: Multiple players can join the same campaign (via shared URL + access token). The DM maintains one shared scene description. Players take turns in declared order. Clarification/table-talk works for everyone. Character progression is persistent across campaigns.
 
@@ -182,6 +241,100 @@ remains an owner playtest verdict on the whole phase.
   defaults); existing campaigns unaffected; suite green.
 - Files: rpg-engine.js, rpg-state.js, public/app.js, public/styles.css, test.js.
 
+## 2026-07-04 Queue (promoted under the delegated review loop)
+
+Owner delegation recorded in `.agents/decisions.md` (2026-07-04): open calls
+agent-decided, plans approved via codex review loop, nothing gated on the
+owner until the multiplayer playtest. Priority order: Phase 3 (above) →
+V5 → D → H → P.
+
+**Phase V5: Visual gap closers** (extends the shipped V1–V4 designs)
+- V5a — Opening turn creates the starting location and heroic: campaign
+  creation generates the starting location's layout from the opening scene
+  (same one-time generation call, setup-time), sets the engine pointer, and
+  renders the opening heroic when an image provider is configured. Campaign
+  start stops being the one turn with no structured record.
+- V5b — Generated NPC appearance descriptors: at an NPC's first render, one
+  continuity-role call produces a stable visual appearance description
+  (committed to npcs.anchor_json as canon — improvise-then-record, per the
+  omniscience decision); the mechanical personality/quirks composition
+  becomes the fallback when the call fails.
+- V5c — Positional persistence for table talk: the engine records the last
+  committed turn's positional flag as campaign state; table-talk turns
+  during a fight keep auto-showing the map instead of dropping to
+  text-only (display path only — no state mutation on table talk).
+- Success: unit tests for validation/pure parts PLUS stubbed-provider
+  tests (fetch stub, as in the V1 seam tests) proving the opening heroic
+  and the appearance-descriptor call fire and commit their anchors — the
+  live smoke with no provider configured only proves the inert path; suite
+  green. Feel verdict rides the multiplayer playtest.
+- Files: rpg-engine.js, rpg-state.js, db.js, public/app.js, test.js.
+
+**Phase D: Table-style dials** (decision 2026-07-04 fixes option sets,
+defaults classic + standard, mid-campaign adjustability, choice fading)
+- D1 — State + UI: `campaigns.table_style_json` {helpfulness, pacing};
+  wizard selection at creation; campaign settings edit (effect next turn).
+- D2 — Helpfulness enforcement, structural not adjectival: style-keyed
+  prompt variants for the interaction/verifier/referee/narration calls;
+  suggested_choices capped by style in validateTurnData — which gains a
+  tableStyle parameter alongside currentAct — with the existing empty-list
+  backfill made style-aware (helpful 3-4 with backfill as today, classic
+  2-3 no invented backfill, hardline always 0), so the cap holds even
+  against a chatty model.
+- D3 — Pacing as recorded state: the Referee reports
+  `encounter: none|player_sought|gm_initiated` per committed turn
+  (validated, engine-stamped like dice); the engine computes "turns since
+  last GM-initiated encounter" from the turn record; Referee and Continuity
+  prompts receive the cadence fact + target as a checkable rule
+  ("last GM-initiated encounter 2 turns ago; target ~1 per 5; do not
+  introduce a new threat unless the player seeks one"). The dial governs
+  what the GM initiates, never what the player may do.
+- Success: unit tests for choice caps per style, cadence computation, and
+  prompt injection presence/absence; suite green. Whether classic actually
+  *feels* like a real table closes at playtest.
+- Files: db.js, rpg-state.js, rpg-prompts.js, rpg-engine.js, server.js,
+  public/index.html, public/app.js, test.js.
+
+**Phase H: Holodeck entry state** (owner intent recorded 2026-06-13)
+- The pre-campaign screen becomes a deliberately blank slate — "a holodeck
+  with no program running": engine-neutral dark stage, faint grid, campaign
+  cards framed as stored programs, no genre theming applied until a
+  campaign loads (root theme vars explicitly reset on the entry screen).
+- Success: functional render check in browser + shell; owner one-look
+  verdict later. Files: public/index.html, public/styles.css, public/app.js.
+
+**Phase P: Campaign portability** (decision 2026-07-04: versioned JSON
+bundle, export first, forward importability is the hard requirement)
+- P1 — Export: authenticated GET `/api/campaigns/:id/export` returns one
+  self-contained bundle: format_version 1 + campaign, outline, ruleset,
+  characters + released profile snapshots, NPCs (voice + visual anchors),
+  locations, memories, turns, engine-owned pointers. Image binaries are
+  NOT embedded in v1: identity anchors (the visual canon) travel in the
+  bundle, but render artifacts stay behind — so on import the
+  current_heroic pointer is cleared (it references a campaign_images row
+  that does not travel) and the heroic regenerates from the imported
+  anchors on the next qualifying action. Every id-bearing pointer in the
+  bundle is remapped to the fresh ids on import — turns.character_id,
+  turn_state_json.order, current_location_id — and the pinned fixture
+  asserts each remap, so no imported pointer can dangle (same defect class
+  as the heroic pointer, closed for all of them).
+- P2 — Import: POST `/api/campaigns/import`. The global
+  `express.json({limit:'64kb'})` would reject bundle-sized bodies before any
+  route parser ran, so the global parser is mounted to skip this one path
+  and the import route carries its own `express.json` with a 20mb cap.
+  Import validates format_version, replays every piece
+  through the existing validators (bundles are untrusted data, never
+  instructions), allocates fresh ids, and creates the campaign released
+  from any profile locks. A v1 export must import into every later engine
+  version — format_version migrations live at this boundary.
+- Success: export→import round trip on a real campaign yields a playable
+  equivalent; unit tests for bundle validation and version gating; and a
+  PINNED v1 bundle fixture committed to the repo that the import test must
+  accept forever — the forward-importability guarantee as a permanent
+  regression guard, not a one-time claim.
+- Files: server.js, rpg-engine.js (bundle build/restore), rpg-state.js,
+  test.js.
+
 ## Non-Goals (for now)
 - Real-time simultaneous multiplayer
 - Full combat grid / tactical combat system
@@ -213,9 +366,9 @@ Raised during planning but deliberately deferred. **Per project rule, nothing he
 
 - **Genre atmosphere & the "empty holodeck" entry state — theming half PROMOTED 2026-07-04** (decision 2026-07-03 in `.agents/decisions.md`: agent-generated at campaign setup, owned by the Setup step; implementation is Phase T1 in the Visual Phases above; accent graphics deferred). The "empty holodeck" entry state below remains unscheduled. Entering the server before any campaign is chosen should feel like a TNG holodeck with no program running — a deliberately blank slate with potential, not a themed default. Once a genre is chosen, the visual/audio atmosphere must convincingly match it (a cyberpunk campaign with earthy tavern tones is a failure case). The adaptive HSL theme feature partially covers in-game theming today; open questions: curated templates vs fully agent-generated theming, and which agent owns the job — a dedicated campaign-setup agent, the Continuity agent, or the existing outline-generation step. To be decided.
 
-- **GM helpfulness / adversarial-style dial.** First Phase 0 playtest: asked a tactical question ("if I extinguish the light, can I still see?"), the DM volunteered a thorough answer with implicit odds and an unprompted middle-option tactic. Not wrong — but it's a notably *helpful* table style (a typical LLM trait); many human GMs would answer "You think so." and let the player own the risk. Direction: a campaign-start setting ("GM helpfulness" / table difficulty) selecting how much the DM volunteers — odds, tactical options, hints — implemented as narrator/interaction prompt variants. Default and option set to be decided.
+- **GM helpfulness / adversarial-style dial — DECIDED & PROMOTED 2026-07-04** (decision in `.agents/decisions.md`: helpful|classic|hardline, default classic, adjustable mid-campaign, choices fade with style; implementation is Phase D in the 2026-07-04 Queue). Original discussion: First Phase 0 playtest: asked a tactical question ("if I extinguish the light, can I still see?"), the DM volunteered a thorough answer with implicit odds and an unprompted middle-option tactic. Not wrong — but it's a notably *helpful* table style (a typical LLM trait); many human GMs would answer "You think so." and let the player own the risk. Direction: a campaign-start setting ("GM helpfulness" / table difficulty) selecting how much the DM volunteers — odds, tactical options, hints — implemented as narrator/interaction prompt variants. Default and option set to be decided.
 
-- **Encounter pacing dial — pacing as recorded state, not vibes.** Nothing in the current prompts governs encounter frequency, and three things bias toward action every turn: the Challenge rule frames committed actions in danger/damage terms, XP rewards quest advancement per turn, and scene_grounding requests "immediate threats" in every scene. LLMs already trend toward eventfulness; good tables often run ~5 world-interaction turns per 1 combat/encounter. Direction: a campaign-start pacing target (encounter density) stored as campaign state, plus a recorded recent-cadence fact (e.g. turn-type history / turns since last GM-initiated encounter) that the Continuity agent — already nominally the pacing guardian — checks as a rule rather than a mood ("encounter 2 turns ago; do not introduce a new threat unless the player seeks one"). The dial governs what the GM initiates, never what the player may do. Groups with the GM helpfulness dial as campaign-start "table style" settings (likely one config object + one settings UI when promoted). Prompt-adjective-only implementations are expected to drift and should be treated as insufficient.
+- **Encounter pacing dial — DECIDED & PROMOTED 2026-07-04** (decision in `.agents/decisions.md`: slow_burn|standard|action_heavy|player_driven, default standard, enforced as recorded cadence state; implementation is Phase D in the 2026-07-04 Queue). Original discussion: Nothing in the current prompts governs encounter frequency, and three things bias toward action every turn: the Challenge rule frames committed actions in danger/damage terms, XP rewards quest advancement per turn, and scene_grounding requests "immediate threats" in every scene. LLMs already trend toward eventfulness; good tables often run ~5 world-interaction turns per 1 combat/encounter. Direction: a campaign-start pacing target (encounter density) stored as campaign state, plus a recorded recent-cadence fact (e.g. turn-type history / turns since last GM-initiated encounter) that the Continuity agent — already nominally the pacing guardian — checks as a rule rather than a mood ("encounter 2 turns ago; do not introduce a new threat unless the player seeks one"). The dial governs what the GM initiates, never what the player may do. Groups with the GM helpfulness dial as campaign-start "table style" settings (likely one config object + one settings UI when promoted). Prompt-adjective-only implementations are expected to drift and should be treated as insufficient.
 
 - **Player authority boundary — settled.** Promoted to a durable decision (2026-06-11, `.agents/decisions.md`): the player is not in control of the game, the GM's decisions are final, out-of-character pressure is deflected in persona, with continuity gate + engine validation as backstop. Remaining open here: how the resistance prompts interact with the GM helpfulness dial above (both shape the GM-player relationship), and prompt implementation when promoted into a phase.
 
@@ -239,9 +392,9 @@ Raised during planning but deliberately deferred. **Per project rule, nothing he
 
 - **Data store & cross-campaign persistence (SQLite → Postgres).** Open question raised 2026-06-13; working direction is Postgres (not yet decided). Two drivers force a single shared relational store: (1) **cross-campaign characters + user ownership** — characters are owned by users and reusable across campaigns, with a check-in/out invariant: a character can be active in only one campaign at a time, is locked while checked out, and on campaign end its updated stats are written back and it is released. That "one active campaign per character" rule is a global uniqueness/lock that a single relational DB enforces with a constraint + transaction, but that is painful to enforce across separate per-campaign SQLite files (which is why the one-DB-file-per-campaign idea was set aside). (2) **Concurrent-campaign write throughput** — SQLite's single-writer lock serializes unrelated campaigns; this only bites if the engine is hosted as a multi-tenant service. Postgres is preferred over both the multi-SQLite-shard hybrid and SQL Server: native concurrency, good JSON support for the engine's JSON-heavy state, pgvector for semantic memory search, and a light native footprint. **Run native, not in Docker** — owner does not use Docker; the existing `Dockerfile` / `docker-compose.yml` were added by a prior model and are an optional path, not the owner's deployment story. Sequencing (kept non-premature): stay on SQLite now (correct for single-operator dev/MVP); introduce Postgres when real user accounts / ownership / multiplayer land; until then keep all DB access centralized in `db.js` and avoid SQLite-only SQL so the swap stays mechanical. Open: final DB choice and migration trigger.
 
-- **Player-only communication channel (multiplayer).** Open question raised 2026-06-13; relevant only with multiple players. Owner wants to playtest multiplayer early, even solo with two browser windows, which pulls the user-ownership + character-checkout + turn-order foundations somewhat earlier than the far-future end state. Fork: (a) **integrate with external tools** (Zoom / Teams / Google Chat) for player chat/video, vs (b) **build an in-app player-only text channel.** Tension with the "log everything" requirement: external tools can't be fully logged (video especially) — integration would log only a reference, while an in-app channel can be logged end-to-end. Firm boundary the owner set: **player-only chat is never routed to the GM Council as an actionable turn** — it is table talk among players, never an input to adjudication (clean boundary, and a security property, consistent with the player-authority decision). If players want the GM, a player must explicitly address the GM, which promotes that one message into a real turn; the GM receives only that message, not player-chat history. Logging is for the durable record / operator, not for model consumption (logged-for-humans ≠ fed-to-the-GM), so the log requirement and the never-to-GM rule do not conflict — but a consent/disclosure notice is needed (precedent: the voice-narration disclosure). Open: which mechanism; logging + consent design.
+- **Player-only communication channel (multiplayer) — fork DECIDED 2026-07-04** (in-app loggable channel wins over external-tool integration; a post-v1 Phase 3 slice, not in the first multiplayer cut — see the Multiplayer-v1 decision). Original discussion: Open question raised 2026-06-13; relevant only with multiple players. Owner wants to playtest multiplayer early, even solo with two browser windows, which pulls the user-ownership + character-checkout + turn-order foundations somewhat earlier than the far-future end state. Fork: (a) **integrate with external tools** (Zoom / Teams / Google Chat) for player chat/video, vs (b) **build an in-app player-only text channel.** Tension with the "log everything" requirement: external tools can't be fully logged (video especially) — integration would log only a reference, while an in-app channel can be logged end-to-end. Firm boundary the owner set: **player-only chat is never routed to the GM Council as an actionable turn** — it is table talk among players, never an input to adjudication (clean boundary, and a security property, consistent with the player-authority decision). If players want the GM, a player must explicitly address the GM, which promotes that one message into a real turn; the GM receives only that message, not player-chat history. Logging is for the durable record / operator, not for model consumption (logged-for-humans ≠ fed-to-the-GM), so the log requirement and the never-to-GM rule do not conflict — but a consent/disclosure notice is needed (precedent: the voice-narration disclosure). Open: which mechanism; logging + consent design.
 
-- **Portable characters & campaigns (export / import across instances).** Open question raised 2026-06-15. Goal: a character and/or a full campaign should be exportable as a self-contained, restorable artifact that can move between deployments — backup, host migration, handing a save to another player/operator, resuming elsewhere — with continuity intact. **Distinct from the cross-campaign persistence topic above:** that one is about reusing a character across campaigns *within a single deployment* (the check-in/out lock); this one is about crossing the deployment boundary. For continuity to survive a move, the artifact must carry the *structured* state the Council consults, not transient prompt text — campaign outline, turn/state history, memories, NPCs (relationship + accumulated notes), character sheets, ruleset/known-abilities facts, and (once they exist) location state and voice/visual identity anchors. A portable artifact is therefore a versioned serialization of that structured state. Open questions: artifact format (single-file bundle vs. DB dump) and how it tracks the SQLite→Postgres direction; **schema versioning / migration** so an export from an older engine still imports (this is the load-bearing hard part, and it couples to every state-shape change made by other topics); scope (character-only vs. whole-campaign export); interaction with user ownership/auth and the one-active-campaign-per-character lock (who may import, and how to avoid duplicate "live" copies of the same character); and **trust posture for imported artifacts** — externally supplied campaign/character data is untrusted input and must be treated as data, never as instructions to the Council or engine (same boundary as the bootstrap-packet rule in AGENTS.md and the player-chat-never-to-GM rule above). Provenance: surfaced while scouting an external agent-identity project (`ethagent`, an Ethereum/ERC-8004 system for owning AI agents as wallet-held tokens with encrypted IPFS-backed memory). Nothing from it was adopted — its on-chain ownership / encryption / IPFS / ENS stack is irrelevant to narrative coherence, and the engine's structured DB state already does the memory job far better — but it prompted the portability idea, which would be built natively against the engine's own state store, not borrowed.
+- **Portable characters & campaigns — format DECIDED, PROMOTED 2026-07-04** (versioned single-file JSON bundle, export first, forward importability required; implementation is Phase P in the 2026-07-04 Queue; ownership/auth interactions stay future). Original discussion: Open question raised 2026-06-15. Goal: a character and/or a full campaign should be exportable as a self-contained, restorable artifact that can move between deployments — backup, host migration, handing a save to another player/operator, resuming elsewhere — with continuity intact. **Distinct from the cross-campaign persistence topic above:** that one is about reusing a character across campaigns *within a single deployment* (the check-in/out lock); this one is about crossing the deployment boundary. For continuity to survive a move, the artifact must carry the *structured* state the Council consults, not transient prompt text — campaign outline, turn/state history, memories, NPCs (relationship + accumulated notes), character sheets, ruleset/known-abilities facts, and (once they exist) location state and voice/visual identity anchors. A portable artifact is therefore a versioned serialization of that structured state. Open questions: artifact format (single-file bundle vs. DB dump) and how it tracks the SQLite→Postgres direction; **schema versioning / migration** so an export from an older engine still imports (this is the load-bearing hard part, and it couples to every state-shape change made by other topics); scope (character-only vs. whole-campaign export); interaction with user ownership/auth and the one-active-campaign-per-character lock (who may import, and how to avoid duplicate "live" copies of the same character); and **trust posture for imported artifacts** — externally supplied campaign/character data is untrusted input and must be treated as data, never as instructions to the Council or engine (same boundary as the bootstrap-packet rule in AGENTS.md and the player-chat-never-to-GM rule above). Provenance: surfaced while scouting an external agent-identity project (`ethagent`, an Ethereum/ERC-8004 system for owning AI agents as wallet-held tokens with encrypted IPFS-backed memory). Nothing from it was adopted — its on-chain ownership / encryption / IPFS / ENS stack is irrelevant to narrative coherence, and the engine's structured DB state already does the memory job far better — but it prompted the portability idea, which would be built natively against the engine's own state store, not borrowed.
 
 ## Dev Tooling (not a game phase — no playtest gate, but still plan-backed)
 
@@ -259,7 +412,7 @@ Raised during planning but deliberately deferred. **Per project rule, nothing he
 
 **Review Process**: After completing each phase, we will test a full play session together, gather feedback, and only then move to the next phase. No code will be merged until it demonstrably improves the playing experience.
 
-**Current Priority**: Begin with **Phase 0 (Clarification/Table-Talk)** as it is the foundation everything else rests on.
+**Current Priority** (2026-07-04): **Phase 3 multiplayer v1** is the critical path — the owner's next playtest (which closes every open feel gate) requires it. Then the 2026-07-04 Queue in order: V5 → D → H → P. Phase 0's prompt/table-talk foundation is landed and awaits that same playtest.
 
 This plan will be updated as we learn from implementation and playtesting.
 

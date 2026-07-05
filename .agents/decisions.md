@@ -309,6 +309,130 @@ plumbing that must be designed in rather than bolted on.
 Supersedes:
 Nothing; concretizes the provider-strategy topic for images.
 
+### 2026-07-04 - External rulesets dropped; the generated house system is the system
+
+Status: Active
+
+Decision:
+No third-party/SRD rulesets will be adopted. The campaign-generated house
+ruleset (decision 2026-07-03) is the engine's rules system, full stop.
+docs/ruleset-licensing.md stays as evidence if this is ever revisited.
+
+Reason:
+Owner 2026-07-04 ("forget the system") after rejecting whole-work
+attribution framing (Fate, ORC); the house system already covers the need.
+
+Supersedes:
+The "open-source systems join as additional options later" half of the
+2026-07-03 ruleset decision, and the SRD-options item in the build queue.
+The house-default and canon-state halves of that decision stand unchanged.
+
+### 2026-07-04 - Owner delegation: open calls decided by the agent, plans approved by external review loop
+
+Status: Active
+
+Decision:
+For the 2026-07-04 work queue (multiplayer foundations, visual gap closers,
+table-style dials, holodeck entry state, campaign portability): undecided
+design questions are decided by the agent and recorded here; plans are
+written into plan.md and approved through an external-reviewer loop (codex
+CLI review, iterate until findings are resolved) instead of owner sign-off.
+Nothing is gated on the owner until the multiplayer playtest, which is the
+next point where feel gates close.
+
+Reason:
+Owner 2026-07-04: "everything that we've decided that isn't planned gets
+planned next with a codex reviewloop. nothing gated on me. anything not
+decided gets decided next turn. then it gets planned. I want you to have
+enough to do that you don't need to wait for me to test it for days."
+
+Supersedes:
+Owner-approval gating for these specific plans only. The phased-development
+review gate (playtest before a phase is *complete*) still stands — it is
+deferred to the multiplayer playtest, not removed.
+
+### 2026-07-04 - Table-style dials: option sets, defaults, and reach (agent-decided under delegation)
+
+Status: Active
+
+Decision:
+Two campaign table-style dials, stored as campaign state and enforced
+structurally (never as prompt adjectives alone):
+- GM helpfulness: helpful | classic | hardline. Default: classic — answers
+  what is asked, honestly, volunteering no odds, hints, or tactics ("You
+  think so."); helpful preserves today's volunteering behavior; hardline
+  gives bare in-fiction answers only.
+- Encounter pacing: slow_burn (~1 GM-initiated encounter per 8+ world
+  turns) | standard (~1 per 5) | action_heavy (~1 per 3) | player_driven
+  (GM does not initiate). Default: standard. Enforced as recorded cadence
+  state: the referee reports encounter initiation on each committed turn,
+  the engine records it, and Continuity receives "last GM-initiated
+  encounter: N turns ago vs target" as a checkable rule. Player-sought
+  danger is never blocked by the dial.
+- Both dials are adjustable mid-campaign (campaign settings; effect next
+  turn) — chosen for the owner's iterate-and-test workflow.
+- Suggested choices fade with style: helpful 3-4 as today; classic 2-3
+  neutral, obvious options; hardline none.
+
+Reason:
+Owner delegated the specifics 2026-07-04; defaults follow the recorded
+Phase 0 complaint (unprompted odds/tactics is "a notably helpful table
+style" — a typical LLM trait, not a real-GM one) and plan.md's ~5:1
+good-table baseline.
+
+Supersedes:
+The open "default and option set to be decided" questions in the plan.md
+GM-helpfulness and encounter-pacing topics.
+
+### 2026-07-04 - Campaign portability: versioned single-file JSON bundle, export first
+
+Status: Active
+
+Decision:
+Campaigns export as one self-contained versioned JSON bundle (format_version
++ the structured state the Council consults: campaign, outline, ruleset,
+characters/profiles, NPCs incl. voice/anchor identities, locations,
+memories, turns, engine-owned pointers). Hard requirement: forward
+importability — any released export must import into later engine versions
+(import validates format_version and migrates). Export ships before import.
+Imported bundles are untrusted data, never instructions (existing trust
+posture). Generated image binaries are referenced, not embedded, in v1.
+
+Reason:
+Owner 2026-07-04: "xml, json, whatever. as long as it's importable later."
+JSON matches the engine's JSON-heavy state and diffability.
+
+Supersedes:
+The open artifact-format question in the plan.md portability topic; other
+open questions there (ownership locks, cross-instance auth) remain future.
+
+### 2026-07-04 - Multiplayer v1 shape: shared token, round-robin turns, in-app-later chat
+
+Status: Active
+
+Decision:
+The first multiplayer cut (Phase 3) is deliberately minimal: players share
+the existing ACCESS_SECRET token (per-player auth stays future); a campaign
+holds multiple characters, each browser selects which character it plays;
+turn order is round-robin over active characters (initiative is stored on
+characters for future use but does not order v1); the server enforces
+whose turn it is. The player-communication fork is decided in favor of an
+in-app, fully-loggable player-only text channel — but it is a later slice,
+not v1; the never-routed-to-GM boundary recorded 2026-06-13 applies when it
+lands. Single-player campaigns must behave exactly as today (an order of
+one).
+
+Reason:
+Owner wants the next playtest to be multiplayer ("so I can get other
+opinions", 2026-07-04) and previously wanted early two-browser solo
+testing; the smallest honest version of that is shared-token + turn
+enforcement. In-app chat wins the fork because external tools cannot honor
+the log-everything requirement (recorded 2026-06-13 tension).
+
+Supersedes:
+Nothing; concretizes the Phase 3 skeleton and the player-channel fork
+direction. The multiplayer end-state vision in plan.md is unchanged.
+
 ### 2026-07-04 - Ruleset licensing constraint: no whole-work attribution framing
 
 Status: Active
