@@ -5,91 +5,78 @@ short and update it when important repo facts change.
 
 ## Now
 
-- 2026-07-05 (latest): MULTIPLAYER PARKED — the owner flipped multiplayer back
-  to an open decision and parked testing ("I cannot work on this now").
-  Landed multiplayer code (multi-character schema, turn order, seats/S1)
-  stays in the tree, inert for solo play; S2 visibility scoping and S3 seat
-  UI were NOT built — a seat can act only as its character but can still
-  read full campaign state via the API. Nothing is gated, no playtest is
-  pending, no priority is set. Do not resume multiplayer work without the
-  owner reopening it.
-- 2026-07-05: cross-model review loop (playbook reviewloop, reviewer codex)
-  CLOSED — 4/4 findings verified and merged to master on the owner's go
-  (record: `.agents/review/index.md`). Three were holes in the prior
-  same-model review's own fixes; cr-4 took one reopen round. Master pushed
-  to both remotes on the owner's go.
-
-- 2026-07-04/05: two large deliveries in one running session, all committed to master
-  (working tree clean, NOT pushed — pushes need an explicit owner go).
-  1. **Visual Phases V1–V4 + T1** (image seam, structured locations + map, engine-owned
-     current_heroic, Layout D wiring, agent-generated theming) — see plan.md Visual
-     Phases + Progress Log; 11 review findings fixed same-day.
-  2. **The delegated 2026-07-04 queue** (owner: nothing gated on them until the
-     multiplayer playtest; plans approved via codex CLI review loop — 7→2→0 findings):
-     Phase 3 multiplayer v1 (M1 multi-character schema w/ atomic migration + arrival
-     baselines; M2 round-robin with gate-after-classification, speaking-vs-acting
-     characters, per-character release; M3 join flow + party UI + per-browser identity
-     + gap-backfilling poll; M4 README), V5 gap closers (opening location/heroic,
-     generated NPC appearance anchors, sticky positional), Phase D table-style dials
-     (classic + standard defaults, structural enforcement, pacing as recorded
-     world-turn cadence), Phase H holodeck idle, Phase P export/import (versioned
-     bundle; test-fixtures/campaign-bundle-v1.json is the pinned forward-importability
-     guard — never regenerate it, migrations go in validateCampaignBundle).
-- A 26-agent adversarial review of the queue confirmed 21 unique defects; ALL fixed,
-  one commit each (highlights: denials no longer consume the acting player's turn via
-  the engine-stamped action_resolved flag; startup backfill no longer resurrects
-  released characters as ghost profiles; campaign list aggregates the party; bundle
-  hardening; poll race/backfill/identity-claim fixes). Suite: 23 groups green.
-- Live smokes performed via API with the configured Ollama model: campaign 3 committed
-  action (V2 pipeline), campaign 4 "Steel Echoes" created (V5a opening location,
-  Orbitron/Special Elite theming), campaign 1 is now a ready TWO-CHARACTER test table
-  (Joe + Mira; Testa released — release/ghost paths verified live), export→import
-  round-trip verified then the artifact deleted.
-- Decisions recorded 2026-07-04 (.agents/decisions.md): external rulesets DROPPED
-  entirely ("forget the system" — house system is the system; docs/ruleset-licensing.md
-  kept as evidence incl. the no-whole-work-attribution constraint); owner delegation
-  (codex review loop instead of owner plan sign-off for this queue); dial option
-  sets/defaults; portability format; multiplayer v1 shape.
-- Image generation still configured OFF (no provider in /admin): heroics inert by
-  design. dev DB backup from before the M1 migration: data/rpg_engine.pre-m1-backup.db.
+- **MULTIPLAYER IS PARKED (owner, 2026-07-05).** It flipped back to an open,
+  undecided question; testing is parked; no priority is set anywhere. Do not
+  resume any multiplayer work (no S2/S3, no Phase 3 extensions) unless the
+  owner explicitly reopens it. Decision entry: "Multiplayer is an OPEN
+  question" in `.agents/decisions.md`.
+- Landed and inert-for-solo in the tree: multi-character schema + round-robin
+  turn order (Phase 3 M1–M3), seats S1 (per-seat tokens, server-side
+  character binding, host/seat route guards — live-smoke verified). Dormant
+  caveat, on record: S2 never landed, so a seat token — if ever minted — can
+  act only as its own character but can still READ full campaign state
+  (outline, NPC notes, memories) from the API.
+- Also landed 2026-07-04/05, all playable solo: Visual Phases V1–V4 + T1
+  (image seam, structured locations + deterministic map, engine-owned
+  current_heroic, agent-generated theming), V5 gap closers, Phase D
+  table-style dials (classic/standard defaults), Phase H holodeck idle,
+  Phase P campaign export/import (test-fixtures/campaign-bundle-v1.json is
+  the pinned forward-importability guard — never regenerate it; migrations
+  go in validateCampaignBundle).
+- Reviews: 21 same-model findings fixed (2026-07-04); cross-model reviewloop
+  (playbook, reviewer codex) closed 2026-07-05, 4/4 verified and merged;
+  a codex plan pass shaped Phase S before it was parked. Codex incantation
+  cache: `.agents/review/harnesses.local.json` (gitignored; codex exec needs
+  `< /dev/null` on stdin and generous timeouts).
+- Push state: both remotes (gitea origin + github) hold master through
+  commit 852bf14. Everything after — Phase S plan + S1 code, the park
+  decision, this handoff — is LOCAL ONLY. Pushing needs an explicit owner go
+  (`.agents/push-policy.md`).
+- Image generation remains unconfigured (no provider in /admin): heroics
+  inert by design. Feel gates (Phase 0, layouts, voices, rulesets, dials,
+  locations/map) are open with NO scheduled close.
 
 ## Next
 
-- No playtest is pending (parked 2026-07-05). Feel gates remain open with no
-  scheduled close. Await owner direction before picking any priority.
-- To see heroics: set an image provider in /admin → Scene Images (loopback SD-WebUI
-  URL, or an OpenAI key; non-loopback endpoints must be pinned via IMAGE_ENDPOINT_URL).
-- Post-playtest backlog (recorded, unscheduled): in-app player-only chat channel
-  (fork decided in-app, never routed to the GM), per-player auth, initiative-based
-  ordering, SSE/websocket replacing the 12s poll, appearance-descriptor for import
-  bundles' baselines, desktop-shell test coverage.
-- Owner may want a push (master → both remotes per .agents/push-policy.md) — needs
-  their explicit go.
+- Await the owner. They said they cannot work on this now; when they point
+  at something, that is the priority. Do not manufacture work.
+- If multiplayer reopens: the parked design history is intact (multi-user
+  decision + Phase S plan with codex findings applied in plan.md); S1 code
+  is live; S2 (seat-scoped visibility incl. the voiceLines personality leak)
+  and S3 (seat UI/bootstrap) were never built.
+- If asked to revert multiplayer code instead: nothing prepared; scope fresh
+  with the owner.
 
 ## Blockers
 
-- None hard. Everything pending is the owner playtest or post-playtest backlog.
+- Owner bandwidth only. Nothing technical is blocked.
 
 ## Verification
 
-- Automated: `node test.js` (AI_RETRY_BACKOFF_MS=10 to skip retry sleeps) — 23 groups,
-  green at head. Desktop shell (Rust) outside it: `cargo build` in desktop/src-tauri.
-- Live: `node server.js`, play via browser or curl; Ollama (qwen3.6:27b) is free.
-  Multiplayer flows live-verified 2026-07-04/05 (join, out-of-turn 409, release).
+- Automated: `AI_RETRY_BACKOFF_MS=10 node test.js` — 24 groups, green at
+  HEAD. Desktop shell (Rust) outside it: `cargo build` in desktop/src-tauri.
+- Live: `node server.js` (Ollama qwen3.6:27b configured, free). Seat flows
+  smoke-verified with ACCESS_SECRET set; without it, solo dev is unchanged.
 
 ## Active Sources
 
-- `AGENTS.md`, `.agents/repo-guidance.md`, `.agents/decisions.md`, `.agents/repo-map.json`
-- `plan.md` (phases incl. Visual Phases + 2026-07-04 Queue, Future Topics, progress log)
-- `README.md` (features incl. shared tables, hosting instructions)
+- `AGENTS.md`, `.agents/repo-guidance.md`, `.agents/decisions.md`,
+  `.agents/repo-map.json`, `.agents/playbooks/reviewloop.md`
+- `plan.md` (all phases; Phase S marked PARKED; no current priority)
+- `README.md` — note: its multiplayer/hosting section still describes the
+  parked shared-token flow (stale relative to the park; harmless solo;
+  revisit only if the topic reopens)
 - `docs/ruleset-licensing.md` (evidence for the dropped-rulesets decision)
 
 ## Unrecorded Repo Memory
 
-- Engine: db.js/rpg-state.js/rpg-engine.js; prompts in rpg-prompts.js; provider seams
-  api-client.js (text), tts-providers.js (speech), image-providers.js (images);
-  map-render.js (deterministic maps); admin/ panel; test-fixtures/ (pinned bundle).
-- Dev DB (gitignored) campaigns: 1 "Velvet Protocol" (two-character multiplayer test
-  table), 2 "The Drowning Crown", 3 "Shadows of the Sunken Sands" (ruleset + V2
-  evidence), 4 "Steel Echoes" (V5a/T1 evidence). Profiles cleaned of test ghosts.
-- The codex CLI (0.142.5) is installed and was used for the plan review loop.
+- Engine: db.js / rpg-state.js / rpg-engine.js; prompts rpg-prompts.js;
+  seams api-client.js (text), tts-providers.js (speech), image-providers.js
+  (images); map-render.js; seat-auth.js; admin/ panel; .agents/review/
+  (closed loop records + guard-check scripts).
+- Dev DB (gitignored): campaigns 1 "Velvet Protocol" (two characters, Joe +
+  Mira; Mira's smoke seat revoked), 2 "The Drowning Crown", 3 "Shadows of
+  the Sunken Sands", 4 "Steel Echoes". Pre-M1 backup:
+  data/rpg_engine.pre-m1-backup.db.
+- The party-strip "+ Join" UI and README hosting section reflect the parked
+  shared-token multiplayer; harmless solo.
