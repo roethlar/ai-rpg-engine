@@ -25,3 +25,4 @@ Thumbs.db
 
 # Machine-local harness state
 .claude/settings.local.json
+.agents/review/harnesses.local.json

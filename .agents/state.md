@@ -5,6 +5,8 @@ short and update it when important repo facts change.
 
 ## Now
 
+- Active review loop: see `.agents/review/index.md`.
+
 - 2026-07-04/05: two large deliveries in one running session, all committed to master
   (working tree clean, NOT pushed — pushes need an explicit owner go).
   1. **Visual Phases V1–V4 + T1** (image seam, structured locations + map, engine-owned
