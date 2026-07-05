@@ -147,6 +147,10 @@ export async function initDb() {
   // and rebuild, preserving rows.
   const characterColumns = await all(`PRAGMA table_info(characters)`);
   if (characterColumns.length > 0 && !characterColumns.some(col => col.name === 'id')) {
+    // Atomic rebuild: a crash mid-migration must never strand rows in
+    // characters_legacy with an empty characters table.
+    await run('BEGIN IMMEDIATE;');
+    try {
     await run('ALTER TABLE characters RENAME TO characters_legacy;');
     await run(`
       CREATE TABLE characters (
@@ -179,7 +183,12 @@ export async function initDb() {
       FROM characters_legacy
     `);
     await run('DROP TABLE characters_legacy;');
+    await run('COMMIT;');
     console.log('Migrated characters to the multi-character schema (Phase 3 M1).');
+    } catch (migrationError) {
+      await run('ROLLBACK;');
+      throw migrationError;
+    }
   }
 
   try {
