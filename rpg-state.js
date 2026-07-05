@@ -89,6 +89,39 @@ function escapeXmlText(value) {
 }
 
 /**
+ * Coerces dice-roll records to the canonical shape (cr-4: shared by live
+ * play and the import trust boundary — the roll bubble dereferences these).
+ * Entries without numeric total+dc are dropped; everything else is coerced.
+ */
+export function sanitizeDiceRollRecords(raw) {
+  const rolls = [];
+  if (Array.isArray(raw)) {
+    raw.slice(0, 3).forEach(roll => {
+      if (!roll || typeof roll !== 'object' || Array.isArray(roll)) return;
+      if (typeof roll.total !== 'number' || isNaN(roll.total)) return;
+      if (typeof roll.dc !== 'number' || isNaN(roll.dc)) return;
+      rolls.push({
+        attribute: typeof roll.attribute === 'string' ? roll.attribute : 'strength',
+        roll: typeof roll.roll === 'number' && !isNaN(roll.roll) ? roll.roll : 0,
+        modifier: typeof roll.modifier === 'number' && !isNaN(roll.modifier) ? roll.modifier : 0,
+        total: roll.total,
+        dc: roll.dc,
+        success: !!roll.success,
+        reason: typeof roll.reason === 'string' ? roll.reason.trim() : '',
+        consequence: typeof roll.consequence === 'string' ? roll.consequence.trim() : '',
+        applied_health_change: typeof roll.applied_health_change === 'number' && !isNaN(roll.applied_health_change)
+          ? Math.max(-50, Math.min(0, Math.floor(roll.applied_health_change)))
+          : 0,
+        applied_mana_change: typeof roll.applied_mana_change === 'number' && !isNaN(roll.applied_mana_change)
+          ? Math.max(-30, Math.min(0, Math.floor(roll.applied_mana_change)))
+          : 0
+      });
+    });
+  }
+  return rolls;
+}
+
+/**
  * Validates and sanitizes LLM JSON output to prevent malformed values from corrupting the DB/UI.
  */
 export function validateTurnData(raw, currentAct = 1, tableStyle = null) {
@@ -189,30 +222,7 @@ export function validateTurnData(raw, currentAct = 1, tableStyle = null) {
 
   // 5c. Dice roll records (engine-rolled in the Council path; sanitized here so the
   // durable turn state — which clarification turns and forks replay — stays well-formed)
-  validated.dice_rolls = [];
-  if (Array.isArray(data.dice_rolls)) {
-    data.dice_rolls.slice(0, 3).forEach(roll => {
-      if (!roll || typeof roll !== 'object') return;
-      if (typeof roll.total !== 'number' || isNaN(roll.total)) return;
-      if (typeof roll.dc !== 'number' || isNaN(roll.dc)) return;
-      validated.dice_rolls.push({
-        attribute: typeof roll.attribute === 'string' ? roll.attribute : 'strength',
-        roll: typeof roll.roll === 'number' && !isNaN(roll.roll) ? roll.roll : 0,
-        modifier: typeof roll.modifier === 'number' && !isNaN(roll.modifier) ? roll.modifier : 0,
-        total: roll.total,
-        dc: roll.dc,
-        success: !!roll.success,
-        reason: typeof roll.reason === 'string' ? roll.reason.trim() : '',
-        consequence: typeof roll.consequence === 'string' ? roll.consequence.trim() : '',
-        applied_health_change: typeof roll.applied_health_change === 'number' && !isNaN(roll.applied_health_change)
-          ? Math.max(-50, Math.min(0, Math.floor(roll.applied_health_change)))
-          : 0,
-        applied_mana_change: typeof roll.applied_mana_change === 'number' && !isNaN(roll.applied_mana_change)
-          ? Math.max(-30, Math.min(0, Math.floor(roll.applied_mana_change)))
-          : 0
-      });
-    });
-  }
+  validated.dice_rolls = sanitizeDiceRollRecords(data.dice_rolls);
 
   // 5e. Location signal (Phase V2): engine-stamped from the Referee's
   // location block on committed actions; sanitized here so the durable turn
@@ -940,6 +950,17 @@ export function validateCampaignBundle(raw) {
       if ('suggested_choices' in parsedRecord &&
           !(Array.isArray(parsedRecord.suggested_choices) && parsedRecord.suggested_choices.every(c => typeof c === 'string'))) {
         delete parsedRecord.suggested_choices;
+      }
+      // Roll records reach the roll bubble's dereferences (cr-4 reopen):
+      // coerce dice_rolls through live play's sanitizer, and legacy
+      // roll_result through the same single-record rules.
+      if ('dice_rolls' in parsedRecord) {
+        parsedRecord.dice_rolls = sanitizeDiceRollRecords(parsedRecord.dice_rolls);
+      }
+      if ('roll_result' in parsedRecord) {
+        const legacyRoll = sanitizeDiceRollRecords([parsedRecord.roll_result]);
+        if (legacyRoll.length === 1) parsedRecord.roll_result = legacyRoll[0];
+        else delete parsedRecord.roll_result;
       }
       stateChanges = JSON.stringify(parsedRecord);
     }

@@ -1936,8 +1936,9 @@ export async function getCampaignState(campaignId) {
       // cr-4: records can be legacy or imported — never assume field shapes
       suggestedChoices = Array.isArray(lastTurnData.suggested_choices) ? lastTurnData.suggested_choices : [];
       if (Array.isArray(lastTurnData.dice_rolls) && lastTurnData.dice_rolls.length > 0) {
-        rollResults = lastTurnData.dice_rolls;
-      } else if (lastTurnData.roll_result) {
+        // cr-4: element shapes are not guaranteed on legacy/imported records
+        rollResults = lastTurnData.dice_rolls.filter(r => r && typeof r === 'object' && !Array.isArray(r));
+      } else if (lastTurnData.roll_result && typeof lastTurnData.roll_result === 'object' && !Array.isArray(lastTurnData.roll_result)) {
         // Legacy pre-refactor turn record
         rollResults = [lastTurnData.roll_result];
       }

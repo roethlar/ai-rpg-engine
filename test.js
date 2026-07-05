@@ -948,6 +948,28 @@ async function testCampaignBundle() {
     turns: [{ turn_number: 1, narrative: 'n', state_changes_json: JSON.stringify({ suggested_choices: ['a', 'b'] }) }]
   });
   assert.deepStrictEqual(JSON.parse(okShapes.turns[0].state_changes_json).suggested_choices, ['a', 'b'], 'Well-formed choices survive');
+
+  // cr-4 reopen: roll records reach the roll bubble's dereferences — coerce
+  // dice_rolls entries and legacy roll_result through the live sanitizer
+  const rollShapes = validateCampaignBundle({
+    ...fixture,
+    turns: [{
+      turn_number: 1, narrative: 'n',
+      state_changes_json: JSON.stringify({
+        dice_rolls: [null, { attribute: {}, total: 9, dc: 5 }, 'junk'],
+        roll_result: { attribute: {} } // no total/dc → dropped entirely
+      })
+    }]
+  });
+  const rollRecord = JSON.parse(rollShapes.turns[0].state_changes_json);
+  assert.strictEqual(rollRecord.dice_rolls.length, 1, 'Null/junk roll entries dropped on import');
+  assert.strictEqual(rollRecord.dice_rolls[0].attribute, 'strength', 'Non-string attributes coerced');
+  assert.strictEqual('roll_result' in rollRecord, false, 'Unsalvageable legacy roll_result dropped');
+  const okRoll = validateCampaignBundle({
+    ...fixture,
+    turns: [{ turn_number: 1, narrative: 'n', state_changes_json: JSON.stringify({ roll_result: { attribute: 'agility', total: 14, dc: 10, success: true } }) }]
+  });
+  assert.strictEqual(JSON.parse(okRoll.turns[0].state_changes_json).roll_result.success, true, 'Valid legacy roll_result survives');
 }
 
 // -------------------------------------------------------------
