@@ -406,9 +406,32 @@ Supersedes:
 The open artifact-format question in the plan.md portability topic; other
 open questions there (ownership locks, cross-instance auth) remain future.
 
-### 2026-07-05 - Multiplayer means multi-USER: per-seat credentials, server-side character binding, scoped visibility
+### 2026-07-05 - Multiplayer is an OPEN question; all multiplayer work parked
 
 Status: Active
+
+Decision:
+Multiplayer — its meaning, scope, and whether/when to build it — flips back
+to an open, undecided question. The multiplayer playtest is parked. No
+further multiplayer work (no S2 visibility scoping, no S3 UI rewire, no
+Phase 3 extensions) until the owner reopens the topic. Code already landed
+(multi-character schema, turn order, seats/S1) stays in the tree: it was
+built to leave solo play unchanged and verified so; reverting is available
+on the owner's word but was not requested.
+
+Reason:
+Owner 2026-07-05: "this is not what I want. multiplayer flips back to open
+decision, testing is parked. I cannot work on this now."
+
+Supersedes:
+The 2026-07-05 multi-user decision below and the 2026-07-04 multiplayer-v1
+decision as ACTIVE direction — both become recorded design history, not
+mandates. The next-playtest-closes-all-gates framing is void; no playtest
+is pending.
+
+### 2026-07-05 - Multiplayer means multi-USER: per-seat credentials, server-side character binding, scoped visibility
+
+Status: Superseded (parked — see the reopen decision above)
 
 Decision:
 "Multiplayer" requires distinct users, each able to act only as — and see

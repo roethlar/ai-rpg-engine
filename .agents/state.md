@@ -5,6 +5,14 @@ short and update it when important repo facts change.
 
 ## Now
 
+- 2026-07-05 (latest): MULTIPLAYER PARKED — the owner flipped multiplayer back
+  to an open decision and parked testing ("I cannot work on this now").
+  Landed multiplayer code (multi-character schema, turn order, seats/S1)
+  stays in the tree, inert for solo play; S2 visibility scoping and S3 seat
+  UI were NOT built — a seat can act only as its character but can still
+  read full campaign state via the API. Nothing is gated, no playtest is
+  pending, no priority is set. Do not resume multiplayer work without the
+  owner reopening it.
 - 2026-07-05: cross-model review loop (playbook reviewloop, reviewer codex)
   CLOSED — 4/4 findings verified and merged to master on the owner's go
   (record: `.agents/review/index.md`). Three were holes in the prior
@@ -47,10 +55,8 @@ short and update it when important repo facts change.
 
 ## Next
 
-- **The owner's multiplayer playtest is the single gate that closes everything**:
-  Phase 0 feel, spotlight/Situation/heroic layouts, voices, rulesets, locations/map,
-  dials (classic default!), and multiplayer itself. Two browsers on campaign 1 is the
-  intended demo. No playtests before that per owner 2026-07-04.
+- No playtest is pending (parked 2026-07-05). Feel gates remain open with no
+  scheduled close. Await owner direction before picking any priority.
 - To see heroics: set an image provider in /admin → Scene Images (loopback SD-WebUI
   URL, or an OpenAI key; non-loopback endpoints must be pinned via IMAGE_ENDPOINT_URL).
 - Post-playtest backlog (recorded, unscheduled): in-app player-only chat channel

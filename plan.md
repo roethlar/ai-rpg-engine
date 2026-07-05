@@ -335,7 +335,7 @@ bundle, export first, forward importability is the hard requirement)
 - Files: server.js, rpg-engine.js (bundle build/restore), rpg-state.js,
   test.js.
 
-## Phase S: Seats — multi-user access control (promoted 2026-07-05, owner requirement)
+## Phase S: Seats — PARKED 2026-07-05 (multiplayer reopened as an undecided question; S1 landed, S2/S3 not built)
 
 Multiplayer means multi-USER (decision 2026-07-05): two distinct users, each
 able to act only as, and see only, their own character. Design surfaced to
@@ -479,7 +479,7 @@ Raised during planning but deliberately deferred. **Per project rule, nothing he
 
 **Review Process**: After completing each phase, we will test a full play session together, gather feedback, and only then move to the next phase. No code will be merged until it demonstrably improves the playing experience.
 
-**Current Priority** (2026-07-04): **Phase 3 multiplayer v1** is the critical path — the owner's next playtest (which closes every open feel gate) requires it. Then the 2026-07-04 Queue in order: V5 → D → H → P. Phase 0's prompt/table-talk foundation is landed and awaits that same playtest.
+**Current Priority** (2026-07-05): none set — multiplayer is reopened as an undecided question and testing is parked (decision 2026-07-05). Work resumes when the owner points at something.
 
 This plan will be updated as we learn from implementation and playtesting.
 
