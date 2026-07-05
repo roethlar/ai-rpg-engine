@@ -937,12 +937,12 @@ async function testCampaignBundle() {
     ...fixture,
     turns: [{
       turn_number: 1, narrative: 'n',
-      state_changes_json: JSON.stringify({ suggested_choices: { bad: 'shape' }, roll_result: { legacy: true }, input_kind: 'dialogue' })
+      state_changes_json: JSON.stringify({ suggested_choices: { bad: 'shape' }, roll_damage: 7, input_kind: 'dialogue' })
     }]
   });
   const shaped = JSON.parse(shapes.turns[0].state_changes_json);
   assert.strictEqual('suggested_choices' in shaped, false, 'Non-array suggested_choices is stripped on import');
-  assert.deepStrictEqual(shaped.roll_result, { legacy: true }, 'Legacy fields pass through untouched');
+  assert.strictEqual(shaped.roll_damage, 7, 'Legacy fields pass through untouched');
   const okShapes = validateCampaignBundle({
     ...fixture,
     turns: [{ turn_number: 1, narrative: 'n', state_changes_json: JSON.stringify({ suggested_choices: ['a', 'b'] }) }]
