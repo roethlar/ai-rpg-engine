@@ -1686,3 +1686,15 @@ body {
   font-size: 9px !important;
   padding: 2px 6px !important;
 }
+
+/* Narrow viewports: the spotlight grid overrides above have higher
+   specificity than the single-column media rules, so without this reset a
+   spotlight press on a phone/tablet width snaps the layout back to fixed
+   multi-column tracks with horizontal overflow. Declared last so it wins
+   the source-order tiebreak against every [data-focus] grid rule. */
+@media (max-width: 1024px) {
+  .main-layout.immersive-layout[data-focus],
+  .main-layout:not(.immersive-layout)[data-focus] {
+    grid-template-columns: 1fr;
+  }
+}
