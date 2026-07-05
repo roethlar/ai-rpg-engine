@@ -464,14 +464,22 @@ app.get('/api/campaigns/:id/images/:imageId', async (req, res) => {
     // file_path is stored relative to data/; resolve and confine it there.
     const dataDir = path.resolve(__dirname, 'data');
     const filePath = path.resolve(dataDir, row.file_path);
-    if (!filePath.startsWith(dataDir + path.sep) || !fs.existsSync(filePath)) {
+    if (!filePath.startsWith(dataDir + path.sep)) {
+      return res.status(404).json({ error: 'Image data unavailable.' });
+    }
+    // Read errors (missing/unreadable file, directory at the path) must not
+    // echo server filesystem paths to the client.
+    let imageBytes;
+    try {
+      imageBytes = fs.readFileSync(filePath);
+    } catch (readError) {
       return res.status(404).json({ error: 'Image data unavailable.' });
     }
     res.setHeader('Content-Type', row.mime_type || 'image/png');
     res.setHeader('Cache-Control', 'private, max-age=31536000, immutable');
-    res.send(fs.readFileSync(filePath));
+    res.send(imageBytes);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'Image lookup failed.' });
   }
 });
 
