@@ -87,13 +87,18 @@ function renderSettings(settings) {
   el('ollama-url').value = settings.ollamaUrl || '';
   el('voice-model').value = settings.voiceModel || '';
   el('voice-provider').value = settings.voiceProvider || '';
+  el('image-provider').value = settings.imageProvider || '';
+  el('image-model').value = settings.imageModel || '';
+  el('image-endpoint').value = settings.imageEndpoint || '';
   el('fb-provider').value = settings.fallback?.provider || '';
   el('fb-model').value = settings.fallback?.model || '';
   renderSecretState('api-key-state', settings.apiKeySet);
   renderSecretState('voice-api-key-state', settings.voiceApiKeySet);
+  renderSecretState('image-api-key-state', settings.imageApiKeySet);
   renderSecretState('fb-api-key-state', settings.fallback?.apiKeySet);
   el('api-key').value = '';
   el('voice-api-key').value = '';
+  el('image-api-key').value = '';
   el('fb-api-key').value = '';
   for (const [key] of AI_ROLES) {
     const role = settings.roles?.[key] || {};
@@ -125,6 +130,10 @@ function collectSettings(clearKeys = false) {
     voiceApiKey: secret('voice-api-key'),
     voiceModel: el('voice-model').value,
     voiceProvider: el('voice-provider').value,
+    imageProvider: el('image-provider').value,
+    imageModel: el('image-model').value,
+    imageApiKey: secret('image-api-key'),
+    imageEndpoint: el('image-endpoint').value,
     fallback: {
       provider: el('fb-provider').value,
       model: el('fb-model').value,

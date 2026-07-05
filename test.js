@@ -652,6 +652,118 @@ async function testTtsProviderSeam() {
 }
 
 // -------------------------------------------------------------
+// Test: image provider seam + identity anchors (Phase V1)
+// -------------------------------------------------------------
+async function testImageProviderSeam() {
+  console.log(' - Running image provider seam tests...');
+  const { generateImage, listImageProviders, validateIdentityAnchor } = await import('./image-providers.js');
+  const { sanitizeAdminAiConfig, mergeAiConfig, maskAiConfig } = await import('./server-config.js');
+
+  assert.deepStrictEqual(listImageProviders(), ['openai', 'sdwebui'], 'Hosted + local dev providers registered');
+  await assert.rejects(
+    () => generateImage({ provider: 'midjourney', prompt: 'x' }),
+    /Unsupported image provider/,
+    'Unknown providers fail with a clear error'
+  );
+  await assert.rejects(
+    () => generateImage({ provider: 'openai', apiKey: '', prompt: 'x' }),
+    /API key is missing/,
+    'Missing OpenAI key fails fast'
+  );
+  await assert.rejects(
+    () => generateImage({ provider: 'sdwebui', endpoint: '', prompt: 'x' }),
+    /endpoint is missing/,
+    'Missing SD-WebUI endpoint fails fast'
+  );
+
+  // Identity anchors: the stored visual identity of a subject (visual canon)
+  const anchor = validateIdentityAnchor({ descriptor: `  ${'d'.repeat(900)}  `, seed: 7.9 });
+  assert.strictEqual(anchor.descriptor.length, 800, 'Descriptor is bounded');
+  assert.strictEqual(anchor.seed, 7, 'Seeds are floored integers');
+  assert.strictEqual(validateIdentityAnchor({ seed: -5 }).seed, null, 'Negative seeds are dropped');
+  assert.strictEqual(validateIdentityAnchor(null).seed, null);
+
+  const realFetch = globalThis.fetch;
+  let captured = null;
+  const pngB64 = Buffer.from([1, 2, 3]).toString('base64');
+  globalThis.fetch = async (url, options) => {
+    captured = {
+      url: String(url),
+      auth: options.headers?.Authorization,
+      body: JSON.parse(options.body)
+    };
+    return {
+      ok: true,
+      json: async () => ({
+        data: [{ b64_json: pngB64 }],                          // OpenAI shape
+        images: [pngB64], info: JSON.stringify({ seed: 1234 }) // SD-WebUI shape
+      })
+    };
+  };
+  try {
+    // OpenAI: pinned endpoint, descriptor folded into the prompt, landscape size
+    const hosted = await generateImage({
+      provider: 'openai', apiKey: 'img-key', prompt: 'A drowned throne room',
+      identityAnchor: { descriptor: 'silver-haired queen with a cracked crown' },
+      width: 1024, height: 768
+    });
+    assert.strictEqual(captured.url, 'https://api.openai.com/v1/images/generations', 'OpenAI images endpoint is pinned');
+    assert.strictEqual(captured.auth, 'Bearer img-key');
+    assert.strictEqual(captured.body.model, 'gpt-image-1', 'Default model when unconfigured');
+    assert.strictEqual(captured.body.size, '1536x1024', 'Landscape request maps to a supported size');
+    assert.strictEqual(captured.body.response_format, undefined, 'gpt-image models reject response_format');
+    assert.strictEqual(captured.body.prompt.includes('cracked crown'), true, 'Identity descriptor conditions the prompt');
+    assert.strictEqual(hosted.image.length, 3, 'Returns the decoded image buffer');
+    assert.strictEqual(hosted.seed, null, 'OpenAI cannot report a reusable seed');
+
+    await generateImage({ provider: 'openai', apiKey: 'k', model: 'dall-e-3', prompt: 'x', width: 1024, height: 768 });
+    assert.strictEqual(captured.body.response_format, 'b64_json', 'dall-e models must request base64');
+    assert.strictEqual(captured.body.size, '1792x1024', 'dall-e landscape size differs');
+
+    // SD-WebUI: configurable local endpoint, seed conditioning, no key ever attached
+    const local = await generateImage({
+      provider: 'sdwebui', endpoint: 'http://localhost:7860', apiKey: 'must-not-leak',
+      model: 'realvis-xl', prompt: 'A drowned throne room',
+      identityAnchor: { seed: 42 }, width: 1000, height: 700
+    });
+    assert.strictEqual(captured.url, 'http://localhost:7860/sdapi/v1/txt2img', 'SD-WebUI path derives from the endpoint');
+    assert.strictEqual(captured.auth, undefined, 'The configurable-endpoint provider never sends an API key');
+    assert.strictEqual(captured.body.seed, 42, 'Anchor seed conditions the render');
+    assert.strictEqual(captured.body.width % 8, 0, 'Dimensions snap to multiples of 8');
+    assert.deepStrictEqual(captured.body.override_settings, { sd_model_checkpoint: 'realvis-xl' });
+    assert.strictEqual(local.seed, 1234, 'The actually-used seed is returned for anchor recording');
+
+    await generateImage({ provider: 'sdwebui', endpoint: 'http://localhost:7860', prompt: 'x' });
+    assert.strictEqual(captured.body.seed, -1, 'No anchor → provider-random seed');
+    assert.strictEqual(captured.body.override_settings, undefined, 'No model → keep the loaded checkpoint');
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+
+  // Admin config: sanitize/merge/mask for the image fields (Phase V1 wiring)
+  const dirty = sanitizeAdminAiConfig({ imageProvider: 'midjourney', imageModel: ' m ', imageApiKey: ' k ', imageEndpoint: ' http://gpu-box:7860 ' });
+  assert.strictEqual(dirty.imageProvider, '', 'Unknown image providers fall through');
+  assert.strictEqual(dirty.imageModel, 'm');
+  assert.strictEqual(dirty.imageEndpoint, 'http://gpu-box:7860');
+  assert.strictEqual(sanitizeAdminAiConfig({ imageProvider: 'sdwebui' }).imageProvider, 'sdwebui');
+
+  const adminWins = mergeAiConfig({ imageProvider: 'sdwebui', imageEndpoint: 'http://gpu-box:7860' }, { IMAGE_PROVIDER: 'openai' });
+  assert.strictEqual(adminWins.imageProvider, 'sdwebui', 'Admin image provider beats env');
+  assert.strictEqual(adminWins.imageEndpoint, 'http://gpu-box:7860', 'Admin endpoint honored in dev');
+  const envWins = mergeAiConfig(null, { IMAGE_PROVIDER: 'openai', OPENAI_API_KEY: 'shared-key' });
+  assert.strictEqual(envWins.imageProvider, 'openai');
+  assert.strictEqual(envWins.imageApiKey, 'shared-key', 'Image key falls back to OPENAI_API_KEY');
+  assert.strictEqual(mergeAiConfig(null, {}).imageProvider, '', 'Unconfigured = image generation inert');
+  const prod = mergeAiConfig({ imageEndpoint: 'http://sneaky:7860' }, { NODE_ENV: 'production', IMAGE_ENDPOINT_URL: 'http://env-box:7860' });
+  assert.strictEqual(prod.imageEndpoint, 'http://env-box:7860', 'Production ignores admin endpoints (SSRF posture)');
+
+  const masked = maskAiConfig({ imageProvider: 'openai', imageApiKey: 'image-secret', imageEndpoint: 'http://gpu-box:7860' });
+  assert.strictEqual(JSON.stringify(masked).includes('image-secret'), false, 'Masked view must not contain the image key');
+  assert.strictEqual(masked.imageApiKeySet, true);
+  assert.strictEqual(masked.imageEndpoint, 'http://gpu-box:7860', 'Non-secret image fields echo for the form');
+}
+
+// -------------------------------------------------------------
 // Test: campaign ruleset — validation and canon injection
 // -------------------------------------------------------------
 async function testRulesetCanon() {
@@ -826,6 +938,7 @@ async function runAll() {
     await testRulesetCanon();
     await testVoiceScript();
     await testTtsProviderSeam();
+    await testImageProviderSeam();
     await testServerConfigResolution();
     await testFallbackTiering();
     await testProviderEndpointPin();

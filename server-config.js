@@ -7,9 +7,11 @@
  * Resolution order for every field: admin-set value > environment > default.
  */
 import * as db from './db.js';
+import { listImageProviders } from './image-providers.js';
 
 export const AI_PROVIDERS = ['gemini', 'openai', 'claude', 'grok', 'ollama', 'custom'];
 export const AI_ROLES = ['setup', 'interaction', 'continuity', 'referee', 'narration'];
+const IMAGE_PROVIDERS = listImageProviders();
 const SETTING_KEY = 'ai_config';
 const MAX_FIELD_LENGTH = 400;
 
@@ -42,6 +44,10 @@ export function sanitizeAdminAiConfig(raw) {
     voiceApiKey: cleanField(data.voiceApiKey),
     voiceModel: cleanField(data.voiceModel),
     voiceProvider: cleanField(data.voiceProvider),
+    imageProvider: IMAGE_PROVIDERS.includes(data.imageProvider) ? data.imageProvider : '',
+    imageModel: cleanField(data.imageModel),
+    imageApiKey: cleanField(data.imageApiKey),
+    imageEndpoint: cleanField(data.imageEndpoint),
     fallback: {
       provider: AI_PROVIDERS.includes(fallbackRaw.provider) ? fallbackRaw.provider : '',
       model: cleanField(fallbackRaw.model),
@@ -69,7 +75,14 @@ export function mergeAiConfig(adminConfig, env = process.env) {
     ollamaUrl: admin.ollamaUrl || undefined,
     voiceApiKey: admin.voiceApiKey || env.OPENAI_API_KEY || '',
     voiceModel: admin.voiceModel || env.TTS_MODEL || '',
-    voiceProvider: admin.voiceProvider || env.TTS_PROVIDER || 'openai'
+    voiceProvider: admin.voiceProvider || env.TTS_PROVIDER || 'openai',
+    // Image generation (Phase V1): no provider configured = feature inert.
+    // The endpoint follows the custom-LLM-endpoint SSRF posture: admin-set
+    // values are honored in dev; production requires IMAGE_ENDPOINT_URL env.
+    imageProvider: admin.imageProvider || env.IMAGE_PROVIDER || '',
+    imageModel: admin.imageModel || env.IMAGE_MODEL || '',
+    imageApiKey: admin.imageApiKey || env.IMAGE_API_KEY || env.OPENAI_API_KEY || '',
+    imageEndpoint: (env.NODE_ENV === 'production' ? '' : admin.imageEndpoint) || env.IMAGE_ENDPOINT_URL || ''
   };
 
   const fallbackProvider = admin.fallback.provider || env.FALLBACK_AI_PROVIDER || '';
@@ -110,8 +123,12 @@ export function maskAiConfig(adminConfig) {
     ollamaUrl: admin.ollamaUrl,
     voiceModel: admin.voiceModel,
     voiceProvider: admin.voiceProvider,
+    imageProvider: admin.imageProvider,
+    imageModel: admin.imageModel,
+    imageEndpoint: admin.imageEndpoint,
     apiKeySet: !!admin.apiKey,
     voiceApiKeySet: !!admin.voiceApiKey,
+    imageApiKeySet: !!admin.imageApiKey,
     fallback: {
       provider: admin.fallback.provider,
       model: admin.fallback.model,
@@ -158,6 +175,7 @@ export async function saveAdminAiConfig(raw) {
     ...incoming,
     apiKey: resolveSecretField(incoming.apiKey, existing.apiKey),
     voiceApiKey: resolveSecretField(incoming.voiceApiKey, existing.voiceApiKey),
+    imageApiKey: resolveSecretField(incoming.imageApiKey, existing.imageApiKey),
     fallback: {
       ...incomingFallback,
       apiKey: resolveSecretField(incomingFallback.apiKey, existing.fallback.apiKey)

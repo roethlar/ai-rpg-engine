@@ -145,6 +145,25 @@
         <div class="hint">Voice narration is OpenAI-only for now (a provider seam is a recorded future topic). Accepted models: gpt-4o-mini-tts (instruction-steerable — accents/emotion via Voice Direction), tts-1, tts-1-hd (fixed character). Anything else silently falls back to gpt-4o-mini-tts. Players choose the voice and style in their own settings; the key and model live here.</div>
       </section>
 
+      <section>
+        <h2>Scene Images (server side)</h2>
+        <label for="image-provider">Image provider</label>
+        <select id="image-provider">
+          <option value="">(none — image generation off)</option>
+          <option value="openai">OpenAI Images (hosted)</option>
+          <option value="sdwebui">Stable Diffusion WebUI (local endpoint)</option>
+        </select>
+        <div class="hint">Heroic/scene renders go through a provider seam (image-providers.js). No provider configured = the engine generates no images and the SVG visualizer path is untouched.</div>
+        <label for="image-model">Model</label>
+        <input type="text" id="image-model" placeholder="blank = provider default (OpenAI: gpt-image-1; SD-WebUI: current checkpoint)">
+        <label for="image-api-key">Image API key (OpenAI)</label>
+        <input type="password" id="image-api-key" placeholder="blank = keep current" autocomplete="off">
+        <div class="secret-state" id="image-api-key-state"></div>
+        <label for="image-endpoint">SD-WebUI endpoint URL</label>
+        <input type="text" id="image-endpoint" placeholder="http://localhost:7860">
+        <div class="hint">Local endpoints never receive the API key. In production this must be set via IMAGE_ENDPOINT_URL env (same SSRF posture as custom LLM endpoints).</div>
+      </section>
+
       <button id="btn-save">Save Settings</button>
       <button class="link" id="btn-clear-keys">Clear stored keys</button>
       <div id="status"></div>
