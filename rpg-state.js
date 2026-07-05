@@ -770,6 +770,42 @@ function bundleInt(value, fallback, min, max) {
   return Math.max(min, Math.min(max, Math.floor(num)));
 }
 
+/** Object-entry array, capped in count and serialized size. */
+function bundleObjectList(value, maxEntries, maxBytes) {
+  const list = bundleJsonArray(value)
+    .filter(entry => entry && typeof entry === 'object' && !Array.isArray(entry))
+    .slice(0, maxEntries);
+  return JSON.stringify(list).length <= maxBytes ? list : [];
+}
+
+/** Plain object with size cap; anything oversized falls to the fallback. */
+function bundleBoundedObject(value, maxBytes, fallback = {}) {
+  const obj = bundleJsonObject(value, fallback);
+  return obj && JSON.stringify(obj).length <= maxBytes ? obj : fallback;
+}
+
+/** Voice profile shape: bounded strings only (mirrors validateVoiceProfile). */
+function bundleVoice(value) {
+  const raw = bundleJsonObject(value);
+  if (!raw) return null;
+  return {
+    provider: cleanText(raw.provider, 40) || 'openai',
+    voice: cleanText(raw.voice, 40),
+    instructions: cleanText(raw.instructions, 600)
+  };
+}
+
+/** Identity anchor shape: descriptor + seed (mirrors validateIdentityAnchor). */
+function bundleAnchor(value) {
+  const raw = bundleJsonObject(value);
+  if (!raw) return null;
+  const seed = Number(raw.seed);
+  return {
+    descriptor: cleanText(raw.descriptor, 800),
+    seed: Number.isFinite(seed) && seed >= 0 ? Math.floor(seed) : null
+  };
+}
+
 export function validateCampaignBundle(raw) {
   const bundle = raw && typeof raw === 'object' ? raw : {};
   if (bundle.kind !== 'aetheria-campaign') {
@@ -791,7 +827,7 @@ export function validateCampaignBundle(raw) {
     current_act: bundleInt(rawCampaign.current_act, 1, 1, 3),
     rules_mode: rawCampaign.rules_mode ? 1 : 0,
     last_positional: rawCampaign.last_positional ? 1 : 0,
-    narrator_voice: bundleJsonObject(rawCampaign.narrator_voice_json ?? rawCampaign.narrator_voice)
+    narrator_voice: bundleVoice(rawCampaign.narrator_voice_json ?? rawCampaign.narrator_voice)
   };
 
   const outline = validateOutlineData(bundleJsonObject(bundle.outline ?? bundle.outline_json, {}));
@@ -812,9 +848,9 @@ export function validateCampaignBundle(raw) {
       max_mana: bundleInt(row.max_mana, 50, 0, 100000),
       xp: bundleInt(row.xp, 0, 0, 10000000),
       level: bundleInt(row.level, 1, 1, 1000),
-      inventory: bundleJsonArray(row.inventory ?? row.inventory_json),
-      attributes: bundleJsonObject(row.attributes ?? row.attributes_json, {}),
-      abilities: bundleJsonArray(row.abilities ?? row.abilities_json),
+      inventory: bundleObjectList(row.inventory ?? row.inventory_json, 200, 200000),
+      attributes: bundleBoundedObject(row.attributes ?? row.attributes_json, 5000),
+      abilities: bundleObjectList(row.abilities ?? row.abilities_json, 100, 200000),
       progression_notes: cleanText(row.progression_notes, 10000),
       status: row.status === 'released' ? 'released' : 'active'
     };
@@ -835,8 +871,8 @@ export function validateCampaignBundle(raw) {
       relationship_value: bundleInt(row.relationship_value, 0, -100, 100),
       notes: cleanText(row.notes, 20000),
       status: ['alive', 'dead', 'missing'].includes(row.status) ? row.status : 'alive',
-      voice: bundleJsonObject(row.voice ?? row.voice_json),
-      anchor: bundleJsonObject(row.anchor ?? row.anchor_json)
+      voice: bundleVoice(row.voice ?? row.voice_json),
+      anchor: bundleAnchor(row.anchor ?? row.anchor_json)
     };
   }).filter(Boolean);
 
@@ -851,7 +887,7 @@ export function validateCampaignBundle(raw) {
       description: cleanText(row.description, 600),
       layout,
       occupancy: validateLocationOccupancy(bundleJsonArray(row.occupancy ?? row.occupancy_json), layout),
-      anchor: bundleJsonObject(row.anchor ?? row.anchor_json),
+      anchor: bundleAnchor(row.anchor ?? row.anchor_json),
       first_seen_turn: bundleInt(row.first_seen_turn, 1, 1, 1000000),
       last_seen_turn: bundleInt(row.last_seen_turn, 1, 1, 1000000)
     };
