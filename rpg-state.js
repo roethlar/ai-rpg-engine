@@ -921,17 +921,27 @@ export function validateCampaignBundle(raw) {
     const narrative = cleanText(row.narrative, 60000) || 'The scene continues...';
     // Downstream consumers (fork replay, quest extraction, cadence) assume a
     // plain object; "null", scalars, and arrays parse as JSON but crash or
-    // corrupt them — only object records survive.
+    // corrupt them — only object records survive. Presentation fields INSIDE
+    // the record are consumed with assumed shapes too (cr-4:
+    // suggested_choices reaches choices.forEach in the browser), so hostile
+    // shapes are stripped at this trust boundary while every other field —
+    // including legacy ones like roll_result — passes through untouched.
     let stateChanges = '{}';
+    let parsedRecord = null;
     if (typeof row.state_changes_json === 'string' && row.state_changes_json.length <= 500000) {
       try {
         const parsed = JSON.parse(row.state_changes_json);
-        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-          stateChanges = row.state_changes_json;
-        }
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) parsedRecord = parsed;
       } catch (e) { /* keep '{}' */ }
     } else if (row.state_changes && typeof row.state_changes === 'object' && !Array.isArray(row.state_changes)) {
-      stateChanges = JSON.stringify(row.state_changes);
+      parsedRecord = row.state_changes;
+    }
+    if (parsedRecord) {
+      if ('suggested_choices' in parsedRecord &&
+          !(Array.isArray(parsedRecord.suggested_choices) && parsedRecord.suggested_choices.every(c => typeof c === 'string'))) {
+        delete parsedRecord.suggested_choices;
+      }
+      stateChanges = JSON.stringify(parsedRecord);
     }
     const svg = typeof row.svg_illustration === 'string' && row.svg_illustration.includes('<svg') && row.svg_illustration.length <= 500000
       ? row.svg_illustration

@@ -930,6 +930,24 @@ async function testCampaignBundle() {
   assert.strictEqual(hostile.turns[0].state_changes_json, '{}', 'Unparseable state records become empty');
   assert.strictEqual(hostile.pointers.current_location_key, null, 'Unknown location pointers cleared');
   assert.deepStrictEqual(hostile.pointers.turn_order.order, [], 'Order references only known active characters');
+
+  // cr-4: hostile presentation-field shapes inside records are stripped at
+  // the trust boundary (suggested_choices reaches choices.forEach in the UI)
+  const shapes = validateCampaignBundle({
+    ...fixture,
+    turns: [{
+      turn_number: 1, narrative: 'n',
+      state_changes_json: JSON.stringify({ suggested_choices: { bad: 'shape' }, roll_result: { legacy: true }, input_kind: 'dialogue' })
+    }]
+  });
+  const shaped = JSON.parse(shapes.turns[0].state_changes_json);
+  assert.strictEqual('suggested_choices' in shaped, false, 'Non-array suggested_choices is stripped on import');
+  assert.deepStrictEqual(shaped.roll_result, { legacy: true }, 'Legacy fields pass through untouched');
+  const okShapes = validateCampaignBundle({
+    ...fixture,
+    turns: [{ turn_number: 1, narrative: 'n', state_changes_json: JSON.stringify({ suggested_choices: ['a', 'b'] }) }]
+  });
+  assert.deepStrictEqual(JSON.parse(okShapes.turns[0].state_changes_json).suggested_choices, ['a', 'b'], 'Well-formed choices survive');
 }
 
 // -------------------------------------------------------------
