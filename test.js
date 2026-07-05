@@ -970,9 +970,13 @@ async function testImageProviderSeam() {
   assert.strictEqual(dirty.imageEndpoint, 'http://gpu-box:7860');
   assert.strictEqual(sanitizeAdminAiConfig({ imageProvider: 'sdwebui' }).imageProvider, 'sdwebui');
 
-  const adminWins = mergeAiConfig({ imageProvider: 'sdwebui', imageEndpoint: 'http://gpu-box:7860' }, { IMAGE_PROVIDER: 'openai' });
+  const adminWins = mergeAiConfig({ imageProvider: 'sdwebui', imageEndpoint: 'http://localhost:7860' }, { IMAGE_PROVIDER: 'openai' });
   assert.strictEqual(adminWins.imageProvider, 'sdwebui', 'Admin image provider beats env');
-  assert.strictEqual(adminWins.imageEndpoint, 'http://gpu-box:7860', 'Admin endpoint honored in dev');
+  assert.strictEqual(adminWins.imageEndpoint, 'http://localhost:7860', 'Admin loopback endpoint honored in dev');
+  const lanAdmin = mergeAiConfig({ imageEndpoint: 'http://gpu-box:7860' }, {});
+  assert.strictEqual(lanAdmin.imageEndpoint, '', 'Non-loopback admin endpoints are ignored (SSRF posture: pin via IMAGE_ENDPOINT_URL)');
+  const lanEnv = mergeAiConfig({ imageEndpoint: 'http://sneaky:7860' }, { IMAGE_ENDPOINT_URL: 'http://gpu-box:7860' });
+  assert.strictEqual(lanEnv.imageEndpoint, 'http://gpu-box:7860', 'Env-pinned LAN endpoints are trusted');
   const envWins = mergeAiConfig(null, { IMAGE_PROVIDER: 'openai', OPENAI_API_KEY: 'shared-key' });
   assert.strictEqual(envWins.imageProvider, 'openai');
   assert.strictEqual(envWins.imageApiKey, 'shared-key', 'Image key falls back to OPENAI_API_KEY');

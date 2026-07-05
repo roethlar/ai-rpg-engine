@@ -19,6 +19,15 @@ function cleanField(value) {
   return typeof value === 'string' ? value.trim().slice(0, MAX_FIELD_LENGTH) : '';
 }
 
+function isLoopbackUrl(value) {
+  try {
+    const url = new URL(value);
+    return ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname.toLowerCase());
+  } catch (e) {
+    return false;
+  }
+}
+
 function sanitizeRoleConfig(raw) {
   const data = raw && typeof raw === 'object' ? raw : {};
   return {
@@ -77,12 +86,15 @@ export function mergeAiConfig(adminConfig, env = process.env) {
     voiceModel: admin.voiceModel || env.TTS_MODEL || '',
     voiceProvider: admin.voiceProvider || env.TTS_PROVIDER || 'openai',
     // Image generation (Phase V1): no provider configured = feature inert.
-    // The endpoint follows the custom-LLM-endpoint SSRF posture: admin-set
-    // values are honored in dev; production requires IMAGE_ENDPOINT_URL env.
+    // Endpoint SSRF posture (mirrors the custom-LLM endpoint rule, and /admin
+    // may run ungated in dev): an admin-set endpoint is honored only when it
+    // is loopback — the local-GPU case; any other host must be pinned by the
+    // operator via IMAGE_ENDPOINT_URL env. Production is env-only.
     imageProvider: admin.imageProvider || env.IMAGE_PROVIDER || '',
     imageModel: admin.imageModel || env.IMAGE_MODEL || '',
     imageApiKey: admin.imageApiKey || env.IMAGE_API_KEY || env.OPENAI_API_KEY || '',
-    imageEndpoint: (env.NODE_ENV === 'production' ? '' : admin.imageEndpoint) || env.IMAGE_ENDPOINT_URL || ''
+    imageEndpoint: (env.NODE_ENV === 'production' || !isLoopbackUrl(admin.imageEndpoint) ? '' : admin.imageEndpoint)
+      || env.IMAGE_ENDPOINT_URL || ''
   };
 
   const fallbackProvider = admin.fallback.provider || env.FALLBACK_AI_PROVIDER || '';

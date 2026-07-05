@@ -161,7 +161,7 @@
         <div class="secret-state" id="image-api-key-state"></div>
         <label for="image-endpoint">SD-WebUI endpoint URL</label>
         <input type="text" id="image-endpoint" placeholder="http://localhost:7860">
-        <div class="hint">Local endpoints never receive the API key. In production this must be set via IMAGE_ENDPOINT_URL env (same SSRF posture as custom LLM endpoints).</div>
+        <div class="hint">Local endpoints never receive the API key. Only loopback URLs (http://localhost:7860) are honored here; any other host — and all production deployments — must be pinned via IMAGE_ENDPOINT_URL env (same SSRF posture as custom LLM endpoints).</div>
       </section>
 
       <button id="btn-save">Save Settings</button>
