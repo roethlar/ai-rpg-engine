@@ -876,14 +876,20 @@ export function validateCampaignBundle(raw) {
     };
   }).filter(Boolean);
 
+  const seenLocationKeys = new Set();
   const locations = bundleJsonArray(bundle.locations).map(row => {
     if (!row || typeof row !== 'object') return null;
     const layout = validateLocationLayout(bundleJsonObject(row.layout ?? row.layout_json));
     const name = cleanText(row.name, 120);
     if (!layout || !name) return null;
+    // Keys are unique per campaign (DB index); lowercasing can collide, so
+    // dedupe here instead of blowing up mid-import.
+    const key = cleanText(row.key, 120).toLowerCase() || name.toLowerCase();
+    if (seenLocationKeys.has(key)) return null;
+    seenLocationKeys.add(key);
     return {
       name,
-      key: cleanText(row.key, 120).toLowerCase() || name.toLowerCase(),
+      key,
       description: cleanText(row.description, 600),
       layout,
       occupancy: validateLocationOccupancy(bundleJsonArray(row.occupancy ?? row.occupancy_json), layout),
