@@ -1063,6 +1063,23 @@ setInterval(async () => {
     if (!response.ok) return;
     const state = await response.json();
     if (state.turn?.number !== lastRenderedTurnNumber) {
+      // More than one turn may have landed between polls (table talk does
+      // not advance the order, so bursts happen): backfill the gap from the
+      // journal so the log stays complete, then render the latest normally.
+      if (typeof lastRenderedTurnNumber === 'number' && state.turn.number > lastRenderedTurnNumber + 1) {
+        try {
+          const journalResponse = await fetchWithTimeout(`/api/campaigns/${currentCampaignId}/journal`, {}, 15000);
+          if (journalResponse.ok) {
+            const journal = await journalResponse.json();
+            (journal.turns || [])
+              .filter(t => t.turn_number > lastRenderedTurnNumber && t.turn_number < state.turn.number)
+              .forEach(t => {
+                if (t.player_action) appendPlayerAction(t.player_action);
+                appendGMDialogue(t.narrative);
+              });
+          }
+        } catch (e) { /* gap backfill is best-effort */ }
+      }
       if (state.turn?.playerAction) appendPlayerAction(state.turn.playerAction);
       renderGame(state, false);
     } else {
