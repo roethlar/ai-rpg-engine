@@ -348,10 +348,16 @@ model everywhere a seat exists; solo/dev campaigns (no seats) are unchanged.
   UI on the party strip / campaign card); token shown once; revocable.
 - Request authentication: seat token accepted via the same Authorization
   header; resolves to (campaign, character). ACCESS_SECRET remains the host
-  credential (full authority). A seat may only call play routes on its own
-  campaign; `characterId` is REMOVED from the turn API — the speaking
-  character derives from the seat; host requests keep an explicit
-  characterId for solo/hosted play.
+  credential (full authority). Widening `authenticate` alone is NOT enough
+  (codex finding 1): explicit per-route guards (`requireHost`,
+  `requireSeatCampaign`) apply after :id parsing on EVERY mounted surface —
+  campaign list, character library, journal, images, audio — so a seat can
+  reach only its own campaign's play routes.
+- `characterId` handling, reconciled with the 2026-07-05 decision (codex
+  finding 6): the parameter is removed FOR SEATS (their character derives
+  from the credential; nothing to spoof). The HOST retains explicit
+  characterId — the host is the table operator and, in solo/hosted play, the
+  only way to say who acts. Decision entry amended to this precise wording.
 - Meta-actions host-only: create/delete/fork/export/import campaigns,
   release others' characters, table-style changes, seat mint/revoke.
 - Success: with two seats, seat A physically cannot act as B (no parameter
@@ -363,9 +369,20 @@ model everywhere a seat exists; solo/dev campaigns (no seats) are unchanged.
   partymates as silhouette (name, class, level, HP); shared surfaces
   (narrative, scene grounding, map, heroic, suggested choices) unchanged;
   NO outline acts, NO NPC personalities/relationship notes/Codex, NO
-  memories, NO ruleset? — ruleset is player-viewable canon (2026-07-03
-  decision): seats keep the Rules sheet, lose the dials (host-only).
-  Journal for seats: turn narratives only, no memory records.
+  memories. Ruleset is player-viewable canon (2026-07-03 decision): seats
+  keep the Rules sheet, lose the dials (host-only).
+- Voice-line leak (codex finding 3): TTS instructions embed NPC
+  personality/quirks. Seat payloads carry voiceLines with speaker/tone/text
+  only; the narrate route, for seats, accepts the speaker name and resolves
+  the stored voice profile server-side — NPC voices still sound right, the
+  personality text never leaves the server.
+- Campaign summary leak (codex finding 5): campaigns.summary embeds
+  memory_summary text every 5 turns; seat state and any list payloads omit
+  it (genre only).
+- Journal for seats (codex finding 4): a sanitized shape — turn_number,
+  player_action, narrative only (no state_changes_json, no memories); the
+  poll gap-backfill and the timeline consume that same shape for seats
+  (roll badges degrade gracefully).
 - MCP endpoint stays host-credential-only.
 - Frontend: seat sessions hide host-only UI (dials, fork buttons, codex/
   outline panels) and render silhouettes.
@@ -374,12 +391,13 @@ model everywhere a seat exists; solo/dev campaigns (no seats) are unchanged.
   unchanged; suite green.
 
 **S3 — Join & invite flow rewire**
-- Host flow: "mint seat" per character (existing or newly created at join);
-  join-by-invite replaces open join: POST join requires either host
-  credential (creates character + seat, returns token once) or a seat token.
-  Player UI: paste seat token → bound character loads automatically (no
-  claim/click flow, no localStorage identity — the tombstone machinery from
-  cr-1 becomes host-mode-only or is removed where superseded).
+- Host flow: "mint seat" per character; POST /join stays HOST-only (it
+  creates characters). Seats get a dedicated bootstrap (codex finding 2):
+  GET /api/seat/session resolves a seat token straight to its campaign
+  state — the app never fetches the campaign list on a seat session, so the
+  list route stays host-only. Player UI: paste seat token → the bound
+  character loads via the session endpoint (no claim/click flow; the cr-1
+  claim/tombstone machinery applies to host mode only).
 - README hosting section updated to the seat flow.
 - Success: two browsers with two seat tokens each control exactly their own
   character end-to-end; the party-strip claim UI is gone for seat sessions.

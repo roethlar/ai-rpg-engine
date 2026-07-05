@@ -416,9 +416,11 @@ only — their own character. Mechanism (owner requirement 2026-07-05, design
 surfaced and approved in chat): (1) per-seat invite tokens minted by the
 host, stored hashed, revocable — the smallest credential that makes users
 distinct; accounts/passwords remain future. (2) The characterId request
-parameter is removed; the server derives the speaking character from the
-seat credential. ACCESS_SECRET becomes the HOST credential with full view
-and authority. (3) Seat-scoped payloads: own sheet full; partymates as
+parameter is removed FOR SEATS — the server derives the speaking character
+from the seat credential; the HOST credential retains explicit characterId
+selection (the host is the table operator and needs it for solo/hosted
+play). Precision amended 2026-07-05 during plan review (codex finding).
+ACCESS_SECRET becomes the HOST credential with full view and authority. (3) Seat-scoped payloads: own sheet full; partymates as
 name/class/level/HP silhouette; no outline, no NPC personalities/notes, no
 memories — the shared narrative/scene/map/heroic remain table-public.
 (4) Meta-actions (delete, fork, export/import, releasing others, table-style
