@@ -26,6 +26,7 @@ import {
   removeFromTurnOrder,
   validateTableStyle,
   computeEncounterCadence,
+  buildEncounterHistory,
   PACING_TARGETS,
   validateCampaignBundle,
   CAMPAIGN_BUNDLE_VERSION,
@@ -1490,18 +1491,7 @@ export async function takeTurn(campaignId, playerAction, apiConfig, submittingCh
     `SELECT state_changes_json FROM turns WHERE campaign_id = ? ORDER BY turn_number DESC LIMIT 48`,
     [campaignId]
   );
-  const encounterHistory = encounterRows.reverse().map(row => {
-    try {
-      const record = JSON.parse(row.state_changes_json || '{}');
-      return record && typeof record === 'object'
-        ? { kind: record.input_kind, encounter: record.encounter || 'none' }
-        : null;
-    } catch (e) {
-      return null;
-    }
-  }).filter(entry => entry && entry.kind === 'committed_action')
-    .map(entry => entry.encounter)
-    .slice(-12);
+  const encounterHistory = buildEncounterHistory(encounterRows.reverse());
   const pacing = {
     style: tableStyle.pacing,
     target: PACING_TARGETS[tableStyle.pacing],

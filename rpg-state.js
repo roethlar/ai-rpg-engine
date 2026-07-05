@@ -532,6 +532,30 @@ export function validateTableStyle(raw) {
 }
 
 /**
+ * Builds the pacing cadence history from raw turn rows (oldest → newest):
+ * WORLD turns only — committed actions that actually RESOLVED. Denied and
+ * needs-clarification attempts keep input_kind 'committed_action' but carry
+ * action_resolved false and must not widen the cadence window (cr-3: the
+ * same resolved-action definition that gates turn-order advancement).
+ * Records predating the action_resolved flag count as resolved.
+ */
+export function buildEncounterHistory(rows, windowSize = 12) {
+  if (!Array.isArray(rows)) return [];
+  return rows.map(row => {
+    try {
+      const record = JSON.parse(row.state_changes_json || '{}');
+      return record && typeof record === 'object' && !Array.isArray(record)
+        ? { kind: record.input_kind, resolved: record.action_resolved, encounter: record.encounter || 'none' }
+        : null;
+    } catch (e) {
+      return null;
+    }
+  }).filter(entry => entry && entry.kind === 'committed_action' && entry.resolved !== false)
+    .map(entry => entry.encounter)
+    .slice(-windowSize);
+}
+
+/**
  * Turns since the last GM-initiated encounter, from the turn records'
  * engine-stamped encounter field (oldest → newest). null = none recorded in
  * the window (the GM has room to initiate).
