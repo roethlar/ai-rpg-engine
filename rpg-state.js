@@ -876,13 +876,18 @@ export function validateCampaignBundle(raw) {
     if (!turnNumber || seenTurnNumbers.has(turnNumber)) return null;
     seenTurnNumbers.add(turnNumber);
     const narrative = cleanText(row.narrative, 60000) || 'The scene continues...';
+    // Downstream consumers (fork replay, quest extraction, cadence) assume a
+    // plain object; "null", scalars, and arrays parse as JSON but crash or
+    // corrupt them — only object records survive.
     let stateChanges = '{}';
     if (typeof row.state_changes_json === 'string' && row.state_changes_json.length <= 500000) {
       try {
-        JSON.parse(row.state_changes_json);
-        stateChanges = row.state_changes_json;
+        const parsed = JSON.parse(row.state_changes_json);
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+          stateChanges = row.state_changes_json;
+        }
       } catch (e) { /* keep '{}' */ }
-    } else if (row.state_changes && typeof row.state_changes === 'object') {
+    } else if (row.state_changes && typeof row.state_changes === 'object' && !Array.isArray(row.state_changes)) {
       stateChanges = JSON.stringify(row.state_changes);
     }
     const svg = typeof row.svg_illustration === 'string' && row.svg_illustration.includes('<svg') && row.svg_illustration.length <= 500000
