@@ -854,9 +854,22 @@ function renderGame(gameState, resetNarrative = false, options = {}) {
 // blob: for img-src). Failures leave the previous visual in place.
 let currentHeroicUrl = null;
 async function updateHeroicImage(heroic) {
-  if (!heroic || !heroic.imageUrl || heroic.imageUrl === currentHeroicUrl) return;
   const img = document.getElementById('heroic-image');
   const svgHost = document.getElementById('visualizer-svg');
+  if (!heroic || !heroic.imageUrl) {
+    // This campaign/turn has no heroic: restore the SVG surface so a
+    // previous campaign's render can never impersonate this one.
+    if (img.dataset.objectUrl) {
+      URL.revokeObjectURL(img.dataset.objectUrl);
+      delete img.dataset.objectUrl;
+    }
+    img.removeAttribute('src');
+    img.style.display = 'none';
+    svgHost.style.display = '';
+    currentHeroicUrl = null;
+    return;
+  }
+  if (heroic.imageUrl === currentHeroicUrl) return;
   try {
     const response = await fetchWithTimeout(heroic.imageUrl, {}, 60000);
     if (!response.ok) throw new Error(`status ${response.status}`);
