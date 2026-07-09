@@ -335,12 +335,16 @@ bundle, export first, forward importability is the hard requirement)
 - Files: server.js, rpg-engine.js (bundle build/restore), rpg-state.js,
   test.js.
 
-## Phase S: Seats — PARKED 2026-07-05 (multiplayer reopened as an undecided question; S1 landed, S2/S3 not built)
+## Phase S: Seats — REOPENED 2026-07-09 (S1 landed; S2/S3 to build; target: remote two-human playtest, connectivity owner-handled)
 
-Multiplayer means multi-USER (decision 2026-07-05): two distinct users, each
-able to act only as, and see only, their own character. Design surfaced to
-the owner in chat and not objected to. Supersedes the shared-token identity
-model everywhere a seat exists; solo/dev campaigns (no seats) are unchanged.
+Multiplayer means multi-USER (decision 2026-07-05, reactivated 2026-07-09):
+two distinct users, each able to act only as, and see only, their own
+character. Design surfaced to the owner in chat and not objected to.
+Supersedes the shared-token identity model everywhere a seat exists;
+solo/dev campaigns (no seats) are unchanged. Network exposure (transport,
+TLS, tunnel/port-forward) is owner-handled infrastructure, out of repo
+scope (decision 2026-07-09) — app-side readiness is S2 + S3 plus the
+existing secrets warnings/production fail-closed startup behavior.
 
 **S1 — Seats + server-side binding (the security floor)**
 - `seats` table: campaign_id, character_id (unique), token_hash, label,
@@ -479,7 +483,7 @@ Raised during planning but deliberately deferred. **Per project rule, nothing he
 
 **Review Process**: After completing each phase, we will test a full play session together, gather feedback, and only then move to the next phase. No code will be merged until it demonstrably improves the playing experience.
 
-**Current Priority** (2026-07-05): none set — multiplayer is reopened as an undecided question and testing is parked (decision 2026-07-05). Work resumes when the owner points at something.
+**Current Priority** (2026-07-09): readiness for a remote two-human multiplayer playtest (decision 2026-07-09): S2 seat-scoped visibility, then S3 seat join flow + README. Connectivity is owner-handled. The playtest is the pending close point for the open feel gates.
 
 This plan will be updated as we learn from implementation and playtesting.
 

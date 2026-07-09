@@ -5,11 +5,15 @@ short and update it when important repo facts change.
 
 ## Now
 
-- **MULTIPLAYER IS PARKED (owner, 2026-07-05).** It flipped back to an open,
-  undecided question; testing is parked; no priority is set anywhere. Do not
-  resume any multiplayer work (no S2/S3, no Phase 3 extensions) unless the
-  owner explicitly reopens it. Decision entry: "Multiplayer is an OPEN
-  question" in `.agents/decisions.md`.
+- **MULTIPLAYER REOPENED (owner, 2026-07-09).** Target: a playtest with a
+  second human on their own machine outside the owner's network. The
+  2026-07-05 multi-user decision (per-seat credentials, scoped visibility)
+  is active again; Phase S is unparked. Connectivity (transport/TLS/
+  tunneling) is owner-handled, out of repo scope. Repo scope: S2
+  (seat-scoped visibility — closes the dormant read-everything caveat and
+  the voiceLines personality leak), then S3 (seat bootstrap/join UI +
+  README seat-flow rewrite). Decision entry 2026-07-09 in
+  `.agents/decisions.md`.
 - Landed and inert-for-solo in the tree: multi-character schema + round-robin
   turn order (Phase 3 M1–M3), seats S1 (per-seat tokens, server-side
   character binding, host/seat route guards — live-smoke verified). Dormant
@@ -39,18 +43,18 @@ short and update it when important repo facts change.
 
 ## Next
 
-- Await the owner. They said they cannot work on this now; when they point
-  at something, that is the priority. Do not manufacture work.
-- If multiplayer reopens: the parked design history is intact (multi-user
-  decision + Phase S plan with codex findings applied in plan.md); S1 code
-  is live; S2 (seat-scoped visibility incl. the voiceLines personality leak)
-  and S3 (seat UI/bootstrap) were never built.
-- If asked to revert multiplayer code instead: nothing prepared; scope fresh
-  with the owner.
+- Build S2 (seat-scoped visibility) per the codex-approved Phase S plan in
+  plan.md — mechanism-independent, no owner input needed.
+- Then S3 (seat bootstrap/join flow + README hosting rewrite to the seat
+  flow — clears the recorded README staleness).
+- The remote two-human playtest is the pending close point for the open
+  feel gates (2026-07-04 delegation framing restored by the reopen
+  decision).
 
 ## Blockers
 
-- Owner bandwidth only. Nothing technical is blocked.
+- Nothing technical is blocked. Network exposure for the remote playtest is
+  owner-handled infrastructure (their word, 2026-07-09), not a repo task.
 
 ## Verification
 
@@ -64,7 +68,8 @@ short and update it when important repo facts change.
 
 - `AGENTS.md`, `.agents/repo-guidance.md`, `.agents/decisions.md`,
   `.agents/playbooks/reviewloop.md`
-- `plan.md` (all phases; Phase S marked PARKED; no current priority)
+- `plan.md` (all phases; Phase S REOPENED 2026-07-09; current priority =
+  remote playtest readiness, S2 → S3)
 - `README.md` — note: its multiplayer/hosting section still describes the
   parked shared-token flow (stale relative to the park; harmless solo;
   revisit only if the topic reopens)

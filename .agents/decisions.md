@@ -406,9 +406,38 @@ Supersedes:
 The open artifact-format question in the plan.md portability topic; other
 open questions there (ownership locks, cross-instance auth) remain future.
 
-### 2026-07-05 - Multiplayer is an OPEN question; all multiplayer work parked
+### 2026-07-09 - Multiplayer reopened: target is a remote two-human playtest; connectivity is owner-handled
 
 Status: Active
+
+Decision:
+Multiplayer returns to active direction. The goal is a playtest with a second
+human on their own machine outside the owner's network. The 2026-07-05
+multi-user decision (per-seat credentials, server-side character binding,
+seat-scoped visibility) is reactivated as the governing design; Phase S is
+unparked: S2 (seat-scoped visibility) and S3 (seat join/invite flow) are to
+be built per the approved plan. Network exposure — transport, TLS,
+tunneling or port-forwarding — is explicitly the owner's responsibility and
+out of repo scope; the app-side requirements stand (seat auth landed in S1,
+seat-scoped visibility in S2, secrets set when hosting — existing startup
+warnings and production fail-closed behavior). The remote playtest resumes
+its role as the pending close point for the open feel gates (the 2026-07-04
+delegation framing, voided by the park, is restored).
+
+Reason:
+Owner 2026-07-09: "multiplayer should be opened. I need to test with another
+human at another machine outside my network, so we need to be ready to
+support that." On the connection mechanism: "don't worry about how it'll
+connect. I can handle that."
+
+Supersedes:
+The 2026-07-05 park decision below ("Multiplayer is an OPEN question") —
+multiplayer work resumes. Reactivates the 2026-07-05 multi-user decision
+(status updated in place).
+
+### 2026-07-05 - Multiplayer is an OPEN question; all multiplayer work parked
+
+Status: Superseded (multiplayer reopened 2026-07-09 — see the decision above)
 
 Decision:
 Multiplayer — its meaning, scope, and whether/when to build it — flips back
@@ -431,7 +460,7 @@ is pending.
 
 ### 2026-07-05 - Multiplayer means multi-USER: per-seat credentials, server-side character binding, scoped visibility
 
-Status: Superseded (parked — see the reopen decision above)
+Status: Active (reactivated 2026-07-09 by the reopen decision above; was parked 2026-07-05 – 2026-07-09)
 
 Decision:
 "Multiplayer" requires distinct users, each able to act only as — and see
