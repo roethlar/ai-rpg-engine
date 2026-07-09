@@ -61,7 +61,7 @@ short and update it when important repo facts change.
 ## Active Sources
 
 - `AGENTS.md`, `.agents/repo-guidance.md`, `.agents/decisions.md`,
-  `.agents/repo-map.json`, `.agents/playbooks/reviewloop.md`
+  `.agents/playbooks/reviewloop.md`
 - `plan.md` (all phases; Phase S marked PARKED; no current priority)
 - `README.md` — note: its multiplayer/hosting section still describes the
   parked shared-token flow (stale relative to the park; harmless solo;

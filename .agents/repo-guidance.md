@@ -45,8 +45,9 @@
   (evidence: package.json `scripts.test`; suite covered in test.js). It must
   pass before claiming completion of any code change.
 - Verification is local-only: the repo has no CI workflows (evidence:
-  discovery scan found no provider-executable CI paths; see
-  `.agents/repo-map.json` notes).
+  discovery scan found no provider-executable CI paths, 2026-06-10; the
+  `.agents/repo-map.json` that carried the notes was retired 2026-07-08 —
+  this section is the canonical home).
 - Manual/playtest: for Phase work and user-visible GM behavior changes, run
   full play sessions and confirm improvement per the review gate above, or
   state clearly that a playtest was not run.
