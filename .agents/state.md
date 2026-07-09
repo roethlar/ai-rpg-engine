@@ -28,10 +28,11 @@ short and update it when important repo facts change.
   a codex plan pass shaped Phase S before it was parked. Codex incantation
   cache: `.agents/review/harnesses.local.json` (gitignored; codex exec needs
   `< /dev/null` on stdin and generous timeouts).
-- Push state: both remotes (gitea origin + github) hold master through
-  commit 852bf14. Everything after — Phase S plan + S1 code, the park
-  decision, this handoff — is LOCAL ONLY. Pushing needs an explicit owner go
-  (`.agents/push-policy.md`).
+- Push state: both remotes (gitea origin + github) hold master at 9effed2,
+  identical to local HEAD (verified via ls-remote, 2026-07-09). The Phase S
+  work, the park decision, and the 2026-07-05 handoff are all pushed — the
+  owner pushed after that handoff recorded them as local-only. Future pushes
+  still need an explicit owner go (`.agents/push-policy.md`).
 - Image generation remains unconfigured (no provider in /admin): heroics
   inert by design. Feel gates (Phase 0, layouts, voices, rulesets, dials,
   locations/map) are open with NO scheduled close.
@@ -54,7 +55,8 @@ short and update it when important repo facts change.
 ## Verification
 
 - Automated: `AI_RETRY_BACKOFF_MS=10 node test.js` — 24 groups, green at
-  HEAD. Desktop shell (Rust) outside it: `cargo build` in desktop/src-tauri.
+  9effed2 (re-verified 2026-07-09). Desktop shell (Rust) outside it:
+  `cargo build` in desktop/src-tauri.
 - Live: `node server.js` (Ollama qwen3.6:27b configured, free). Seat flows
   smoke-verified with ACCESS_SECRET set; without it, solo dev is unchanged.
 
