@@ -1409,6 +1409,115 @@ async function testSeatAuth() {
   assert.strictEqual(looksLikeSeatToken(null), false);
 }
 
+// -------------------------------------------------------------
+// Test: seat-scoped visibility (Phase S2)
+// -------------------------------------------------------------
+async function testSeatVisibility() {
+  console.log(' - Running seat visibility scoping tests...');
+  const { scopeStateForSeat, scopeJournalForSeat, resolveSpeakerVoice, silhouetteCharacter } = await import('./rpg-state.js');
+
+  // Distinctive markers: if ANY of these strings survives into a seat
+  // payload, the corresponding GM-private surface leaked.
+  const LEAK = {
+    outline: 'LEAK_OUTLINE_the_duke_is_secretly_the_lich',
+    npcNotes: 'LEAK_NPC_NOTES_kessler_betrays_the_party_in_act_3',
+    npcPersonality: 'LEAK_PERSONALITY_cold_patient_predator',
+    voiceInstructions: 'LEAK_VOICE_speak_as_a_cold_patient_predator',
+    summaryMemory: 'LEAK_SUMMARY_last_events_the_vault_heist',
+    partymateInventory: 'LEAK_INVENTORY_mira_hidden_poison_vial',
+    dials: 'LEAK_DIALS_hardline',
+    stateChanges: 'LEAK_STATE_CHANGES_memory_update_text',
+    memory: 'LEAK_MEMORY_the_password_is_ravenlight'
+  };
+
+  const hostState = {
+    campaignId: 7,
+    title: 'Velvet Protocol',
+    genre: 'cyberpunk heist',
+    setting: `Act 2. Level 3 Netrunner pursuing: The Vault. ${LEAK.summaryMemory}`,
+    themeColors: { primary: '#101018' },
+    themeFonts: { heading: 'Cinzel' },
+    rulesMode: true,
+    ruleset: { name: 'House Rules', resolution: 'd20 + mod vs DC', abilities: [], notes: '' },
+    tableStyle: { helpfulness: LEAK.dials, pacing: 'standard' },
+    character: { id: 2, name: 'Mira', class: 'Face', level: 3, health: 9, max_health: 12, inventory: [LEAK.partymateInventory], attributes: { charm: 4 }, abilities: [], progression_notes: '' },
+    party: [
+      { id: 1, name: 'Joe', class: 'Netrunner', level: 3, health: 10, max_health: 14, mana: 5, max_mana: 8, xp: 240, inventory: ['deck', 'sidearm'], attributes: { intellect: 4 }, abilities: [{ name: 'Ghostline' }], progression_notes: 'learned Ghostline turn 4', player_character_id: 11 },
+      { id: 2, name: 'Mira', class: 'Face', level: 3, health: 9, max_health: 12, mana: 6, max_mana: 6, xp: 230, inventory: [LEAK.partymateInventory], attributes: { charm: 4 }, abilities: [], progression_notes: '', player_character_id: 12 }
+    ],
+    turnOrder: { round: 2, actingCharacterId: 2, order: [{ id: 1, name: 'Joe' }, { id: 2, name: 'Mira' }] },
+    npcs: [{ id: 5, name: 'Kessler', role: 'fixer', personality: LEAK.npcPersonality, quirks: 'never raises his voice', notes: LEAK.npcNotes, relationship_value: -2, voice_json: JSON.stringify({ voice: 'cedar', instructions: LEAK.voiceInstructions }) }],
+    outline: { acts: [{ twist: LEAK.outline }], starting_quest: { title: 'The Vault', description: 'Crack it.' } },
+    currentQuest: { active_quest: 'The Vault', quest_description: 'Crack it.' },
+    currentAct: 2,
+    turn: {
+      number: 9,
+      playerAction: 'I case the lobby.',
+      inputKind: 'committed_action',
+      narrative: 'The lobby hums with drone traffic.',
+      sceneGrounding: 'Two guards flank the east door.',
+      svg: '<svg></svg>',
+      suggestedChoices: ['Talk to the clerk'],
+      rollResults: [{ attribute: 'stealth', roll: 14, dc: 12, success: true }],
+      voiceLines: [
+        { speaker: 'narrator', text: 'The lobby hums.', tone: 'low, tense', voice: null, instructions: 'Tone: low, tense.' },
+        { speaker: 'Kessler', text: '"You again."', tone: 'amused contempt', voice: 'cedar', instructions: `${LEAK.voiceInstructions} Tone: amused contempt.` }
+      ],
+      location: { name: 'Corporate Lobby', positional: true },
+      heroic: { imageUrl: '/api/campaigns/7/images/3', subjectKind: 'location', subjectKey: 'corporate lobby' }
+    }
+  };
+
+  // Seat 1 (Joe) views the table while Mira is acting.
+  const scoped = scopeStateForSeat(hostState, 1);
+  const raw = JSON.stringify(scoped);
+  for (const [surface, marker] of Object.entries(LEAK)) {
+    assert.strictEqual(raw.includes(marker), false, `Seat payload must not leak ${surface}`);
+  }
+  assert.strictEqual(raw.includes('outline'), false, 'No outline field at all');
+  assert.strictEqual(raw.includes('npcs'), false, 'No npcs field at all');
+
+  // Own sheet full; partymate silhouetted to name/class/level/HP.
+  assert.strictEqual(scoped.seatCharacterId, 1);
+  assert.strictEqual(scoped.character.id, 1, 'Seat sees its OWN sheet, not the acting character');
+  assert.deepStrictEqual(scoped.character.inventory, ['deck', 'sidearm'], 'Own inventory intact');
+  const mira = scoped.party.find(m => m.id === 2);
+  assert.deepStrictEqual(Object.keys(mira).sort(), ['class', 'health', 'id', 'level', 'max_health', 'name'], 'Partymate is a silhouette');
+
+  // Shared table surfaces survive.
+  assert.strictEqual(scoped.turn.narrative, hostState.turn.narrative);
+  assert.strictEqual(scoped.turn.sceneGrounding, hostState.turn.sceneGrounding);
+  assert.deepStrictEqual(scoped.turn.location, hostState.turn.location);
+  assert.deepStrictEqual(scoped.turn.heroic, hostState.turn.heroic);
+  assert.deepStrictEqual(scoped.turn.suggestedChoices, hostState.turn.suggestedChoices);
+  assert.deepStrictEqual(scoped.ruleset, hostState.ruleset, 'Ruleset is player-viewable canon');
+  assert.deepStrictEqual(scoped.turnOrder, hostState.turnOrder);
+  assert.strictEqual(scoped.currentAct, undefined, 'Act structure stays with the outline');
+
+  // Voice lines: speaker/tone/text only — the profile resolves server-side.
+  assert.deepStrictEqual(scoped.turn.voiceLines[1], { speaker: 'Kessler', text: '"You again."', tone: 'amused contempt' });
+
+  // The narrate route recomposes the same directive the host client sends.
+  const resolved = resolveSpeakerVoice(hostState.npcs[0].voice_json, 'amused contempt');
+  assert.strictEqual(resolved.voice, 'cedar');
+  assert.strictEqual(resolved.instructions, `${LEAK.voiceInstructions} Tone: amused contempt.`);
+  assert.deepStrictEqual(resolveSpeakerVoice(null, 'gentle'), { voice: null, instructions: 'Tone: gentle.' }, 'Unknown speaker keeps narrator fallback + tone');
+  assert.deepStrictEqual(resolveSpeakerVoice('not json', ''), { voice: null, instructions: null }, 'Corrupt profile degrades to narrator');
+
+  // Journal: sanitized shape, no state_changes_json.
+  const journal = scopeJournalForSeat([
+    { turn_number: 1, player_action: 'start', narrative: 'It begins.', state_changes_json: `{"memory_update":"${LEAK.stateChanges}"}`, created_at: 't0' }
+  ]);
+  assert.strictEqual(JSON.stringify(journal).includes(LEAK.stateChanges), false, 'Journal drops state_changes_json');
+  assert.deepStrictEqual(journal[0], { turn_number: 1, player_action: 'start', narrative: 'It begins.', created_at: 't0' });
+
+  // Silhouette tolerates junk without throwing.
+  assert.strictEqual(silhouetteCharacter(null), null);
+
+  // A state with no turn yet (defensive) scopes without throwing.
+  assert.strictEqual(scopeStateForSeat({ party: [] }, 1).turn, null);
+}
+
 // Run all test functions
 async function runAll() {
   try {
@@ -1428,6 +1537,7 @@ async function runAll() {
     await testTableStyle();
     await testCampaignBundle();
     await testSeatAuth();
+    await testSeatVisibility();
     await testThemeGeneration();
     await testVoiceScript();
     await testTtsProviderSeam();

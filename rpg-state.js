@@ -743,22 +743,121 @@ export function buildVoiceScript(narrationLines, npcs = []) {
   if (!Array.isArray(narrationLines)) return [];
   return narrationLines.map(line => {
     const npc = npcs.find(n => n.name && line.speaker && n.name.toLowerCase() === line.speaker.toLowerCase());
-    let profile = null;
-    if (npc && npc.voice_json) {
-      try {
-        profile = JSON.parse(npc.voice_json);
-      } catch (e) {}
-    }
-    const toneSuffix = line.tone ? `Tone: ${line.tone}.` : '';
     return {
       speaker: line.speaker,
       text: line.text,
-      voice: profile?.voice || null,
-      instructions: profile
-        ? [profile.instructions || '', toneSuffix].filter(Boolean).join(' ')
-        : (toneSuffix || null)
+      tone: line.tone || null,
+      ...resolveSpeakerVoice(npc ? npc.voice_json : null, line.tone)
     };
   });
+}
+
+/**
+ * The single composition point for a spoken line's voice + delivery
+ * directive. Used by buildVoiceScript for host payloads and by the narrate
+ * route to resolve a seat's speaker server-side (Phase S2): the stored
+ * profile's personality-derived instructions never travel in seat payloads,
+ * so the seat client sends speaker + tone back and the server recomposes.
+ */
+export function resolveSpeakerVoice(voiceJson, tone) {
+  let profile = null;
+  if (voiceJson) {
+    try {
+      const parsed = JSON.parse(voiceJson);
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) profile = parsed;
+    } catch (e) {}
+  }
+  const toneSuffix = tone ? `Tone: ${tone}.` : '';
+  return {
+    voice: profile?.voice || null,
+    instructions: profile
+      ? [profile.instructions || '', toneSuffix].filter(Boolean).join(' ')
+      : (toneSuffix || null)
+  };
+}
+
+/**
+ * Seat-scoped visibility (Phase S2, decision 2026-07-05 reactivated
+ * 2026-07-09): a seat sees its own sheet in full, partymates as
+ * silhouettes, and the shared table surfaces — never the GM's private
+ * record (outline acts, NPC personalities/relationship notes, memories,
+ * the memory-bearing campaign summary) and never the host-only dials.
+ * Both scope functions WHITELIST fields rather than deleting known-bad
+ * ones, so a field added to the host payload later stays seat-invisible
+ * until someone deliberately shares it.
+ */
+export function silhouetteCharacter(member) {
+  if (!member || typeof member !== 'object') return null;
+  return {
+    id: member.id,
+    name: member.name,
+    class: member.class,
+    level: member.level,
+    health: member.health,
+    max_health: member.max_health
+  };
+}
+
+function scopeVoiceLinesForSeat(voiceLines) {
+  if (!Array.isArray(voiceLines)) return [];
+  // speaker/tone/text only: the client hands speaker + tone back to the
+  // narrate route, which recomposes the stored profile server-side.
+  return voiceLines.map(line => ({
+    speaker: line.speaker ?? null,
+    text: line.text,
+    tone: line.tone ?? null
+  }));
+}
+
+export function scopeStateForSeat(state, seatCharacterId) {
+  if (!state || typeof state !== 'object') return state;
+  const party = Array.isArray(state.party) ? state.party : [];
+  const own = party.find(member => member && member.id === seatCharacterId) || null;
+  const turn = state.turn && typeof state.turn === 'object' ? state.turn : null;
+  return {
+    campaignId: state.campaignId,
+    title: state.title,
+    genre: state.genre,
+    themeColors: state.themeColors,
+    themeFonts: state.themeFonts,
+    rulesMode: state.rulesMode,
+    // Ruleset is player-viewable canon (decision 2026-07-03); the dials are not.
+    ruleset: state.ruleset,
+    seatCharacterId,
+    character: own,
+    party: party.map(member => (member && member.id === seatCharacterId ? member : silhouetteCharacter(member))),
+    turnOrder: state.turnOrder,
+    currentQuest: state.currentQuest,
+    turn: turn && {
+      number: turn.number,
+      playerAction: turn.playerAction,
+      inputKind: turn.inputKind,
+      narrative: turn.narrative,
+      sceneGrounding: turn.sceneGrounding,
+      svg: turn.svg,
+      suggestedChoices: turn.suggestedChoices,
+      rollResults: turn.rollResults,
+      voiceLines: scopeVoiceLinesForSeat(turn.voiceLines),
+      location: turn.location,
+      heroic: turn.heroic
+    }
+  };
+}
+
+/**
+ * The seat journal shape (Phase S2): turn_number, player_action, narrative
+ * only — no state_changes_json (it embeds memories, quest structure, and
+ * NPC updates), no memories. The frontend timeline and the poll
+ * gap-backfill consume this same shape for seats.
+ */
+export function scopeJournalForSeat(turns) {
+  const list = Array.isArray(turns) ? turns : [];
+  return list.map(turn => ({
+    turn_number: turn.turn_number,
+    player_action: turn.player_action,
+    narrative: turn.narrative,
+    created_at: turn.created_at
+  }));
 }
 
 /**

@@ -14,6 +14,7 @@ import {
 } from './server-config.js';
 import { synthesizeSpeech, TTS_VOICES } from './tts-providers.js';
 import { looksLikeSeatToken, hashSeatToken, mintSeatToken } from './seat-auth.js';
+import { scopeStateForSeat, scopeJournalForSeat, resolveSpeakerVoice } from './rpg-state.js';
 
 dotenv.config();
 
@@ -404,7 +405,8 @@ app.get('/api/campaigns/:id', requireSeatCampaign, async (req, res) => {
     if (!state) {
       return res.status(404).json({ error: 'Campaign not found' });
     }
-    res.json(state);
+    // Phase S2: seats get the scoped view, never the host payload.
+    res.json(req.auth?.kind === 'seat' ? scopeStateForSeat(state, req.auth.characterId) : state);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -431,7 +433,8 @@ app.post('/api/campaigns/:id/turn', rateLimit(10, 60000), requireSeatCampaign, a
     const state = await queueCampaignTask(campaignId, () =>
       rpg.takeTurn(campaignId, cleanPlayerAction, apiConfig, speakingCharacterId)
     );
-    res.json(state);
+    // Phase S2: seats get the scoped view, never the host payload.
+    res.json(req.auth?.kind === 'seat' ? scopeStateForSeat(state, req.auth.characterId) : state);
   } catch (error) {
     console.error('Error processing turn:', error);
     const status = error.code === 'OUT_OF_TURN' ? 409
@@ -562,8 +565,8 @@ app.delete('/api/campaigns/:id/characters/:characterId/seat', requireHost, async
 });
 
 // Seat bootstrap (Phase S1): a seat token resolves straight to its campaign
-// — seats never see the campaign list. Visibility scoping arrives in S2;
-// until then the payload is the full state (disclosed limitation).
+// — seats never see the campaign list. The payload is the S2-scoped view
+// (own sheet full, silhouettes, shared surfaces only).
 app.get('/api/seat/session', async (req, res) => {
   try {
     if (req.auth?.kind !== 'seat') {
@@ -573,8 +576,7 @@ app.get('/api/seat/session', async (req, res) => {
     if (!state) {
       return res.status(404).json({ error: 'This seat\'s campaign no longer exists.' });
     }
-    state.seatCharacterId = req.auth.characterId;
-    res.json(state);
+    res.json(scopeStateForSeat(state, req.auth.characterId));
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -629,6 +631,11 @@ app.get('/api/campaigns/:id/journal', requireSeatCampaign, async (req, res) => {
       `SELECT turn_number, player_action, narrative, state_changes_json, created_at FROM turns WHERE campaign_id = ? ORDER BY turn_number ASC`,
       [campaignId]
     );
+    // Phase S2: seats get the sanitized journal — no state_changes_json
+    // (it embeds memories and NPC updates), no memories at all.
+    if (req.auth?.kind === 'seat') {
+      return res.json({ turns: scopeJournalForSeat(turns), memories: [] });
+    }
     const memories = await db.all(
       `SELECT turn_number, importance, summary, keywords, created_at FROM memories WHERE campaign_id = ? ORDER BY id ASC`,
       [campaignId]
@@ -710,20 +717,42 @@ app.get('/api/campaigns/:id/images/:imageId', requireSeatCampaign, async (req, r
 
 app.post('/api/audio/narrate', rateLimit(20, 60000), async (req, res) => {
   try {
-    const { text, audioConfig = {} } = req.body;
+    const { text, speaker, tone, audioConfig = {} } = req.body;
     const narrationText = boundedString(stripNarrationText(text), 'text', MAX_NARRATION_LENGTH);
     // Voice API key and TTS model are server-owned (decision 2026-07-03); the
     // voice choice and style instructions remain player preferences.
     const serverConfig = await getServerAiConfig();
-    const voice = TTS_VOICES.has(audioConfig.voice || process.env.TTS_VOICE)
+    let voice = TTS_VOICES.has(audioConfig.voice || process.env.TTS_VOICE)
       ? (audioConfig.voice || process.env.TTS_VOICE)
       : 'marin';
-    const instructions = optionalBoundedString(
+    let instructions = optionalBoundedString(
       audioConfig.instructions,
       'instructions',
       MAX_TTS_INSTRUCTIONS_LENGTH,
       'Narrate as an atmospheric game master. Keep the delivery clear, tense, and cinematic without overacting.'
     );
+
+    // Phase S2: seat voiceLines carry speaker/tone/text only — the stored
+    // voice profile (whose instructions embed NPC personality) is resolved
+    // HERE, so that text never leaves the server. Unknown speakers keep the
+    // player's narrator settings with the tone riding as a suffix.
+    if (req.auth?.kind === 'seat' && (speaker || tone)) {
+      const cleanSpeaker = optionalBoundedString(speaker, 'speaker', MAX_CHARACTER_FIELD_LENGTH, '');
+      const cleanTone = optionalBoundedString(tone, 'tone', MAX_CHARACTER_FIELD_LENGTH, '');
+      const npc = cleanSpeaker
+        ? await db.get(
+            `SELECT voice_json FROM npcs WHERE campaign_id = ? AND LOWER(name) = LOWER(?)`,
+            [req.auth.campaignId, cleanSpeaker]
+          )
+        : null;
+      const resolved = resolveSpeakerVoice(npc?.voice_json || null, cleanTone);
+      if (resolved.voice && TTS_VOICES.has(resolved.voice)) {
+        voice = resolved.voice;
+        instructions = resolved.instructions;
+      } else if (resolved.instructions) {
+        instructions = [instructions, resolved.instructions].filter(Boolean).join(' ');
+      }
+    }
 
     const audioBuffer = await synthesizeSpeech({
       provider: serverConfig.voiceProvider,
