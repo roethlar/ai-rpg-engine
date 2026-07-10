@@ -23,11 +23,13 @@ short and update it when important repo facts change.
 - Also in the tree, unchanged by S2/S3: multi-character schema + round-robin
   turn order (Phase 3 M1–M3), seats S1 (per-seat tokens, server-side
   character binding, host/seat route guards). S2 closes the S1-era "a seat
-  can READ full campaign state" caveat for the SUCCESSFUL-response path.
-  Residual leaks found by the 2026-07-09 review are NOT yet on master
-  (error bodies: sv-2; nested quest values: sv-4) — do not describe seat
-  isolation as complete until those branches land. Solo play with no seats
-  minted behaves exactly as before, as it always has.
+  can READ full campaign state" caveat. The 2026-07-09 cross-model review
+  then found six more issues: five are merged (sv-1 stale-seat/TOCTOU
+  takeover, sv-3, sv-4 nested quest values, sv-5, sv-6). **sv-2 is NOT yet
+  on master** — a seat can still receive internal error text, including raw
+  model output, through HTTP error bodies. Do not call seat isolation
+  complete until `fix/sv-2-seat-error-sanitization` lands. Solo play with no
+  seats minted behaves exactly as before, as it always has.
 - Also landed 2026-07-04/05, all playable solo: Visual Phases V1–V4 + T1
   (image seam, structured locations + deterministic map, engine-owned
   current_heroic, agent-generated theming), V5 gap closers, Phase D
@@ -72,12 +74,10 @@ short and update it when important repo facts change.
 
 ## Verification
 
-- Automated: `AI_RETRY_BACKOFF_MS=10 node test.js` — green at 2c3e131; the
-  in-flight review-loop fix branches add groups, so run it rather than
-  trusting a count here. CAVEAT as of 2c3e131: the suite opens the real dev
-  DB (test.js pulls rpg-engine.js → db.js, whose path is hardcoded). The
-  `RPG_DB_PATH` redirect that makes it hermetic lives on the unmerged
-  `fix/sv-1-*` branch; this note becomes true only when that branch lands.
+- Automated: `AI_RETRY_BACKOFF_MS=10 node test.js` — green on master; run it
+  rather than trusting a group count written here. The suite is hermetic as
+  of the sv-1 merge (`RPG_DB_PATH` redirects it to a temp DB, closed and
+  removed on exit); before that it opened the operator's real dev database.
   Desktop shell (Rust) outside it: `cargo build` in desktop/src-tauri.
 - Live: `node server.js` (Ollama qwen3.6:27b configured, free). Seat flows
   smoke-verified with ACCESS_SECRET set; without it, solo dev is unchanged.
