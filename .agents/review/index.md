@@ -16,17 +16,21 @@ triaged below when it returns. Finding ids: `sv-*` (seat visibility).
 | ID | Severity | Impact (one line) | Status | Branch |
 |----|----------|-------------------|--------|--------|
 | sv-1 | HIGH | Released/stale seat context acts as the sole remaining player's character | `[x]` merged | `fix/sv-1-revoke-seat-on-release` |
-| sv-2 | HIGH | Internal error text (incl. raw model output) reaches a seat through error bodies | `[~]` | `fix/sv-2-seat-error-sanitization` |
+| sv-2 | HIGH | Internal error text (incl. raw model output) reaches a seat through error bodies | `[x]` merged | `fix/sv-2-seat-error-sanitization` |
 | sv-3 | LOW | A `seat_`-prefixed host secret locks the host out of the browser UI | `[x]` merged | `fix/sv-3-seat-token-shape` |
 | sv-4 | LOW | Seat payload leaks the act index — and any nested value — inside `currentQuest` | `[x]` merged | `fix/sv-4-scope-current-quest` |
 | sv-5 | LOW | An 81–120-char tone 400s and kills the rest of a seat's turn narration | `[x]` merged | `fix/sv-5-tone-bound` |
 | sv-6 | LOW | `state.md` asserts both "S2 landed" and "S2 never landed" | `[x]` merged | `fix/sv-6-state-contradictions` |
 
-Merge state (2026-07-09): five of six merged to master on the owner's explicit
-go ("is the merged code something we were going to want to merge anyway? if so,
-keep it"). sv-2 is HELD until its round-2 verdict returns — it is a HIGH
-finding still under re-review. Master live-smoked after the merges: no leak
-markers in a seat payload, and a released character's seat token returns 401.
+Merge state (2026-07-09): **all six merged to master** on the owner's explicit
+go. Master live-smoked after the merges: no leak markers in a seat payload; a
+failed turn returns a generic message (no internals); a malformed body returns
+400 with no stack trace; a released character's seat token returns 401.
+
+Rounds needed: sv-1 took 2, sv-2 took 3, sv-4 took 3, sv-6 took 2; sv-3 and
+sv-5 were accepted first pass. Every reopen named a real defect. Two of the
+reopens (sv-2 r2, sv-4 r2) were caught only because the fixes were themselves
+re-reviewed — and two more (sv-2 r3, sv-4 r3) only because those were.
 
 **Reopen rounds — the loop earning its keep.** Four of six findings were
 reopened by the reviewer, and every reopen named a real defect the coder missed:
@@ -38,17 +42,22 @@ reopened by the reviewer, and every reopen named a real defect the coder missed:
   `party.length === 1` fast path re-bound it to the sole survivor. Revoking a
   credential cannot close that — only refusing to re-bind can. Reproduced by
   execution; fixed at the root (`selectSpeakingCharacter`).
-- **sv-2** (`ea54824` → reopened, 5 comments; fix-up at `81755b0`): the
-  "allowlist" was a truthiness check on `error.code`, and `sqlite3` sets `code` —
-  a seat received `SQLITE_ERROR: no such column: …`. Testing `kind === 'seat'`
-  also meant an *absent* auth object fell through to the host branch: fail-open
-  exactly where the credential is unknown. Native `JSON.parse` messages quote
-  their input, so the no-brace path leaked model text verbatim. And
-  `express.json` throws before authentication with no terminal handler.
-- **sv-4** (`ef94856` → reopened; fix-up at `9fb7ed6`): whitelisting property
-  *names* is not whitelisting. A permitted name holds an arbitrary value, and
-  `validateCampaignBundle` preserved adversarial `quest_update` shapes that
-  `getCampaignState` promotes into `currentQuest`. Fixed at both ends.
+- **sv-2** (reopened twice, 8 comments total): the "allowlist" was a truthiness
+  check on `error.code`, and `sqlite3` sets `code` — a seat received
+  `SQLITE_ERROR: no such column: …`. Testing `kind === 'seat'` meant an *absent*
+  auth object fell through to the host branch: fail-open exactly where the
+  credential is unknown. Native `JSON.parse` messages quote their input.
+  `express.json` throws before authentication with no terminal handler. Then, on
+  re-review: **a code is a tag, not provenance** — an internal error that merely
+  *carries* or *inherits* a seat-safe code still disclosed its message, and an
+  inherited `auth.kind` unlocked `rawText`. Disclosure is now opt-in: the
+  boundary reveals only an own `publicMessage` the engine deliberately set.
+- **sv-4** (reopened twice): first, whitelisting property *names* is not
+  whitelisting — a permitted name holds an arbitrary value. Fixed `currentQuest`;
+  the reviewer then found the *same defect in four more fields* (`inputKind`,
+  `sceneGrounding`, `suggestedChoices`, `rollResults`), i.e. the first fix
+  patched the instance, not the class. Every seat-facing field now declares a
+  type, and the guard sweeps all of them.
 - **sv-6** (`5cb0cc9` → reopened; fix-up at `731d3c5`): the fix for documentation
   drift *contained* documentation drift — it asserted the hermetic-suite property
   from a sibling branch (`fix/sv-1-*`, not an ancestor) as though it held there.
