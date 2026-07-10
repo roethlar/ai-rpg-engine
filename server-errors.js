@@ -28,6 +28,13 @@ const SEAT_SAFE_CODES = new Set([
   'CHARACTER_NOT_AT_TABLE'
 ]);
 
+/** Own-property test: an inherited tag is not provenance (sv-2 round 2). */
+function ownString(obj, key) {
+  return obj && Object.prototype.hasOwnProperty.call(obj, key) && typeof obj[key] === 'string'
+    ? obj[key]
+    : undefined;
+}
+
 /**
  * Builds the JSON error body for a request, scoped to the caller's trust.
  *
@@ -42,18 +49,26 @@ const SEAT_SAFE_CODES = new Set([
  * input rather than showing a failure.
  */
 export function errorPayloadFor(req, error, genericMessage) {
-  const isHost = req?.auth?.kind === 'host';
+  // Own-property check: an inherited `kind` on a prototype is not a
+  // server-established credential (sv-2 round 2, comment 1).
+  const isHost = ownString(req?.auth, 'kind') === 'host';
   if (isHost) {
     // Hosts keep full diagnostics, including the raw model output that
-    // parseJsonSafe now carries out-of-band (restores pre-sv-2 parity).
+    // parseJsonSafe carries out-of-band (restores pre-sv-2 parity).
     const payload = { error: error?.message, code: error?.code };
     if (error?.rawText) payload.rawText = error.rawText;
     return payload;
   }
 
-  const code = error?.code;
-  if (code && SEAT_SAFE_CODES.has(code)) {
-    return { error: error.message, code };
+  // sv-2 round 2, comment 1: a CODE IS NOT PROVENANCE. Disclosing
+  // `error.message` because a string tag looks familiar means any internal
+  // error that happens to carry — or inherit — that tag exposes its message.
+  // Instead the engine must OPT IN per error by setting `publicMessage`, an
+  // own property it authored for players. Everything else is internal.
+  const code = ownString(error, 'code');
+  const publicMessage = ownString(error, 'publicMessage');
+  if (code && SEAT_SAFE_CODES.has(code) && publicMessage) {
+    return { error: publicMessage, code };
   }
   return { error: genericMessage };
 }

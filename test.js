@@ -39,7 +39,13 @@ function testParseJsonSafe() {
     'braced but unparseable': `{"memory_summary":"${PRIVATE}",}`,
     'unquoted value':         `{"memory_summary":${PRIVATE}}`,
     'no braces at all':       `${PRIVATE} is not json`,
-    'truncated':              `{"memory_summary":"${PRIVATE}`
+    'truncated':              `{"memory_summary":"${PRIVATE}`,
+    // sv-2 round 2, comment 2: a response truncated to a lone opening fence
+    // emptied `lines`, and `lines[-1].startsWith` threw a native TypeError
+    // with no rawText — a failure path outside the promised error shape.
+    'lone fence':             '```',
+    'lone json fence':        '```json',
+    'fence + private only':   '```\n' + PRIVATE
   };
   for (const [label, malformed] of Object.entries(failureCases)) {
     assert.throws(
@@ -84,12 +90,42 @@ async function testSeatErrorPayloads() {
   assert.strictEqual(hostPayload.error, 'The model returned malformed JSON.', 'Host keeps the diagnostic message');
   assert.strictEqual(hostPayload.rawText, PRIVATE, 'Host keeps the raw model output for debugging');
 
-  // Coded errors are authored game rulings, safe (and necessary) for seats:
-  // the frontend switches on `code` to restore the typed input.
-  const outOfTurn = Object.assign(new Error('It is Mira\'s turn to act.'), { code: 'OUT_OF_TURN' });
+  // Coded rulings reach seats — but ONLY when the engine explicitly opted in
+  // by setting `publicMessage` (sv-2 round 2). The frontend switches on `code`
+  // to restore the typed input, and shows `error`.
+  const outOfTurn = Object.assign(new Error('It is Mira\'s turn to act.'),
+    { code: 'OUT_OF_TURN', publicMessage: 'It is Mira\'s turn to act.' });
   const codedPayload = errorPayloadFor(seatReq, outOfTurn, 'generic');
   assert.strictEqual(codedPayload.code, 'OUT_OF_TURN', 'Machine-readable code survives for seats');
   assert.strictEqual(codedPayload.error, 'It is Mira\'s turn to act.', 'Authored ruling text reaches the player');
+
+  // ROUND 2, comment 1: A CODE IS NOT PROVENANCE. Three spoof probes.
+  // (a) An INTERNAL error that merely carries a seat-safe code must not
+  //     disclose its message — it never opted in via publicMessage.
+  const taggedInternal = Object.assign(new Error('SQLITE_ERROR: no such column: secret_vault_code'),
+    { code: 'OUT_OF_TURN' });
+  const taggedPayload = errorPayloadFor(seatReq, taggedInternal, 'generic');
+  assert.strictEqual(taggedPayload.error, 'generic',
+    'A seat-safe code alone must not disclose an internal message');
+  assert.strictEqual(JSON.stringify(taggedPayload).includes('secret_vault_code'), false);
+
+  // (b) An INHERITED code (prototype chain) is not an own, server-set tag.
+  const inherited = Object.create({ code: 'OUT_OF_TURN', publicMessage: 'spoofed' });
+  inherited.message = 'INHERITED_INTERNAL_SECRET';
+  assert.strictEqual(errorPayloadFor(seatReq, inherited, 'generic').error, 'generic',
+    'An inherited code/publicMessage is not provenance');
+
+  // (c) An INHERITED auth.kind must not unlock host diagnostics.
+  const spoofReq = { auth: Object.create({ kind: 'host' }) };
+  const secretErr = Object.assign(new Error('HOST_ONLY_SECRET'), { rawText: 'RAW_MODEL_PRIVATE' });
+  const spoofPayload = errorPayloadFor(spoofReq, secretErr, 'generic');
+  assert.strictEqual(spoofPayload.error, 'generic', 'An inherited auth.kind does not unlock diagnostics');
+  assert.strictEqual(spoofPayload.rawText, undefined, 'Nor the raw model output');
+  assert.strictEqual(JSON.stringify(spoofPayload).includes('RAW_MODEL_PRIVATE'), false);
+
+  // A genuine own-property host still gets everything.
+  const realHost = errorPayloadFor({ auth: { kind: 'host' } }, secretErr, 'generic');
+  assert.strictEqual(realHost.rawText, 'RAW_MODEL_PRIVATE', 'A real host keeps raw model output');
 
   // ROUND 2, codex comment 1: `code` is an ALLOWLIST, not a truthiness check.
   // sqlite3 sets error.code = 'SQLITE_ERROR'; Node sets ENOENT/ECONNREFUSED.

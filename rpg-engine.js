@@ -667,6 +667,10 @@ Return JSON matching:
   if (turnGate && !turnGate.allowCommitted && interactionProposal.input_kind === 'committed_action') {
     const gateError = new Error(`It is ${turnGate.actingName}'s turn to act. You can still ask questions or talk (table talk is always open) — committed actions wait for your turn.`);
     gateError.code = 'OUT_OF_TURN';
+    // sv-2: OPT IN to disclosure. A code is a tag, not provenance — the
+    // trust boundary reveals `publicMessage` only, never `message`, so the
+    // engine must state explicitly that this text was authored for players.
+    gateError.publicMessage = gateError.message;
     throw gateError;
   }
 
@@ -1446,6 +1450,7 @@ export async function takeTurn(campaignId, playerAction, apiConfig, submittingCh
     if (!character) {
       const err = new Error('This campaign seats multiple characters: the request must say which character is speaking (characterId).');
       err.code = 'CHARACTER_REQUIRED';
+      err.publicMessage = err.message; // sv-2: authored for players
       throw err;
     }
   }

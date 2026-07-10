@@ -383,7 +383,10 @@ app.post('/api/campaigns', rateLimit(5, 60000), requireHost, async (req, res) =>
     });
     res.json(state);
   } catch (error) {
-    console.error('Error creating campaign:', error);
+    // sv-2: log rawText, and serialize through the trust boundary so this
+    // host-only route regains the model output that used to ride in the
+    // message (parseJsonSafe now carries it out-of-band).
+    console.error('Error creating campaign:', error, error.rawText ? `\nRaw model output: ${error.rawText}` : '');
     const status = error.message.includes('checked out') || error.message.includes('no longer available')
       ? 409
       : error.message.includes('not found')
@@ -391,7 +394,7 @@ app.post('/api/campaigns', rateLimit(5, 60000), requireHost, async (req, res) =>
         : error.message.includes('API key') || error.message.includes('configured') || error.message.includes('Invalid') || error.message.includes('required') || error.message.includes('characters or fewer') || error.message.includes('must be a string')
           ? 400
           : 500;
-    res.status(status).json({ error: error.message });
+    res.status(status).json(errorPayloadFor(req, error, 'Could not create the campaign.'));
   }
 });
 

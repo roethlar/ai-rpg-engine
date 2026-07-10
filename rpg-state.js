@@ -14,14 +14,18 @@
  * carries it for callers that log server-side.
  */
 export function parseJsonSafe(text) {
-  let cleanText = text.trim();
+  // sv-2 round 2: a truncated response of only an opening fence ("```" or
+  // "```json") left `lines` empty after the shift, and `lines[-1].startsWith`
+  // threw a native TypeError with no rawText — a failure path that escaped the
+  // promised fixed error shape. Guard the emptiness, not just the fence.
+  let cleanText = typeof text === 'string' ? text.trim() : String(text ?? '').trim();
 
   if (cleanText.startsWith('```')) {
     const lines = cleanText.split('\n');
-    if (lines[0].startsWith('```')) {
+    if (lines.length > 0 && lines[0].startsWith('```')) {
       lines.shift();
     }
-    if (lines[lines.length - 1].startsWith('```')) {
+    if (lines.length > 0 && lines[lines.length - 1].startsWith('```')) {
       lines.pop();
     }
     cleanText = lines.join('\n').trim();

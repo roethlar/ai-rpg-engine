@@ -72,3 +72,26 @@ Other seat-reachable routes (`journal`, `images`, `seat/session`) return `error.
 - terminal handler → echo `err.message` ⇒ FAIL `Unknown errors never echo internals`
 
 The parse test now sweeps every prefix of the private marker across four malformed shapes, so a partial quote (which is what the native parser emits) cannot slip through.
+
+### Round 2 verdict — codex, 2026-07-09 UTC
+- **reviewed_sha**: `81755b0` · **guard_confirmed**: `true` · **verdict**: `reopened` (3 comments)
+
+1. `server-errors.js:45-56` — still trusts unproven string tags: an inherited or internal `code = 'OUT_OF_TURN'` exposes the internal message to a seat, while inherited `req.auth.kind = 'host'` unlocks `error` and `rawText`. Require own, server-established provenance or fixed public messages.
+2. `rpg-state.js:24` — a response truncated to only an opening fence removes the sole line and dereferences `undefined.startsWith`, throwing a native `TypeError` without `rawText`.
+3. `server.js:394` — host-only campaign creation still serializes only `error.message`, losing the model output that now rides on `rawText`.
+
+**Coder response: all three accepted, all three reproduced.** Comment 1 names the conceptual error: **a code is a tag, not provenance.** I disclosed `error.message` because a string looked familiar — so any internal error carrying, or *inheriting*, that tag exposed its message. Verified all three probes: an internal SQLITE error tagged `OUT_OF_TURN` disclosed `secret_vault_code`; an inherited `code` did the same; an inherited `auth.kind = 'host'` unlocked both `error` and `rawText`.
+
+### Round 3 — fix-up applied on the same branch
+
+- **Disclosure is now opt-in.** `errorPayloadFor` reveals `error.publicMessage` — an **own** property the engine sets deliberately — never `error.message`. A seat-safe code alone discloses nothing. `rpg-engine.js` marks its two player-authored rulings with `publicMessage`.
+- **Own-property checks** for `auth.kind` and `error.code`/`publicMessage`: an inherited tag is not a server-established credential.
+- `parseJsonSafe` guards list emptiness, so a lone fence yields the fixed error shape with `rawText` rather than a native `TypeError`.
+- The host campaign-creation route serializes through `errorPayloadFor` and logs `rawText`, restoring its pre-sv-2 diagnostics.
+
+**Guard proof (round 3)** — three independent sabotages against production code:
+- drop the `publicMessage` requirement => FAIL `A seat-safe code alone must not disclose an internal message`
+- drop the own-property check on `auth.kind` => FAIL `An inherited auth.kind does not unlock diagnostics`
+- drop the fence emptiness guard => FAIL `[lone fence] raw text preserved out-of-band`
+
+Verified no regression: an `OUT_OF_TURN` ruling still reaches a seat with its `code` and player-facing text, which is what the frontend needs to restore the typed input.
