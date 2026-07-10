@@ -5,15 +5,21 @@ short and update it when important repo facts change.
 
 ## Now
 
-- **MULTIPLAYER REOPENED (owner, 2026-07-09).** Target: a playtest with a
-  second human on their own machine outside the owner's network. The
-  2026-07-05 multi-user decision (per-seat credentials, scoped visibility)
-  is active again; Phase S is unparked. Connectivity (transport/TLS/
-  tunneling) is owner-handled, out of repo scope. Repo scope: S2
-  (seat-scoped visibility — closes the dormant read-everything caveat and
-  the voiceLines personality leak), then S3 (seat bootstrap/join UI +
-  README seat-flow rewrite). Decision entry 2026-07-09 in
-  `.agents/decisions.md`.
+- **MULTIPLAYER REOPENED (owner, 2026-07-09) — S2 + S3 BUILT same day.**
+  Target: a playtest with a second human on their own machine outside the
+  owner's network; connectivity (transport/TLS/tunneling) is owner-handled,
+  out of repo scope. Landed 2026-07-09: S2 seat-scoped visibility
+  (whitelist-built seat payloads — own sheet full, silhouettes, shared
+  surfaces; no outline/NPC notes/memories/summary/dials; sanitized journal;
+  voiceLines stripped to speaker/tone/text with the narrate route resolving
+  stored voice profiles server-side — closes the S1 read-everything caveat
+  and the personality leak) and S3 seat sessions (seat token in the token
+  field boots via /api/seat/session; host-only chrome hidden; host mint-seat
+  key button on party chips; README rewritten to the seat flow — staleness
+  cleared). Leak guards proven by sabotage; API-level live smoke clean
+  (leak scan, 403s on all meta routes + cross-campaign, revoked seat dies).
+  The two-browser end-to-end is what the playtest itself exercises.
+  Decision entry 2026-07-09 in `.agents/decisions.md`.
 - Landed and inert-for-solo in the tree: multi-character schema + round-robin
   turn order (Phase 3 M1–M3), seats S1 (per-seat tokens, server-side
   character binding, host/seat route guards — live-smoke verified). Dormant
@@ -32,24 +38,24 @@ short and update it when important repo facts change.
   a codex plan pass shaped Phase S before it was parked. Codex incantation
   cache: `.agents/review/harnesses.local.json` (gitignored; codex exec needs
   `< /dev/null` on stdin and generous timeouts).
-- Push state: both remotes (gitea origin + github) hold master at 9effed2,
-  identical to local HEAD (verified via ls-remote, 2026-07-09). The Phase S
-  work, the park decision, and the 2026-07-05 handoff are all pushed — the
-  owner pushed after that handoff recorded them as local-only. Future pushes
-  still need an explicit owner go (`.agents/push-policy.md`).
+- Push state: both remotes (gitea origin + github) hold master at 9effed2
+  (verified via ls-remote 2026-07-09); everything after — the 2026-07-09
+  drift fix, reopen decision, and S2/S3 work — is LOCAL ONLY pending an
+  owner go (`.agents/push-policy.md`).
 - Image generation remains unconfigured (no provider in /admin): heroics
   inert by design. Feel gates (Phase 0, layouts, voices, rulesets, dials,
   locations/map) are open with NO scheduled close.
 
 ## Next
 
-- Build S2 (seat-scoped visibility) per the codex-approved Phase S plan in
-  plan.md — mechanism-independent, no owner input needed.
-- Then S3 (seat bootstrap/join flow + README hosting rewrite to the seat
-  flow — clears the recorded README staleness).
-- The remote two-human playtest is the pending close point for the open
-  feel gates (2026-07-04 delegation framing restored by the reopen
-  decision).
+- The remote two-human playtest, which closes the open feel gates
+  (2026-07-04 delegation framing restored by the reopen decision).
+  Before play, the owner: sets ACCESS_SECRET + ADMIN_SECRET, exposes the
+  server (owner-handled), creates the second character (+ Join), mints its
+  seat (key button on the party chip), sends the token to the other player.
+- Push: local is 7 commits ahead of both remotes (at 9effed2, as of this
+  handoff) — drift fix, reopen decision, S2/S3, docs. Needs an owner go
+  (`.agents/push-policy.md`).
 
 ## Blockers
 
@@ -58,9 +64,9 @@ short and update it when important repo facts change.
 
 ## Verification
 
-- Automated: `AI_RETRY_BACKOFF_MS=10 node test.js` — 24 groups, green at
-  9effed2 (re-verified 2026-07-09). Desktop shell (Rust) outside it:
-  `cargo build` in desktop/src-tauri.
+- Automated: `AI_RETRY_BACKOFF_MS=10 node test.js` — 25 groups (seat
+  visibility scoping joined 2026-07-09), green at 2c3e131. Desktop shell
+  (Rust) outside it: `cargo build` in desktop/src-tauri.
 - Live: `node server.js` (Ollama qwen3.6:27b configured, free). Seat flows
   smoke-verified with ACCESS_SECRET set; without it, solo dev is unchanged.
 

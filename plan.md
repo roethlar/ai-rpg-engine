@@ -335,7 +335,7 @@ bundle, export first, forward importability is the hard requirement)
 - Files: server.js, rpg-engine.js (bundle build/restore), rpg-state.js,
   test.js.
 
-## Phase S: Seats — REOPENED 2026-07-09 (S1 landed; S2/S3 to build; target: remote two-human playtest, connectivity owner-handled)
+## Phase S: Seats — S1–S3 LANDED (S2/S3 built 2026-07-09; target: remote two-human playtest, connectivity owner-handled)
 
 Multiplayer means multi-USER (decision 2026-07-05, reactivated 2026-07-09):
 two distinct users, each able to act only as, and see only, their own
@@ -483,7 +483,7 @@ Raised during planning but deliberately deferred. **Per project rule, nothing he
 
 **Review Process**: After completing each phase, we will test a full play session together, gather feedback, and only then move to the next phase. No code will be merged until it demonstrably improves the playing experience.
 
-**Current Priority** (2026-07-09): readiness for a remote two-human multiplayer playtest (decision 2026-07-09): S2 seat-scoped visibility, then S3 seat join flow + README. Connectivity is owner-handled. The playtest is the pending close point for the open feel gates.
+**Current Priority** (2026-07-09): the remote two-human multiplayer playtest itself. App-side readiness (S2 seat-scoped visibility, S3 seat bootstrap/mint flow, README) landed 2026-07-09 — suite green (25 groups, leak guards proven), API-level live smoke clean; the two-browser end-to-end is exactly what the playtest exercises. Remaining before play: owner sets ACCESS_SECRET + ADMIN_SECRET, exposes the server (owner-handled), mints seats. The playtest is the pending close point for the open feel gates.
 
 This plan will be updated as we learn from implementation and playtesting.
 
