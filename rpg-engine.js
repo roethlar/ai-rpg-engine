@@ -2125,6 +2125,14 @@ export async function releaseCharacter(campaignId, characterId) {
     // 'released' takes the row out of loadParty (so order normalization can
     // never re-seat them) while history keeps its attribution.
     await db.run(`UPDATE characters SET player_character_id = NULL, status = 'released' WHERE id = ?`, [character.id]);
+    // sv-1: the seat credential must not outlive the character's table
+    // membership. A live token bound to a released character is orphaned,
+    // and takeTurn's single-character fast path would re-bind it to whoever
+    // remains — letting a departed player act as another one.
+    await db.run(
+      `UPDATE seats SET revoked_at = CURRENT_TIMESTAMP WHERE character_id = ? AND revoked_at IS NULL`,
+      [character.id]
+    );
     const turnState = validateTurnState(parseJsonObject(campaign.turn_state_json, null), party.map(c => c.id));
     const nextState = removeFromTurnOrder(turnState, character.id);
     await db.run(`UPDATE campaigns SET turn_state_json = ? WHERE id = ?`, [JSON.stringify(nextState), campaignId]);

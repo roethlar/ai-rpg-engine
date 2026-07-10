@@ -30,15 +30,25 @@ EXPLOIT CONFIRMED: true
 A seat credential is bound to one character, but the character's *table membership* can end without the credential ending. The engine's single-character fast path then re-binds the orphaned credential to whoever is left, so a departed player can act as a remaining one.
 
 ## Approach
-Root cause: the credential outlives the character's active membership. `releaseCharacter` revokes the character's seat in the same write transaction as the release, so a released character has no live credential. Defense in depth: `authenticate` rejects a seat whose bound character is no longer active, closing any other path that might release a character without going through `releaseCharacter` (e.g. a direct status change, an import, a future route).
+Root cause: the credential outlives the character's active membership. `releaseCharacter` revokes the character's seat in the same write transaction as the release, so a released character has no live credential. Defense in depth: seat liveness (not-revoked **and** character still active) is now defined **once**, as `findLiveSeat` in `seat-auth.js`, and `authenticate` calls it — closing any other path that might deactivate a character without going through `releaseCharacter` (a direct status change, an import, a future route), and preventing the two definitions from drifting apart.
+
+Enabling change: `db.js` honors `RPG_DB_PATH`, so the suite can exercise DB-level invariants against a throwaway file. This also fixes a latent test hazard — `test.js` already pulled in `rpg-engine.js` → `db.js`, so the suite was opening the operator's real campaign database. It is now hermetic (verified: the dev DB is byte-identical before and after a run).
 
 ## Files changed
-- `rpg-engine.js` — `releaseCharacter` revokes seats for the released character inside the existing transaction.
-- `server.js` — `authenticate` requires the seat's character to still be active.
-- `test.js` — guard test.
+- `rpg-engine.js:2123-2140` — `releaseCharacter` revokes the released character's seat inside the existing write transaction.
+- `seat-auth.js:20-45` — new `findLiveSeat`: the single definition of a live seat, joining `characters` on active status.
+- `server.js:192-206` — `authenticate` delegates to `findLiveSeat`.
+- `db.js:6-16` — `RPG_DB_PATH` override.
+- `test.js` — `testSeatLifecycle` + hermetic-store setup.
 
 ## Guard proof
-`test.js` seat-visibility group: a released character's seat must not authenticate, and the seat→character binding must not fall through to another character. Reverting either fix makes the assertion FAIL; restoring makes it PASS.
+`test.js::testSeatLifecycle`, two independent assertions, each proven against **production** code (not a duplicated copy of the query):
+- Removing the revoke statement from `releaseCharacter` → FAIL: `Releasing a character revokes its seat`.
+- Removing the active-character join from `findLiveSeat` (restoring the pre-fix query) → FAIL: `An un-revoked seat on a released character still must not authenticate`.
+
+Restoring each makes the suite PASS. The original `sv1-repro.mjs` exploit script, re-run against the fixed tree, now reports `A seat still valid after release: false` / `EXPLOIT CONFIRMED: false`.
+
+Process note: the first attempt at this guard proof duplicated the SQL inside the test, which would have been vacuous — reverting `server.js` could not have failed it. Extracting `findLiveSeat` gave the predicate one home and made the guard real.
 
 ## Coder dispute (if any)
 None. Confirmed by execution.

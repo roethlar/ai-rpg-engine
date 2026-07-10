@@ -1,6 +1,21 @@
 import assert from 'assert';
+import fs from 'fs';
+import os from 'os';
+import path from 'path';
 import { parseJsonSafe, validateTurnData, validateRequiredChecks, rollCheck, forceNoOpTurnState, applyCharacterUpdate, applyDiceConsequences, buildVoiceScript, TABLE_TALK_KINDS } from './rpg-state.js';
 import { AIClient, resolveAgentConfig, isTransientAiError } from './api-client.js';
+
+// Hermetic store: db.js opens its file at module load, and several tests
+// dynamically import rpg-engine.js (which pulls db.js in). Redirect BEFORE
+// any of that happens, so the suite can never touch the operator's real
+// campaigns. Static imports above pull no db.js, so this runs in time.
+const TEST_DB_PATH = path.join(os.tmpdir(), `aetheria-test-${process.pid}-${Date.now()}.db`);
+process.env.RPG_DB_PATH = TEST_DB_PATH;
+function cleanupTestDb() {
+  for (const suffix of ['', '-wal', '-shm']) {
+    try { fs.unlinkSync(TEST_DB_PATH + suffix); } catch (e) { /* best effort */ }
+  }
+}
 
 console.log('🧪 Starting Aetheria RPG Engine tests...');
 
@@ -1410,6 +1425,68 @@ async function testSeatAuth() {
 }
 
 // -------------------------------------------------------------
+// Test: seat credential lifecycle against a throwaway DB (sv-1)
+//
+// A seat must not outlive its character's table membership: a released
+// character's token, if still live, gets re-bound by takeTurn's
+// single-character fast path to whoever remains at the table.
+// -------------------------------------------------------------
+async function testSeatLifecycle() {
+  console.log(' - Running seat lifecycle tests...');
+  const db = await import('./db.js');
+  const rpg = await import('./rpg-engine.js');
+  const { mintSeatToken, hashSeatToken, findLiveSeat } = await import('./seat-auth.js');
+
+  {
+    await db.initDb();
+
+    const campaignId = (await db.run(
+      `INSERT INTO campaigns (title, genre, summary, current_act) VALUES ('t','g','s',1)`
+    )).id;
+    await db.run(`INSERT INTO campaign_outlines (campaign_id, outline_json) VALUES (?, ?)`,
+      [campaignId, JSON.stringify({ acts: [], starting_quest: { title: 'q', description: 'd' }, theme_colors: {} })]);
+
+    const mkChar = async (name) => (await db.run(
+      `INSERT INTO characters (campaign_id, name, class, health, max_health, mana, max_mana, xp, level,
+        inventory_json, attributes_json, abilities_json, status)
+       VALUES (?, ?, 'c', 10, 10, 5, 5, 0, 1, '[]', '{}', '[]', 'active')`, [campaignId, name])).id;
+    const alice = await mkChar('Alice');
+    const bob = await mkChar('Bob');
+    await db.run(`UPDATE campaigns SET turn_state_json = ? WHERE id = ?`,
+      [JSON.stringify({ order: [alice, bob], current_index: 0, round: 1 }), campaignId]);
+
+    // The host mints Alice's seat, then releases Alice from the table.
+    const aliceToken = mintSeatToken();
+    await db.run(`INSERT INTO seats (campaign_id, character_id, token_hash, label) VALUES (?,?,?,?)`,
+      [campaignId, alice, hashSeatToken(aliceToken), 'Alice']);
+    await rpg.releaseCharacter(campaignId, alice);
+
+    // (a) Release revokes the seat.
+    const aliceSeat = await db.get(`SELECT revoked_at FROM seats WHERE character_id = ?`, [alice]);
+    assert.notStrictEqual(aliceSeat.revoked_at, null, 'Releasing a character revokes its seat');
+
+    // (b) findLiveSeat — the exact predicate server.js authenticates with —
+    // rejects an orphaned seat.
+    assert.strictEqual(await findLiveSeat(hashSeatToken(aliceToken)), undefined,
+      'A released character\'s seat token must not authenticate');
+
+    // Backstop proof: even un-revoked, a seat on an inactive character is dead.
+    // This is what protects against any FUTURE path that deactivates a
+    // character without going through releaseCharacter.
+    await db.run(`UPDATE seats SET revoked_at = NULL WHERE character_id = ?`, [alice]);
+    assert.strictEqual(await findLiveSeat(hashSeatToken(aliceToken)), undefined,
+      'An un-revoked seat on a released character still must not authenticate');
+
+    // Bob is untouched: an active character's seat authenticates normally.
+    const bobToken = mintSeatToken();
+    await db.run(`INSERT INTO seats (campaign_id, character_id, token_hash, label) VALUES (?,?,?,?)`,
+      [campaignId, bob, hashSeatToken(bobToken), 'Bob']);
+    const bobSeat = await findLiveSeat(hashSeatToken(bobToken));
+    assert.strictEqual(bobSeat?.character_id, bob, 'An active character\'s seat still authenticates');
+  }
+}
+
+// -------------------------------------------------------------
 // Test: seat-scoped visibility (Phase S2)
 // -------------------------------------------------------------
 async function testSeatVisibility() {
@@ -1537,6 +1614,7 @@ async function runAll() {
     await testTableStyle();
     await testCampaignBundle();
     await testSeatAuth();
+    await testSeatLifecycle();
     await testSeatVisibility();
     await testThemeGeneration();
     await testVoiceScript();
@@ -1547,8 +1625,10 @@ async function runAll() {
     await testProviderEndpointPin();
     await testTaskQueueSerialization();
     console.log('✅ All unit tests completed successfully!');
+    cleanupTestDb();
   } catch (error) {
     console.error('❌ Test suite failed:', error);
+    cleanupTestDb();
     process.exit(1);
   }
 }

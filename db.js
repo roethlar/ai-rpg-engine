@@ -4,14 +4,18 @@ import fs from 'fs';
 import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const dataDir = path.join(__dirname, 'data');
 
-// Ensure data directory exists
+// RPG_DB_PATH redirects the store, so the unit suite can exercise DB-level
+// invariants against a throwaway file instead of the operator's real
+// campaigns. Unset (the normal case) resolves to data/rpg_engine.db.
+const dbPath = process.env.RPG_DB_PATH || path.join(__dirname, 'data', 'rpg_engine.db');
+
+// Ensure the containing directory exists
+const dataDir = path.dirname(dbPath);
 if (!fs.existsSync(dataDir)) {
   fs.mkdirSync(dataDir, { recursive: true });
 }
 
-const dbPath = path.join(dataDir, 'rpg_engine.db');
 const db = new sqlite3.Database(dbPath);
 
 // sqlite3 serializes individual statements, but multi-statement transactions

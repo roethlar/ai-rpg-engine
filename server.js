@@ -13,7 +13,7 @@ import {
   maskAiConfig
 } from './server-config.js';
 import { synthesizeSpeech, TTS_VOICES } from './tts-providers.js';
-import { looksLikeSeatToken, hashSeatToken, mintSeatToken } from './seat-auth.js';
+import { looksLikeSeatToken, hashSeatToken, mintSeatToken, findLiveSeat } from './seat-auth.js';
 import { scopeStateForSeat, scopeJournalForSeat, resolveSpeakerVoice } from './rpg-state.js';
 
 dotenv.config();
@@ -192,10 +192,9 @@ async function authenticate(req, res, next) {
   // Seat tokens authenticate regardless of whether a host secret is set.
   if (token && looksLikeSeatToken(token)) {
     try {
-      const seat = await db.get(
-        `SELECT * FROM seats WHERE token_hash = ? AND revoked_at IS NULL`,
-        [hashSeatToken(token)]
-      );
+      // sv-1: liveness (not-revoked AND character still active) is defined
+      // once, in seat-auth.js, so this guard cannot drift out of sync.
+      const seat = await findLiveSeat(hashSeatToken(token));
       if (!seat) {
         return res.status(401).json({ error: 'Unauthorized. This seat token is invalid or revoked.' });
       }
