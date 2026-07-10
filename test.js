@@ -933,6 +933,44 @@ async function testCampaignBundle() {
   const bundle = validateCampaignBundle(fixture);
   assert.strictEqual(bundle.format_version, 1);
   assert.strictEqual(bundle.campaign.title, 'Shadows of the Sunken Sands');
+
+  // sv-4 round 2: bundles are untrusted DATA. getCampaignState promotes the
+  // last turn's quest_update into `currentQuest`, which crosses the seat
+  // boundary — so a hostile bundle must not be able to park a nested object
+  // under a player-facing quest field. Sanitized at the import boundary too,
+  // not only in the seat scope (defense at both ends).
+  const hostileBundle = JSON.parse(JSON.stringify(fixture));
+  hostileBundle.turns[0].state_changes_json = JSON.stringify({
+    quest_update: {
+      active_quest: { current_act: 3, outline: 'LEAK_IMPORT_TWIST' },
+      quest_description: ['LEAK_IMPORT_ARRAY'],
+      current_act: 3
+    }
+  });
+  const cleaned = validateCampaignBundle(hostileBundle);
+  const record = JSON.parse(cleaned.turns[0].state_changes_json);
+  assert.strictEqual('active_quest' in (record.quest_update || {}), false,
+    'A non-string active_quest is stripped at the import boundary');
+  assert.strictEqual('quest_description' in (record.quest_update || {}), false,
+    'A non-string quest_description is stripped at the import boundary');
+  assert.strictEqual(JSON.stringify(cleaned).includes('LEAK_IMPORT_TWIST'), false,
+    'Nested private data cannot survive import inside a quest field');
+
+  // A quest_update that is not an object at all is dropped wholesale.
+  const arrayQuest = JSON.parse(JSON.stringify(fixture));
+  arrayQuest.turns[0].state_changes_json = JSON.stringify({ quest_update: ['LEAK_ARRAY_QUEST'] });
+  assert.strictEqual(
+    JSON.stringify(validateCampaignBundle(arrayQuest)).includes('LEAK_ARRAY_QUEST'), false,
+    'A non-object quest_update is dropped');
+
+  // Legitimate string fields survive untouched.
+  const goodQuest = JSON.parse(JSON.stringify(fixture));
+  goodQuest.turns[0].state_changes_json = JSON.stringify({
+    quest_update: { active_quest: 'The Vault', quest_description: 'Crack it.', current_act: 2 }
+  });
+  const goodRecord = JSON.parse(validateCampaignBundle(goodQuest).turns[0].state_changes_json);
+  assert.strictEqual(goodRecord.quest_update.active_quest, 'The Vault', 'Valid quest text survives import');
+  assert.strictEqual(goodRecord.quest_update.quest_description, 'Crack it.');
   assert.strictEqual(bundle.characters.filter(c => c.status === 'active').length >= 1, true, 'Active character survives');
   assert.strictEqual(bundle.turns.length, 3, 'All turns survive, deduped and sorted');
   assert.strictEqual(bundle.turns.every((t, i) => i === 0 || t.turn_number > bundle.turns[i - 1].turn_number), true, 'Turns sorted');
@@ -1621,6 +1659,29 @@ async function testSeatVisibility() {
   assert.strictEqual(raw.includes('current_act'), false, 'No act index anywhere in the seat payload');
   assert.deepStrictEqual(scoped.currentQuest, { active_quest: 'The Vault', quest_description: 'Crack it.' },
     'currentQuest is whitelisted to its player-facing fields');
+
+  // sv-4 ROUND 2 (reviewer): whitelisting property NAMES is not whitelisting.
+  // A permitted name can hold an arbitrary value. validateCampaignBundle used
+  // to preserve adversarial quest_update shapes, and getCampaignState promotes
+  // the last turn's quest_update into currentQuest — so an imported
+  // `active_quest: {current_act: 3, outline: "…"}` sailed through untouched.
+  const hostile = scopeStateForSeat({
+    party: [{ id: 1, name: 'A' }],
+    currentQuest: {
+      active_quest: { current_act: 3, outline: 'LEAK_NESTED_TWIST_the_duke_is_the_lich' },
+      quest_description: ['LEAK_NESTED_ARRAY']
+    },
+    turn: null
+  }, 1);
+  const hostileRaw = JSON.stringify(hostile);
+  assert.strictEqual(hostileRaw.includes('LEAK_NESTED_TWIST_the_duke_is_the_lich'), false,
+    'A nested object under a permitted quest field must not reach a seat');
+  assert.strictEqual(hostileRaw.includes('LEAK_NESTED_ARRAY'), false,
+    'A nested array under a permitted quest field must not reach a seat');
+  assert.strictEqual(hostileRaw.includes('current_act'), false, 'Nor the act index it carried');
+  assert.strictEqual(typeof hostile.currentQuest.active_quest, 'string',
+    'Seat-facing quest fields are coerced to scalar strings');
+  assert.strictEqual(typeof hostile.currentQuest.quest_description, 'string');
 
   // Voice lines: speaker/tone/text only — the profile resolves server-side.
   assert.deepStrictEqual(scoped.turn.voiceLines[1], { speaker: 'Kessler', text: '"You again."', tone: 'amused contempt' });
