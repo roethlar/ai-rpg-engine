@@ -1,9 +1,9 @@
 # sv-5: Valid long tone values abort a seat's entire voice narration
 
 **Severity**: LOW — deterministically breaks optional narration, but only for 81–120-character model-generated tone directions.
-**Status**: Open
+**Status**: Verified
 **Branch**: `fix/sv-5-tone-bound`
-**Commit**: (filled in after commit)
+**Commit**: `cb44e36`
 
 ## Evidence
 - `rpg-state.js:261` — `validateTurnData` accepts `tone` up to **120** characters.
@@ -41,4 +41,9 @@ None.
 `speaker` is bounded at 80 in the same block. NPC names are bounded elsewhere at 80, so that pairing is consistent; left unchanged.
 
 ## Reviewer comments
-(pending)
+
+### Verdict — codex (codex-cli 0.144.0), 2026-07-09 UTC
+- **reviewed_sha**: `cb44e36` · **base_sha**: `a6b283c` · **guard_confirmed**: `true`
+- **verdict**: `accepted` — the reviewer independently performed the guard proof in its own worktree (revert → FAIL, restore → PASS) and reported no comments.
+
+**Status → Verified.** The branch is ready for an OWNER-GATED merge. Per the playbook, "accepted" records that the branch passed review; it does not authorize a merge, push, or history rewrite.
