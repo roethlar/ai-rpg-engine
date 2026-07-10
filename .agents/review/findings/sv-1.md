@@ -1,9 +1,9 @@
 # sv-1: Released character's seat token takes over the sole remaining character
 
 **Severity**: HIGH — a stale seat credential crosses the per-user authorization boundary S2 exists to enforce, and mutates another player's canonical character state.
-**Status**: Open
+**Status**: Verified
 **Branch**: `fix/sv-1-revoke-seat-on-release`
-**Commit**: (filled in after commit)
+**Commit**: `b5d3a81`
 
 ## Evidence
 - `server.js:192-206` — `authenticate` resolves any seat whose `revoked_at IS NULL`; it never checks that the bound character is still an active party member.
@@ -81,3 +81,9 @@ Also applied: comment 3 — `db.closeDb()` added, and `cleanupTestDb` now closes
 Reproduced the race before fixing (`sv1-race.mjs`): `RESULT: bound to -> 2:Bob` / `RACE EXPLOITABLE: true`. After: `RESULT: rejected -> CHARACTER_NOT_AT_TABLE` / `RACE EXPLOITABLE: false`.
 
 **Guard proof (round 2)** — comment 2's requested regression, proven against the production function: restoring the `party.length === 1` fast path in `selectSpeakingCharacter` → FAIL: `A stale seat context must NOT be re-bound to the sole remaining character`. The test also pins the paths that must keep working: Bob may act as Bob, host solo play with no supplied id is unchanged, and a multi-character campaign still demands an explicit speaker.
+
+### Verdict — codex (codex-cli 0.144.0), 2026-07-09 UTC
+- **reviewed_sha**: `b5d3a81` · **base_sha**: `a6b283c` · **guard_confirmed**: `true`
+- **verdict**: `accepted` — the reviewer independently performed the guard proof in its own worktree (revert → FAIL, restore → PASS) and reported no comments.
+
+**Status → Verified.** The branch is ready for an OWNER-GATED merge. Per the playbook, "accepted" records that the branch passed review; it does not authorize a merge, push, or history rewrite.
