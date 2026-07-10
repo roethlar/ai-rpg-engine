@@ -1311,6 +1311,30 @@ async function testVoiceScript() {
   const unknownSpeaker = buildVoiceScript([{ speaker: 'Someone New', tone: '', text: 'Hi.' }], npcs);
   assert.strictEqual(unknownSpeaker[0].voice, null, 'Unknown speakers degrade to narrator voice');
   assert.deepStrictEqual(buildVoiceScript(undefined, npcs), [], 'Missing script → empty (single-voice fallback)');
+
+  // sv-5: a seat hands speaker/tone back to the narrate route, which bounds
+  // them via boundVoiceDirective — the same function server.js calls. It must
+  // accept, unchanged, the widest values validateTurnData can emit; a
+  // stricter cap there 400s a valid line and kills the rest of the queue.
+  const { boundVoiceDirective } = await import('./rpg-state.js');
+  const widest = validateTurnData({
+    input_kind: 'dialogue',
+    narrative: 'x',
+    narration_lines: [{ speaker: 'S'.repeat(500), tone: 'T'.repeat(500), text: 'Line.' }]
+  }, 1).narration_lines[0];
+  assert.strictEqual(widest.tone.length, 120, 'validateTurnData caps tone at 120');
+  const bounded = boundVoiceDirective(widest.speaker, widest.tone);
+  assert.strictEqual(bounded.tone, widest.tone,
+    'The narrate route passes through the longest tone validateTurnData emits');
+  assert.strictEqual(bounded.speaker, widest.speaker,
+    'The narrate route passes through the longest speaker validateTurnData emits');
+
+  // A hostile over-length value is truncated, not rejected: bounded, and the
+  // narration queue survives.
+  const hostile = boundVoiceDirective('x'.repeat(9000), 'y'.repeat(9000));
+  assert.strictEqual(hostile.tone.length, 120, 'Over-length tone is truncated to the cap');
+  assert.strictEqual(hostile.speaker.length, 80, 'Over-length speaker is truncated to the cap');
+  assert.deepStrictEqual(boundVoiceDirective(undefined, null), { speaker: '', tone: '' }, 'Missing fields degrade to empty');
 }
 
 // -------------------------------------------------------------
