@@ -24,9 +24,12 @@ Give the client the same shape test the server uses (prefix **and** minimum leng
 
 ## Files changed
 - `public/app.js` — `isSeatToken` gains the length requirement, mirroring `seat-auth.js`.
+- `test.js` — cross-boundary consistency guard.
 
 ## Guard proof
-Frontend-only, and `public/app.js` is not under the unit suite. Manual check: with `ACCESS_SECRET=seat_1234567890abcdef` the host reaches the campaign menu (before the fix: seat-load error). Stated rather than automated — the repo has no browser-test harness.
+The finding doc first assumed this was untestable (no browser harness). It is not: the *invariant* is that the two predicates agree, and that is testable without a browser. `test.js::testSeatAuth` now extracts `isSeatToken` from `public/app.js` source, evaluates it, and asserts it classifies a corpus of credentials **identically** to the server's `looksLikeSeatToken` — real minted tokens, a short `seat_`-prefixed host secret, boundary lengths, junk, and empty.
+
+Reverting `public/app.js` to the prefix-only test → FAIL: `Client and server must classify "seat_1234567890abcdef…" identically`. Restoring makes it PASS. Any future divergence in either definition now fails the suite, which is a stronger guarantee than the fix itself.
 
 ## Coder dispute (if any)
 Severity downgraded MEDIUM → LOW, reason recorded above. The defect is real; its reachability requires a pathological operator secret.
