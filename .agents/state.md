@@ -22,9 +22,12 @@ short and update it when important repo facts change.
   Decision entry 2026-07-09 in `.agents/decisions.md`.
 - Also in the tree, unchanged by S2/S3: multi-character schema + round-robin
   turn order (Phase 3 M1–M3), seats S1 (per-seat tokens, server-side
-  character binding, host/seat route guards). The S1-era "a seat can still
-  READ full campaign state" caveat is CLOSED by S2 (2026-07-09); solo play
-  with no seats minted behaves exactly as before, as it always has.
+  character binding, host/seat route guards). S2 closes the S1-era "a seat
+  can READ full campaign state" caveat for the SUCCESSFUL-response path.
+  Residual leaks found by the 2026-07-09 review are NOT yet on master
+  (error bodies: sv-2; nested quest values: sv-4) — do not describe seat
+  isolation as complete until those branches land. Solo play with no seats
+  minted behaves exactly as before, as it always has.
 - Also landed 2026-07-04/05, all playable solo: Visual Phases V1–V4 + T1
   (image seam, structured locations + deterministic map, engine-owned
   current_heroic, agent-generated theming), V5 gap closers, Phase D
@@ -32,10 +35,11 @@ short and update it when important repo facts change.
   Phase P campaign export/import (test-fixtures/campaign-bundle-v1.json is
   the pinned forward-importability guard — never regenerate it; migrations
   go in validateCampaignBundle).
-- Reviews: 21 same-model findings fixed (2026-07-04); cross-model reviewloop
-  (playbook, reviewer codex) closed 2026-07-05, 4/4 verified and merged;
-  a codex plan pass shaped Phase S before it was parked. Codex incantation
-  cache: `.agents/review/harnesses.local.json` (gitignored; codex exec needs
+- Reviews: `.agents/review/index.md` owns the finding tables, counts, and
+  status of every loop (the 2026-07-05 loop, closed; the 2026-07-09 seat
+  loop, active) — read it there, never a copy here. A codex plan pass also
+  shaped Phase S before it was parked. Codex incantation cache:
+  `.agents/review/harnesses.local.json` (gitignored; codex exec needs
   `< /dev/null` on stdin and generous timeouts).
 - Push state: both remotes (gitea origin + github) hold master at 9effed2
   (verified via ls-remote 2026-07-09); everything after — the 2026-07-09
@@ -43,7 +47,8 @@ short and update it when important repo facts change.
   owner go (`.agents/push-policy.md`).
 - Image generation remains unconfigured (no provider in /admin): heroics
   inert by design. Feel gates (Phase 0, layouts, voices, rulesets, dials,
-  locations/map) are open with NO scheduled close.
+  locations/map) remain open; their scheduled close is the remote two-human
+  playtest (decision 2026-07-09), which is the `## Next` item below.
 
 ## Next
 
@@ -69,8 +74,10 @@ short and update it when important repo facts change.
 
 - Automated: `AI_RETRY_BACKOFF_MS=10 node test.js` — green at 2c3e131; the
   in-flight review-loop fix branches add groups, so run it rather than
-  trusting a count here. The suite is hermetic as of sv-1 (`RPG_DB_PATH`
-  redirects it to a temp DB; it no longer opens the dev database).
+  trusting a count here. CAVEAT as of 2c3e131: the suite opens the real dev
+  DB (test.js pulls rpg-engine.js → db.js, whose path is hardcoded). The
+  `RPG_DB_PATH` redirect that makes it hermetic lives on the unmerged
+  `fix/sv-1-*` branch; this note becomes true only when that branch lands.
   Desktop shell (Rust) outside it: `cargo build` in desktop/src-tauri.
 - Live: `node server.js` (Ollama qwen3.6:27b configured, free). Seat flows
   smoke-verified with ACCESS_SECRET set; without it, solo dev is unchanged.
@@ -91,10 +98,10 @@ short and update it when important repo facts change.
   seams api-client.js (text), tts-providers.js (speech), image-providers.js
   (images); map-render.js; seat-auth.js; admin/ panel; .agents/review/
   (closed loop records + guard-check scripts).
-- Dev DB (gitignored): campaigns 1 "Velvet Protocol" (two characters, Joe +
-  Mira; Mira's smoke seat revoked), 2 "The Drowning Crown", 3 "Shadows of
-  the Sunken Sands", 4 "Steel Echoes". Pre-M1 backup:
-  data/rpg_engine.pre-m1-backup.db.
+- Dev DB (gitignored, machine-local — contents drift with every play
+  session; ask sqlite rather than trusting a list here): `data/rpg_engine.db`
+  holds the owner's dev campaigns, with a pre-M1 backup at
+  `data/rpg_engine.pre-m1-backup.db`.
 - The party-strip "+ Join" button is HOST-only (it creates characters); a
   host also mints each character's seat token from the key icon beside its
   chip. Seat sessions see neither control.
