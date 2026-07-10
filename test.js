@@ -1570,7 +1570,9 @@ async function testSeatVisibility() {
     turnOrder: { round: 2, actingCharacterId: 2, order: [{ id: 1, name: 'Joe' }, { id: 2, name: 'Mira' }] },
     npcs: [{ id: 5, name: 'Kessler', role: 'fixer', personality: LEAK.npcPersonality, quirks: 'never raises his voice', notes: LEAK.npcNotes, relationship_value: -2, voice_json: JSON.stringify({ voice: 'cedar', instructions: LEAK.voiceInstructions }) }],
     outline: { acts: [{ twist: LEAK.outline }], starting_quest: { title: 'The Vault', description: 'Crack it.' } },
-    currentQuest: { active_quest: 'The Vault', quest_description: 'Crack it.' },
+    // sv-4: production sends the validated quest_update here, which carries
+    // current_act — outline progression the whitelist drops at top level.
+    currentQuest: { active_quest: 'The Vault', quest_description: 'Crack it.', current_act: 2 },
     currentAct: 2,
     turn: {
       number: 9,
@@ -1615,6 +1617,10 @@ async function testSeatVisibility() {
   assert.deepStrictEqual(scoped.ruleset, hostState.ruleset, 'Ruleset is player-viewable canon');
   assert.deepStrictEqual(scoped.turnOrder, hostState.turnOrder);
   assert.strictEqual(scoped.currentAct, undefined, 'Act structure stays with the outline');
+  // sv-4: and it must not ride along nested inside currentQuest either.
+  assert.strictEqual(raw.includes('current_act'), false, 'No act index anywhere in the seat payload');
+  assert.deepStrictEqual(scoped.currentQuest, { active_quest: 'The Vault', quest_description: 'Crack it.' },
+    'currentQuest is whitelisted to its player-facing fields');
 
   // Voice lines: speaker/tone/text only — the profile resolves server-side.
   assert.deepStrictEqual(scoped.turn.voiceLines[1], { speaker: 'Kessler', text: '"You again."', tone: 'amused contempt' });
