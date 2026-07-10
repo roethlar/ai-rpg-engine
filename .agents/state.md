@@ -20,12 +20,11 @@ short and update it when important repo facts change.
   (leak scan, 403s on all meta routes + cross-campaign, revoked seat dies).
   The two-browser end-to-end is what the playtest itself exercises.
   Decision entry 2026-07-09 in `.agents/decisions.md`.
-- Landed and inert-for-solo in the tree: multi-character schema + round-robin
+- Also in the tree, unchanged by S2/S3: multi-character schema + round-robin
   turn order (Phase 3 M1–M3), seats S1 (per-seat tokens, server-side
-  character binding, host/seat route guards — live-smoke verified). Dormant
-  caveat, on record: S2 never landed, so a seat token — if ever minted — can
-  act only as its own character but can still READ full campaign state
-  (outline, NPC notes, memories) from the API.
+  character binding, host/seat route guards). The S1-era "a seat can still
+  READ full campaign state" caveat is CLOSED by S2 (2026-07-09); solo play
+  with no seats minted behaves exactly as before, as it always has.
 - Also landed 2026-07-04/05, all playable solo: Visual Phases V1–V4 + T1
   (image seam, structured locations + deterministic map, engine-owned
   current_heroic, agent-generated theming), V5 gap closers, Phase D
@@ -53,12 +52,13 @@ short and update it when important repo facts change.
   Before play, the owner: sets ACCESS_SECRET + ADMIN_SECRET, exposes the
   server (owner-handled), creates the second character (+ Join), mints its
   seat (key button on the party chip), sends the token to the other player.
-- Push: local is 7 commits ahead of both remotes (at 9effed2, as of this
-  handoff) — drift fix, reopen decision, S2/S3, docs. Needs an owner go
-  (`.agents/push-policy.md`).
+- Push needs an owner go (`.agents/push-policy.md`). Local is ahead of both
+  remotes; ask git for the count rather than trusting a number written here:
+  `git rev-list --count 9effed2..HEAD`.
 
 - Active review loop (owner-invoked 2026-07-09): codex cross-model review
-  of the landed S2/S3 range — see `.agents/review/index.md`.
+  of the landed S2/S3 range — see `.agents/review/index.md` for the finding
+  table and status. That file owns the enumeration; do not copy it here.
 
 ## Blockers
 
@@ -67,9 +67,11 @@ short and update it when important repo facts change.
 
 ## Verification
 
-- Automated: `AI_RETRY_BACKOFF_MS=10 node test.js` — 25 groups (seat
-  visibility scoping joined 2026-07-09), green at 2c3e131. Desktop shell
-  (Rust) outside it: `cargo build` in desktop/src-tauri.
+- Automated: `AI_RETRY_BACKOFF_MS=10 node test.js` — green at 2c3e131; the
+  in-flight review-loop fix branches add groups, so run it rather than
+  trusting a count here. The suite is hermetic as of sv-1 (`RPG_DB_PATH`
+  redirects it to a temp DB; it no longer opens the dev database).
+  Desktop shell (Rust) outside it: `cargo build` in desktop/src-tauri.
 - Live: `node server.js` (Ollama qwen3.6:27b configured, free). Seat flows
   smoke-verified with ACCESS_SECRET set; without it, solo dev is unchanged.
 
@@ -77,11 +79,10 @@ short and update it when important repo facts change.
 
 - `AGENTS.md`, `.agents/repo-guidance.md`, `.agents/decisions.md`,
   `.agents/playbooks/reviewloop.md`
-- `plan.md` (all phases; Phase S REOPENED 2026-07-09; current priority =
-  remote playtest readiness, S2 → S3)
-- `README.md` — note: its multiplayer/hosting section still describes the
-  parked shared-token flow (stale relative to the park; harmless solo;
-  revisit only if the topic reopens)
+- `plan.md` (all phases; Phase S S1–S3 landed 2026-07-09; current priority =
+  the remote two-human playtest)
+- `README.md` — hosting section rewritten to the seat flow (2026-07-09);
+  no longer stale
 - `docs/ruleset-licensing.md` (evidence for the dropped-rulesets decision)
 
 ## Unrecorded Repo Memory
@@ -94,5 +95,6 @@ short and update it when important repo facts change.
   Mira; Mira's smoke seat revoked), 2 "The Drowning Crown", 3 "Shadows of
   the Sunken Sands", 4 "Steel Echoes". Pre-M1 backup:
   data/rpg_engine.pre-m1-backup.db.
-- The party-strip "+ Join" UI and README hosting section reflect the parked
-  shared-token multiplayer; harmless solo.
+- The party-strip "+ Join" button is HOST-only (it creates characters); a
+  host also mints each character's seat token from the key icon beside its
+  chip. Seat sessions see neither control.
