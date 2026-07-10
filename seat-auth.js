@@ -6,6 +6,7 @@
  * credential, so there is no client-supplied identity left to spoof.
  */
 import crypto from 'crypto';
+import * as db from './db.js';
 
 const SEAT_TOKEN_PREFIX = 'seat_';
 
@@ -19,4 +20,24 @@ export function looksLikeSeatToken(token) {
 
 export function hashSeatToken(token) {
   return crypto.createHash('sha256').update(String(token)).digest('hex');
+}
+
+/**
+ * The single definition of a LIVE seat, used by request authentication.
+ * A seat is live only while (1) its token is not revoked AND (2) the
+ * character it binds to is still an active party member (sv-1). Releasing a
+ * character revokes its seat, but the join is the backstop: an orphaned
+ * credential must never survive, because takeTurn's single-character fast
+ * path would re-bind it to whoever remains at the table — letting a departed
+ * player act as another one. Returns the seat row, or undefined.
+ */
+export function findLiveSeat(tokenHash) {
+  return db.get(
+    `SELECT seats.* FROM seats
+       JOIN characters ON characters.id = seats.character_id
+      WHERE seats.token_hash = ?
+        AND seats.revoked_at IS NULL
+        AND COALESCE(characters.status, 'active') = 'active'`,
+    [tokenHash]
+  );
 }

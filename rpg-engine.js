@@ -178,6 +178,44 @@ function hydrateCharacterRow(row) {
   };
 }
 
+/**
+ * Resolves which party member is speaking for this request (sv-1, round 2).
+ *
+ * A SUPPLIED character id is authoritative and must name a currently active
+ * party member — always, even when the party has shrunk to one. The old
+ * `party.length === 1` fast path discarded the id and bound the request to
+ * the sole survivor, which is the real root of sv-1 in both its forms:
+ *
+ *   - persisted: a released character's seat token, still live, acts as the
+ *     remaining player (closed also by revoke-on-release); and
+ *   - in-flight (TOCTOU): `authenticate` captures the seat's characterId,
+ *     then the request awaits the AI-config lookup and the campaign queue.
+ *     A release landing in that window leaves a *live, already-authorized*
+ *     context whose character is gone — and the fast path re-bound it.
+ *     Revoking the credential cannot close this; only refusing to re-bind can.
+ *
+ * Omitting the id stays legal for the host's solo/single-character play,
+ * where there is exactly one member and no ambiguity about who acts. Seats
+ * always supply an id (the server derives it from the credential), so a
+ * seat can never reach the omitted-id path.
+ */
+export function selectSpeakingCharacter(party, submittingCharacterId) {
+  const supplied = submittingCharacterId !== null && submittingCharacterId !== undefined;
+  if (supplied) {
+    const character = party.find(c => c.id === Number(submittingCharacterId));
+    if (!character) {
+      const err = new Error('That character is no longer at this table.');
+      err.code = 'CHARACTER_NOT_AT_TABLE';
+      throw err;
+    }
+    return character;
+  }
+  if (party.length === 1) return party[0];
+  const err = new Error('This campaign seats multiple characters: the request must say which character is speaking (characterId).');
+  err.code = 'CHARACTER_REQUIRED';
+  throw err;
+}
+
 async function loadParty(campaignId) {
   // Released members keep their row for history but leave the table (M3);
   // legacy rows predate the status column and count as active.
@@ -1436,17 +1474,8 @@ export async function takeTurn(campaignId, playerAction, apiConfig, submittingCh
   const actingId = actingCharacterId(turnState);
   const actingCharacter = party.find(c => c.id === actingId) || party[0];
 
-  let character; // the speaking character — perspective and (gated) writes
-  if (party.length === 1) {
-    character = party[0];
-  } else {
-    character = party.find(c => c.id === Number(submittingCharacterId));
-    if (!character) {
-      const err = new Error('This campaign seats multiple characters: the request must say which character is speaking (characterId).');
-      err.code = 'CHARACTER_REQUIRED';
-      throw err;
-    }
-  }
+  // the speaking character — perspective and (gated) writes
+  const character = selectSpeakingCharacter(party, submittingCharacterId);
   const allowCommitted = party.length === 1 || character.id === actingCharacter.id;
 
   const npcs = await db.all(`SELECT * FROM npcs WHERE campaign_id = ?`, [campaignId]);
@@ -2125,6 +2154,14 @@ export async function releaseCharacter(campaignId, characterId) {
     // 'released' takes the row out of loadParty (so order normalization can
     // never re-seat them) while history keeps its attribution.
     await db.run(`UPDATE characters SET player_character_id = NULL, status = 'released' WHERE id = ?`, [character.id]);
+    // sv-1: the seat credential must not outlive the character's table
+    // membership. A live token bound to a released character is orphaned,
+    // and takeTurn's single-character fast path would re-bind it to whoever
+    // remains — letting a departed player act as another one.
+    await db.run(
+      `UPDATE seats SET revoked_at = CURRENT_TIMESTAMP WHERE character_id = ? AND revoked_at IS NULL`,
+      [character.id]
+    );
     const turnState = validateTurnState(parseJsonObject(campaign.turn_state_json, null), party.map(c => c.id));
     const nextState = removeFromTurnOrder(turnState, character.id);
     await db.run(`UPDATE campaigns SET turn_state_json = ? WHERE id = ?`, [JSON.stringify(nextState), campaignId]);
