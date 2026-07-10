@@ -15,12 +15,21 @@ triaged below when it returns. Finding ids: `sv-*` (seat visibility).
 
 | ID | Severity | Impact (one line) | Status | Branch |
 |----|----------|-------------------|--------|--------|
-| sv-1 | HIGH | Released character's seat token acts as the sole remaining player's character | `[ ]` | `fix/sv-1-revoke-seat-on-release` |
-| sv-2 | HIGH | Malformed model output reaches a seat verbatim in a 500 body, carrying private context | `[ ]` | `fix/sv-2-seat-error-sanitization` |
-| sv-3 | LOW | A `seat_`-prefixed host secret locks the host out of the browser UI | `[ ]` | `fix/sv-3-seat-token-shape` |
-| sv-4 | LOW | Seat payload leaks the act index nested inside `currentQuest` | `[ ]` | `fix/sv-4-scope-current-quest` |
-| sv-5 | LOW | An 81–120-char tone 400s and kills the rest of a seat's turn narration | `[ ]` | `fix/sv-5-tone-bound` |
-| sv-6 | LOW | `state.md` asserts both "S2 landed" and "S2 never landed" | `[ ]` | `fix/sv-6-state-contradictions` |
+| sv-1 | HIGH | Released/stale seat context acts as the sole remaining player's character | `[~]` | `fix/sv-1-revoke-seat-on-release` |
+| sv-2 | HIGH | Malformed model output reaches a seat verbatim in a 500 body, carrying private context | `[~]` | `fix/sv-2-seat-error-sanitization` |
+| sv-3 | LOW | A `seat_`-prefixed host secret locks the host out of the browser UI | `[~]` | `fix/sv-3-seat-token-shape` |
+| sv-4 | LOW | Seat payload leaks the act index nested inside `currentQuest` | `[~]` | `fix/sv-4-scope-current-quest` |
+| sv-5 | LOW | An 81–120-char tone 400s and kills the rest of a seat's turn narration | `[~]` | `fix/sv-5-tone-bound` |
+| sv-6 | LOW | `state.md` asserts both "S2 landed" and "S2 never landed" | `[~]` | `fix/sv-6-state-contradictions` |
+
+Reopen rounds: **sv-1 round 1 → `reopened`** at `dd0d895` (codex, guard_confirmed). The
+reviewer found a TOCTOU race the coder missed: `authenticate` captures the seat's
+character id, then the request awaits the config lookup and campaign queue, so a
+release landing in that window leaves an already-authorized context whose character
+is gone — and `takeTurn`'s `party.length === 1` fast path re-bound it to the sole
+survivor. Revoking a credential cannot close that; only refusing to re-bind can.
+Accepted in full, reproduced by execution, fixed at the root (`selectSpeakingCharacter`)
+at `b5d3a81`. Round 2 verdicts pending for all six.
 
 Intake result: codex (codex-cli 0.144.0, read-only sandbox, structured
 output) returned 6 candidates against `9effed2..0a8d712`; **6 admitted, 0
