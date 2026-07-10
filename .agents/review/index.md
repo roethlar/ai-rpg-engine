@@ -15,31 +15,49 @@ triaged below when it returns. Finding ids: `sv-*` (seat visibility).
 
 | ID | Severity | Impact (one line) | Status | Branch |
 |----|----------|-------------------|--------|--------|
-| sv-1 | HIGH | Released/stale seat context acts as the sole remaining player's character | `[~]` | `fix/sv-1-revoke-seat-on-release` |
-| sv-2 | HIGH | Malformed model output reaches a seat verbatim in a 500 body, carrying private context | `[~]` | `fix/sv-2-seat-error-sanitization` |
-| sv-3 | LOW | A `seat_`-prefixed host secret locks the host out of the browser UI | `[~]` | `fix/sv-3-seat-token-shape` |
-| sv-4 | LOW | Seat payload leaks the act index nested inside `currentQuest` | `[~]` | `fix/sv-4-scope-current-quest` |
-| sv-5 | LOW | An 81–120-char tone 400s and kills the rest of a seat's turn narration | `[~]` | `fix/sv-5-tone-bound` |
-| sv-6 | LOW | `state.md` asserts both "S2 landed" and "S2 never landed" | `[~]` | `fix/sv-6-state-contradictions` |
+| sv-1 | HIGH | Released/stale seat context acts as the sole remaining player's character | `[x]` merged | `fix/sv-1-revoke-seat-on-release` |
+| sv-2 | HIGH | Internal error text (incl. raw model output) reaches a seat through error bodies | `[~]` | `fix/sv-2-seat-error-sanitization` |
+| sv-3 | LOW | A `seat_`-prefixed host secret locks the host out of the browser UI | `[x]` merged | `fix/sv-3-seat-token-shape` |
+| sv-4 | LOW | Seat payload leaks the act index — and any nested value — inside `currentQuest` | `[x]` merged | `fix/sv-4-scope-current-quest` |
+| sv-5 | LOW | An 81–120-char tone 400s and kills the rest of a seat's turn narration | `[x]` merged | `fix/sv-5-tone-bound` |
+| sv-6 | LOW | `state.md` asserts both "S2 landed" and "S2 never landed" | `[x]` merged | `fix/sv-6-state-contradictions` |
 
-Reopen rounds: **sv-1 round 1 → `reopened`** at `dd0d895` (codex, guard_confirmed). The
-reviewer found a TOCTOU race the coder missed: `authenticate` captures the seat's
-character id, then the request awaits the config lookup and campaign queue, so a
-release landing in that window leaves an already-authorized context whose character
-is gone — and `takeTurn`'s `party.length === 1` fast path re-bound it to the sole
-survivor. Revoking a credential cannot close that; only refusing to re-bind can.
-Accepted in full, reproduced by execution, fixed at the root (`selectSpeakingCharacter`)
-at `b5d3a81`. Round 2 verdicts pending for all six.
+Merge state (2026-07-09): five of six merged to master on the owner's explicit
+go ("is the merged code something we were going to want to merge anyway? if so,
+keep it"). sv-2 is HELD until its round-2 verdict returns — it is a HIGH
+finding still under re-review. Master live-smoked after the merges: no leak
+markers in a seat payload, and a released character's seat token returns 401.
 
-Intake result: codex (codex-cli 0.144.0, read-only sandbox, structured
-output) returned 6 candidates against `9effed2..0a8d712`; **6 admitted, 0
-declined** — every candidate carried file:line evidence and a predicted
-observable failure, each re-verified against code at HEAD before admission.
-sv-1 was additionally reproduced by execution in an isolated copy of the
-repo. sv-3 downgraded MEDIUM → LOW (reason in its finding doc); all other
-severities accepted as reported. Four of the six are defects in the S2/S3
-work this same session produced, including sv-6, which is drift the coder
-introduced and the reviewer caught.
+**Reopen rounds — the loop earning its keep.** Four of six findings were
+reopened by the reviewer, and every reopen named a real defect the coder missed:
+
+- **sv-1** (`dd0d895` → reopened → accepted at `b5d3a81`): a TOCTOU race.
+  `authenticate` captures the seat's character id, then the request awaits the
+  config lookup and campaign queue. A release landing in that window leaves an
+  *already-authorized* context whose character is gone, and `takeTurn`'s
+  `party.length === 1` fast path re-bound it to the sole survivor. Revoking a
+  credential cannot close that — only refusing to re-bind can. Reproduced by
+  execution; fixed at the root (`selectSpeakingCharacter`).
+- **sv-2** (`ea54824` → reopened, 5 comments; fix-up at `81755b0`): the
+  "allowlist" was a truthiness check on `error.code`, and `sqlite3` sets `code` —
+  a seat received `SQLITE_ERROR: no such column: …`. Testing `kind === 'seat'`
+  also meant an *absent* auth object fell through to the host branch: fail-open
+  exactly where the credential is unknown. Native `JSON.parse` messages quote
+  their input, so the no-brace path leaked model text verbatim. And
+  `express.json` throws before authentication with no terminal handler.
+- **sv-4** (`ef94856` → reopened; fix-up at `9fb7ed6`): whitelisting property
+  *names* is not whitelisting. A permitted name holds an arbitrary value, and
+  `validateCampaignBundle` preserved adversarial `quest_update` shapes that
+  `getCampaignState` promotes into `currentQuest`. Fixed at both ends.
+- **sv-6** (`5cb0cc9` → reopened; fix-up at `731d3c5`): the fix for documentation
+  drift *contained* documentation drift — it asserted the hermetic-suite property
+  from a sibling branch (`fix/sv-1-*`, not an ancestor) as though it held there.
+
+Two guards were caught being **vacuous** during the work (tests that duplicated
+the logic instead of calling it, so reverting the fix could not fail them) and
+were rewritten against the production functions (`findLiveSeat`,
+`boundVoiceDirective`). Enabling change from sv-1: `RPG_DB_PATH` makes the suite
+hermetic — it had been opening the operator's real campaign database.
 
 ---
 
