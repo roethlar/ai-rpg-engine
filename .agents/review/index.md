@@ -3,11 +3,44 @@
 Workflow: see `.agents/playbooks/reviewloop.md`.
 Per-finding detail: see `.agents/review/findings/<id>.md`.
 
-Active loop (started 2026-07-05, reviewer: codex): cross-model review of the
+## Active loop (started 2026-07-09, reviewer: codex)
+
+Cross-model review of the landed S2/S3 seat-visibility work, pinned range
+`9effed2..0a8d712` (S2 server scoping 5595071, S2/S3 frontend a7d0f73,
+README 2c3e131, plus decision/state docs). Intake dispatched to codex
+(codex-cli 0.144.0, read-only sandbox, structured-output schema); findings
+triaged below when it returns. Finding ids: `sv-*` (seat visibility).
+
+### Findings (sv-*)
+
+| ID | Severity | Impact (one line) | Status | Branch |
+|----|----------|-------------------|--------|--------|
+| sv-1 | HIGH | Released character's seat token acts as the sole remaining player's character | `[ ]` | `fix/sv-1-revoke-seat-on-release` |
+| sv-2 | HIGH | Malformed model output reaches a seat verbatim in a 500 body, carrying private context | `[ ]` | `fix/sv-2-seat-error-sanitization` |
+| sv-3 | LOW | A `seat_`-prefixed host secret locks the host out of the browser UI | `[ ]` | `fix/sv-3-seat-token-shape` |
+| sv-4 | LOW | Seat payload leaks the act index nested inside `currentQuest` | `[ ]` | `fix/sv-4-scope-current-quest` |
+| sv-5 | LOW | An 81–120-char tone 400s and kills the rest of a seat's turn narration | `[ ]` | `fix/sv-5-tone-bound` |
+| sv-6 | LOW | `state.md` asserts both "S2 landed" and "S2 never landed" | `[ ]` | `fix/sv-6-state-contradictions` |
+
+Intake result: codex (codex-cli 0.144.0, read-only sandbox, structured
+output) returned 6 candidates against `9effed2..0a8d712`; **6 admitted, 0
+declined** — every candidate carried file:line evidence and a predicted
+observable failure, each re-verified against code at HEAD before admission.
+sv-1 was additionally reproduced by execution in an isolated copy of the
+repo. sv-3 downgraded MEDIUM → LOW (reason in its finding doc); all other
+severities accepted as reported. Four of the six are defects in the S2/S3
+work this same session produced, including sv-6, which is drift the coder
+introduced and the reviewer caught.
+
+---
+
+## Closed loop (2026-07-05, reviewer: codex)
+
+Cross-model review of the
 2026-07-04 queue implementation batch, pinned range `f9ecbd8..6c372c0`
 (multiplayer M1–M4, V5 gap closers, Phase D dials, Phase H holodeck, Phase P
 portability, plus the 21 same-model review fixes). Intake pass dispatched to
-codex; findings will be triaged below.
+codex; findings triaged below.
 
 ## Legend
 - `[ ]` Admitted, open (passed intake triage; not yet started)

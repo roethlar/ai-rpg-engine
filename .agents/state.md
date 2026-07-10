@@ -57,6 +57,9 @@ short and update it when important repo facts change.
   handoff) — drift fix, reopen decision, S2/S3, docs. Needs an owner go
   (`.agents/push-policy.md`).
 
+- Active review loop (owner-invoked 2026-07-09): codex cross-model review
+  of the landed S2/S3 range — see `.agents/review/index.md`.
+
 ## Blockers
 
 - Nothing technical is blocked. Network exposure for the remote playtest is
