@@ -815,15 +815,31 @@ function scopeVoiceLinesForSeat(voiceLines) {
  * progression the top-level whitelist deliberately drops. A nested object
  * forwarded by reference smuggles a private field inside a public one.
  *
+ * Round 2 (reviewer): whitelisting property NAMES is not whitelisting. A
+ * permitted name can hold an arbitrary value — `validateCampaignBundle`
+ * preserves adversarial `quest_update` shapes, and `getCampaignState` promotes
+ * them into `currentQuest`, so an imported `active_quest: {current_act: 3,
+ * outline: "…"}` sailed straight through. Both fields are player-facing prose,
+ * so they are COERCED TO SCALAR STRINGS here: a name plus a type is a
+ * whitelist; a name alone is a wish.
+ *
  * (`location` and `heroic` were audited for the same class: both are already
  * built views of shared table surfaces — map geometry and an image pointer —
  * and carry no GM-private fields.)
  */
+function seatScalarString(value, maxLength = 500) {
+  if (typeof value === 'string') return value.slice(0, maxLength);
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  // Objects, arrays, functions: never rendered as quest prose, and the only
+  // shapes that can carry nested private data. Drop them entirely.
+  return '';
+}
+
 function scopeQuestForSeat(quest) {
   if (!quest || typeof quest !== 'object') return quest;
   return {
-    active_quest: quest.active_quest,
-    quest_description: quest.quest_description
+    active_quest: seatScalarString(quest.active_quest, 200),
+    quest_description: seatScalarString(quest.quest_description, 1000)
   };
 }
 
@@ -1102,6 +1118,22 @@ export function validateCampaignBundle(raw) {
         const legacyRoll = sanitizeDiceRollRecords([parsedRecord.roll_result]);
         if (legacyRoll.length === 1) parsedRecord.roll_result = legacyRoll[0];
         else delete parsedRecord.roll_result;
+      }
+      // sv-4 round 2: getCampaignState promotes the last turn's quest_update
+      // straight into `currentQuest`, which crosses the seat boundary. An
+      // imported record could put an arbitrary object under `active_quest`,
+      // smuggling nested private data past a name-only whitelist. Coerce the
+      // player-facing fields to scalars at the import boundary too, so the
+      // seat scope is not the only thing standing between a hostile bundle
+      // and a player. (Defense at both ends: bundles are untrusted DATA.)
+      if ('quest_update' in parsedRecord) {
+        const quest = parsedRecord.quest_update;
+        if (quest && typeof quest === 'object' && !Array.isArray(quest)) {
+          if ('active_quest' in quest && typeof quest.active_quest !== 'string') delete quest.active_quest;
+          if ('quest_description' in quest && typeof quest.quest_description !== 'string') delete quest.quest_description;
+        } else {
+          delete parsedRecord.quest_update;
+        }
       }
       stateChanges = JSON.stringify(parsedRecord);
     }
