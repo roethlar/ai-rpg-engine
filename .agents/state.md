@@ -24,12 +24,14 @@ short and update it when important repo facts change.
   turn order (Phase 3 M1–M3), seats S1 (per-seat tokens, server-side
   character binding, host/seat route guards). S2 closes the S1-era "a seat
   can READ full campaign state" caveat. The 2026-07-09 cross-model review
-  then found six more issues: five are merged (sv-1 stale-seat/TOCTOU
-  takeover, sv-3, sv-4 nested quest values, sv-5, sv-6). **sv-2 is NOT yet
-  on master** — a seat can still receive internal error text, including raw
-  model output, through HTTP error bodies. Do not call seat isolation
-  complete until `fix/sv-2-seat-error-sanitization` lands. Solo play with no
-  seats minted behaves exactly as before, as it always has.
+  then found six more issues (`.agents/review/index.md` owns that table);
+  **all six are merged and verified live on master** — stale-seat/TOCTOU
+  takeover, seat error-body disclosure, the client/server token-shape split,
+  untyped seat-facing fields, the tone bound, and state.md drift. Treat seat
+  isolation as a boundary to RE-TEST whenever a field is added to a seat
+  payload or an error path — not as a finished category: four of those six
+  fixes were themselves wrong on first attempt, and the reviewer caught it.
+  Solo play with no seats minted behaves exactly as before, as it always has.
 - Also landed 2026-07-04/05, all playable solo: Visual Phases V1–V4 + T1
   (image seam, structured locations + deterministic map, engine-owned
   current_heroic, agent-generated theming), V5 gap closers, Phase D
