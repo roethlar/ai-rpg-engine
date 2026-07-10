@@ -1,9 +1,9 @@
 # sv-3: Client and server disagree on what "looks like a seat token"
 
 **Severity**: LOW — a host secret beginning with `seat_` locks the host out of the browser UI. Downgraded from the reviewer's MEDIUM: the trigger is an operator-chosen secret that collides with the reserved prefix, not a reachable state in normal configuration.
-**Status**: Open
+**Status**: Verified
 **Branch**: `fix/sv-3-seat-token-shape`
-**Commit**: (filled in after commit)
+**Commit**: `cf45fbc`
 
 ## Evidence
 - `public/app.js:27-29` — `isSeatToken` classifies **any** `seat_` prefix as a seat.
@@ -38,4 +38,9 @@ Severity downgraded MEDIUM → LOW, reason recorded above. The defect is real; i
 The duplication itself remains (browser code cannot import the server module without a bundler). The two definitions are now identical and cross-referenced by comment.
 
 ## Reviewer comments
-(pending)
+
+### Verdict — codex (codex-cli 0.144.0), 2026-07-09 UTC
+- **reviewed_sha**: `cf45fbc` · **base_sha**: `a6b283c` · **guard_confirmed**: `true`
+- **verdict**: `accepted` — the reviewer independently performed the guard proof in its own worktree (revert → FAIL, restore → PASS) and reported no comments.
+
+**Status → Verified.** The branch is ready for an OWNER-GATED merge. Per the playbook, "accepted" records that the branch passed review; it does not authorize a merge, push, or history rewrite.
