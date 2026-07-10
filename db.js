@@ -53,6 +53,17 @@ export function all(sql, params = []) {
   });
 }
 
+/**
+ * Closes the connection. The suite calls this before unlinking its temp DB:
+ * SQLite holds the file (plus -wal/-shm) open, and on Windows an open handle
+ * makes the unlink fail, leaving the temp store behind (sv-1 review).
+ */
+export function closeDb() {
+  return new Promise((resolve, reject) => {
+    db.close(err => (err ? reject(err) : resolve()));
+  });
+}
+
 export function withWriteTransaction(taskFn) {
   const next = writeTransactionQueue.catch(() => {}).then(async () => {
     await run('BEGIN IMMEDIATE;');

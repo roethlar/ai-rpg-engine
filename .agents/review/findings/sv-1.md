@@ -57,4 +57,27 @@ None. Confirmed by execution.
 The campaign-scoped `releaseCampaignCharacters` (whole-party release / campaign end) is a different path; seats are cascade-deleted with the campaign row, and a released *party* leaves no remaining character to impersonate. Covered by the `authenticate` guard regardless.
 
 ## Reviewer comments
-(pending)
+
+### Round 1 — codex (codex-cli 0.144.0), 2026-07-09 UTC
+- **reviewed_sha**: `dd0d895` · **base_sha**: `a6b283c` · **guard_confirmed**: `true`
+- **verdict**: `reopened`
+
+1. `server.js:431` — Seat authorization occurs before an awaited config lookup and campaign queueing, so release at `server.js:593` can complete after authentication but before `takeTurn`. `rpg-engine.js:1440` then ignores the captured seat character ID for a one-member party and binds the request to the remaining character. An isolated probe captured Alice's live authorization, released her, then observed `takeTurn` bind her stale ID to Bob. Revalidate inside the campaign queue or reject any supplied character ID absent from the current active party.
+2. `test.js:1434` — `testSeatLifecycle` non-vacuously guards both named changes, but never exercises `takeTurn` or the authenticated-before-release interleaving. Add a regression proving an in-flight stale seat context cannot act as the sole remaining character.
+3. `test.js:14` — Cleanup unlinks the temporary SQLite files while `db.js:19` still holds the database open and suppresses unlink failures. On Windows this can leave the temp DB behind; close the database before unlinking and verify removal.
+
+**Coder response (accepted, all three).** Comment 1 is correct and is the finding's true root cause: revoking on release closes the *persisted* orphan, but a request authenticated microseconds before the release still carries a live seat context, and `takeTurn`'s single-character fast path re-binds it. Both variants share one defect — the fast path discards a supplied character id. Fixing the selection logic closes the persisted path, the in-flight race, and any future path that deactivates a character, which the revoke alone could not. Reproduced the race with an isolated probe before fixing.
+
+### Round 2 — fix-up applied on the same branch
+
+**Approach (round 2).** The reviewer's comment 1 identified the true root cause, which round 1 treated as a symptom. `takeTurn`'s `party.length === 1` fast path *discarded a supplied character id*. Both variants of sv-1 flow from that one line:
+- **persisted** — a released character's still-live token re-bound to the survivor (round 1 closed this by revoking on release);
+- **in-flight (TOCTOU)** — `authenticate` captures the seat's `characterId`, then the request awaits `getServerAiConfig()` and `queueCampaignTask`. A release landing in that window leaves an *already-authorized* context whose character is gone. No amount of credential revocation closes this, because authentication has already happened. Only refusing to re-bind does.
+
+Fix: `selectSpeakingCharacter` (exported from `rpg-engine.js`) makes a supplied character id authoritative — it must name a currently active party member, **regardless of party size**. Omitting the id remains legal only for the host's single-character solo play; seats always supply one (the server derives it from the credential), so a seat can never reach that path. A stale id now raises `CHARACTER_NOT_AT_TABLE` → HTTP 401 (the credential authenticated but its character left the table; dead, not malformed).
+
+Also applied: comment 3 — `db.closeDb()` added, and `cleanupTestDb` now closes the connection before unlinking and **verifies** removal instead of swallowing errors (an open SQLite handle makes the unlink fail on Windows, silently leaving the temp store behind).
+
+Reproduced the race before fixing (`sv1-race.mjs`): `RESULT: bound to -> 2:Bob` / `RACE EXPLOITABLE: true`. After: `RESULT: rejected -> CHARACTER_NOT_AT_TABLE` / `RACE EXPLOITABLE: false`.
+
+**Guard proof (round 2)** — comment 2's requested regression, proven against the production function: restoring the `party.length === 1` fast path in `selectSpeakingCharacter` → FAIL: `A stale seat context must NOT be re-bound to the sole remaining character`. The test also pins the paths that must keep working: Bob may act as Bob, host solo play with no supplied id is unchanged, and a multi-character campaign still demands an explicit speaker.

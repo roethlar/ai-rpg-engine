@@ -11,9 +11,27 @@ import { AIClient, resolveAgentConfig, isTransientAiError } from './api-client.j
 // campaigns. Static imports above pull no db.js, so this runs in time.
 const TEST_DB_PATH = path.join(os.tmpdir(), `aetheria-test-${process.pid}-${Date.now()}.db`);
 process.env.RPG_DB_PATH = TEST_DB_PATH;
-function cleanupTestDb() {
+// SQLite keeps the file (and its -wal/-shm siblings) open; unlinking under an
+// open handle fails on Windows and silently leaves the temp store behind. So:
+// close first, then unlink, then VERIFY removal rather than swallowing errors.
+async function cleanupTestDb() {
+  try {
+    const db = await import('./db.js');
+    await db.closeDb();
+  } catch (e) { /* db.js may never have been imported, or is already closed */ }
+
+  const leftovers = [];
   for (const suffix of ['', '-wal', '-shm']) {
-    try { fs.unlinkSync(TEST_DB_PATH + suffix); } catch (e) { /* best effort */ }
+    const file = TEST_DB_PATH + suffix;
+    try {
+      fs.unlinkSync(file);
+    } catch (e) {
+      if (e.code !== 'ENOENT') leftovers.push(file);
+    }
+    if (fs.existsSync(file)) leftovers.push(file);
+  }
+  if (leftovers.length > 0) {
+    console.warn(`⚠️  Test database not removed: ${leftovers.join(', ')}`);
   }
 }
 
@@ -1483,6 +1501,33 @@ async function testSeatLifecycle() {
       [campaignId, bob, hashSeatToken(bobToken), 'Bob']);
     const bobSeat = await findLiveSeat(hashSeatToken(bobToken));
     assert.strictEqual(bobSeat?.character_id, bob, 'An active character\'s seat still authenticates');
+
+    // (c) THE IN-FLIGHT RACE (codex, sv-1 round 2). authenticate() captures
+    // the seat's characterId, then the request awaits the AI-config lookup
+    // and the campaign queue. A release landing in that window leaves a
+    // live, already-authorized context whose character is gone — revoking
+    // the credential cannot help, because auth already happened. takeTurn
+    // must refuse to re-bind the stale id to the sole survivor.
+    const staleAliceId = alice;                       // captured at auth time
+    const partyNow = await db.all(
+      `SELECT * FROM characters WHERE campaign_id = ? AND COALESCE(status,'active') = 'active' ORDER BY id ASC`,
+      [campaignId]);
+    assert.deepStrictEqual(partyNow.map(c => c.id), [bob], 'Alice is gone; Bob is the sole member');
+    assert.throws(
+      () => rpg.selectSpeakingCharacter(partyNow, staleAliceId),
+      (err) => err.code === 'CHARACTER_NOT_AT_TABLE',
+      'A stale seat context must NOT be re-bound to the sole remaining character'
+    );
+
+    // The legitimate paths still work.
+    assert.strictEqual(rpg.selectSpeakingCharacter(partyNow, bob).id, bob, 'Bob may still act as Bob');
+    assert.strictEqual(rpg.selectSpeakingCharacter(partyNow, null).id, bob,
+      'Host solo play (no characterId supplied, one member) is unchanged');
+    assert.throws(
+      () => rpg.selectSpeakingCharacter([{ id: 1 }, { id: 2 }], null),
+      (err) => err.code === 'CHARACTER_REQUIRED',
+      'A multi-character campaign still demands an explicit speaker'
+    );
   }
 }
 
@@ -1625,10 +1670,10 @@ async function runAll() {
     await testProviderEndpointPin();
     await testTaskQueueSerialization();
     console.log('✅ All unit tests completed successfully!');
-    cleanupTestDb();
+    await cleanupTestDb();
   } catch (error) {
     console.error('❌ Test suite failed:', error);
-    cleanupTestDb();
+    await cleanupTestDb();
     process.exit(1);
   }
 }

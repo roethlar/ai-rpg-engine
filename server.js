@@ -438,6 +438,9 @@ app.post('/api/campaigns/:id/turn', rateLimit(10, 60000), requireSeatCampaign, a
     console.error('Error processing turn:', error);
     const status = error.code === 'OUT_OF_TURN' ? 409
       : error.code === 'CHARACTER_REQUIRED' ? 400
+      // sv-1: the credential authenticated, but its character has left the
+      // table (possibly mid-request, after auth). It is dead, not malformed.
+      : error.code === 'CHARACTER_NOT_AT_TABLE' ? 401
       : error.message.includes('required') || error.message.includes('characters or fewer') || error.message.includes('must be a string') ? 400
       : 500;
     res.status(status).json({ error: error.message, code: error.code });
