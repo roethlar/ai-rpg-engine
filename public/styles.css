@@ -1266,6 +1266,21 @@ body.holodeck-idle .stars-bg { display: none; }
 }
 .party-hp { font-size: 10px; color: hsl(var(--theme-text-dim)); }
 .party-join { color: hsl(var(--theme-text-dim)); border-style: dashed; }
+/* Seat sessions (S2): identity is fixed — chips inform, they don't claim */
+.party-member.seat-static { cursor: default; }
+.party-member.seat-static:hover { border-color: hsl(var(--theme-border)); }
+/* Host mint-seat control (S3): one revocable credential per character */
+.party-seat-btn {
+  background: none;
+  border: 1px dashed hsl(var(--theme-border));
+  color: hsl(var(--theme-text-dim));
+  border-radius: 999px;
+  padding: 3px 7px;
+  font-size: 10px;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+.party-seat-btn:hover { color: hsl(var(--theme-primary)); border-color: hsl(var(--theme-primary)); }
 .action-form.off-turn input::placeholder { color: hsl(var(--theme-secondary)); opacity: 0.9; }
 
 /* SITUATION SURFACE (Phase V4): grounding text always; the deterministic

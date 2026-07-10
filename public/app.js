@@ -17,6 +17,17 @@ const DEFAULT_API_CONFIG = {
 };
 let apiConfig = { ...DEFAULT_API_CONFIG };
 
+// Seat sessions (Phase S2/S3): a seat token in the access-token field binds
+// this browser to ONE character of ONE campaign. The SERVER scopes every
+// payload and rejects host actions — these flags only shape the chrome
+// (hidden host controls, fixed identity, session bootstrap).
+let seatMode = false;
+let seatCharacterId = null;
+
+function isSeatToken(token) {
+  return typeof token === 'string' && token.startsWith('seat_');
+}
+
 const CAMPAIGN_CREATE_TIMEOUT_MS = 300000;
 const TURN_TIMEOUT_MS = 420000;
 
@@ -103,7 +114,7 @@ let voiceErrorShown = false;
 window.addEventListener('DOMContentLoaded', () => {
   loadSettings();
   setupEventListeners();
-  loadCampaignsMenu();
+  bootstrapSession();
   
   // Close modals on Escape key press
   window.addEventListener('keydown', (e) => {
@@ -242,7 +253,9 @@ function applyLayoutMode() {
   rightTabsHeader.style.display = 'flex';
   rightPanelHeading.style.display = 'none';
 
-  if (apiConfig.enableDiagnostics) {
+  // Diagnostics surfaces (outline panel, Codex) are host-only: the seat
+  // payload never carries that data, so the panels would render empty.
+  if (apiConfig.enableDiagnostics && !seatMode) {
     mainGameScreen.classList.remove('immersive-layout');
     leftPanel.style.display = 'flex';
     tabCodexBtn.style.display = 'block';
@@ -310,9 +323,20 @@ function setupEventListeners() {
 
   settingsForm.addEventListener('submit', (e) => {
     e.preventDefault();
+    const tokenBefore = apiConfig.accessToken;
     saveSettings();
     settingsModal.style.display = 'none';
     showToast('Settings saved.', 'success');
+    // A token change involving a seat token re-routes the whole session:
+    // a seat token boots straight into its table (S3), a host token
+    // returns to the campaign menu.
+    if (apiConfig.accessToken !== tokenBefore && (isSeatToken(tokenBefore) || isSeatToken(apiConfig.accessToken))) {
+      currentCampaignId = null;
+      lastGameState = null;
+      lastRenderedTurnNumber = null;
+      mainGameScreen.style.display = 'none';
+      bootstrapSession();
+    }
   });
 
   // Right Panel tab swapping
@@ -696,7 +720,62 @@ function enterHolodeckIdle() {
   );
 }
 
+// Routes startup (and token changes) to the right session kind: a seat
+// token bootstraps straight into its bound campaign — seats never see the
+// campaign list (S3); anything else lands on the host campaign menu.
+function bootstrapSession() {
+  seatMode = isSeatToken(apiConfig.accessToken);
+  applySeatChrome();
+  if (seatMode) {
+    enterSeatSession();
+  } else {
+    seatCharacterId = null;
+    campaignMenuScreen.style.display = 'flex';
+    loadCampaignsMenu();
+  }
+}
+
+// Host-only chrome that per-state rendering does not already govern.
+function applySeatChrome() {
+  document.getElementById('btn-show-campaigns').style.display = seatMode ? 'none' : '';
+  const wizardTrigger = document.getElementById('btn-new-campaign-trigger');
+  if (wizardTrigger) wizardTrigger.style.display = seatMode ? 'none' : '';
+}
+
+async function enterSeatSession() {
+  showLoadingOverlay('Taking your seat at the table...');
+  try {
+    const response = await fetchWithTimeout('/api/seat/session');
+    if (!response.ok) {
+      throw new Error(response.status === 401
+        ? 'This seat token is invalid or has been revoked. Ask your host for a fresh one.'
+        : await getResponseErrorMessage(response, 'Could not load your seat'));
+    }
+    const state = await response.json();
+    currentCampaignId = state.campaignId;
+    seatCharacterId = state.seatCharacterId ?? null;
+    campaignMenuScreen.style.display = 'none';
+    renderGame(state, true);
+  } catch (error) {
+    showToast(`Seat: ${error.message}`, 'error');
+    enterHolodeckIdle();
+    campaignMenuScreen.style.display = 'flex';
+    campaignListContainer.innerHTML = DOMPurify.sanitize(`
+      <div class="empty-state">
+        <i class="fa-solid fa-chair"></i>
+        <p>Your seat could not be loaded.</p>
+        <p style="font-size: 12px; margin-top: 8px;">Check the seat token in Settings, or ask your host to mint a fresh one.</p>
+      </div>`);
+    openSettingsModal();
+  } finally {
+    hideLoadingOverlay();
+  }
+}
+
 async function loadCampaignsMenu() {
+  // Seats have no campaign list (the route is host-only); their entry
+  // point is the seat session bootstrap above.
+  if (seatMode) return;
   // Leaving a campaign for the menu: stop the poll and drop per-campaign
   // state so a stale campaign can never render over the holodeck idle.
   currentCampaignId = null;
@@ -857,6 +936,8 @@ function renderGame(gameState, resetNarrative = false, options = {}) {
   // Update Quest Details (Sanitized)
   activeQuestTitle.textContent = gameState.currentQuest.active_quest || 'Main Quest';
   activeQuestDesc.textContent = gameState.currentQuest.quest_description || '';
+  // Act structure belongs to the outline; seat payloads do not carry it.
+  activeActBadge.style.display = seatMode ? 'none' : '';
   activeActBadge.textContent = `Act ${gameState.currentAct || 1}`;
 
   // Update Outline List
@@ -981,6 +1062,14 @@ function myCharacterKey(campaignId) {
 // the only member of a solo campaign, then a fresh join.
 function resolveMyCharacter(gameState) {
   const party = gameState.party || [];
+  // Seat sessions have a fixed identity: the credential IS the character
+  // (S2). No claims, no localStorage machinery, no auto-claim.
+  if (seatMode) {
+    seatCharacterId = gameState.seatCharacterId ?? seatCharacterId;
+    const mine = party.find(c => c.id === seatCharacterId) || null;
+    myCharacterId = mine ? mine.id : null;
+    return mine;
+  }
   const storedRaw = localStorage.getItem(myCharacterKey(currentCampaignId));
   let mine = storedRaw ? party.find(c => c.id === Number(storedRaw)) || null : null;
   if (!mine && gameState.joinedCharacterId) {
@@ -1013,12 +1102,18 @@ function renderParty(gameState) {
     const classes = ['party-member'];
     if (member.id === myCharacterId) classes.push('is-you');
     if (member.id === actingId) classes.push('is-acting');
-    return `<button type="button" class="${classes.join(' ')}" data-character-id="${member.id}" title="Play as ${escapeHtml(member.name)}">` +
+    // Seats cannot switch identity: chips are informational, not claims.
+    const chipTitle = seatMode ? escapeHtml(member.name) : `Play as ${escapeHtml(member.name)}`;
+    const mintBtn = seatMode ? '' :
+      `<button type="button" class="party-seat-btn" data-seat-character-id="${member.id}" data-seat-character-name="${escapeHtml(member.name)}" title="Mint a seat token for ${escapeHtml(member.name)} (replaces any existing token)"><i class="fa-solid fa-key"></i></button>`;
+    return `<button type="button" class="${classes.join(' ')}${seatMode ? ' seat-static' : ''}" data-character-id="${member.id}" title="${chipTitle}">` +
       `${member.id === actingId ? '<i class="fa-solid fa-circle-play"></i> ' : ''}${escapeHtml(member.name)}` +
       `${member.id === myCharacterId ? ' <span class="party-you">you</span>' : ''}` +
-      `<span class="party-hp">${member.health}/${member.max_health}</span></button>`;
+      `<span class="party-hp">${member.health}/${member.max_health}</span></button>${mintBtn}`;
   }).join('') +
-    `<button type="button" class="party-member party-join" id="party-join-btn" title="Join this table with a new character"><i class="fa-solid fa-user-plus"></i> Join</button>`;
+    (seatMode ? '' : `<button type="button" class="party-member party-join" id="party-join-btn" title="Join this table with a new character"><i class="fa-solid fa-user-plus"></i> Join</button>`);
+
+  if (seatMode) return; // The claim/join flow is host-mode only (S3).
 
   strip.querySelectorAll('.party-member[data-character-id]').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -1027,7 +1122,32 @@ function renderParty(gameState) {
       if (lastGameState) renderPartyState(lastGameState);
     });
   });
+  strip.querySelectorAll('.party-seat-btn').forEach(btn => {
+    btn.addEventListener('click', () =>
+      mintSeatFlow(Number(btn.dataset.seatCharacterId), btn.dataset.seatCharacterName)
+    );
+  });
   strip.querySelector('#party-join-btn').addEventListener('click', joinTableFlow);
+}
+
+// Host mints (or rotates) the one seat credential bound to a character
+// (S1 route, S3 flow). The token is shown exactly once; minting again
+// replaces it, which is also the recovery path for a leaked token.
+async function mintSeatFlow(characterId, characterName) {
+  if (!confirm(`Mint a seat token for ${characterName}?\n\nAny previous token for this character stops working immediately.`)) return;
+  try {
+    const response = await fetchWithTimeout(`/api/campaigns/${currentCampaignId}/characters/${characterId}/seat`, {
+      method: 'POST'
+    });
+    if (!response.ok) throw new Error(await getResponseErrorMessage(response, 'Failed to mint seat token'));
+    const seat = await response.json();
+    window.prompt(
+      `Seat token for ${seat.characterName} — shown ONCE. Copy it and send it to that player only; they paste it as their access token in Settings:`,
+      seat.seatToken
+    );
+  } catch (error) {
+    showToast(`Seat: ${error.message}`, 'error');
+  }
 }
 
 async function joinTableFlow() {
@@ -1078,6 +1198,9 @@ function renderPartyState(gameState) {
 
 function displayedCharacter(gameState) {
   const party = gameState.party || [];
+  // A seat's sheet is always its own character — partymates arrive as
+  // silhouettes (no attributes/inventory) and cannot be displayed.
+  if (seatMode) return party.find(c => c.id === seatCharacterId) || gameState.character;
   return party.find(c => c.id === myCharacterId) || gameState.character;
 }
 
@@ -1226,9 +1349,17 @@ async function narrateGmResponse(turn) {
         ? { voice: line.voice, instructions: line.instructions || '' }
         : { voice: apiConfig.voiceName, instructions: [apiConfig.voiceInstructions, line.instructions].filter(Boolean).join(' ') };
 
+      // Seat lines carry speaker/tone only (S2): the server resolves the
+      // stored voice profile so NPC personality never reaches this client.
+      const requestBody = { text: line.text, audioConfig };
+      if (seatMode) {
+        if (line.speaker) requestBody.speaker = line.speaker;
+        if (line.tone) requestBody.tone = line.tone;
+      }
+
       const response = await fetchWithTimeout('/api/audio/narrate', {
         method: 'POST',
-        body: JSON.stringify({ text: line.text, audioConfig })
+        body: JSON.stringify(requestBody)
       }, 90000);
 
       if (!response.ok) {
@@ -1786,6 +1917,13 @@ function renderChronologyTimeline(items) {
          </div>`
       ).join('');
 
+      // Forking is a host meta-action (S2): seats never see the control.
+      const forkFooter = seatMode ? '' : `
+        <div class="timeline-node-footer">
+          <button class="btn btn-secondary btn-sm timeline-fork-btn">
+            <i class="fa-solid fa-code-fork"></i> Fork Timeline
+          </button>
+        </div>`;
       const safeHtml = DOMPurify.sanitize(`
         <div class="timeline-node-header">
           <span class="timeline-node-badge badge-turn">Turn ${turn.turn_number}</span>
@@ -1794,11 +1932,7 @@ function renderChronologyTimeline(items) {
         <div class="timeline-node-action">${turnText}</div>
         <div class="timeline-node-summary">${narrativeSample}</div>
         ${rollBadgeHtml}
-        <div class="timeline-node-footer">
-          <button class="btn btn-secondary btn-sm timeline-fork-btn">
-            <i class="fa-solid fa-code-fork"></i> Fork Timeline
-          </button>
-        </div>
+        ${forkFooter}
       `);
       card.innerHTML = safeHtml;
 
