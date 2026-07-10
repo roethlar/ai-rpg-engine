@@ -956,6 +956,19 @@ async function testCampaignBundle() {
   assert.strictEqual(JSON.stringify(cleaned).includes('LEAK_IMPORT_TWIST'), false,
     'Nested private data cannot survive import inside a quest field');
 
+  // sv-4 round 3: input_kind and scene_grounding are promoted into the seat
+  // payload from this same record, so they are normalized here too.
+  const poisonedKinds = JSON.parse(JSON.stringify(fixture));
+  poisonedKinds.turns[0].state_changes_json = JSON.stringify({
+    input_kind: { nested: 'LEAK_IMPORT_INPUTKIND' },
+    scene_grounding: ['LEAK_IMPORT_GROUNDING']
+  });
+  const kindsCleaned = JSON.stringify(validateCampaignBundle(poisonedKinds));
+  assert.strictEqual(kindsCleaned.includes('LEAK_IMPORT_INPUTKIND'), false,
+    'A non-string input_kind is stripped at the import boundary');
+  assert.strictEqual(kindsCleaned.includes('LEAK_IMPORT_GROUNDING'), false,
+    'A non-string scene_grounding is stripped at the import boundary');
+
   // A quest_update that is not an object at all is dropped wholesale.
   const arrayQuest = JSON.parse(JSON.stringify(fixture));
   arrayQuest.turns[0].state_changes_json = JSON.stringify({ quest_update: ['LEAK_ARRAY_QUEST'] });
@@ -1743,6 +1756,60 @@ async function testSeatVisibility() {
   assert.strictEqual(typeof hostile.currentQuest.active_quest, 'string',
     'Seat-facing quest fields are coerced to scalar strings');
   assert.strictEqual(typeof hostile.currentQuest.quest_description, 'string');
+
+  // sv-4 ROUND 3 (reviewer): fixing currentQuest alone patched the instance,
+  // not the CLASS. inputKind and sceneGrounding forwarded arbitrary values
+  // too, and both are promoted from an imported turn record. Sweep EVERY
+  // seat-facing turn field with a poisoned object, so a future field added
+  // without a coercion fails here instead of leaking silently.
+  const poisonedFields = ['playerAction', 'inputKind', 'narrative', 'sceneGrounding', 'svg',
+    'suggestedChoices', 'rollResults', 'number'];
+  for (const field of poisonedFields) {
+    const marker = `LEAK_VIA_${field.toUpperCase()}_private_twist`;
+    const poisoned = scopeStateForSeat({
+      party: [{ id: 1, name: 'A' }],
+      currentQuest: { active_quest: 'q', quest_description: 'd' },
+      turn: { number: 1, narrative: 'n', [field]: { nested: marker } }
+    }, 1);
+    assert.strictEqual(JSON.stringify(poisoned).includes(marker), false,
+      `A nested object under turn.${field} must not reach a seat`);
+  }
+
+  // Arrays of junk are filtered, not forwarded.
+  const junk = scopeStateForSeat({
+    party: [{ id: 1, name: 'A' }],
+    currentQuest: { active_quest: 'q', quest_description: 'd' },
+    turn: {
+      number: 1, narrative: 'n',
+      suggestedChoices: ['ok', { leak: 'LEAK_IN_CHOICES' }, 42],
+      rollResults: [{ attribute: 'stealth' }, ['LEAK_IN_ROLLS'], 'junk']
+    }
+  }, 1);
+  const junkRaw = JSON.stringify(junk);
+  assert.strictEqual(junkRaw.includes('LEAK_IN_CHOICES'), false, 'Non-string choices are dropped');
+  assert.strictEqual(junkRaw.includes('LEAK_IN_ROLLS'), false, 'Non-object roll records are dropped');
+  assert.deepStrictEqual(junk.turn.suggestedChoices, ['ok'], 'Valid choices survive');
+  assert.strictEqual(junk.turn.rollResults.length, 1, 'Valid roll records survive');
+
+  // Legitimate values pass through untouched, and absent optional fields stay
+  // null rather than '' — the frontend tests them for truthiness.
+  const good = scopeStateForSeat({
+    party: [{ id: 1, name: 'A' }],
+    currentQuest: { active_quest: 'q', quest_description: 'd' },
+    turn: { number: 7, playerAction: 'I look', inputKind: 'clarification',
+            narrative: 'The lobby hums.', sceneGrounding: 'Two guards.', svg: '<svg/>',
+            suggestedChoices: ['Ask'], rollResults: [{ attribute: 'wits' }] }
+  }, 1);
+  assert.strictEqual(good.turn.number, 7);
+  assert.strictEqual(good.turn.inputKind, 'clarification');
+  assert.strictEqual(good.turn.sceneGrounding, 'Two guards.');
+  assert.strictEqual(good.turn.narrative, 'The lobby hums.');
+  const sparse = scopeStateForSeat({
+    party: [{ id: 1, name: 'A' }], currentQuest: { active_quest: 'q', quest_description: 'd' },
+    turn: { number: 1, narrative: 'n' }
+  }, 1);
+  assert.strictEqual(sparse.turn.sceneGrounding, null, 'Absent grounding stays null');
+  assert.strictEqual(sparse.turn.playerAction, null, 'Absent player action stays null');
 
   // Voice lines: speaker/tone/text only — the profile resolves server-side.
   assert.deepStrictEqual(scoped.turn.voiceLines[1], { speaker: 'Kessler', text: '"You again."', tone: 'amused contempt' });

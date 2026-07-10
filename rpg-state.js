@@ -859,9 +859,30 @@ function scopeVoiceLinesForSeat(voiceLines) {
 function seatScalarString(value, maxLength = 500) {
   if (typeof value === 'string') return value.slice(0, maxLength);
   if (typeof value === 'number' || typeof value === 'boolean') return String(value);
-  // Objects, arrays, functions: never rendered as quest prose, and the only
-  // shapes that can carry nested private data. Drop them entirely.
+  // Objects, arrays, functions: never rendered as prose, and the only shapes
+  // that can carry nested private data. Drop them entirely.
   return '';
+}
+
+/** Same, but preserves null/absent (fields the frontend tests for truthiness). */
+function seatScalarStringOrNull(value, maxLength = 2000) {
+  if (value === null || value === undefined) return null;
+  const scalar = seatScalarString(value, maxLength);
+  return scalar === '' ? null : scalar;
+}
+
+function seatStringArray(value, maxItems = 8, maxLength = 300) {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter(item => typeof item === 'string')
+    .slice(0, maxItems)
+    .map(item => item.slice(0, maxLength));
+}
+
+/** Plain objects only — the shape the roll-badge renderer dereferences. */
+function seatPlainObjectArray(value, maxItems = 8) {
+  if (!Array.isArray(value)) return [];
+  return value.filter(item => item && typeof item === 'object' && !Array.isArray(item)).slice(0, maxItems);
 }
 
 function scopeQuestForSeat(quest) {
@@ -891,15 +912,20 @@ export function scopeStateForSeat(state, seatCharacterId) {
     party: party.map(member => (member && member.id === seatCharacterId ? member : silhouetteCharacter(member))),
     turnOrder: state.turnOrder,
     currentQuest: scopeQuestForSeat(state.currentQuest),
+    // sv-4 round 3 (reviewer): the same defect existed in FOUR more fields.
+    // Fixing `currentQuest` alone patched the instance, not the class. Every
+    // seat-facing field now declares a TYPE, so an imported turn cannot park
+    // an object under a permitted name. A field added here later without a
+    // coercion is a string-typed leak waiting to happen — coerce, don't copy.
     turn: turn && {
-      number: turn.number,
-      playerAction: turn.playerAction,
-      inputKind: turn.inputKind,
-      narrative: turn.narrative,
-      sceneGrounding: turn.sceneGrounding,
-      svg: turn.svg,
-      suggestedChoices: turn.suggestedChoices,
-      rollResults: turn.rollResults,
+      number: Number.isFinite(turn.number) ? turn.number : 1,
+      playerAction: seatScalarStringOrNull(turn.playerAction, 2000),
+      inputKind: seatScalarString(turn.inputKind, 40),
+      narrative: seatScalarString(turn.narrative, 20000),
+      sceneGrounding: seatScalarStringOrNull(turn.sceneGrounding, 4000),
+      svg: seatScalarStringOrNull(turn.svg, 500000),
+      suggestedChoices: seatStringArray(turn.suggestedChoices),
+      rollResults: seatPlainObjectArray(turn.rollResults),
       voiceLines: scopeVoiceLinesForSeat(turn.voiceLines),
       location: turn.location,
       heroic: turn.heroic
@@ -1163,6 +1189,12 @@ export function validateCampaignBundle(raw) {
         } else {
           delete parsedRecord.quest_update;
         }
+      }
+      // Same class, same boundary: getCampaignState promotes input_kind and
+      // scene_grounding from the last turn's record into the seat payload.
+      // A non-string here is either junk or a smuggling container.
+      for (const field of ['input_kind', 'scene_grounding']) {
+        if (field in parsedRecord && typeof parsedRecord[field] !== 'string') delete parsedRecord[field];
       }
       stateChanges = JSON.stringify(parsedRecord);
     }
