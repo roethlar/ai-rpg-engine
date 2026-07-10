@@ -14,7 +14,7 @@ The engine stores all events in a persistent SQLite database, which double-funct
 4. **Scene Visualizer, Heroics & Tactical Map**: The visualizer slot shows AI-generated heroic renders of the current focal subject when an image provider is configured (see `/admin` → Scene Images; without one, the procedural SVG path is used). Locations are persistent structured state: the GM keeps a layout and occupancy record per place, shown as a deterministic top-down map in the Situation panel whenever position matters — alongside, never instead of, the written scene grounding.
 5. **Interactive Controls**: Suggests quick action choices or accepts free-form text input for full player agency.
 6. **Reusable Player Characters**: Characters are stored as persistent profiles with stats, inventory, AI-managed abilities, progression notes, and checkout status. Available characters can be reused in new campaigns, active characters can be copied into a new branch, and campaign cards can release a character profile while preserving the campaign snapshot.
-7. **Shared Tables (multiplayer v1)**: A campaign seats multiple characters. Players join via the same URL + access token, each browser plays its own character, and the server enforces round-robin turns — committed actions wait for your turn, while questions and table talk are always open to everyone.
+7. **Shared Tables (multiplayer)**: A campaign seats multiple characters, each bound to its own revocable seat token. A seat can act only as — and see only — its own character (partymates are silhouettes; the GM's outline, NPC dossiers, and memories stay server-side), and the server enforces round-robin turns — committed actions wait for your turn, while questions and table talk are always open to everyone.
 8. **Council GM Pipeline**: Player turns run through ordered interaction, continuity, referee, continuity archive, and final narration context calls. The player still sees one GM voice, and only the final checked response can update canonical state.
 9. **Voice Narration**: Optional AI-generated text-to-speech narration plays only for the final player-facing GM response, never for internal council context calls.
 10. **Model Context Protocol (MCP)**: Hosts a Server-Sent Events (SSE) MCP server exposing tools (`list_campaigns`, `list_characters`, `get_campaign_outline`, `get_campaign_history`, `get_character_state`, `search_memories`) for semantic query search of past sessions.
@@ -88,25 +88,39 @@ npm start
 ```
 Open your browser to: **`http://localhost:3000`**
 
-### 4. Hosting a Shared Table (multiplayer v1)
+### 4. Hosting a Shared Table (multiplayer: per-seat credentials)
 
-One person runs the server; everyone else joins in a browser.
+One person runs the server (the **host**); every other player gets a **seat
+token** — a private credential bound server-side to exactly one character.
+A seat can act only as its own character and sees only its own sheet:
+partymates appear as name/class/level/HP silhouettes, and the GM's private
+record (campaign outline, NPC dossiers, memories) never leaves the server.
 
-1. **Host**: set `ACCESS_SECRET` in `.env` (required for anything beyond
-   localhost), start the server, and share the URL plus the token.
-2. **Players**: open the URL, paste the token into Settings → Server Access
-   Token, and load the campaign. Use the **+ Join** button in the party strip
-   (right panel) to create your character — the GM will meet them in the
-   fiction on their first turn. Your browser remembers which character you
-   play; click a party member to switch.
+1. **Host**: set `ACCESS_SECRET` (your own credential) and `ADMIN_SECRET`
+   in `.env`, start the server, and load the campaign. Use the **+ Join**
+   button in the party strip to create each player's character, then click
+   the **key icon** next to that character to mint their seat token. The
+   token is shown once — send it to that player only. Minting again replaces
+   the old token (the recovery move if one leaks); a seat can also be
+   revoked outright: `DELETE /api/campaigns/:id/characters/:cid/seat`.
+2. **Players**: open the URL, paste your seat token into Settings → Server
+   Access Token, and save. Your character loads automatically — there is no
+   campaign list and nothing to pick.
 3. **Turns**: committed actions go round-robin — the input tells you whose
    turn it is. Questions and table talk ("what do I see?", in-character
    banter) are always open to everyone and never advance the world.
-4. Leaving the table: a character can be released from their campaign card,
-   which frees the underlying profile; the campaign's history keeps them.
+4. Leaving the table: the host releases a character from their campaign
+   card, which frees the underlying profile; the campaign's history keeps
+   them.
 
-The AI configuration, keys, and image/voice providers all belong to the host
-(`/admin`); players never enter any of that.
+Meta-actions (creating/deleting/forking campaigns, export/import, table
+style dials, minting seats) are host-only and rejected for seats
+server-side. The AI configuration, keys, and image/voice providers all
+belong to the host (`/admin`); players never enter any of that.
+
+**Hosting beyond your LAN**: the app serves plain HTTP — put a
+TLS-terminating layer in front of it (reverse proxy, tunnel, or VPN) before
+sending seat tokens across the internet, and always set both secrets.
 
 ### Optional: Desktop Shell (dev tooling)
 
