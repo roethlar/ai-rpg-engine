@@ -1478,6 +1478,43 @@ async function testSeatAuth() {
   assert.strictEqual(looksLikeSeatToken('not-a-seat'), false);
   assert.strictEqual(looksLikeSeatToken('seat_short'), false, 'Truncated tokens rejected by shape');
   assert.strictEqual(looksLikeSeatToken(null), false);
+
+  // sv-3: the browser duplicates this shape test (it cannot import a server
+  // module). The two MUST agree: if the client calls a credential a seat while
+  // the server calls it a host, the browser bootstraps via /api/seat/session
+  // and a valid host is locked out with a 403. Extract the client's predicate
+  // from source and compare behavior, so a divergence fails the suite.
+  const appSource = fs.readFileSync(new URL('./public/app.js', import.meta.url), 'utf8');
+  const clientFnMatch = appSource.match(/function isSeatToken\(token\) \{[\s\S]*?\n\}/);
+  assert.notStrictEqual(clientFnMatch, null, 'public/app.js must define isSeatToken');
+  const clientPrefixMatch = appSource.match(/const SEAT_TOKEN_PREFIX = '([^']+)';/);
+  assert.notStrictEqual(clientPrefixMatch, null, 'public/app.js must define SEAT_TOKEN_PREFIX');
+  // eslint-disable-next-line no-new-func
+  const clientIsSeatToken = new Function(
+    `const SEAT_TOKEN_PREFIX = '${clientPrefixMatch[1]}';
+     ${clientFnMatch[0]}
+     return isSeatToken;`
+  )();
+
+  const corpus = [
+    mintSeatToken(),                 // a real minted token
+    'seat_' + 'a'.repeat(48),        // real shape
+    'seat_1234567890abcdef',         // seat_ prefix, exactly 16 after → HOST secret
+    'seat_' + 'b'.repeat(17),        // 17 after → seat
+    'seat_short',
+    'seat_',
+    'plain-access-secret',
+    'not-a-seat',
+    ''
+  ];
+  for (const token of corpus) {
+    assert.strictEqual(
+      clientIsSeatToken(token), looksLikeSeatToken(token),
+      `Client and server must classify "${token.slice(0, 24)}…" identically`
+    );
+  }
+  assert.strictEqual(looksLikeSeatToken('seat_1234567890abcdef'), false,
+    'A short seat_-prefixed host secret is NOT a seat token');
 }
 
 // -------------------------------------------------------------

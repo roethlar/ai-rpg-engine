@@ -24,8 +24,16 @@ let apiConfig = { ...DEFAULT_API_CONFIG };
 let seatMode = false;
 let seatCharacterId = null;
 
+// sv-3: MUST mirror looksLikeSeatToken in seat-auth.js exactly. If the client
+// classifies a credential as a seat while the server classifies it as a host
+// (e.g. ACCESS_SECRET="seat_1234567890abcdef"), the browser bootstraps through
+// /api/seat/session and the valid host is locked out with a 403.
+// Real minted tokens are 'seat_' + 48 hex chars, so both tests accept them.
+const SEAT_TOKEN_PREFIX = 'seat_';
 function isSeatToken(token) {
-  return typeof token === 'string' && token.startsWith('seat_');
+  return typeof token === 'string'
+    && token.startsWith(SEAT_TOKEN_PREFIX)
+    && token.length > SEAT_TOKEN_PREFIX.length + 16;
 }
 
 const CAMPAIGN_CREATE_TIMEOUT_MS = 300000;
