@@ -809,6 +809,24 @@ function scopeVoiceLinesForSeat(voiceLines) {
   }));
 }
 
+/**
+ * sv-4: the whitelist has to apply at every level it forwards. `currentQuest`
+ * is a validated `quest_update`, which carries `current_act` — the outline
+ * progression the top-level whitelist deliberately drops. A nested object
+ * forwarded by reference smuggles a private field inside a public one.
+ *
+ * (`location` and `heroic` were audited for the same class: both are already
+ * built views of shared table surfaces — map geometry and an image pointer —
+ * and carry no GM-private fields.)
+ */
+function scopeQuestForSeat(quest) {
+  if (!quest || typeof quest !== 'object') return quest;
+  return {
+    active_quest: quest.active_quest,
+    quest_description: quest.quest_description
+  };
+}
+
 export function scopeStateForSeat(state, seatCharacterId) {
   if (!state || typeof state !== 'object') return state;
   const party = Array.isArray(state.party) ? state.party : [];
@@ -827,7 +845,7 @@ export function scopeStateForSeat(state, seatCharacterId) {
     character: own,
     party: party.map(member => (member && member.id === seatCharacterId ? member : silhouetteCharacter(member))),
     turnOrder: state.turnOrder,
-    currentQuest: state.currentQuest,
+    currentQuest: scopeQuestForSeat(state.currentQuest),
     turn: turn && {
       number: turn.number,
       playerAction: turn.playerAction,
