@@ -1,9 +1,9 @@
 # sv-5: Valid long tone values abort a seat's entire voice narration
 
 **Severity**: LOW — deterministically breaks optional narration, but only for 81–120-character model-generated tone directions.
-**Status**: Open
+**Status**: Verified
 **Branch**: `fix/sv-5-tone-bound`
-**Commit**: (filled in after commit)
+**Commit**: `cb44e36`
 
 ## Evidence
 - `rpg-state.js:261` — `validateTurnData` accepts `tone` up to **120** characters.
@@ -21,14 +21,18 @@ HTTP 400 `tone must be 80 characters or fewer`; the current audio queue stops an
 The S2 seat voice path introduced a second validation of a field that already had a canonical bound, and chose a stricter, unrelated constant. The narrate route is downstream of `validateTurnData`, so it must accept everything that validator produces.
 
 ## Approach
-Bound `tone` at the narrate route with a constant tied to the producing validator (120), not the unrelated character-name bound. A tone is a delivery hint with no security weight; rejecting a valid one to protect nothing costs the player the rest of the turn's audio.
+Two corrections rather than one. First, the caps get a single home: `MAX_SPEAKER_LENGTH` / `MAX_TONE_LENGTH` are exported from `rpg-state.js` and used by `validateTurnData` itself, so no downstream site can drift stricter than what the validator emits. Second — and more important — the narrate route now **truncates** instead of rejecting. These values originate in our own scoped payload, a tone carries no security weight, and a 400 exits the client's narration loop, so rejection costs the player the rest of the turn's audio to protect nothing. A truncated speaker simply misses the exact-match NPC lookup and degrades to the narrator voice. This removes the failure mode rather than moving its threshold, and still bounds a hostile client's 9 KB tone.
 
 ## Files changed
-- `server.js` — `MAX_TONE_LENGTH` (120, matching `validateTurnData`) replaces `MAX_CHARACTER_FIELD_LENGTH` for `tone`.
-- `test.js` — guard assertion on the bound relationship.
+- `rpg-state.js` — exported `MAX_SPEAKER_LENGTH` / `MAX_TONE_LENGTH` (now used by `validateTurnData`) and new `boundVoiceDirective`, the single home for this bounding.
+- `server.js` — the narrate route calls `boundVoiceDirective` instead of `optionalBoundedString(..., MAX_CHARACTER_FIELD_LENGTH)`.
+- `test.js` — guard assertions.
 
 ## Guard proof
-`test.js`: a 120-character tone — the maximum `validateTurnData` emits — must survive the narrate route's bound. Asserted as `MAX_TONE_LENGTH >= the validator's cap` via a round-trip through `validateTurnData` + the exported bound. Reverting to 80 makes it FAIL.
+Proven against `boundVoiceDirective`, the function `server.js` actually calls (an earlier draft re-implemented the bound inside the test, which would have been vacuous — reverting `server.js` could not have failed it):
+- Narrowing the tone cap to the speaker cap → FAIL: `The narrate route passes through the longest tone validateTurnData emits`.
+
+The test round-trips the widest value `validateTurnData` can emit into `boundVoiceDirective` and asserts it survives byte-for-byte, so the two bounds are pinned in relation to each other rather than to a magic number. It also pins the new behavior: a 9 KB hostile value truncates rather than throwing.
 
 ## Coder dispute (if any)
 None.
@@ -37,4 +41,9 @@ None.
 `speaker` is bounded at 80 in the same block. NPC names are bounded elsewhere at 80, so that pairing is consistent; left unchanged.
 
 ## Reviewer comments
-(pending)
+
+### Verdict — codex (codex-cli 0.144.0), 2026-07-09 UTC
+- **reviewed_sha**: `cb44e36` · **base_sha**: `a6b283c` · **guard_confirmed**: `true`
+- **verdict**: `accepted` — the reviewer independently performed the guard proof in its own worktree (revert → FAIL, restore → PASS) and reported no comments.
+
+**Status → Verified.** The branch is ready for an OWNER-GATED merge. Per the playbook, "accepted" records that the branch passed review; it does not authorize a merge, push, or history rewrite.

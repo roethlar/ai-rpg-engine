@@ -14,7 +14,7 @@ import {
 } from './server-config.js';
 import { synthesizeSpeech, TTS_VOICES } from './tts-providers.js';
 import { looksLikeSeatToken, hashSeatToken, mintSeatToken, findLiveSeat } from './seat-auth.js';
-import { scopeStateForSeat, scopeJournalForSeat, resolveSpeakerVoice } from './rpg-state.js';
+import { scopeStateForSeat, scopeJournalForSeat, resolveSpeakerVoice, boundVoiceDirective } from './rpg-state.js';
 
 dotenv.config();
 
@@ -739,8 +739,10 @@ app.post('/api/audio/narrate', rateLimit(20, 60000), async (req, res) => {
     // HERE, so that text never leaves the server. Unknown speakers keep the
     // player's narrator settings with the tone riding as a suffix.
     if (req.auth?.kind === 'seat' && (speaker || tone)) {
-      const cleanSpeaker = optionalBoundedString(speaker, 'speaker', MAX_CHARACTER_FIELD_LENGTH, '');
-      const cleanTone = optionalBoundedString(tone, 'tone', MAX_CHARACTER_FIELD_LENGTH, '');
+      // sv-5: truncate to the caps validateTurnData itself emits, never 400.
+      // These come from our own scoped payload; rejecting a valid tone exits
+      // the client's narration loop and drops the rest of the turn's lines.
+      const { speaker: cleanSpeaker, tone: cleanTone } = boundVoiceDirective(speaker, tone);
       const npc = cleanSpeaker
         ? await db.get(
             `SELECT voice_json FROM npcs WHERE campaign_id = ? AND LOWER(name) = LOWER(?)`,

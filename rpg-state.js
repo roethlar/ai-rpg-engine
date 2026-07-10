@@ -3,6 +3,17 @@
  */
 
 /**
+ * Bounds for a narration line's speaker and tone (sv-5). These are the
+ * canonical caps: `validateTurnData` produces values within them, and the
+ * narrate route — which a seat client hands them back to — must accept
+ * everything this validator emits. Exported so the two sites cannot drift
+ * apart; a stricter bound downstream rejects valid data and kills the rest
+ * of the turn's narration queue.
+ */
+export const MAX_SPEAKER_LENGTH = 80;
+export const MAX_TONE_LENGTH = 120;
+
+/**
  * Utility to clean markdown formatting from LLM JSON responses.
  */
 export function parseJsonSafe(text) {
@@ -256,9 +267,9 @@ export function validateTurnData(raw, currentAct = 1, tableStyle = null) {
       if (!text) return;
       validated.narration_lines.push({
         speaker: typeof line.speaker === 'string' && line.speaker.trim() !== ''
-          ? line.speaker.trim().slice(0, 80)
+          ? line.speaker.trim().slice(0, MAX_SPEAKER_LENGTH)
           : 'narrator',
-        tone: typeof line.tone === 'string' ? line.tone.trim().slice(0, 120) : '',
+        tone: typeof line.tone === 'string' ? line.tone.trim().slice(0, MAX_TONE_LENGTH) : '',
         text: text.slice(0, 2000)
       });
     });
@@ -759,6 +770,24 @@ export function buildVoiceScript(narrationLines, npcs = []) {
  * profile's personality-derived instructions never travel in seat payloads,
  * so the seat client sends speaker + tone back and the server recomposes.
  */
+/**
+ * Bounds the speaker/tone a seat client hands back to the narrate route
+ * (sv-5). It TRUNCATES rather than rejects: these values originate in our
+ * own scoped payload, a tone is a delivery hint with no security weight,
+ * and a 400 here exits the client's narration loop — silently dropping
+ * every remaining spoken line of the turn. A truncated speaker simply
+ * fails the exact-match NPC lookup and degrades to the narrator voice.
+ *
+ * The single home for these caps, so a downstream limit cannot drift
+ * stricter than what `validateTurnData` legitimately emits.
+ */
+export function boundVoiceDirective(speaker, tone) {
+  return {
+    speaker: typeof speaker === 'string' ? speaker.trim().slice(0, MAX_SPEAKER_LENGTH) : '',
+    tone: typeof tone === 'string' ? tone.trim().slice(0, MAX_TONE_LENGTH) : ''
+  };
+}
+
 export function resolveSpeakerVoice(voiceJson, tone) {
   let profile = null;
   if (voiceJson) {
