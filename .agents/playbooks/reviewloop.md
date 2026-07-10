@@ -293,6 +293,12 @@ Name them when they appear; they are process defects, not code defects.
 - **Churn without evidence.** A "fix" that no test can distinguish from the original.
   Cure: the guard proof; if reverting the fix breaks nothing, the change is churn and
   should be reopened or declined.
+- **Vacuous guard.** The test *re-implements* the logic it claims to guard — copying the
+  SQL, the bound, or the predicate — so reverting the production code cannot fail it. It
+  looks like a guard proof and proves nothing. Cure: give the predicate one home, export
+  it, and have both production and test call *that*; then run the revert and watch the
+  suite actually go red. Suspect this whenever the "guard" lives in the same commit as a
+  freshly duplicated constant or query.
 - **Convergence read as correctness.** Treating two roles agreeing as proof the code is
   right. Cure: agreement is not the gate; the guard proof is. The recorded verdict
   carries the proof, not the consensus.

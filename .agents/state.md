@@ -24,19 +24,23 @@ to `docs/history/state-archive.md`.
   it legitimately differs per host. Check it where you are — its absence here
   says nothing about anywhere else, and is not a fact worth recording. Where
   no image provider is configured, heroics are inert by design.
-- Push state (as of `477bf3e`): both remotes (gitea `origin` + `github`) hold
+- Push state (as of `cae74df`): both remotes (gitea `origin` + `github`) hold
   master at `9effed2`; everything since is LOCAL ONLY and needs an owner go
   (`.agents/push-policy.md`). Re-derive the gap with
   `git rev-list --count 9effed2..HEAD` rather than trusting a number here.
 
 ## Next
 
-- Run the playtest. Owner steps before play: set `ACCESS_SECRET` +
-  `ADMIN_SECRET`, configure an AI provider in `/admin`, expose the server,
-  create the second character (party strip **+ Join**, host-only), mint its
-  seat (key icon beside the chip), send that token to the other player.
-- Decide the fate of six `fix/sv-*` branches, all fully merged to master and
-  safe to delete once you are satisfied (`git branch -d`).
+- Run the playtest. Owner steps before play, on the hosting machine: set
+  `ACCESS_SECRET` + `ADMIN_SECRET`, confirm an AI provider is configured
+  there, expose the server, create the second character (party strip
+  **+ Join**, host-only), mint its seat (key icon beside the chip), send that
+  token to the other player.
+- Decide the fate of the six `fix/sv-*` branches. They were content-verified
+  as fully landed at `cae74df` — `git rev-list --count master..<branch>` was 0
+  for each. Re-run that before deleting rather than trusting `--merged` or
+  this line: ancestry can lie, and `git diff master..<branch>` is non-empty
+  merely because master ran ahead.
 - Decide whether to tidy history: three merge commits on master
   (`0eccda6`, `aeb93d5`, `7b2bc64`) were created by an agent shell accident on
   2026-07-09, then superseded by correct forward-merges. Harmless and
@@ -50,14 +54,17 @@ to `docs/history/state-archive.md`.
 
 ## Verification
 
-- Automated: `AI_RETRY_BACKOFF_MS=10 node test.js` — green at `477bf3e`. Run it
+- Automated: `AI_RETRY_BACKOFF_MS=10 node test.js` — green at `cae74df`. Run it
   rather than trusting a group count written here. The suite is hermetic:
   `RPG_DB_PATH` redirects it to a temp DB, closed and removed on exit (before
   2026-07-09 it opened the operator's real dev database).
-- Guard rule that keeps paying off: a test that duplicates the logic it guards
-  is vacuous. Extract the predicate (`findLiveSeat`, `boundVoiceDirective`,
-  `selectSpeakingCharacter`, `errorPayloadFor`) and test THAT, then prove it by
-  reverting the production code and watching the suite go red.
+- When a change ships with a test, prove the test guards it (AGENTS.md), and
+  beware the vacuous guard — a test that re-implements the logic it checks
+  cannot fail when the fix is reverted. This bit twice on 2026-07-09; the
+  anti-pattern and its cure are recorded in `.agents/playbooks/reviewloop.md`.
+  The seat boundary's predicates are already extracted for exactly this
+  reason: `findLiveSeat`, `boundVoiceDirective`, `selectSpeakingCharacter`,
+  `errorPayloadFor`.
 - Live: `node server.js`, then a seat smoke (mint seat → `/api/seat/session` →
   leak-scan the payload). Do it against a throwaway store —
   `RPG_DB_PATH=/tmp/x.db` — never the dev DB; release/revoke are destructive.
