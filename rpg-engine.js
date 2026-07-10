@@ -206,6 +206,9 @@ export function selectSpeakingCharacter(party, submittingCharacterId) {
     if (!character) {
       const err = new Error('That character is no longer at this table.');
       err.code = 'CHARACTER_NOT_AT_TABLE';
+      // sv-2: OPT IN to disclosure. The trust boundary reveals publicMessage
+      // only — never message — so a player-authored ruling must say so.
+      err.publicMessage = err.message;
       throw err;
     }
     return character;
@@ -213,6 +216,7 @@ export function selectSpeakingCharacter(party, submittingCharacterId) {
   if (party.length === 1) return party[0];
   const err = new Error('This campaign seats multiple characters: the request must say which character is speaking (characterId).');
   err.code = 'CHARACTER_REQUIRED';
+  err.publicMessage = err.message; // sv-2: authored for players
   throw err;
 }
 
@@ -357,7 +361,9 @@ Return JSON only: {"appearance": "2-3 sentences of purely physical description �
     const appearance = typeof parsed?.appearance === 'string' ? parsed.appearance.trim().slice(0, 700) : '';
     if (appearance) return `${npc.name}: ${appearance}`;
   } catch (error) {
-    console.warn(`[HEROIC] Appearance generation for "${npc.name}" failed (${error.message}); using character-notes composition.`);
+    // sv-2: parseJsonSafe moved model output to error.rawText; logging only
+    // error.message would silently lose the operator's diagnostics.
+    console.warn(`[HEROIC] Appearance generation for "${npc.name}" failed (${error.message}); using character-notes composition.`, error.rawText ? `\nRaw model output: ${error.rawText}` : '');
   }
   return null;
 }
@@ -507,7 +513,7 @@ Design the persistent layout for "${name}" now. Stay consistent with everything 
     }
     return layout;
   } catch (error) {
-    console.warn(`[LOCATION] Layout generation for "${name}" failed (${error.message}); turn proceeds untracked.`);
+    console.warn(`[LOCATION] Layout generation for "${name}" failed (${error.message}); turn proceeds untracked.`, error.rawText ? `\nRaw model output: ${error.rawText}` : '');
     return null;
   }
 }
@@ -703,6 +709,10 @@ Return JSON matching:
   if (turnGate && !turnGate.allowCommitted && interactionProposal.input_kind === 'committed_action') {
     const gateError = new Error(`It is ${turnGate.actingName}'s turn to act. You can still ask questions or talk (table talk is always open) — committed actions wait for your turn.`);
     gateError.code = 'OUT_OF_TURN';
+    // sv-2: OPT IN to disclosure. A code is a tag, not provenance — the
+    // trust boundary reveals `publicMessage` only, never `message`, so the
+    // engine must state explicitly that this text was authored for players.
+    gateError.publicMessage = gateError.message;
     throw gateError;
   }
 
@@ -1136,7 +1146,7 @@ Give the player character 4 to 8 starting abilities fitting their concept and th
       rulesetData = validateRulesetData(parseJsonSafe(rulesetResponse));
     } catch (error) {
       // A campaign without a rule sheet is playable (freeform); creation must not fail on this call.
-      console.warn(`Ruleset generation failed (continuing freeform): ${error.message}`);
+      console.warn(`Ruleset generation failed (continuing freeform): ${error.message}`, error.rawText ? `\nRaw model output: ${error.rawText}` : '');
     }
   }
   

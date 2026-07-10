@@ -15,6 +15,7 @@ import {
 import { synthesizeSpeech, TTS_VOICES } from './tts-providers.js';
 import { looksLikeSeatToken, hashSeatToken, mintSeatToken, findLiveSeat } from './seat-auth.js';
 import { scopeStateForSeat, scopeJournalForSeat, resolveSpeakerVoice, boundVoiceDirective } from './rpg-state.js';
+import { errorPayloadFor, apiErrorHandler } from './server-errors.js';
 
 dotenv.config();
 
@@ -381,7 +382,10 @@ app.post('/api/campaigns', rateLimit(5, 60000), requireHost, async (req, res) =>
     });
     res.json(state);
   } catch (error) {
-    console.error('Error creating campaign:', error);
+    // sv-2: log rawText, and serialize through the trust boundary so this
+    // host-only route regains the model output that used to ride in the
+    // message (parseJsonSafe now carries it out-of-band).
+    console.error('Error creating campaign:', error, error.rawText ? `\nRaw model output: ${error.rawText}` : '');
     const status = error.message.includes('checked out') || error.message.includes('no longer available')
       ? 409
       : error.message.includes('not found')
@@ -389,7 +393,7 @@ app.post('/api/campaigns', rateLimit(5, 60000), requireHost, async (req, res) =>
         : error.message.includes('API key') || error.message.includes('configured') || error.message.includes('Invalid') || error.message.includes('required') || error.message.includes('characters or fewer') || error.message.includes('must be a string')
           ? 400
           : 500;
-    res.status(status).json({ error: error.message });
+    res.status(status).json(errorPayloadFor(req, error, 'Could not create the campaign.'));
   }
 });
 
@@ -407,7 +411,8 @@ app.get('/api/campaigns/:id', requireSeatCampaign, async (req, res) => {
     // Phase S2: seats get the scoped view, never the host payload.
     res.json(req.auth?.kind === 'seat' ? scopeStateForSeat(state, req.auth.characterId) : state);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Error loading campaign:', error);
+    res.status(500).json(errorPayloadFor(req, error, 'Could not load the campaign.'));
   }
 });
 
@@ -435,7 +440,9 @@ app.post('/api/campaigns/:id/turn', rateLimit(10, 60000), requireSeatCampaign, a
     // Phase S2: seats get the scoped view, never the host payload.
     res.json(req.auth?.kind === 'seat' ? scopeStateForSeat(state, req.auth.characterId) : state);
   } catch (error) {
-    console.error('Error processing turn:', error);
+    // rawText (parseJsonSafe) carries the malformed model output: log it for
+    // the operator, never serialize it to the client.
+    console.error('Error processing turn:', error, error.rawText ? `\nRaw model output: ${error.rawText}` : '');
     const status = error.code === 'OUT_OF_TURN' ? 409
       : error.code === 'CHARACTER_REQUIRED' ? 400
       // sv-1: the credential authenticated, but its character has left the
@@ -443,7 +450,7 @@ app.post('/api/campaigns/:id/turn', rateLimit(10, 60000), requireSeatCampaign, a
       : error.code === 'CHARACTER_NOT_AT_TABLE' ? 401
       : error.message.includes('required') || error.message.includes('characters or fewer') || error.message.includes('must be a string') ? 400
       : 500;
-    res.status(status).json({ error: error.message, code: error.code });
+    res.status(status).json(errorPayloadFor(req, error, 'The GM could not complete that turn. Your action was not lost — try again.'));
   }
 });
 
@@ -580,7 +587,8 @@ app.get('/api/seat/session', async (req, res) => {
     }
     res.json(scopeStateForSeat(state, req.auth.characterId));
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Error loading seat session:', error);
+    res.status(500).json(errorPayloadFor(req, error, 'Could not load your seat.'));
   }
 });
 
@@ -645,7 +653,7 @@ app.get('/api/campaigns/:id/journal', requireSeatCampaign, async (req, res) => {
     res.json({ turns, memories });
   } catch (error) {
     console.error('Error fetching journal:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json(errorPayloadFor(req, error, 'Could not load the journal.'));
   }
 });
 
@@ -770,8 +778,9 @@ app.post('/api/audio/narrate', rateLimit(20, 60000), async (req, res) => {
     res.setHeader('Cache-Control', 'no-store');
     res.send(audioBuffer);
   } catch (error) {
+    console.error('Error synthesizing narration:', error);
     const status = error.message.includes('required') || error.message.includes('characters or fewer') || error.message.includes('must be a string') ? 400 : 500;
-    res.status(status).json({ error: error.message });
+    res.status(status).json(errorPayloadFor(req, error, 'Voice narration failed.'));
   }
 });
 
@@ -1022,6 +1031,13 @@ async function handleToolCall(toolName, args) {
     ]
   };
 }
+
+// Terminal error handler (sv-2). Body-parser failures are thrown BEFORE
+// `authenticate` runs, so without this Express's default handler answers a
+// malformed or oversized body with a stack trace outside production —
+// leaking internal paths to any caller, seat or stranger. Registered last,
+// after every route, as Express requires.
+app.use(apiErrorHandler);
 
 // Production safety checks: fail closed if production is active without ACCESS_SECRET configured
 if (process.env.NODE_ENV === 'production' && !process.env.ACCESS_SECRET) {

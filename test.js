@@ -58,6 +58,157 @@ function testParseJsonSafe() {
   const textWithJson = 'Here is the response: {"test": "ok"} hope it works.';
   const parsed4 = parseJsonSafe(textWithJson);
   assert.strictEqual(parsed4.test, 'ok', 'Should extract JSON from surrounding text');
+
+  // sv-2: a malformed response is a container of GM-private text (the Council
+  // roles are fed outline/NPC notes/memories and must emit memory_summary).
+  // Its content must never ride in the thrown message, because error messages
+  // cross the trust boundary into seat HTTP error bodies.
+  const PRIVATE = 'PRIVATE_MARKER_the_duke_is_the_lich';
+  // Round 2: EVERY failure path, not just the braced one. Native JSON.parse
+  // messages QUOTE a snippet of their input ("Unexpected token 'P',
+  // \"PRIVATE_PL\"... is not valid JSON"), so the no-brace path — which used
+  // to rethrow the native error — leaked content AND carried no rawText.
+  const failureCases = {
+    'braced but unparseable': `{"memory_summary":"${PRIVATE}",}`,
+    'unquoted value':         `{"memory_summary":${PRIVATE}}`,
+    'no braces at all':       `${PRIVATE} is not json`,
+    'truncated':              `{"memory_summary":"${PRIVATE}`,
+    // sv-2 round 2, comment 2: a response truncated to a lone opening fence
+    // emptied `lines`, and `lines[-1].startsWith` threw a native TypeError
+    // with no rawText — a failure path outside the promised error shape.
+    'lone fence':             '```',
+    'lone json fence':        '```json',
+    'fence + private only':   '```\n' + PRIVATE
+  };
+  for (const [label, malformed] of Object.entries(failureCases)) {
+    assert.throws(
+      () => parseJsonSafe(malformed),
+      (err) => {
+        // Any run of the marker in the message is a leak: the native parser
+        // quotes ~10 characters around the offending token.
+        for (let len = 8; len <= PRIVATE.length; len++) {
+          assert.strictEqual(err.message.includes(PRIVATE.slice(0, len)), false,
+            `[${label}] error message must not quote model output`);
+        }
+        assert.strictEqual(err.rawText, malformed, `[${label}] raw text preserved out-of-band`);
+        return true;
+      },
+      `[${label}] throws without leaking content into the message`
+    );
+  }
+}
+
+// -------------------------------------------------------------
+// Test: seat-safe error payloads (sv-2)
+//
+// Error responses were an unscoped side channel around the S2 whitelist.
+// -------------------------------------------------------------
+async function testSeatErrorPayloads() {
+  console.log(' - Running seat error payload tests...');
+  const { errorPayloadFor, apiErrorHandler } = await import('./server-errors.js');
+
+  const seatReq = { auth: { kind: 'seat', characterId: 1 } };
+  const hostReq = { auth: { kind: 'host' } };
+  const PRIVATE = 'malformed model output: {"memory_summary":"the vault code is 4417"}';
+
+  // An uncoded internal error is fully generalized for a seat...
+  const seatPayload = errorPayloadFor(seatReq, new Error(PRIVATE), 'The GM could not complete that turn.');
+  assert.strictEqual(seatPayload.error, 'The GM could not complete that turn.', 'Seat gets the generic message');
+  assert.strictEqual(JSON.stringify(seatPayload).includes('vault code'), false, 'Seat payload carries no internal text');
+
+  // ...while the host keeps full diagnostics, INCLUDING the raw model output
+  // that parseJsonSafe moved out-of-band (pre-sv-2 parity — codex comment 5).
+  const parseErr = Object.assign(new Error('The model returned malformed JSON.'), { rawText: PRIVATE });
+  const hostPayload = errorPayloadFor(hostReq, parseErr, 'generic');
+  assert.strictEqual(hostPayload.error, 'The model returned malformed JSON.', 'Host keeps the diagnostic message');
+  assert.strictEqual(hostPayload.rawText, PRIVATE, 'Host keeps the raw model output for debugging');
+
+  // Coded rulings reach seats — but ONLY when the engine explicitly opted in
+  // by setting `publicMessage` (sv-2 round 2). The frontend switches on `code`
+  // to restore the typed input, and shows `error`.
+  const outOfTurn = Object.assign(new Error('It is Mira\'s turn to act.'),
+    { code: 'OUT_OF_TURN', publicMessage: 'It is Mira\'s turn to act.' });
+  const codedPayload = errorPayloadFor(seatReq, outOfTurn, 'generic');
+  assert.strictEqual(codedPayload.code, 'OUT_OF_TURN', 'Machine-readable code survives for seats');
+  assert.strictEqual(codedPayload.error, 'It is Mira\'s turn to act.', 'Authored ruling text reaches the player');
+
+  // ROUND 2, comment 1: A CODE IS NOT PROVENANCE. Three spoof probes.
+  // (a) An INTERNAL error that merely carries a seat-safe code must not
+  //     disclose its message — it never opted in via publicMessage.
+  const taggedInternal = Object.assign(new Error('SQLITE_ERROR: no such column: secret_vault_code'),
+    { code: 'OUT_OF_TURN' });
+  const taggedPayload = errorPayloadFor(seatReq, taggedInternal, 'generic');
+  assert.strictEqual(taggedPayload.error, 'generic',
+    'A seat-safe code alone must not disclose an internal message');
+  assert.strictEqual(JSON.stringify(taggedPayload).includes('secret_vault_code'), false);
+
+  // (b) An INHERITED code (prototype chain) is not an own, server-set tag.
+  const inherited = Object.create({ code: 'OUT_OF_TURN', publicMessage: 'spoofed' });
+  inherited.message = 'INHERITED_INTERNAL_SECRET';
+  assert.strictEqual(errorPayloadFor(seatReq, inherited, 'generic').error, 'generic',
+    'An inherited code/publicMessage is not provenance');
+
+  // (c) An INHERITED auth.kind must not unlock host diagnostics.
+  const spoofReq = { auth: Object.create({ kind: 'host' }) };
+  const secretErr = Object.assign(new Error('HOST_ONLY_SECRET'), { rawText: 'RAW_MODEL_PRIVATE' });
+  const spoofPayload = errorPayloadFor(spoofReq, secretErr, 'generic');
+  assert.strictEqual(spoofPayload.error, 'generic', 'An inherited auth.kind does not unlock diagnostics');
+  assert.strictEqual(spoofPayload.rawText, undefined, 'Nor the raw model output');
+  assert.strictEqual(JSON.stringify(spoofPayload).includes('RAW_MODEL_PRIVATE'), false);
+
+  // A genuine own-property host still gets everything.
+  const realHost = errorPayloadFor({ auth: { kind: 'host' } }, secretErr, 'generic');
+  assert.strictEqual(realHost.rawText, 'RAW_MODEL_PRIVATE', 'A real host keeps raw model output');
+
+  // ROUND 2, codex comment 1: `code` is an ALLOWLIST, not a truthiness check.
+  // sqlite3 sets error.code = 'SQLITE_ERROR'; Node sets ENOENT/ECONNREFUSED.
+  // Treating any truthy code as a safe ruling disclosed schema internals.
+  const sqliteErr = Object.assign(new Error('SQLITE_ERROR: no such column: secret_vault_code'),
+    { code: 'SQLITE_ERROR' });
+  const sqlitePayload = errorPayloadFor(seatReq, sqliteErr, 'The GM could not complete that turn.');
+  assert.strictEqual(sqlitePayload.error, 'The GM could not complete that turn.',
+    'An unknown error code must NOT make an internal message seat-safe');
+  assert.strictEqual(JSON.stringify(sqlitePayload).includes('secret_vault_code'), false,
+    'SQLITE_ERROR internals never reach a seat');
+  assert.strictEqual(sqlitePayload.code, undefined, 'Unknown codes are withheld too');
+
+  const enoent = Object.assign(new Error("ENOENT: no such file '/home/michael/.env'"), { code: 'ENOENT' });
+  assert.strictEqual(errorPayloadFor(seatReq, enoent, 'generic').error, 'generic',
+    'Node filesystem error codes are not seat-safe rulings');
+
+  // FAIL CLOSED: no auth object at all (a throw before the auth middleware ran)
+  // must be treated as untrusted, not silently as host.
+  assert.strictEqual(errorPayloadFor({}, sqliteErr, 'generic').error, 'generic',
+    'A request with no resolved auth gets the generic message');
+  assert.strictEqual(errorPayloadFor(undefined, sqliteErr, 'generic').error, 'generic',
+    'A missing request object fails closed');
+  assert.strictEqual(errorPayloadFor({ auth: { kind: 'admin' } }, sqliteErr, 'generic').error, 'generic',
+    'Only an explicit host kind unlocks diagnostics');
+
+  // ROUND 2, codex comment 3: the terminal handler must fail closed on
+  // body-parser errors, which are thrown BEFORE authentication runs.
+  const capture = () => {
+    const res = { statusCode: null, body: null, headersSent: false };
+    res.status = (c) => { res.statusCode = c; return res; };
+    res.json = (b) => { res.body = b; return res; };
+    return res;
+  };
+  let res = capture();
+  apiErrorHandler(Object.assign(new SyntaxError('Unexpected token } in JSON at position 42'),
+    { type: 'entity.parse.failed' }), {}, res, () => {});
+  assert.strictEqual(res.statusCode, 400, 'Malformed JSON body → 400');
+  assert.strictEqual(res.body.error, 'Request body is not valid JSON.', 'No parser internals disclosed');
+
+  res = capture();
+  apiErrorHandler(Object.assign(new Error('request entity too large'), { type: 'entity.too.large' }), {}, res, () => {});
+  assert.strictEqual(res.statusCode, 413, 'Oversized body → 413');
+
+  res = capture();
+  const stacky = new Error('connect ECONNREFUSED 127.0.0.1:5432 at /home/michael/secret/path.js:12');
+  apiErrorHandler(stacky, {}, res, () => {});
+  assert.strictEqual(res.statusCode, 500);
+  assert.strictEqual(res.body.error, 'Internal server error.', 'Unknown errors never echo internals');
+  assert.strictEqual(JSON.stringify(res.body).includes('secret/path'), false, 'No filesystem paths disclosed');
 }
 
 // -------------------------------------------------------------
@@ -1855,6 +2006,7 @@ async function runAll() {
     await testCampaignBundle();
     await testSeatAuth();
     await testSeatLifecycle();
+    await testSeatErrorPayloads();
     await testSeatVisibility();
     await testThemeGeneration();
     await testVoiceScript();
