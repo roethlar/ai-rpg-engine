@@ -13,21 +13,69 @@
  */
 
 /**
+ * Error codes whose MESSAGES are authored for players and safe to disclose.
+ * This is an ALLOWLIST, not a truthiness check (sv-2 round 2): `error.code`
+ * is also set by libraries — sqlite3 raises `SQLITE_ERROR`, Node raises
+ * `ENOENT`/`ECONNREFUSED` — and those messages carry schema, filesystem, and
+ * connection internals. Anything not named here is an internal error.
+ *
+ * `CHARACTER_NOT_AT_TABLE` is listed for when sv-1 lands: it tells a player
+ * their character left the table, which is their own situation, not a secret.
+ */
+const SEAT_SAFE_CODES = new Set([
+  'OUT_OF_TURN',
+  'CHARACTER_REQUIRED',
+  'CHARACTER_NOT_AT_TABLE'
+]);
+
+/**
  * Builds the JSON error body for a request, scoped to the caller's trust.
  *
- * Seats receive:
- *   - coded errors verbatim (OUT_OF_TURN, CHARACTER_REQUIRED, …). These are
- *     authored game rulings written for players, and the frontend switches
- *     on `code` to restore the typed input rather than showing a failure.
- *   - everything else as `genericMessage`, with the detail left in the log.
+ * FAIL CLOSED: only an explicitly authenticated HOST receives diagnostics.
+ * A seat, an unauthenticated caller, or a request whose auth never resolved
+ * (`req.auth` absent — a throw before the auth middleware ran) all get the
+ * generic message. Guessing "probably host" on an absent credential is the
+ * failure mode this function exists to prevent.
  *
- * Hosts receive the full diagnostic message, as before.
+ * Seats additionally receive the machine-readable `code` for allowlisted
+ * game rulings, because the frontend switches on it to restore the typed
+ * input rather than showing a failure.
  */
 export function errorPayloadFor(req, error, genericMessage) {
-  if (req?.auth?.kind === 'seat') {
-    return error?.code
-      ? { error: error.message, code: error.code }
-      : { error: genericMessage };
+  const isHost = req?.auth?.kind === 'host';
+  if (isHost) {
+    // Hosts keep full diagnostics, including the raw model output that
+    // parseJsonSafe now carries out-of-band (restores pre-sv-2 parity).
+    const payload = { error: error?.message, code: error?.code };
+    if (error?.rawText) payload.rawText = error.rawText;
+    return payload;
   }
-  return { error: error?.message, code: error?.code };
+
+  const code = error?.code;
+  if (code && SEAT_SAFE_CODES.has(code)) {
+    return { error: error.message, code };
+  }
+  return { error: genericMessage };
+}
+
+/**
+ * Terminal Express error handler (sv-2 round 2). Body-parser errors are
+ * thrown BEFORE authentication runs, and with no terminal handler Express's
+ * default one replies with a stack trace outside production — leaking
+ * internal paths to anyone, seat or stranger. Fail closed here instead.
+ *
+ * Must be registered with `app.use(...)` AFTER every route.
+ */
+export function apiErrorHandler(err, req, res, next) {
+  if (res.headersSent) return next(err);
+  console.error('Unhandled API error:', err);
+
+  if (err?.type === 'entity.too.large') {
+    return res.status(413).json({ error: 'Request body is too large.' });
+  }
+  if (err?.type === 'entity.parse.failed' || err instanceof SyntaxError) {
+    return res.status(400).json({ error: 'Request body is not valid JSON.' });
+  }
+  // Anything else is an internal error: never echo it, whoever is asking.
+  return res.status(500).json({ error: 'Internal server error.' });
 }

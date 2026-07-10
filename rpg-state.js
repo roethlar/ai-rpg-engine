@@ -36,13 +36,27 @@ export function parseJsonSafe(text) {
       try {
         return JSON.parse(cleanText.substring(firstBrace, lastBrace + 1));
       } catch (err2) {
-        const failure = new Error(`JSON parsing failed: ${error.message}`);
-        failure.rawText = text;
-        throw failure;
+        throw jsonParseFailure(text);
       }
     }
-    throw error;
+    // sv-2 round 2: the no-brace path used to rethrow the NATIVE error, whose
+    // message quotes a snippet of the input ("Unexpected token 'P',
+    // \"PRIVATE_PL\"... is not valid JSON") and which carries no rawText.
+    // Two defects at once: model content in the message, diagnostics lost.
+    throw jsonParseFailure(text);
   }
+}
+
+/**
+ * A parse failure with a FIXED, content-free message. Native `JSON.parse`
+ * messages echo a snippet of the input, and that input is model output built
+ * from the GM's private record — so no parse error may ever quote it. The
+ * text travels out-of-band on `rawText`, for server-side logging only.
+ */
+function jsonParseFailure(text) {
+  const failure = new Error('The model returned malformed JSON.');
+  failure.rawText = text;
+  return failure;
 }
 
 /**

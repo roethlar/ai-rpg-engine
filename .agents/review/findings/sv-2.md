@@ -44,4 +44,31 @@ None on the exposure. Severity note: the trigger is model misbehavior, not attac
 Other seat-reachable routes (`journal`, `images`, `seat/session`) return `error.message` too. Their current throw sites are not known to embed model output, but they are the same class; the fix applies the seat-safe serializer to the seat-reachable surfaces rather than the turn route alone.
 
 ## Reviewer comments
-(pending)
+
+### Round 1 — codex (codex-cli 0.144.0), 2026-07-09 UTC
+- **reviewed_sha**: `ea54824` · **base_sha**: `a6b283c` · **guard_confirmed**: `true` · **verdict**: `reopened`
+
+1. `server-errors.js:28` — Every truthy `error.code` is treated as a seat-safe ruling. An actual `SQLITE_ERROR` serialized its full internal message to a seat. Allowlist only `OUT_OF_TURN`/`CHARACTER_REQUIRED`; unknown codes and unauthenticated callers must fail closed.
+2. `rpg-state.js:39` — Native `JSON.parse` messages can echo model text; the no-brace path rethrows without `rawText`. Use a fixed content-free message for every parse failure and attach the original only as `rawText`.
+3. `server.js:60` — `express.json` runs before authentication and there is no terminal API error middleware, so malformed/oversized JSON reaches Express's development default handler and exposes parser stack/internal paths. Add a fail-closed 400/413 handler.
+4. `rpg-engine.js:322` (also 472, 1101) — these swallowed parse failures log only `error.message`, discarding the new `rawText` and regressing operator diagnostics.
+5. `server-errors.js:32` — Host turn responses omit `rawText` that was previously present in the diagnostic message. Preserve full diagnostics for explicitly authenticated hosts.
+
+**Coder response: all five accepted, all five confirmed by execution.** Comments 1 and 2 are the serious ones and both are my own defects, not theoretical:
+- I wrote `error.code ? passthrough : generic` and *called* it an allowlist. It is a truthiness check. `sqlite3` sets `code = 'SQLITE_ERROR'`; Node sets `ENOENT`. Verified: a seat received `SQLITE_ERROR: no such column: secret_vault_code`. Worse, `req.auth?.kind === 'seat'` meant an **absent** auth object fell through to the host branch — fail-open on exactly the path (a throw before auth middleware) where the credential is unknown.
+- Native `JSON.parse` messages quote a snippet of their input. Verified: `Unexpected token 'P', "PRIVATE_PL"... is not valid JSON`. My round-1 fix only covered the braced path; the no-brace path rethrew the native error verbatim and carried no `rawText`.
+
+### Round 2 — fix-up applied on the same branch
+
+- `server-errors.js` — `SEAT_SAFE_CODES` is a real allowlist. `errorPayloadFor` fails closed: **only** `req.auth.kind === 'host'` unlocks diagnostics; seats, unknown kinds, absent auth, and an absent request object all get the generic message. Hosts regain `rawText` in the payload (comment 5).
+- `server-errors.js` — new `apiErrorHandler`, registered after every route: 400 on `entity.parse.failed`, 413 on `entity.too.large`, and a content-free 500 otherwise. Closes the pre-authentication body-parser leak (comment 3).
+- `rpg-state.js` — `jsonParseFailure()` gives **every** parse failure a fixed, content-free message with `rawText` attached out-of-band (comment 2).
+- `rpg-engine.js:322/472/1101` — these catches now log `error.rawText` (comment 4).
+
+**Guard proof (round 2)** — four independent sabotages, each against production code:
+- allowlist → truthiness check ⇒ FAIL `An unknown error code must NOT make an internal message seat-safe`
+- fail-closed → `kind !== 'seat'` ⇒ FAIL `A request with no resolved auth gets the generic message`
+- no-brace path → native rethrow ⇒ FAIL `[no braces at all] error message must not quote model output`
+- terminal handler → echo `err.message` ⇒ FAIL `Unknown errors never echo internals`
+
+The parse test now sweeps every prefix of the private marker across four malformed shapes, so a partial quote (which is what the native parser emits) cannot slip through.

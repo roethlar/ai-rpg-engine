@@ -319,7 +319,9 @@ Return JSON only: {"appearance": "2-3 sentences of purely physical description â
     const appearance = typeof parsed?.appearance === 'string' ? parsed.appearance.trim().slice(0, 700) : '';
     if (appearance) return `${npc.name}: ${appearance}`;
   } catch (error) {
-    console.warn(`[HEROIC] Appearance generation for "${npc.name}" failed (${error.message}); using character-notes composition.`);
+    // sv-2: parseJsonSafe moved model output to error.rawText; logging only
+    // error.message would silently lose the operator's diagnostics.
+    console.warn(`[HEROIC] Appearance generation for "${npc.name}" failed (${error.message}); using character-notes composition.`, error.rawText ? `\nRaw model output: ${error.rawText}` : '');
   }
   return null;
 }
@@ -469,7 +471,7 @@ Design the persistent layout for "${name}" now. Stay consistent with everything 
     }
     return layout;
   } catch (error) {
-    console.warn(`[LOCATION] Layout generation for "${name}" failed (${error.message}); turn proceeds untracked.`);
+    console.warn(`[LOCATION] Layout generation for "${name}" failed (${error.message}); turn proceeds untracked.`, error.rawText ? `\nRaw model output: ${error.rawText}` : '');
     return null;
   }
 }
@@ -1098,7 +1100,7 @@ Give the player character 4 to 8 starting abilities fitting their concept and th
       rulesetData = validateRulesetData(parseJsonSafe(rulesetResponse));
     } catch (error) {
       // A campaign without a rule sheet is playable (freeform); creation must not fail on this call.
-      console.warn(`Ruleset generation failed (continuing freeform): ${error.message}`);
+      console.warn(`Ruleset generation failed (continuing freeform): ${error.message}`, error.rawText ? `\nRaw model output: ${error.rawText}` : '');
     }
   }
   

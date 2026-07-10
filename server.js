@@ -15,7 +15,7 @@ import {
 import { synthesizeSpeech, TTS_VOICES } from './tts-providers.js';
 import { looksLikeSeatToken, hashSeatToken, mintSeatToken } from './seat-auth.js';
 import { scopeStateForSeat, scopeJournalForSeat, resolveSpeakerVoice } from './rpg-state.js';
-import { errorPayloadFor } from './server-errors.js';
+import { errorPayloadFor, apiErrorHandler } from './server-errors.js';
 
 dotenv.config();
 
@@ -1024,6 +1024,13 @@ async function handleToolCall(toolName, args) {
     ]
   };
 }
+
+// Terminal error handler (sv-2). Body-parser failures are thrown BEFORE
+// `authenticate` runs, so without this Express's default handler answers a
+// malformed or oversized body with a stack trace outside production —
+// leaking internal paths to any caller, seat or stranger. Registered last,
+// after every route, as Express requires.
+app.use(apiErrorHandler);
 
 // Production safety checks: fail closed if production is active without ACCESS_SECRET configured
 if (process.env.NODE_ENV === 'production' && !process.env.ACCESS_SECRET) {
