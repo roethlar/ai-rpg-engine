@@ -52,6 +52,31 @@
   full play sessions and confirm improvement per the review gate above, or
   state clearly that a playtest was not run.
 
+## Scope Before Falsifying (learned 2026-07-09, twice)
+
+Before recording a repo claim as false, establish that you checked it in the
+scope where it was asserted. Absence in *your* scope is not falsity.
+
+- **Machine scope.** The owner develops across several machines. Provider
+  config (`.env`, `AI_PROVIDER`, admin `ai_config`), the gitignored dev DB and
+  its backups, and `*.local.*` caches are all machine-local and legitimately
+  differ per host. A note recorded elsewhere is not stale merely because the
+  file is missing here. Prefer omitting per-host observations to recording
+  them: a hostname in a tracked file rots on the next machine and invites the
+  next agent to "correct" it. Record the *rule* (this config is machine-local;
+  check it where you are), never the reading.
+- **Branch scope.** A fact true on a sibling branch is not true on yours. Check
+  `git merge-base --is-ancestor` before asserting that a landed change holds
+  where you are writing.
+- **Failure mode this prevents:** both variants occurred in one session — a
+  test-suite property asserted from an unmerged branch as though it held on
+  the current one, and two true machine-local notes deleted as "false" because
+  a *different* machine lacked the files. Same error each time: a true
+  statement, judged against the wrong scope.
+
+Applies to `drift` and `handoff` especially, whose whole job is deciding which
+recorded facts still hold.
+
 ## Remotes & Sync
 
 - Two remotes: `origin` = `http://q.internal:3000/michael/ai-rpg-engine` (LAN

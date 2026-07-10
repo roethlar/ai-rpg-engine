@@ -483,7 +483,7 @@ Raised during planning but deliberately deferred. **Per project rule, nothing he
 
 **Review Process**: After completing each phase, we will test a full play session together, gather feedback, and only then move to the next phase. No code will be merged until it demonstrably improves the playing experience.
 
-**Current Priority** (2026-07-09): the remote two-human multiplayer playtest itself. App-side readiness (S2 seat-scoped visibility, S3 seat bootstrap/mint flow, README) landed 2026-07-09; a cross-model review then found and closed six defects in it (`.agents/review/index.md`). Suite green with leak guards proven, API-level live smoke clean; the two-browser end-to-end is exactly what the playtest exercises. Remaining before play: owner sets ACCESS_SECRET + ADMIN_SECRET, configures an AI provider in /admin (none is configured), exposes the server (owner-handled), mints seats. The playtest is the pending close point for the open feel gates.
+**Current Priority** (2026-07-09): the remote two-human multiplayer playtest itself. App-side readiness (S2 seat-scoped visibility, S3 seat bootstrap/mint flow, README) landed 2026-07-09; a cross-model review then found and closed six defects in it (`.agents/review/index.md`). Suite green with leak guards proven, API-level live smoke clean; the two-browser end-to-end is exactly what the playtest exercises. Remaining before play: owner sets ACCESS_SECRET + ADMIN_SECRET, ensures an AI provider is configured on the hosting machine (provider config is machine-local), exposes the server (owner-handled), mints seats. The playtest is the pending close point for the open feel gates.
 
 This plan will be updated as we learn from implementation and playtesting.
 

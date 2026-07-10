@@ -19,11 +19,11 @@ to `docs/history/state-archive.md`.
   error path. Table and verdict trail: `.agents/review/index.md` (it owns that
   enumeration; do not copy it here).
 - Solo play with no seats minted behaves exactly as before, as it always has.
-- No AI provider is configured on this machine (`nagatha.local`): no `.env`,
-  no `AI_PROVIDER` env, no persisted admin `ai_config` row — so `node
-  server.js` resolves the built-in default, and `/admin` must be used before
-  any live play. Image generation likewise unconfigured: heroics inert by
-  design.
+- AI and image provider config is machine-local (`.env`, `AI_PROVIDER`, the
+  admin `ai_config` row) and the owner develops across several machines, so
+  it legitimately differs per host. Check it where you are — its absence here
+  says nothing about anywhere else, and is not a fact worth recording. Where
+  no image provider is configured, heroics are inert by design.
 - Push state (as of `477bf3e`): both remotes (gitea `origin` + `github`) hold
   master at `9effed2`; everything since is LOCAL ONLY and needs an owner go
   (`.agents/push-policy.md`). Re-derive the gap with
@@ -79,10 +79,12 @@ to `docs/history/state-archive.md`.
   seams `api-client.js` (text), `tts-providers.js` (speech),
   `image-providers.js` (images); `map-render.js`; `seat-auth.js`;
   `server-errors.js` (the seat/host error trust boundary); `admin/` panel.
-- Machine-local (`nagatha.local`): the gitignored dev DB `data/rpg_engine.db`
-  holds a couple of throwaway campaigns — the owner has no real ones
-  ("I don't have any real campaigns. just tests.", 2026-07-09). Ask sqlite,
-  never a list here. There is no pre-M1 backup file despite older notes.
+- The dev DB (`data/rpg_engine.db`) is gitignored and machine-local; its
+  contents and sibling files (backups) differ per machine. Ask sqlite on the
+  machine you are on rather than trusting any list. The owner keeps no real
+  campaigns on any machine — "I don't have any real campaigns. just tests."
+  (2026-07-09) — so the DB is throwaway, but release/revoke are still
+  destructive: smoke-test against `RPG_DB_PATH=/tmp/x.db`.
 - The party-strip **+ Join** button is HOST-only (it creates characters); the
   host mints each character's seat token from the key icon beside its chip.
   Seat sessions see neither control.
