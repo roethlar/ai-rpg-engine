@@ -15,6 +15,7 @@ import {
 import { synthesizeSpeech, TTS_VOICES } from './tts-providers.js';
 import { looksLikeSeatToken, hashSeatToken, mintSeatToken } from './seat-auth.js';
 import { scopeStateForSeat, scopeJournalForSeat, resolveSpeakerVoice } from './rpg-state.js';
+import { errorPayloadFor } from './server-errors.js';
 
 dotenv.config();
 
@@ -408,7 +409,8 @@ app.get('/api/campaigns/:id', requireSeatCampaign, async (req, res) => {
     // Phase S2: seats get the scoped view, never the host payload.
     res.json(req.auth?.kind === 'seat' ? scopeStateForSeat(state, req.auth.characterId) : state);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Error loading campaign:', error);
+    res.status(500).json(errorPayloadFor(req, error, 'Could not load the campaign.'));
   }
 });
 
@@ -436,12 +438,14 @@ app.post('/api/campaigns/:id/turn', rateLimit(10, 60000), requireSeatCampaign, a
     // Phase S2: seats get the scoped view, never the host payload.
     res.json(req.auth?.kind === 'seat' ? scopeStateForSeat(state, req.auth.characterId) : state);
   } catch (error) {
-    console.error('Error processing turn:', error);
+    // rawText (parseJsonSafe) carries the malformed model output: log it for
+    // the operator, never serialize it to the client.
+    console.error('Error processing turn:', error, error.rawText ? `\nRaw model output: ${error.rawText}` : '');
     const status = error.code === 'OUT_OF_TURN' ? 409
       : error.code === 'CHARACTER_REQUIRED' ? 400
       : error.message.includes('required') || error.message.includes('characters or fewer') || error.message.includes('must be a string') ? 400
       : 500;
-    res.status(status).json({ error: error.message, code: error.code });
+    res.status(status).json(errorPayloadFor(req, error, 'The GM could not complete that turn. Your action was not lost — try again.'));
   }
 });
 
@@ -578,7 +582,8 @@ app.get('/api/seat/session', async (req, res) => {
     }
     res.json(scopeStateForSeat(state, req.auth.characterId));
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Error loading seat session:', error);
+    res.status(500).json(errorPayloadFor(req, error, 'Could not load your seat.'));
   }
 });
 
@@ -643,7 +648,7 @@ app.get('/api/campaigns/:id/journal', requireSeatCampaign, async (req, res) => {
     res.json({ turns, memories });
   } catch (error) {
     console.error('Error fetching journal:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json(errorPayloadFor(req, error, 'Could not load the journal.'));
   }
 });
 
@@ -766,8 +771,9 @@ app.post('/api/audio/narrate', rateLimit(20, 60000), async (req, res) => {
     res.setHeader('Cache-Control', 'no-store');
     res.send(audioBuffer);
   } catch (error) {
+    console.error('Error synthesizing narration:', error);
     const status = error.message.includes('required') || error.message.includes('characters or fewer') || error.message.includes('must be a string') ? 400 : 500;
-    res.status(status).json({ error: error.message });
+    res.status(status).json(errorPayloadFor(req, error, 'Voice narration failed.'));
   }
 });
 

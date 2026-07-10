@@ -25,12 +25,17 @@ Error responses are an unscoped side channel around the S2 whitelist. Every othe
 Two layers. (1) The turn route (and every seat-reachable route) must not hand a seat raw internal error text: seats receive a generic message plus the machine-readable `code` the frontend already switches on (`OUT_OF_TURN`, `CHARACTER_REQUIRED`), while the host keeps full diagnostics and the server keeps logging the detail. (2) `parseJsonSafe` stops embedding the full raw text in the thrown message — it is a debugging aid that belongs in the server log, not in an exception that can cross a trust boundary. Layer (1) is the boundary fix; layer (2) removes the payload class at the source.
 
 ## Files changed
-- `server.js` — seat-safe error responses on the turn route.
-- `rpg-state.js` — `parseJsonSafe` no longer embeds raw model output in the exception message.
+- `rpg-state.js:8-45` — `parseJsonSafe` throws a message without the raw output; the text moves to `error.rawText` for server-side logging. No caller depended on it being in the message (verified by grep).
+- `server-errors.js` (new) — `errorPayloadFor`, the trust-boundary serializer. Its own module because importing `server.js` starts a listener, which would make the guard untestable.
+- `server.js` — every **seat-reachable** route (turn, campaign state, journal, seat session, narrate) serializes errors through it, and the turn handler logs `error.rawText` for the operator. Admin and `requireHost` routes are unreachable by seats and keep full diagnostics unchanged.
 - `test.js` — guard tests.
 
 ## Guard proof
-`test.js`: (a) `parseJsonSafe` on malformed text containing a private marker throws an error whose message does **not** contain the marker; (b) the seat error serializer returns a generic message for a non-coded error while preserving `code`. Reverting either makes the corresponding assertion FAIL.
+Both layers, proven against production code:
+- Restoring `Raw text was: ${text}` in `parseJsonSafe` → FAIL: `Raw model output must not appear in the error message`.
+- Removing the seat branch from `errorPayloadFor` → FAIL: `Seat gets the generic message`.
+
+Restoring each makes the suite PASS. The tests also pin the two properties the fix must not break: hosts keep the full diagnostic message, and coded rulings (`OUT_OF_TURN`) still reach seats with their `code`, which the frontend needs to restore the typed input.
 
 ## Coder dispute (if any)
 None on the exposure. Severity note: the trigger is model misbehavior, not attacker-controlled input, so exploitation is probabilistic rather than on-demand. The leak is real and the fix is cheap; HIGH retained because the consequence is private-data disclosure across a user boundary.

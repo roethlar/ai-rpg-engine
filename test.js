@@ -25,6 +25,52 @@ function testParseJsonSafe() {
   const textWithJson = 'Here is the response: {"test": "ok"} hope it works.';
   const parsed4 = parseJsonSafe(textWithJson);
   assert.strictEqual(parsed4.test, 'ok', 'Should extract JSON from surrounding text');
+
+  // sv-2: a malformed response is a container of GM-private text (the Council
+  // roles are fed outline/NPC notes/memories and must emit memory_summary).
+  // Its content must never ride in the thrown message, because error messages
+  // cross the trust boundary into seat HTTP error bodies.
+  const PRIVATE = 'PRIVATE_MARKER_the_duke_is_the_lich';
+  const malformed = `{"memory_summary":"${PRIVATE}",}`;
+  assert.throws(
+    () => parseJsonSafe(malformed),
+    (err) => {
+      assert.strictEqual(err.message.includes(PRIVATE), false, 'Raw model output must not appear in the error message');
+      assert.strictEqual(err.rawText, malformed, 'Raw text is preserved out-of-band for server-side logging');
+      return true;
+    },
+    'Malformed JSON throws without leaking its content into the message'
+  );
+}
+
+// -------------------------------------------------------------
+// Test: seat-safe error payloads (sv-2)
+//
+// Error responses were an unscoped side channel around the S2 whitelist.
+// -------------------------------------------------------------
+async function testSeatErrorPayloads() {
+  console.log(' - Running seat error payload tests...');
+  const { errorPayloadFor } = await import('./server-errors.js');
+
+  const seatReq = { auth: { kind: 'seat', characterId: 1 } };
+  const hostReq = { auth: { kind: 'host' } };
+  const PRIVATE = 'JSON parsing failed. Raw text was: {"memory_summary":"the vault code is 4417"}';
+
+  // An uncoded internal error is fully generalized for a seat...
+  const seatPayload = errorPayloadFor(seatReq, new Error(PRIVATE), 'The GM could not complete that turn.');
+  assert.strictEqual(seatPayload.error, 'The GM could not complete that turn.', 'Seat gets the generic message');
+  assert.strictEqual(JSON.stringify(seatPayload).includes('vault code'), false, 'Seat payload carries no internal text');
+
+  // ...while the host keeps full diagnostics.
+  const hostPayload = errorPayloadFor(hostReq, new Error(PRIVATE), 'generic');
+  assert.strictEqual(hostPayload.error, PRIVATE, 'Host keeps the diagnostic message');
+
+  // Coded errors are authored game rulings, safe (and necessary) for seats:
+  // the frontend switches on `code` to restore the typed input.
+  const outOfTurn = Object.assign(new Error('It is Mira\'s turn to act.'), { code: 'OUT_OF_TURN' });
+  const codedPayload = errorPayloadFor(seatReq, outOfTurn, 'generic');
+  assert.strictEqual(codedPayload.code, 'OUT_OF_TURN', 'Machine-readable code survives for seats');
+  assert.strictEqual(codedPayload.error, 'It is Mira\'s turn to act.', 'Authored ruling text reaches the player');
 }
 
 // -------------------------------------------------------------
@@ -1537,6 +1583,7 @@ async function runAll() {
     await testTableStyle();
     await testCampaignBundle();
     await testSeatAuth();
+    await testSeatErrorPayloads();
     await testSeatVisibility();
     await testThemeGeneration();
     await testVoiceScript();

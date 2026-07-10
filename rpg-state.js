@@ -4,10 +4,18 @@
 
 /**
  * Utility to clean markdown formatting from LLM JSON responses.
+ *
+ * sv-2: the raw model output must NEVER ride in the thrown message. Council
+ * roles are fed the outline, NPC notes, and memories, and their schemas
+ * require private fields (memory_summary, npc note_update) — so a malformed
+ * response is a container of GM-private text. Error messages cross trust
+ * boundaries (they reach seats through HTTP error bodies); the raw text is a
+ * debugging aid and belongs in the server log instead. `error.rawText`
+ * carries it for callers that log server-side.
  */
 export function parseJsonSafe(text) {
   let cleanText = text.trim();
-  
+
   if (cleanText.startsWith('```')) {
     const lines = cleanText.split('\n');
     if (lines[0].startsWith('```')) {
@@ -18,7 +26,7 @@ export function parseJsonSafe(text) {
     }
     cleanText = lines.join('\n').trim();
   }
-  
+
   try {
     return JSON.parse(cleanText);
   } catch (error) {
@@ -28,7 +36,9 @@ export function parseJsonSafe(text) {
       try {
         return JSON.parse(cleanText.substring(firstBrace, lastBrace + 1));
       } catch (err2) {
-        throw new Error(`JSON parsing failed: ${error.message}. Raw text was: ${text}`);
+        const failure = new Error(`JSON parsing failed: ${error.message}`);
+        failure.rawText = text;
+        throw failure;
       }
     }
     throw error;
