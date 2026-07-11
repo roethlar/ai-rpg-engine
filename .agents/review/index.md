@@ -20,7 +20,7 @@ an owner go; merges stay owner-gated.
 | dt-1 | MEDIUM | Stale roll theater renders over the menu/another campaign after a switch, intercepting input until skip/timeout | `[x]` ACCEPTED, awaiting owner-gated merge | `fix/dt-1-theater-epoch` @ `497ffc5` |
 | dt-2 | LOW | Clicking to skip turn A's dice also silently suppresses an already-queued turn B's theater | `[x]` ACCEPTED, awaiting owner-gated merge | `fix/dt-2-skip-per-batch` @ `c04f0cd` |
 | dt-3 | LOW | Landed die goes generic green/red, contradicting the recorded theme-follow rider (plan/code conflict) | `[x]` ACCEPTED, awaiting owner-gated merge | `fix/dt-3-landed-die-theme` @ `e96a873` |
-| poll-1 | HIGH | Pre-existing: a stale poll response renders campaign A's full state (theme incl.) over campaign B or the menu — no epoch/ownership check after await | `[~]` REOPENED 3× (every reopen a real, probed defect) + skeptic regression fix; final verdict pending | `fix/poll-1-response-epoch` @ `588fbe5` |
+| poll-1 | HIGH | Pre-existing: a stale poll response renders campaign A's full state (theme incl.) over campaign B or the menu — no epoch/ownership check after await | `[~]` REOPENED 4× (every reopen a real, probed defect; r4 confirmed the transcript core closed) + skeptic regression fix; r5 verdict pending | `fix/poll-1-response-epoch` @ `e30bb06` |
 | css-1 | MEDIUM | Pre-existing: `rgba(var(--theme-*), α)` with HSL-triple vars is invalid CSS — header/glass/panel fills and several glows compute unpainted on every theme today | `[ ]` admitted (r3 catch); fix awaits owner go, also a T2 prerequisite | |
 | jt-1 | HIGH | Pre-existing: Journal tab renders a stale campaign's history over the current one (empirically confirmed); Fork buttons then fork the wrong campaign | `[ ]` admitted (skeptic panel); fix awaits owner go | |
 | dr-1 | MEDIUM | Pre-existing: delete/release settle callbacks wipe theme/state over whichever table the user has since entered | `[ ]` admitted (skeptic panel); fix awaits owner go | |
@@ -154,6 +154,29 @@ path, or completeness rule → r6 names `theme-envelope.js`, a no-DOM scanner
 oracle inside test.js that fails on unregistered `--theme-` consumers, and
 a `test:theme-dom` playwright-core harness recorded as part of the phase's
 verification entry point.
+
+Round 4 (poll-1): the r3 transcript-sealing defect CONFIRMED CLOSED (all six
+guards + the reviewer's own two-range same-turn probe); one new MEDIUM — a
+stale backfill failure seeded the replacement table's pendingGaps (probed:
+B imported a historical slice for A's numeric gap). Fixed at `e30bb06`
+(epoch check before mutating pendingGaps); guard `guard-poll-1g` FAILS at
+`588fbe5`, PASSES at `e30bb06`; 1b/1f re-green; suite green.
+
+T2 r6 verdict: REJECTED — the numeric-floor concern closed, but the
+validation INFRASTRUCTURE demands escalated again: (1) HIGH — the on-accent
+contract is infeasible against current consumers (fixed white button text
+needs accent luminance ≤0.1833 while map-render's fixed dark labels need
+≥0.2142: repair can never converge; map-render.js also missing from the
+file list); (2) MEDIUM — 16 gradient samples provably do not bound the
+continuous interior (counterexample at t≈0.51); (3) HIGH — the manifest
+schema cannot bind one-to-one to real sites (multi-site functions,
+repeated selectors, pseudo-elements); (4) MEDIUM — the browser harness
+lacks an install/lockfile/isolation story. STATUS: the feature core
+(anchor, carrier, portability, seats, payload) has been stable since r3;
+every remaining finding targets the contrast-validation infrastructure,
+whose depth is a SCOPING DECISION now routed to the owner (simplify the
+UI's rendering states vs build the full rig vs ship pragmatic checks).
+The loop pauses here rather than iterating autonomously on scope.
 
 ---
 
