@@ -112,4 +112,3 @@ UI, seat-boundary, tactical-map, export/fork, guard-proof, and playtest work.
 - Exact currency values, tier numbers, archetype list, death options, and
   action-economy depth are game-design hypotheses until simulated and
   playtested; reviewer agreement is not evidence of feel.
-
