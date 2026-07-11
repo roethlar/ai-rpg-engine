@@ -20,7 +20,7 @@ an owner go; merges stay owner-gated.
 | dt-1 | MEDIUM | Stale roll theater renders over the menu/another campaign after a switch, intercepting input until skip/timeout | `[x]` ACCEPTED, awaiting owner-gated merge | `fix/dt-1-theater-epoch` @ `497ffc5` |
 | dt-2 | LOW | Clicking to skip turn A's dice also silently suppresses an already-queued turn B's theater | `[x]` ACCEPTED, awaiting owner-gated merge | `fix/dt-2-skip-per-batch` @ `c04f0cd` |
 | dt-3 | LOW | Landed die goes generic green/red, contradicting the recorded theme-follow rider (plan/code conflict) | `[x]` ACCEPTED, awaiting owner-gated merge | `fix/dt-3-landed-die-theme` @ `e96a873` |
-| poll-1 | HIGH | Pre-existing: a stale poll response renders campaign A's full state (theme incl.) over campaign B or the menu — no epoch/ownership check after await | `[~]` REOPENED 4× (every reopen a real, probed defect; r4 confirmed the transcript core closed) + skeptic regression fix; r5 verdict pending | `fix/poll-1-response-epoch` @ `e30bb06` |
+| poll-1 | HIGH | Pre-existing: a stale poll response renders campaign A's full state (theme incl.) over campaign B or the menu — no epoch/ownership check after await | `[x]` ACCEPTED at r5 (4 real probed reopens en route), awaiting owner-gated merge | `fix/poll-1-response-epoch` @ `e30bb06` |
 | css-1 | MEDIUM | Pre-existing: `rgba(var(--theme-*), α)` with HSL-triple vars is invalid CSS — header/glass/panel fills and several glows compute unpainted on every theme today | `[ ]` admitted (r3 catch); fix awaits owner go, also a T2 prerequisite | |
 | jt-1 | HIGH | Pre-existing: Journal tab renders a stale campaign's history over the current one (empirically confirmed); Fork buttons then fork the wrong campaign | `[ ]` admitted (skeptic panel); fix awaits owner go | |
 | dr-1 | MEDIUM | Pre-existing: delete/release settle callbacks wipe theme/state over whichever table the user has since entered | `[ ]` admitted (skeptic panel); fix awaits owner go | |
@@ -177,6 +177,20 @@ every remaining finding targets the contrast-validation infrastructure,
 whose depth is a SCOPING DECISION now routed to the owner (simplify the
 UI's rendering states vs build the full rig vs ship pragmatic checks).
 The loop pauses here rather than iterating autonomously on scope.
+
+RESOLVED by owner decision (2026-07-11, flat design — `.agents/decisions.md`):
+gradients removed, opacities unified, one derived on-accent color; T2 draft
+r7 adds the T2-s styling-normalization slice and shrinks validation to
+enumerated flat-pair checks + the no-DOM scanner. The r6 browser harness,
+gradient mathematics, and manifest bijection are out of scope — their cause
+is removed rather than instrumented.
+
+poll-1 r5 verdict: **ACCEPTED** at `e30bb06` ("adds the stale-epoch return
+before any pendingGaps access…; guard 1g provides a genuine red/green proof;
+guards 1b/1f and the full suite remain green. No new defect."). All four
+owner-approved code findings (poll-1, dt-1, dt-2, dt-3) are now
+reviewer-accepted and await owner-gated merges, in stack order
+poll-1 → dt-1 → dt-2 → dt-3.
 
 ---
 

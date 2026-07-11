@@ -574,6 +574,33 @@ The candidate ranking in docs/ruleset-licensing.md as first written (Fate
 listed as the top genre-neutral option; Fate and ORC now excluded). The
 underlying license *facts* in that doc remain valid evidence.
 
+### 2026-07-11 - Flat, restrained UI styling: gradients removed; styling normalization precedes scene theming
+
+Status: Active
+
+Decision:
+The UI moves to a flat, restrained design system: the gradient fills (Send
+button, level badge, gradient text) are removed — owner: "gradients are
+dated and ugly anyway" — transparency levels are unified to a small
+documented set, and one derived on-accent text color serves every
+accent-backed control (buttons, badges, map labels in map-render.js).
+This styling-normalization pass is the prerequisite for Phase T2
+scene-dynamic theming and RESOLVES its validation-scope question (six codex
+review rounds proved generated palettes cannot be cheaply validated against
+gradients, stacked opacities, and hover states): with flat surfaces, simple
+enumerated contrast checks genuinely suffice, and the heavy validation rig
+(browser harness, gradient-interior math, manifest bijection) is dropped
+from scope. Model: Friends & Fables' polish comes from exactly this
+restraint — one disciplined dark system, no per-surface effects.
+
+Reason:
+Owner 2026-07-11, after seeing the codex r6 rejection routed as a scoping
+choice and a Friends & Fables screenshot comparison.
+
+Supersedes:
+The r6-draft T2 validation machinery (consumer-envelope manifest with
+browser harness) as planned scope; the plan simplifies to flat-pair checks.
+
 ### 2026-07-11 - Tactical combat is IN SCOPE; the day-one "non-goal" line was never an owner decision
 
 Status: Active

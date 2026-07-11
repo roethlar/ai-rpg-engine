@@ -259,15 +259,31 @@ remains an owner playtest verdict on the whole phase.
   defaults); existing campaigns unaffected; suite green.
 - Files: rpg-engine.js, rpg-state.js, public/app.js, public/styles.css, test.js.
 
-**Phase T2: Scene-dynamic theming (DRAFT r6 2026-07-11 — awaiting owner
-approval; nothing here is buildable until the owner approves. Review trail:
-r1 → 7 findings; r2 → carrier drop, contrast, dt-3 prerequisite; r3 → accent
-contrast, opacity compositing, the rgba/HSL defect (finding css-1); r4 →
-rendered-state holes, moved to a consumer-envelope manifest in r5; r5 → the
-manifest made the ONLY source of numeric floors (no constants left to
-falsify), gradient interiors validated, and the drift guard given an
-executable shape (named files, scanner oracle, browser harness). Trail in
-`.agents/review/index.md`.)**
+**Phase T2: Scene-dynamic theming (DRAFT r7 2026-07-11 — awaiting owner
+approval of the plan; the SCOPING question is settled by the owner's
+flat-design decision in `.agents/decisions.md`. Review trail: r1–r6 in
+`.agents/review/index.md`; the r4–r6 validation-machinery escalation is
+resolved by REMOVING its cause — T2-s below flattens the UI first, so
+validation shrinks to enumerated flat-pair checks.)**
+
+**T2-s — Styling normalization (prerequisite slice, replaces the r6
+validation rig):**
+- Remove the gradient fills (owner 2026-07-11): `.btn-primary`
+  (public/styles.css:199-201, + its hover brightness filter), the level
+  badge (public/styles.css:595-613, incl. its 0.8-alpha label), and the
+  gradient text (public/styles.css:155-157) become flat accent surfaces.
+- Unify dimming: one documented demotion opacity shared by the spotlight
+  demotion (public/styles.css:1330-1345), completed outline cards
+  (public/app.js:1516-1522), and text_dim consumers (0.7–0.85 spread) —
+  pick the value during implementation; record it as a named CSS variable.
+- One derived `--theme-on-accent` foreground (black or white per palette)
+  consumed by every accent-backed control: Send button, level badge, and
+  map-render.js labels (currently fixed dark hsl(220,25%,10%) — the r6
+  infeasibility conflict dissolves when all three consume the same derived
+  color).
+- Gate: functional (owner one-look — this visibly restyles buttons/badges
+  toward the flat, restrained look), plus the css-1 computed-style checks.
+- Files: public/styles.css, public/app.js, map-render.js, test.js.
 - Owner direction (2026-07-11): the color scheme follows the game as it moves —
   a night-club scene goes neon, a forest goes spring/earth tones. The campaign
   setup theme (T1) remains the baseline; scenes modulate the colors. Fonts
@@ -322,51 +338,30 @@ executable shape (named files, scanner oracle, browser harness). Trail in
 - Validation: `validateSceneTheme` in rpg-state.js reusing the T1 primitives
   (`normalizeHslColor`, `clampHslLightness`; text ≥60 lightness, text_dim
   40–80 as at rpg-state.js:1449-1463; bg clamped dark). Lightness clamps
-  alone do NOT guarantee readability (r2: ≈1.2:1 possible), and per-token
-  opaque checks do not either — r4/r5 proved passing palettes can render
-  below floor through consumer opacity, CUMULATIVE ancestor opacity
-  (spotlight demotion 0.65, public/styles.css:1330-1345; completed outline
-  cards 0.5, public/app.js:1516-1522), gradients, hover transforms, and
-  label alpha. The r6 contract is defined over RENDERED STATES with the
-  manifest as the ONLY source of numbers — the plan deliberately states no
-  per-token floor constants, because every constant so far has been
-  falsified by another reachable state; the audit populates them.
-  - MANIFEST: `theme-envelope.js` (repo root; plain data module imported by
-    the server-side validator in rpg-state.js AND by the tests). One entry
-    per themed consumer: `{id, source: 'css'|'js'|'svg', selector or
-    function, token, role: 'fg'|'bg', surfaceChain, cumulativeOpacityMin,
-    gradientPartner?, stateTransforms: []}`. Populated by an audit of
-    public/styles.css, public/index.html, public/app.js (JS-applied styles
-    like the completed-card 0.5), and map-render.js (generated SVG).
-  - VALIDATOR: contrast targets by role — text 4.5:1, text_dim and accent
-    foregrounds 3:1, on-accent 4.5:1 — each evaluated at the entry's
-    worst case: lowest cumulative opacity, composited onto its actual
-    surface chain, after state transforms. Gradient-backed entries are
-    validated across the FULL sRGB interpolation (sampled at ≥16 stops,
-    after label alpha, ancestor opacity, and filters) — endpoints alone
-    are insufficient (r5: a complementary-hue pair passes both endpoints
-    at ≥4.58:1 while the interior dips to ≈4.18:1). Repair by lightness
-    stepping; reject to null on non-convergence. Implementation MAY
-    instead normalize an outlier consumer (raise an opacity, drop a label
-    alpha, flatten a gradient) and shrink its manifest entry; either way
-    manifest, code, and tests must agree.
-  - COMPLETENESS ORACLE (runs inside `node test.js`, no DOM needed): a
-    scanner walks public/styles.css, public/index.html, public/app.js, and
-    map-render.js for every `--theme-` token usage and FAILS if a usage
-    site has no manifest entry — an unregistered consumer cannot ship.
-  - RENDERED-STATE HARNESS (new, separate from `node test.js`, which has
-    no DOM): `playwright-core` devDependency + pinned local Chromium;
-    `npm run test:theme-dom` executes `test-theme-dom.mjs`, which drives
-    the real app with fabricated adverse palettes and asserts per-entry
-    computed styles and cumulative opacity for the reachable states
-    (spotlight demotion, completed outline cards, hover). This script is
-    part of the phase's verification entry point and must be recorded in
-    `.agents/repo-guidance.md` (Verification) when the phase lands.
-  Adverse fixtures: accent headings, Send button, level badge, map
-  features, completed-card text, complementary-hue gradients,
-  near-white/near-black accents. Invalid or missing → null → baseline
-  applies. Table talk cannot mutate location state (existing no-op net),
-  so the theme cannot drift on questions.
+  alone do NOT guarantee readability (r2: ≈1.2:1 possible), so after T2-s
+  has flattened the UI, validation checks the ENUMERATED flat pairs — the
+  whole point of the flat-design decision is that this small list is
+  genuinely sufficient:
+  - text ≥4.5:1 and text_dim ≥3:1 against bg AND the derived panel, with
+    text_dim checked at the single documented demotion opacity T2-s
+    establishes (composited; no other opacity states exist after T2-s);
+  - primary/secondary as foregrounds ≥3:1 against bg and panel;
+  - the derived `--theme-on-accent` ≥4.5:1 against primary AND secondary
+    (flat fills after T2-s — no gradients, no hover filters, no label
+    alpha);
+  - repair by lightness stepping; reject to null on non-convergence; a
+    FEASIBILITY fixture proves at least two adverse non-null themes
+    validate end-to-end (guards against an unsatisfiable contract).
+  - The no-DOM scanner survives as a cheap drift guard inside `node
+    test.js`: it walks public/styles.css, public/index.html,
+    public/app.js, and map-render.js for `--theme-` usages and fails on
+    any site outside the enumerated flat-pair list — a future fancy
+    effect must consciously extend the list (and its checks) to ship.
+  Adverse fixtures: accent headings, Send button, level badge, map labels
+  and features, completed-card text, near-white/near-black accents.
+  Invalid or missing → null → baseline applies. Table talk cannot mutate
+  location state (existing no-op net), so the theme cannot drift on
+  questions.
 - Payload: state payloads gain `sceneTheme` (validated current-location
   theme or null) everywhere `themeColors` is emitted
   (rpg-engine.js:1416/1896/1983). Seats receive it via an explicit
@@ -416,9 +411,9 @@ executable shape (named files, scanner oracle, browser harness). Trail in
   locations generated before this phase (their `theme_json` stays null →
   baseline; they re-theme only if regenerated).
 - Files: db.js, rpg-engine.js, rpg-state.js, public/app.js,
-  public/styles.css, test.js, theme-envelope.js (new), test-theme-dom.mjs
-  (new), package.json (playwright-core devDependency + test:theme-dom
-  script).
+  public/styles.css, map-render.js, test.js (plus T2-s's files above; the
+  r6 browser harness and manifest module are out of scope per the
+  flat-design decision).
 
 ## 2026-07-04 Queue (promoted under the delegated review loop)
 
