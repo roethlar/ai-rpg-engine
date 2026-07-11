@@ -259,13 +259,15 @@ remains an owner playtest verdict on the whole phase.
   defaults); existing campaigns unaffected; suite green.
 - Files: rpg-engine.js, rpg-state.js, public/app.js, public/styles.css, test.js.
 
-**Phase T2: Scene-dynamic theming (DRAFT r5 2026-07-11 — awaiting owner
+**Phase T2: Scene-dynamic theming (DRAFT r6 2026-07-11 — awaiting owner
 approval; nothing here is buildable until the owner approves. Review trail:
 r1 → 7 findings; r2 → carrier drop, contrast, dt-3 prerequisite; r3 → accent
 contrast, opacity compositing, the rgba/HSL defect (finding css-1); r4 →
-effective-opacity and rendered-state holes in the r4 contract, closed as a
-CLASS in r5 by moving the contract to rendered states over an audited
-consumer-envelope manifest. Trail in `.agents/review/index.md`.)**
+rendered-state holes, moved to a consumer-envelope manifest in r5; r5 → the
+manifest made the ONLY source of numeric floors (no constants left to
+falsify), gradient interiors validated, and the drift guard given an
+executable shape (named files, scanner oracle, browser harness). Trail in
+`.agents/review/index.md`.)**
 - Owner direction (2026-07-11): the color scheme follows the game as it moves —
   a night-club scene goes neon, a forest goes spring/earth tones. The campaign
   setup theme (T1) remains the baseline; scenes modulate the colors. Fonts
@@ -320,44 +322,51 @@ consumer-envelope manifest. Trail in `.agents/review/index.md`.)**
 - Validation: `validateSceneTheme` in rpg-state.js reusing the T1 primitives
   (`normalizeHslColor`, `clampHslLightness`; text ≥60 lightness, text_dim
   40–80 as at rpg-state.js:1449-1463; bg clamped dark). Lightness clamps
-  alone do NOT guarantee readability (r2: bg `60,100%,30%` vs text
-  `0,100%,60%` ≈ 1.2:1), and per-token opaque checks do not either — r4
-  proved a passing palette can still render below floor through consumer
-  opacity (accents at 0.8/0.9/0.55, map-render.js:81), cumulative ancestor
-  opacity (spotlight demotion applies 0.65 to whole panels,
-  public/styles.css:1330-1345), gradients (btn-primary and the level badge
-  blend primary→secondary, public/styles.css:199-201/595-613), hover
-  transforms (`brightness(1.1)`, public/styles.css:204-207), and label
-  alpha (0.8, public/styles.css:602-607). So the r5 contract is defined
-  over RENDERED STATES, not raw tokens:
-  - One CONSUMER-ENVELOPE MANIFEST (a small shared module, consumed by the
-    validator and by tests) enumerates, per themed token, the worst-case
-    rendering discovered by an audit of ALL consumers — stylesheet rules,
-    `map-render.js`'s generated SVG, and JS-applied styles: lowest
-    CUMULATIVE opacity (ancestor group opacity included), the surfaces it
-    composites onto, gradient partners, and state transforms (hover
-    brightness, label alpha).
-  - The validator checks each token at its envelope's worst case: text
-    ≥4.5:1, text_dim ≥3:1 (at the true 0.65 cumulative floor unless the
-    audit normalizes it), accents ≥3:1 as foregrounds at their lowest
-    effective opacity, and the derived `--theme-on-accent` foreground must
-    clear 4.5:1 against BOTH gradient endpoints AND their hover-transformed
-    colors at the label's actual alpha. Repair by lightness stepping;
-    reject to null on non-convergence.
-  - Implementation MAY instead normalize an outlier consumer (raise the
-    demotion opacity, drop a label alpha, flatten a gradient) and shrink
-    the envelope — a per-consumer call at implementation time; either way
+  alone do NOT guarantee readability (r2: ≈1.2:1 possible), and per-token
+  opaque checks do not either — r4/r5 proved passing palettes can render
+  below floor through consumer opacity, CUMULATIVE ancestor opacity
+  (spotlight demotion 0.65, public/styles.css:1330-1345; completed outline
+  cards 0.5, public/app.js:1516-1522), gradients, hover transforms, and
+  label alpha. The r6 contract is defined over RENDERED STATES with the
+  manifest as the ONLY source of numbers — the plan deliberately states no
+  per-token floor constants, because every constant so far has been
+  falsified by another reachable state; the audit populates them.
+  - MANIFEST: `theme-envelope.js` (repo root; plain data module imported by
+    the server-side validator in rpg-state.js AND by the tests). One entry
+    per themed consumer: `{id, source: 'css'|'js'|'svg', selector or
+    function, token, role: 'fg'|'bg', surfaceChain, cumulativeOpacityMin,
+    gradientPartner?, stateTransforms: []}`. Populated by an audit of
+    public/styles.css, public/index.html, public/app.js (JS-applied styles
+    like the completed-card 0.5), and map-render.js (generated SVG).
+  - VALIDATOR: contrast targets by role — text 4.5:1, text_dim and accent
+    foregrounds 3:1, on-accent 4.5:1 — each evaluated at the entry's
+    worst case: lowest cumulative opacity, composited onto its actual
+    surface chain, after state transforms. Gradient-backed entries are
+    validated across the FULL sRGB interpolation (sampled at ≥16 stops,
+    after label alpha, ancestor opacity, and filters) — endpoints alone
+    are insufficient (r5: a complementary-hue pair passes both endpoints
+    at ≥4.58:1 while the interior dips to ≈4.18:1). Repair by lightness
+    stepping; reject to null on non-convergence. Implementation MAY
+    instead normalize an outlier consumer (raise an opacity, drop a label
+    alpha, flatten a gradient) and shrink its manifest entry; either way
     manifest, code, and tests must agree.
-  - The drift guard is the point of the manifest: computed-DOM tests
-    exercise the reachable states (spotlight demotion, hover) and fail if
-    any consumer renders a themed token OUTSIDE its manifest envelope — so
-    a future CSS rule dimming themed text below floor fails the suite
-    instead of silently shipping. Adverse-hue fixtures (accent headings,
-    Send button, level badge, map features, near-white/near-black accents)
-    run per envelope through the validator.
-  Invalid or missing → null → baseline applies. Table talk cannot mutate
-  location state (existing no-op net), so the theme cannot drift on
-  questions.
+  - COMPLETENESS ORACLE (runs inside `node test.js`, no DOM needed): a
+    scanner walks public/styles.css, public/index.html, public/app.js, and
+    map-render.js for every `--theme-` token usage and FAILS if a usage
+    site has no manifest entry — an unregistered consumer cannot ship.
+  - RENDERED-STATE HARNESS (new, separate from `node test.js`, which has
+    no DOM): `playwright-core` devDependency + pinned local Chromium;
+    `npm run test:theme-dom` executes `test-theme-dom.mjs`, which drives
+    the real app with fabricated adverse palettes and asserts per-entry
+    computed styles and cumulative opacity for the reachable states
+    (spotlight demotion, completed outline cards, hover). This script is
+    part of the phase's verification entry point and must be recorded in
+    `.agents/repo-guidance.md` (Verification) when the phase lands.
+  Adverse fixtures: accent headings, Send button, level badge, map
+  features, completed-card text, complementary-hue gradients,
+  near-white/near-black accents. Invalid or missing → null → baseline
+  applies. Table talk cannot mutate location state (existing no-op net),
+  so the theme cannot drift on questions.
 - Payload: state payloads gain `sceneTheme` (validated current-location
   theme or null) everywhere `themeColors` is emitted
   (rpg-engine.js:1416/1896/1983). Seats receive it via an explicit
@@ -407,7 +416,9 @@ consumer-envelope manifest. Trail in `.agents/review/index.md`.)**
   locations generated before this phase (their `theme_json` stays null →
   baseline; they re-theme only if regenerated).
 - Files: db.js, rpg-engine.js, rpg-state.js, public/app.js,
-  public/styles.css, test.js.
+  public/styles.css, test.js, theme-envelope.js (new), test-theme-dom.mjs
+  (new), package.json (playwright-core devDependency + test:theme-dom
+  script).
 
 ## 2026-07-04 Queue (promoted under the delegated review loop)
 

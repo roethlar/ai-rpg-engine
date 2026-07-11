@@ -20,7 +20,7 @@ an owner go; merges stay owner-gated.
 | dt-1 | MEDIUM | Stale roll theater renders over the menu/another campaign after a switch, intercepting input until skip/timeout | `[x]` ACCEPTED, awaiting owner-gated merge | `fix/dt-1-theater-epoch` @ `497ffc5` |
 | dt-2 | LOW | Clicking to skip turn A's dice also silently suppresses an already-queued turn B's theater | `[x]` ACCEPTED, awaiting owner-gated merge | `fix/dt-2-skip-per-batch` @ `c04f0cd` |
 | dt-3 | LOW | Landed die goes generic green/red, contradicting the recorded theme-follow rider (plan/code conflict) | `[x]` ACCEPTED, awaiting owner-gated merge | `fix/dt-3-landed-die-theme` @ `e96a873` |
-| poll-1 | HIGH | Pre-existing: a stale poll response renders campaign A's full state (theme incl.) over campaign B or the menu — no epoch/ownership check after await | `[~]` REOPENED twice + skeptic regression fix; final verdict pending | `fix/poll-1-response-epoch` @ `1409b58` |
+| poll-1 | HIGH | Pre-existing: a stale poll response renders campaign A's full state (theme incl.) over campaign B or the menu — no epoch/ownership check after await | `[~]` REOPENED 3× (every reopen a real, probed defect) + skeptic regression fix; final verdict pending | `fix/poll-1-response-epoch` @ `588fbe5` |
 | css-1 | MEDIUM | Pre-existing: `rgba(var(--theme-*), α)` with HSL-triple vars is invalid CSS — header/glass/panel fills and several glows compute unpainted on every theme today | `[ ]` admitted (r3 catch); fix awaits owner go, also a T2 prerequisite | |
 | jt-1 | HIGH | Pre-existing: Journal tab renders a stale campaign's history over the current one (empirically confirmed); Fork buttons then fork the wrong campaign | `[ ]` admitted (skeptic panel); fix awaits owner go | |
 | dr-1 | MEDIUM | Pre-existing: delete/release settle callbacks wipe theme/state over whichever table the user has since entered | `[ ]` admitted (skeptic panel); fix awaits owner go | |
@@ -61,6 +61,18 @@ epoch. Guard `guard-poll-1b.mjs` rewritten to the reviewer's proof standard:
 non-empty journal, exactly-once + chronological-order assertions, and an
 activeElement assertion — FAIL at `555335a` (j6/j7/j8 all 0, focus stolen),
 PASS at `06d331d`; original scenario still passes; suite green.
+
+Reopen round 3 (codex, probed again): a transiently FAILING submit-side
+journal request still permanently sealed turns 6–8 out of the transcript
+(the watermark dedupe rejected everything below the rendered head; its 503
+probe showed j6/j7/j8: 0 with no recovery through turn 10). Fix `588fbe5`:
+membership dedupe (`appendedTurnNumbers` Set), failed ranges recorded in
+`pendingGaps` and retried on EVERY poll tick (same-turn branch included),
+and log nodes now carry `data-turn` so recovered turns insert at their
+chronological position (`placeLogEntry`) instead of the tail. Guard
+`guard-poll-1f`: gap present after the 503, recovered by the next poll
+exactly once and in reading order — FAIL at `1409b58` (gap sealed), PASS at
+`588fbe5`; all six guards green at the head; suite green.
 
 Fix stack (owner go 2026-07-11): poll-1 → dt-1 → dt-2 → dt-3, each branch
 stacked on the previous (dt-1 builds on poll-1's epoch; merges owner-gated,
@@ -129,6 +141,19 @@ drift guards for reachable states.
 | r4-1 | MEDIUM | Accent checks ignore consumer opacity/tint compositing (0.8/0.9/0.55; CSS and generated SVG) — passing palettes render below 3:1 | `[~]` r5 manifest: worst-case effective opacity per token |
 | r4-2 | MEDIUM | The 0.7 floor misses reachable 0.65 cumulative group opacity (spotlight demotion) and non-CSS generators | `[~]` r5 manifest: cumulative ancestor opacity + map-render audit |
 | r4-3 | MEDIUM | One on-accent color cannot cover gradient endpoints, hover brightness(1.1), and 0.8 label alpha | `[~]` r5: on-accent validated against both endpoints + state transforms |
+
+r5 verdict: NOT accepted — three findings, folded into r6: (r5-1) the "0.65
+floor" was falsified by yet another reachable state (completed outline cards
+at 0.5, public/app.js:1516-1522) → r6 removes ALL numeric constants from the
+plan; the manifest is the only source of floors; (r5-2) gradient ENDPOINTS
+do not bound the sRGB interior (a complementary-hue pair passes endpoints,
+dips to ≈4.18:1 mid-gradient) → r6 validates the full interpolation at ≥16
+stops after alpha/opacity/filters; (r5-3) the drift guard was not
+implementable — `node test.js` has no DOM and the manifest had no schema,
+path, or completeness rule → r6 names `theme-envelope.js`, a no-DOM scanner
+oracle inside test.js that fails on unregistered `--theme-` consumers, and
+a `test:theme-dom` playwright-core harness recorded as part of the phase's
+verification entry point.
 
 ---
 
