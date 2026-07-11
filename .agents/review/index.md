@@ -17,10 +17,24 @@ an owner go; merges stay owner-gated.
 
 | ID | Severity | Impact (one line) | Status | Branch |
 |----|----------|-------------------|--------|--------|
-| dt-1 | MEDIUM | Stale roll theater renders over the menu/another campaign after a switch, intercepting input until skip/timeout | `[ ]` | |
-| dt-2 | LOW | Clicking to skip turn A's dice also silently suppresses an already-queued turn B's theater | `[ ]` | |
-| dt-3 | LOW | Landed die goes generic green/red, contradicting the recorded theme-follow rider (plan/code conflict) | `[ ]` | |
+| dt-1 | MEDIUM | Stale roll theater renders over the menu/another campaign after a switch, intercepting input until skip/timeout | `[~]` fix committed, verdict pending | `fix/dt-1-theater-epoch` @ `497ffc5` |
+| dt-2 | LOW | Clicking to skip turn A's dice also silently suppresses an already-queued turn B's theater | `[~]` fix committed, verdict pending | `fix/dt-2-skip-per-batch` @ `c04f0cd` |
+| dt-3 | LOW | Landed die goes generic green/red, contradicting the recorded theme-follow rider (plan/code conflict) | `[~]` fix committed, verdict pending | `fix/dt-3-landed-die-theme` @ `e96a873` |
 | poll-1 | HIGH | Pre-existing: a stale poll response renders campaign A's full state (theme incl.) over campaign B or the menu — no epoch/ownership check after await | `[~]` fix committed, verdict pending | `fix/poll-1-response-epoch` @ `6188461` |
+
+Fix stack (owner go 2026-07-11): poll-1 → dt-1 → dt-2 → dt-3, each branch
+stacked on the previous (dt-1 builds on poll-1's epoch; merges owner-gated,
+in that order). Every fix carries a two-direction browser guard proof
+(PASS-on-fix / FAIL-on-revert, results in the finding docs); suite green at
+the stack head. Process deviations, recorded: (1) all four fixes were
+implemented before their reviewer verdicts, and the four verdict dispatches
+run in parallel — a wall-clock tradeoff, reopens land as fix-up commits on
+the same branches; (2) dt-1's first guard was VACUOUS (playwright pointer
+click auto-waited out the overlay; both sides passed) and was caught by its
+own revert-proof, then corrected; (3) poll-1's first revert-proof ran
+against the then-uncommitted fix and destroyed it (`git checkout` over
+uncommitted work) — reapplied identically, committed, re-proven. Lesson:
+commit before revert-proofs.
 
 Intake: codex returned 3 candidates on the dice range; all 3 admitted, 0
 declined. poll-1 admitted from the T2 pass's evidence (public/app.js:1223-1259,

@@ -1,9 +1,9 @@
 # dt-3: Landed die drops the theme palette for generic green/red
 
 **Severity**: LOW — plan/code contradiction; observable as a themed die going generic at its most prominent moment. No functional harm.
-**Status**: Open
-**Branch**: (cut on fix start: `fix/dt-3-landed-die-theme`)
-**Commit**:
+**Status**: In progress (fix committed, reviewer verdict pending)
+**Branch**: `fix/dt-3-landed-die-theme` (stacked on `fix/dt-2-skip-per-batch`)
+**Commit**: `e96a873` (base `c04f0cd`)
 
 ## Evidence
 `plan.md` dice-slice Riders: "the die body/glow follows `--theme-primary` … verdict green/red stay semantic." Code: `public/styles.css:1726-1733` recolors the landed SVG + glow green/red (`.roll-landed-success/-failure` target the svg); the tumble shadow at `public/styles.css:1697-1701` is plain black, and the die faces carry fixed dark fills (`public/app.js:1823-1824`).
@@ -15,13 +15,17 @@ A neon or earth-toned scene theme (owner direction 2026-07-11) shows a correctly
 The landing state recolors the die itself instead of confining semantic color to the verdict text.
 
 ## Approach
-(proposed) Die fill/stroke/glow stay `--theme-primary` through tumble and landing; `.dice-verdict` (and `.dice-cost`) keep semantic green/red. Optionally a brief neutral flash on landing for feedback without palette override.
+The landed-state green/red override on the die svg is removed (CSS rules deleted, `roll-landed-*` class plumbing dropped); the die follows `--theme-primary` through tumble and landing; `.dice-verdict`/`.dice-cost` keep semantic green/red.
 
 ## Files changed
-- (pending)
+- `public/styles.css` — landed-color override rules removed
+- `public/app.js` — `classList.add('landed')` only
 
 ## Guard proof
-Headless-browser screenshot check under a non-default theme: assert landed die color equals the theme primary, verdict text green/red. Frontend not suite-covered; state in verdict record.
+`guard-dt3.mjs` (session scratchpad, headless browser): set a magenta test `--theme-primary` (at BODY level — this app applies themes there, which beats a root inline var; the first run set it on :root and read the default gold), land a success roll, read computed colors.
+- Fix present (`e96a873`): die `rgb(255,0,255)` (theme), verdict `rgb(16,185,129)` (semantic) → PASS.
+- Fix reverted (`c04f0cd` tree): die `rgb(16,185,129)` (stock green) → FAIL.
+- Suite green at the stack head (`e96a873`).
 
 ## Coder dispute (if any)
 None — the rider is the recorded intent; the code loses to the plan here.
