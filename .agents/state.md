@@ -24,10 +24,9 @@ to `docs/history/state-archive.md`.
   it legitimately differs per host. Check it where you are — its absence here
   says nothing about anywhere else, and is not a fact worth recording. Where
   no image provider is configured, heroics are inert by design.
-- Push state (as of `cae74df`): both remotes (gitea `origin` + `github`) hold
-  master at `9effed2`; everything since is LOCAL ONLY and needs an owner go
-  (`.agents/push-policy.md`). Re-derive the gap with
-  `git rev-list --count 9effed2..HEAD` rather than trusting a number here.
+- Push state (verified 2026-07-11): both remotes (gitea `origin` + `github`)
+  hold master in sync with local. Re-derive with `git ls-remote <remote> HEAD`
+  rather than trusting this line; push policy is `.agents/push-policy.md`.
 
 ## Next
 
@@ -36,16 +35,10 @@ to `docs/history/state-archive.md`.
   there, expose the server, create the second character (party strip
   **+ Join**, host-only), mint its seat (key icon beside the chip), send that
   token to the other player.
-- Decide the fate of the six `fix/sv-*` branches. They were content-verified
-  as fully landed at `cae74df` — `git rev-list --count master..<branch>` was 0
-  for each. Re-run that before deleting rather than trusting `--merged` or
-  this line: ancestry can lie, and `git diff master..<branch>` is non-empty
-  merely because master ran ahead.
-- Decide whether to tidy history: three merge commits on master
-  (`0eccda6`, `aeb93d5`, `7b2bc64`) were created by an agent shell accident on
-  2026-07-09, then superseded by correct forward-merges. Harmless and
-  content-verified; removing them means a history rewrite, which needs an
-  explicit owner go.
+- Both post-review housekeeping items are CLOSED (owner 2026-07-11, recorded
+  in `.agents/decisions.md`): the six `fix/sv-*` branches are deleted
+  (re-verified fully in master first), and the three accidental merge commits
+  stay — history rewrite declined; do not re-propose it.
 
 ## Blockers
 

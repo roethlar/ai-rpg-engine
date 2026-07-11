@@ -545,6 +545,29 @@ The candidate ranking in docs/ruleset-licensing.md as first written (Fate
 listed as the top genre-neutral option; Fate and ORC now excluded). The
 underlying license *facts* in that doc remain valid evidence.
 
+### 2026-07-11 - Housekeeping: fix/sv-* branches deleted; the three accidental merge commits stay
+
+Status: Active
+
+Decision:
+The six `fix/sv-*` branches (sv-1 through sv-6, the 2026-07-09 seat-review
+fixes) were deleted after re-verifying each was fully contained in master
+(`git rev-list --count master..<branch>` = 0 for all six; no copies existed
+on either remote). The three merge commits created by an agent shell accident
+on 2026-07-09 (`0eccda6`, `aeb93d5`, `7b2bc64`) remain in master permanently:
+the owner declined a history rewrite. Do not re-propose removing them — they
+are harmless, content-superseded by correct forward-merges, and master is
+public on GitHub, so removal would mean force-pushing published history.
+
+Reason:
+Owner 2026-07-11: branch deletion approved, history rewrite declined. Closes
+the two housekeeping items queued in `.agents/state.md` after the seat-review
+work landed.
+
+Supersedes:
+The two open "decide" items in `.agents/state.md` ## Next (branch fate;
+history tidy).
+
 ### 2026-06-05 - Council DM pipeline is canonical; clarification turns must not advance state (from plan.md + code)
 
 Status: Active
