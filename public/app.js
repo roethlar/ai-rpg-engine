@@ -471,6 +471,9 @@ function setupEventListeners() {
         // failures: say whose turn it is, restore the input, and stop —
         // no "retry the connection" framing.
         const body = await response.json().catch(() => ({}));
+        // Stale rejection from a table we already left: no UI work here
+        // either (the finally block still re-enables the controls).
+        if (epoch !== sessionEpoch) return;
         if (body.code === 'OUT_OF_TURN' || body.code === 'CHARACTER_REQUIRED') {
           appendSystemNotice(body.error || 'It is not your turn to act.');
           actionInput.value = actionText;
@@ -489,12 +492,17 @@ function setupEventListeners() {
     } catch (error) {
       console.error(error);
       // Decision 2026-07-03: transient failures surface OUTSIDE the GM's voice
-      // as a retriable state, with the player's typed input restored.
-      appendSystemNotice(`The connection to the AI provider failed (${error.message}). Your action was not lost — it has been restored below. Press send to retry.`);
-      actionInput.value = actionText;
-      actionInput.focus();
-      if (shouldOpenSettingsForError(error.message)) {
-        openSettingsModal();
+      // as a retriable state, with the player's typed input restored — but
+      // only on the table that submitted (poll-1 reopen): a stale failure
+      // must not append notices, restore a foreign action into the input,
+      // or pop Settings over the replacement table.
+      if (epoch === sessionEpoch) {
+        appendSystemNotice(`The connection to the AI provider failed (${error.message}). Your action was not lost — it has been restored below. Press send to retry.`);
+        actionInput.value = actionText;
+        actionInput.focus();
+        if (shouldOpenSettingsForError(error.message)) {
+          openSettingsModal();
+        }
       }
     } finally {
       turnSubmitInFlight = false;
@@ -1280,6 +1288,14 @@ setInterval(async () => {
         } catch (e) { /* gap backfill is best-effort */ }
       }
       if (epoch !== sessionEpoch) return;
+      // Re-check AFTER the backfill awaits: a same-campaign submit never
+      // bumps the epoch but may have rendered a newer turn while the
+      // journal was in flight — rendering this snapshot would roll the
+      // table backward (duplicate log entries, reverted theme/party/dice).
+      if (turnSubmitInFlight) return;
+      if (typeof state.turn?.number === 'number' &&
+          typeof lastRenderedTurnNumber === 'number' &&
+          state.turn.number <= lastRenderedTurnNumber) return;
       if (state.turn?.playerAction) appendPlayerAction(state.turn.playerAction);
       renderGame(state, false, { rollTheater: true });
     } else {
