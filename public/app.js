@@ -4,6 +4,13 @@
 
 // Application state
 let currentCampaignId = null;
+
+// Session epoch (poll-1): bumped on every table transition — menu return,
+// campaign load, fork adoption, token re-route. Async flows capture it at
+// dispatch; a mismatch after an await means the table changed while the
+// request was in flight, so the response is stale and must not render.
+let sessionEpoch = 0;
+function bumpSessionEpoch() { sessionEpoch += 1; }
 let currentCampaignTitle = '';
 let savedCharacters = [];
 // Player-appropriate settings only: AI provider/model/keys are server-owned
@@ -339,6 +346,7 @@ function setupEventListeners() {
     // a seat token boots straight into its table (S3), a host token
     // returns to the campaign menu.
     if (apiConfig.accessToken !== tokenBefore && (isSeatToken(tokenBefore) || isSeatToken(apiConfig.accessToken))) {
+      bumpSessionEpoch();
       currentCampaignId = null;
       lastGameState = null;
       lastRenderedTurnNumber = null;
@@ -446,6 +454,7 @@ function setupEventListeners() {
 
     setActionInputState(false);
     turnSubmitInFlight = true;
+    const epoch = sessionEpoch;
 
     try {
       const response = await fetchWithTimeout(`/api/campaigns/${currentCampaignId}/turn`, {
@@ -472,6 +481,10 @@ function setupEventListeners() {
       }
 
       const gameState = await response.json();
+      // The turn resolved on the campaign it was sent to; if the user has
+      // since left that table, its record is in that campaign's journal —
+      // rendering it here would paint the wrong table (poll-1).
+      if (epoch !== sessionEpoch) return;
       renderGame(gameState, false, { narrate: true, rollTheater: true });
     } catch (error) {
       console.error(error);
@@ -786,6 +799,7 @@ async function loadCampaignsMenu() {
   if (seatMode) return;
   // Leaving a campaign for the menu: stop the poll and drop per-campaign
   // state so a stale campaign can never render over the holodeck idle.
+  bumpSessionEpoch();
   currentCampaignId = null;
   lastGameState = null;
   lastRenderedTurnNumber = null;
@@ -877,12 +891,15 @@ async function loadCampaignsMenu() {
 async function loadCampaign(campaignId) {
   campaignMenuScreen.style.display = 'none';
   showLoadingOverlay('Resuming campaign state...');
+  bumpSessionEpoch();
+  const epoch = sessionEpoch;
 
   try {
     const response = await fetchWithTimeout(`/api/campaigns/${campaignId}`);
     if (!response.ok) throw new Error(response.status === 401 ? 'Unauthorized. Check Access Token.' : 'Failed to load campaign data');
 
     const gameState = await response.json();
+    if (epoch !== sessionEpoch) return; // superseded by a newer transition
     currentCampaignId = campaignId;
     renderGame(gameState, true);
   } catch (error) {
@@ -1220,33 +1237,49 @@ function displayedCharacter(gameState) {
 // founding browser must discover joiners, and its own lastGameState only
 // changes when someone else acts (a stale party-size gate would never open).
 let turnSubmitInFlight = false;
+let pollInFlight = false;
 setInterval(async () => {
   if (!currentCampaignId || document.hidden || !lastGameState) return;
   // Never race an in-flight submit: the submit's own render owns that turn.
-  if (turnSubmitInFlight) return;
+  // Serialize polls too — overlapping polls can resolve out of order.
+  if (turnSubmitInFlight || pollInFlight) return;
+  pollInFlight = true;
+  // Stale-response guard (poll-1): everything below renders only if the
+  // table is still the one this poll was dispatched against.
+  const epoch = sessionEpoch;
   try {
     const response = await fetchWithTimeout(`/api/campaigns/${currentCampaignId}`, {}, 15000);
+    if (epoch !== sessionEpoch) return; // table changed while fetching
     if (turnSubmitInFlight) return; // submit started while we were fetching
     if (!response.ok) return;
     const state = await response.json();
+    if (epoch !== sessionEpoch) return;
     if (state.turn?.number !== lastRenderedTurnNumber) {
+      // Within one campaign turn numbers only grow; an older snapshot is a
+      // stale response that lost a race, never something to render.
+      if (typeof lastRenderedTurnNumber === 'number' &&
+          typeof state.turn?.number === 'number' &&
+          state.turn.number < lastRenderedTurnNumber) return;
       // More than one turn may have landed between polls (table talk does
       // not advance the order, so bursts happen): backfill the gap from the
       // journal so the log stays complete, then render the latest normally.
       if (typeof lastRenderedTurnNumber === 'number' && state.turn.number > lastRenderedTurnNumber + 1) {
         try {
           const journalResponse = await fetchWithTimeout(`/api/campaigns/${currentCampaignId}/journal`, {}, 15000);
-          if (journalResponse.ok) {
+          if (epoch === sessionEpoch && journalResponse.ok) {
             const journal = await journalResponse.json();
-            (journal.turns || [])
-              .filter(t => t.turn_number > lastRenderedTurnNumber && t.turn_number < state.turn.number)
-              .forEach(t => {
-                if (t.player_action) appendPlayerAction(t.player_action);
-                appendGMDialogue(t.narrative);
-              });
+            if (epoch === sessionEpoch) {
+              (journal.turns || [])
+                .filter(t => t.turn_number > lastRenderedTurnNumber && t.turn_number < state.turn.number)
+                .forEach(t => {
+                  if (t.player_action) appendPlayerAction(t.player_action);
+                  appendGMDialogue(t.narrative);
+                });
+            }
           }
         } catch (e) { /* gap backfill is best-effort */ }
       }
+      if (epoch !== sessionEpoch) return;
       if (state.turn?.playerAction) appendPlayerAction(state.turn.playerAction);
       renderGame(state, false, { rollTheater: true });
     } else {
@@ -1256,6 +1289,7 @@ setInterval(async () => {
       renderPartyState(state);
     }
   } catch (e) { /* transient — next poll retries */ }
+  finally { pollInFlight = false; }
 }, 12000);
 
 // Clears the situation surface: campaigns must never inherit another
@@ -2114,8 +2148,11 @@ window.forkCampaignTimeline = async function(turnNumber) {
     }
 
     const newCampaignState = await response.json();
+    // Adopting the fork is a table transition: invalidate anything still
+    // in flight against the source campaign before rendering the new one.
+    bumpSessionEpoch();
     currentCampaignId = newCampaignState.campaignId;
-    
+
     // Switch to the newly created branched campaign!
     renderGame(newCampaignState, true);
     setActiveTab('inventory'); // return tab focus to inventory
