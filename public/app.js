@@ -837,6 +837,11 @@ async function loadCampaignsMenu() {
   lastRenderedTurnNumber = null;
   myCharacterId = null;
   enterHolodeckIdle();
+  // Whoever loads the menu owns the screen (poll-1 r3): when this runs as
+  // a settle callback (campaign delete/release) it may have superseded an
+  // in-flight campaign load that already hid the menu — that load discards
+  // itself on the epoch check, so without this line NOTHING is visible.
+  campaignMenuScreen.style.display = 'flex';
   campaignListContainer.innerHTML = `<div class="loading-state"><i class="fa-solid fa-spinner fa-spin"></i> Loading campaigns...</div>`;
   
   try {
