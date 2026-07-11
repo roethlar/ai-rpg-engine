@@ -1,9 +1,9 @@
 # poll-1: Stale poll responses render an older campaign/scene over the current one
 
 **Severity**: HIGH — a whole stale campaign state (narrative, theme, party, dice) can replace the currently loaded one; user actions then target a different campaign than the one displayed.
-**Status**: In progress (REOPENED by reviewer; fix-up committed, r2 verdict pending)
+**Status**: In progress (REOPENED twice; r3 fix-up committed, verdict pending)
 **Branch**: `fix/poll-1-response-epoch`
-**Commit**: `6188461` → fix-up `555335a` (base `1894461`)
+**Commit**: `6188461` → `555335a` → `06d331d` (base `1894461`)
 
 ## Evidence
 `public/app.js:1223-1259` — overlapping polls are possible; no campaign/epoch captured before the awaits; the guard is `state.turn?.number !== lastRenderedTurnNumber` which accepts *older* turn numbers too; no ownership re-check after await. Transitions that invalidate in-flight work: menu return `public/app.js:783-793`, campaign load `public/app.js:876-887`, fork switch `public/app.js:2116-2120`. `renderGame` applies the payload's theme unconditionally (`public/app.js:939-942`).
@@ -49,4 +49,33 @@ monotonicity immediately before render; error-path UI gated on the captured
 epoch; `finally` unconditional. Guard `guard-poll-1b.mjs` (both scenarios):
 FAIL at `6188461` (`rolledBack:true`, `noticeLeaked:true`,
 `inputHijacked:true`), PASS at `555335a`; the original stale-switch scenario
-still passes; suite green. r2 verdict pending.
+still passes; suite green.
+
+codex-cli 0.144.1 · reviewed `555335a` vs `6188461` · 2026-07-11 (UTC) ·
+verdict **REOPENED again** — the reviewer executed its own probes this round:
+1. HIGH — the r1 fix-up's discard permanently loses intervening turns: the
+   journal filter reads the MUTATED `lastRenderedTurnNumber` (9 after the
+   racing submit), excluding turns 6–8; the snapshot discard then drops turn
+   8; later equal-turn polls never recover them. Its journal-populated probe
+   passed the old guard while turns 6, 7, 8 were all absent.
+2. MEDIUM — the `finally` block's `setActionInputState(true)` always calls
+   `actionInput.focus()`, so the explicit catch-path focus gate did not gate
+   all focus work; a stale settle steals focus on the replacement table.
+
+Fix-up `06d331d`: the submit path now gap-backfills from the journal before
+rendering its turn, and both paths append through `appendJournalTurns`,
+which dedupes per turn at APPEND time against `highestAppendedTurn`
+(advanced by renderGame; re-anchored on narrative reset) — racing backfills
+can neither duplicate nor drop a turn; `setActionInputState` gains a
+`focusInput` parameter, granted only when the epoch still matches, while
+re-enablement stays unconditional. Guard rewritten to the reviewer's proof
+standard: non-empty journal (turns 6–8), exactly-once + chronological-order
+assertions across J6/J7/J8/turn-9, stale-snapshot-absent, and an
+activeElement assertion. Results: FAIL at `555335a`
+(`j6:0, j7:0, j8:0, focusStolen:true` — precisely the reviewer's predicted
+loss), PASS at `06d331d`; `guard-poll-1.mjs` (original scenario) still
+passes; suite green. r3 verdict pending.
+
+Cosmetic note (accepted): when the submit path backfills, the player's own
+optimistically-appended action line precedes the backfilled turns in the
+log; order of GM narrative is correct.

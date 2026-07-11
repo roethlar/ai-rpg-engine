@@ -20,19 +20,24 @@ an owner go; merges stay owner-gated.
 | dt-1 | MEDIUM | Stale roll theater renders over the menu/another campaign after a switch, intercepting input until skip/timeout | `[x]` ACCEPTED, awaiting owner-gated merge | `fix/dt-1-theater-epoch` @ `497ffc5` |
 | dt-2 | LOW | Clicking to skip turn A's dice also silently suppresses an already-queued turn B's theater | `[x]` ACCEPTED, awaiting owner-gated merge | `fix/dt-2-skip-per-batch` @ `c04f0cd` |
 | dt-3 | LOW | Landed die goes generic green/red, contradicting the recorded theme-follow rider (plan/code conflict) | `[x]` ACCEPTED, awaiting owner-gated merge | `fix/dt-3-landed-die-theme` @ `e96a873` |
-| poll-1 | HIGH | Pre-existing: a stale poll response renders campaign A's full state (theme incl.) over campaign B or the menu — no epoch/ownership check after await | `[~]` REOPENED → fix-up committed, r2 verdict pending | `fix/poll-1-response-epoch` @ `555335a` |
+| poll-1 | HIGH | Pre-existing: a stale poll response renders campaign A's full state (theme incl.) over campaign B or the menu — no epoch/ownership check after await | `[~]` REOPENED twice → r3 fix-up committed, verdict pending | `fix/poll-1-response-epoch` @ `06d331d` |
 | css-1 | MEDIUM | Pre-existing: `rgba(var(--theme-*), α)` with HSL-triple vars is invalid CSS — header/glass/panel fills and several glows compute unpainted on every theme today | `[ ]` admitted (r3 catch); fix awaits owner go, also a T2 prerequisite | |
 
-poll-1 reopen (codex, 2026-07-11): accepted the epoch mechanism and the
-guard, found two unguarded paths — (1) the journal-backfill window lets a
-same-campaign submit render turn N+1, then the released poll rolls back to
-turn N (epoch unchanged, monotonic check ran before the awaits); (2) the
-submit's non-OK/catch paths did their UI work (notice, input restore,
-settings modal) without an epoch check. Fix-up `555335a`: post-backfill
-re-check of submit ownership + turn monotonicity; error-path UI gated on
-epoch, finally still unconditional. Guard `guard-poll-1b.mjs`: both
-scenarios FAIL at `6188461`, PASS at `555335a`; original scenario still
-passes; suite green.
+poll-1 reopen round 1 (codex): two unguarded paths — the journal-backfill
+rollback window and the submit's error-path UI. Fix-up `555335a`. Reopen
+round 2 (codex, which EXECUTED its own probes): (1) the r1 fix-up's discard
+permanently buried other players' intervening turns — the journal filter
+used the mutated `lastRenderedTurnNumber`, so turns 6–8 vanished from the
+transcript while every guard passed; (2) the finally block's
+`setActionInputState(true)` always focused the input, stealing focus on the
+replacement table. Fix-up `06d331d`: the submit path now gap-backfills too,
+and BOTH paths append through one helper that dedupes per turn at APPEND
+time (`highestAppendedTurn`), so racing backfills neither duplicate nor drop
+a turn; focus became a parameter granted only on the submitting table's
+epoch. Guard `guard-poll-1b.mjs` rewritten to the reviewer's proof standard:
+non-empty journal, exactly-once + chronological-order assertions, and an
+activeElement assertion — FAIL at `555335a` (j6/j7/j8 all 0, focus stolen),
+PASS at `06d331d`; original scenario still passes; suite green.
 
 Fix stack (owner go 2026-07-11): poll-1 → dt-1 → dt-2 → dt-3, each branch
 stacked on the previous (dt-1 builds on poll-1's epoch; merges owner-gated,
@@ -83,9 +88,24 @@ all admitted and folded into draft r4:
 
 | ID | Severity | Impact (one line) | Status |
 |----|----------|-------------------|--------|
-| r3-1 | MEDIUM | Accents (primary/secondary) outside the contrast contract — a passing palette can render the Send button white-on-white | `[~]` r4: accent roles ≥3:1, derived `--theme-on-accent` for accent backgrounds, fixtures |
-| r3-2 | MEDIUM | 0.7–0.85 opacity on text_dim surfaces drops below the promised 3:1 floor while validator tests pass | `[~]` r4: contrast checked on the composited color at the 0.7 floor + stylesheet scan test |
-| r3-3 | LOW | `rgba(var(--theme-*), α)` with HSL triples is invalid — panel/glow fills compute unpainted, contradicting the no-per-surface-work claim | `[~]` promoted to code finding css-1; r4 pins it as a T2 prerequisite |
+| r3-1 | MEDIUM | Accents (primary/secondary) outside the contrast contract — a passing palette can render the Send button white-on-white | `[~]` r4 → subsumed by the r5 rendered-state contract |
+| r3-2 | MEDIUM | 0.7–0.85 opacity on text_dim surfaces drops below the promised 3:1 floor while validator tests pass | `[~]` r4 → subsumed by the r5 rendered-state contract |
+| r3-3 | LOW | `rgba(var(--theme-*), α)` with HSL triples is invalid — panel/glow fills compute unpainted, contradicting the no-per-surface-work claim | `[x]` promoted to code finding css-1; a T2 prerequisite (r4 verdict confirmed this closure) |
+
+r4 verdict: NOT accepted — css-1 closure confirmed; three findings showing
+the r4 contract still checked TOKENS where the UI renders STATES (consumer
+opacity 0.8/0.9/0.55 incl. map-render.js SVG; reachable 0.65 cumulative
+group opacity in spotlight demotion; gradients + hover brightness + label
+alpha defeating a single on-accent color). All admitted; r5 closes the CLASS:
+the contrast contract moves to rendered states over one audited
+consumer-envelope manifest shared by validator and tests, with computed-DOM
+drift guards for reachable states.
+
+| ID | Severity | Impact (one line) | Status |
+|----|----------|-------------------|--------|
+| r4-1 | MEDIUM | Accent checks ignore consumer opacity/tint compositing (0.8/0.9/0.55; CSS and generated SVG) — passing palettes render below 3:1 | `[~]` r5 manifest: worst-case effective opacity per token |
+| r4-2 | MEDIUM | The 0.7 floor misses reachable 0.65 cumulative group opacity (spotlight demotion) and non-CSS generators | `[~]` r5 manifest: cumulative ancestor opacity + map-render audit |
+| r4-3 | MEDIUM | One on-accent color cannot cover gradient endpoints, hover brightness(1.1), and 0.8 label alpha | `[~]` r5: on-accent validated against both endpoints + state transforms |
 
 ---
 
