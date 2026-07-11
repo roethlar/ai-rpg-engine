@@ -488,6 +488,27 @@ function setupEventListeners() {
       // since left that table, its record is in that campaign's journal —
       // rendering it here would paint the wrong table (poll-1).
       if (epoch !== sessionEpoch) return;
+      // Gap backfill (poll-1 r2): other players' turns may sit between the
+      // last thing in this log and the turn this submit produced. Without
+      // this, rendering the submit's turn buries them permanently — the
+      // poll's own backfill dedupes against highestAppendedTurn and would
+      // skip them afterward.
+      const baseline = highestAppendedTurn ?? lastRenderedTurnNumber;
+      if (typeof gameState.turn?.number === 'number' &&
+          typeof baseline === 'number' &&
+          gameState.turn.number > baseline + 1) {
+        try {
+          const journalResponse = await fetchWithTimeout(`/api/campaigns/${currentCampaignId}/journal`, {}, 15000);
+          if (epoch === sessionEpoch && journalResponse.ok) {
+            const journal = await journalResponse.json();
+            if (epoch === sessionEpoch) {
+              appendJournalTurns((journal.turns || [])
+                .filter(t => t && t.turn_number < gameState.turn.number));
+            }
+          }
+        } catch (e) { /* gap backfill is best-effort */ }
+        if (epoch !== sessionEpoch) return;
+      }
       renderGame(gameState, false, { narrate: true, rollTheater: true });
     } catch (error) {
       console.error(error);
@@ -506,7 +527,10 @@ function setupEventListeners() {
       }
     } finally {
       turnSubmitInFlight = false;
-      setActionInputState(true);
+      // Always re-enable the controls; but focus only when still on the
+      // submitting table (poll-1 r2) — a stale settle must not steal focus
+      // from whatever the user is doing on the replacement table.
+      setActionInputState(true, epoch === sessionEpoch);
     }
   });
 }
@@ -980,6 +1004,15 @@ function renderGame(gameState, resetNarrative = false, options = {}) {
   // strip, and the off-turn input state. The sheet shows YOUR character.
   lastGameState = gameState;
   lastRenderedTurnNumber = gameState.turn?.number ?? lastRenderedTurnNumber;
+  // Track the furthest narrative in the log (poll-1 r2). A full reset
+  // (campaign load/fork) re-anchors it; incremental renders only advance it.
+  if (typeof gameState.turn?.number === 'number') {
+    highestAppendedTurn = resetNarrative
+      ? gameState.turn.number
+      : Math.max(highestAppendedTurn ?? gameState.turn.number, gameState.turn.number);
+  } else if (resetNarrative) {
+    highestAppendedTurn = null;
+  }
   resolveMyCharacter(gameState);
   renderParty(gameState);
   updateTurnBanner(gameState);
@@ -1089,6 +1122,25 @@ const DEFAULT_ACTION_PLACEHOLDER = "Act or ask the GM (e.g., 'Scan the corridor'
 let myCharacterId = null;
 let lastGameState = null;
 let lastRenderedTurnNumber = null;
+// Furthest turn whose narrative is in the log (poll-1 r2): gap backfills
+// from BOTH the poll and the submit path dedupe against this at append
+// time, so racing backfills can neither duplicate nor drop a turn.
+let highestAppendedTurn = null;
+
+// Appends journal turns to the log in chronological order, skipping any
+// turn already appended by a racing path. The at-append-time check (not
+// at-fetch-time) is what makes concurrent backfills safe.
+function appendJournalTurns(turns) {
+  (turns || [])
+    .filter(t => t && typeof t.turn_number === 'number')
+    .sort((a, b) => a.turn_number - b.turn_number)
+    .forEach(t => {
+      if (highestAppendedTurn !== null && t.turn_number <= highestAppendedTurn) return;
+      if (t.player_action) appendPlayerAction(t.player_action);
+      appendGMDialogue(t.narrative);
+      highestAppendedTurn = t.turn_number;
+    });
+}
 
 function myCharacterKey(campaignId) {
   return `aetheria_my_character_${campaignId}`;
@@ -1271,18 +1323,18 @@ setInterval(async () => {
       // More than one turn may have landed between polls (table talk does
       // not advance the order, so bursts happen): backfill the gap from the
       // journal so the log stays complete, then render the latest normally.
-      if (typeof lastRenderedTurnNumber === 'number' && state.turn.number > lastRenderedTurnNumber + 1) {
+      // The append helper dedupes at append time against whatever a racing
+      // submit backfilled meanwhile (poll-1 r2) — no turn duplicates, none
+      // are lost.
+      const gapBaseline = highestAppendedTurn ?? lastRenderedTurnNumber;
+      if (typeof gapBaseline === 'number' && state.turn.number > gapBaseline + 1) {
         try {
           const journalResponse = await fetchWithTimeout(`/api/campaigns/${currentCampaignId}/journal`, {}, 15000);
           if (epoch === sessionEpoch && journalResponse.ok) {
             const journal = await journalResponse.json();
             if (epoch === sessionEpoch) {
-              (journal.turns || [])
-                .filter(t => t.turn_number > lastRenderedTurnNumber && t.turn_number < state.turn.number)
-                .forEach(t => {
-                  if (t.player_action) appendPlayerAction(t.player_action);
-                  appendGMDialogue(t.narrative);
-                });
+              appendJournalTurns((journal.turns || [])
+                .filter(t => t && t.turn_number < state.turn.number));
             }
           }
         } catch (e) { /* gap backfill is best-effort */ }
@@ -1748,13 +1800,13 @@ function renderChoices(choices) {
 }
 
 // Dialog input handlers
-function setActionInputState(enabled) {
+function setActionInputState(enabled, focusInput = true) {
   actionInput.disabled = !enabled;
   btnSendAction.disabled = !enabled;
-  
+
   if (enabled) {
     btnSendAction.innerHTML = '<span>Send</span> <i class="fa-solid fa-paper-plane"></i>';
-    actionInput.focus();
+    if (focusInput) actionInput.focus();
   } else {
     btnSendAction.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
   }
