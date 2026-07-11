@@ -497,16 +497,9 @@ function setupEventListeners() {
       if (typeof gameState.turn?.number === 'number' &&
           typeof baseline === 'number' &&
           gameState.turn.number > baseline + 1) {
-        try {
-          const journalResponse = await fetchWithTimeout(`/api/campaigns/${currentCampaignId}/journal`, {}, 15000);
-          if (epoch === sessionEpoch && journalResponse.ok) {
-            const journal = await journalResponse.json();
-            if (epoch === sessionEpoch) {
-              appendJournalTurns((journal.turns || [])
-                .filter(t => t && t.turn_number < gameState.turn.number));
-            }
-          }
-        } catch (e) { /* gap backfill is best-effort */ }
+        // Failure records the gap for the poll to retry (poll-1 r5): the
+        // head still renders, but the missing turns are never sealed out.
+        await backfillGap(baseline, gameState.turn.number, epoch);
         if (epoch !== sessionEpoch) return;
       }
       renderGame(gameState, false, { narrate: true, rollTheater: true });
@@ -836,6 +829,7 @@ async function loadCampaignsMenu() {
   lastGameState = null;
   lastRenderedTurnNumber = null;
   myCharacterId = null;
+  pendingGaps = [];
   enterHolodeckIdle();
   // Whoever loads the menu owns the screen (poll-1 r3): when this runs as
   // a settle callback (campaign delete/release) it may have superseded an
@@ -1011,10 +1005,15 @@ function renderGame(gameState, resetNarrative = false, options = {}) {
   lastRenderedTurnNumber = gameState.turn?.number ?? lastRenderedTurnNumber;
   // Track the furthest narrative in the log (poll-1 r2). A full reset
   // (campaign load/fork) re-anchors it; incremental renders only advance it.
+  if (resetNarrative) {
+    appendedTurnNumbers = new Set();
+    pendingGaps = [];
+  }
   if (typeof gameState.turn?.number === 'number') {
     highestAppendedTurn = resetNarrative
       ? gameState.turn.number
       : Math.max(highestAppendedTurn ?? gameState.turn.number, gameState.turn.number);
+    appendedTurnNumbers.add(gameState.turn.number);
   } else if (resetNarrative) {
     highestAppendedTurn = null;
   }
@@ -1054,18 +1053,18 @@ function renderGame(gameState, resetNarrative = false, options = {}) {
   const turnRolls = Array.isArray(gameState.turn.rollResults)
     ? gameState.turn.rollResults
     : (gameState.turn.rollResult ? [gameState.turn.rollResult] : []);
-  turnRolls.forEach(appendRollResultBubble);
+  turnRolls.forEach(r => appendRollResultBubble(r, gameState.turn?.number));
   // Theater only on turns that just happened (own submit, poll pickup) —
   // never on campaign load, join, or backfill, where the rolls are history.
   if (options.rollTheater) queueRollTheater(turnRolls);
-  appendGMDialogue(gameState.turn.narrative);
+  appendGMDialogue(gameState.turn.narrative, gameState.turn?.number);
   if (options.narrate) {
     narrateGmResponse(gameState.turn);
   }
 
   // Scene grounding — especially valuable on clarification turns
   if (gameState.turn.sceneGrounding) {
-    appendSceneGrounding(gameState.turn.sceneGrounding);
+    appendSceneGrounding(gameState.turn.sceneGrounding, gameState.turn?.number);
   }
 
   // If the active tab is Journal, refresh the timeline
@@ -1127,24 +1126,71 @@ const DEFAULT_ACTION_PLACEHOLDER = "Act or ask the GM (e.g., 'Scan the corridor'
 let myCharacterId = null;
 let lastGameState = null;
 let lastRenderedTurnNumber = null;
-// Furthest turn whose narrative is in the log (poll-1 r2): gap backfills
-// from BOTH the poll and the submit path dedupe against this at append
-// time, so racing backfills can neither duplicate nor drop a turn.
+// Furthest turn whose narrative is in the log (poll-1 r2): the baseline
+// for gap detection.
 let highestAppendedTurn = null;
+// Exact turns present in the log (poll-1 r5): dedupe must be membership,
+// not a watermark — gap RECOVERY legitimately appends turns BELOW the
+// watermark after a transient journal failure.
+let appendedTurnNumbers = new Set();
+// Ranges a failed backfill could not fill (inclusive bounds). Every poll
+// tick retries them: a flaky journal request must not permanently seal
+// other players' turns out of the shared transcript.
+let pendingGaps = [];
 
-// Appends journal turns to the log in chronological order, skipping any
-// turn already appended by a racing path. The at-append-time check (not
-// at-fetch-time) is what makes concurrent backfills safe.
+// Places a log node at its chronological position: nodes carry data-turn,
+// and a tagged node goes before the first node with a HIGHER turn — so
+// late gap recovery lands in reading order, not at the log's tail.
+function placeLogEntry(el, turnNumber) {
+  if (typeof turnNumber === 'number') {
+    el.dataset.turn = String(turnNumber);
+    const nodes = narrativeContainer.children;
+    for (let i = 0; i < nodes.length; i++) {
+      const t = Number(nodes[i].dataset ? nodes[i].dataset.turn : NaN);
+      if (Number.isFinite(t) && t > turnNumber) {
+        narrativeContainer.insertBefore(el, nodes[i]);
+        return;
+      }
+    }
+  }
+  narrativeContainer.appendChild(el);
+}
+
+// Appends journal turns in chronological order, skipping any turn already
+// in the log. Membership is checked at APPEND time, which makes racing
+// backfills (poll vs submit vs recovery) safe against both duplication
+// and loss.
 function appendJournalTurns(turns) {
   (turns || [])
     .filter(t => t && typeof t.turn_number === 'number')
     .sort((a, b) => a.turn_number - b.turn_number)
     .forEach(t => {
-      if (highestAppendedTurn !== null && t.turn_number <= highestAppendedTurn) return;
-      if (t.player_action) appendPlayerAction(t.player_action);
-      appendGMDialogue(t.narrative);
-      highestAppendedTurn = t.turn_number;
+      if (appendedTurnNumbers.has(t.turn_number)) return;
+      if (t.player_action) appendPlayerAction(t.player_action, t.turn_number);
+      appendGMDialogue(t.narrative, t.turn_number);
+      appendedTurnNumbers.add(t.turn_number);
+      highestAppendedTurn = Math.max(highestAppendedTurn ?? t.turn_number, t.turn_number);
     });
+}
+
+// Fetches the journal and fills the EXCLUSIVE range (fromExclusive,
+// toExclusive). Any failure records the range in pendingGaps for the next
+// poll tick to retry (poll-1 r5).
+async function backfillGap(fromExclusive, toExclusive, epoch) {
+  try {
+    const journalResponse = await fetchWithTimeout(`/api/campaigns/${currentCampaignId}/journal`, {}, 15000);
+    if (epoch !== sessionEpoch) return;
+    if (!journalResponse.ok) throw new Error(`journal ${journalResponse.status}`);
+    const journal = await journalResponse.json();
+    if (epoch !== sessionEpoch) return;
+    appendJournalTurns((journal.turns || [])
+      .filter(t => t && t.turn_number > fromExclusive && t.turn_number < toExclusive));
+  } catch (e) {
+    const from = fromExclusive + 1, to = toExclusive - 1;
+    if (to >= from && !pendingGaps.some(g => g.from === from && g.to === to)) {
+      pendingGaps.push({ from, to });
+    }
+  }
 }
 
 function myCharacterKey(campaignId) {
@@ -1319,6 +1365,18 @@ setInterval(async () => {
     if (!response.ok) return;
     const state = await response.json();
     if (epoch !== sessionEpoch) return;
+    // Retry gaps a failed backfill left behind (poll-1 r5) — on EVERY tick,
+    // same-turn branch included; recovered turns insert in reading order
+    // via placeLogEntry and dedupe by membership.
+    if (pendingGaps.length) {
+      const gaps = pendingGaps;
+      pendingGaps = [];
+      for (const g of gaps) {
+        await backfillGap(g.from - 1, g.to + 1, epoch);
+        if (epoch !== sessionEpoch) return;
+      }
+      if (turnSubmitInFlight) return;
+    }
     if (state.turn?.number !== lastRenderedTurnNumber) {
       // Within one campaign turn numbers only grow; an older snapshot is a
       // stale response that lost a race, never something to render.
@@ -1333,16 +1391,7 @@ setInterval(async () => {
       // are lost.
       const gapBaseline = highestAppendedTurn ?? lastRenderedTurnNumber;
       if (typeof gapBaseline === 'number' && state.turn.number > gapBaseline + 1) {
-        try {
-          const journalResponse = await fetchWithTimeout(`/api/campaigns/${currentCampaignId}/journal`, {}, 15000);
-          if (epoch === sessionEpoch && journalResponse.ok) {
-            const journal = await journalResponse.json();
-            if (epoch === sessionEpoch) {
-              appendJournalTurns((journal.turns || [])
-                .filter(t => t && t.turn_number < state.turn.number));
-            }
-          }
-        } catch (e) { /* gap backfill is best-effort */ }
+        await backfillGap(gapBaseline, state.turn.number, epoch);
       }
       if (epoch !== sessionEpoch) return;
       // Re-check AFTER the backfill awaits: a same-campaign submit never
@@ -1353,7 +1402,7 @@ setInterval(async () => {
       if (typeof state.turn?.number === 'number' &&
           typeof lastRenderedTurnNumber === 'number' &&
           state.turn.number <= lastRenderedTurnNumber) return;
-      if (state.turn?.playerAction) appendPlayerAction(state.turn.playerAction);
+      if (state.turn?.playerAction) appendPlayerAction(state.turn.playerAction, state.turn.number);
       renderGame(state, false, { rollTheater: true });
     } else {
       // Same turn, possibly changed table (joins, releases, style edits):
@@ -1818,21 +1867,21 @@ function setActionInputState(enabled, focusInput = true) {
 }
 
 // Append player bubble
-function appendPlayerAction(text) {
+function appendPlayerAction(text, turnNumber) {
   const el = document.createElement('div');
   el.className = 'log-entry log-player';
   const cleanPlayerText = escapeHtml(text);
-  
+
   el.innerHTML = DOMPurify.sanitize(`
     <div class="speaker"><i class="fa-solid fa-user"></i> You</div>
     <div class="content">${cleanPlayerText}</div>
   `);
-  narrativeContainer.appendChild(el);
+  placeLogEntry(el, turnNumber);
   scrollToBottom();
 }
 
 // Append GM description with markdown support and DOMPurify sanitization
-function appendGMDialogue(markdownText) {
+function appendGMDialogue(markdownText, turnNumber) {
   const el = document.createElement('div');
   el.className = 'log-entry log-gm';
 
@@ -1844,7 +1893,7 @@ function appendGMDialogue(markdownText) {
     <div class="speaker"><i class="fa-solid fa-dice-d20"></i> Game Master</div>
     <div class="content">${cleanHtml}</div>
   `;
-  narrativeContainer.appendChild(el);
+  placeLogEntry(el, turnNumber);
   scrollToBottom();
 }
 
@@ -1858,7 +1907,7 @@ function escapeHtml(str) {
                 .replace(/'/g, '&#039;');
 }
 
-function appendSceneGrounding(groundingText) {
+function appendSceneGrounding(groundingText, turnNumber) {
   if (!groundingText || !narrativeContainer) return;
   const el = document.createElement('div');
   el.className = 'log-entry log-scene';
@@ -1867,7 +1916,7 @@ function appendSceneGrounding(groundingText) {
     <div class="speaker"><i class="fa-solid fa-eye"></i> Current Situation</div>
     <div class="content scene-grounding">${safeText}</div>
   `;
-  narrativeContainer.appendChild(el);
+  placeLogEntry(el, turnNumber);
   scrollToBottom();
 }
 
@@ -2009,7 +2058,7 @@ function playOneRollTheater(roll) {
 }
 
 // Append a dice roll card in the narrative log (Rules Mode check results)
-function appendRollResultBubble(roll) {
+function appendRollResultBubble(roll, turnNumber) {
   const el = document.createElement('div');
   el.className = 'log-entry log-roll';
   const costs = [];
@@ -2038,7 +2087,7 @@ function appendRollResultBubble(roll) {
       </div>
     </div>
   `);
-  narrativeContainer.appendChild(el);
+  placeLogEntry(el, turnNumber);
   scrollToBottom();
 }
 
