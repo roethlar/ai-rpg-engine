@@ -6,6 +6,10 @@ to `docs/history/state-archive.md`.
 
 ## Now
 
+- Active review loop (2026-07-11): dice roll theater (retroactive — it was
+  built without owner plan approval, a process defect) + Phase T2 theming
+  plan. See `.agents/review/index.md`. Code fixes and all pushes are HELD
+  pending owner adjudication; master carries unpushed commits.
 - **Priority: the remote two-human multiplayer playtest** (decision 2026-07-09).
   App-side readiness is DONE — Phase S seats S1–S3 are built, reviewed, and on
   master. Connectivity (transport/TLS/tunnel) is owner-handled and out of repo

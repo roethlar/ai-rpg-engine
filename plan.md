@@ -259,48 +259,92 @@ remains an owner playtest verdict on the whole phase.
   defaults); existing campaigns unaffected; suite green.
 - Files: rpg-engine.js, rpg-state.js, public/app.js, public/styles.css, test.js.
 
-**Phase T2: Scene-dynamic theming (DRAFT 2026-07-11 — awaiting owner approval;
-nothing here is buildable until the owner approves)**
+**Phase T2: Scene-dynamic theming (DRAFT r2 2026-07-11 — awaiting owner
+approval; nothing here is buildable until the owner approves. r1 was
+codex-reviewed same day: 7 findings, all addressed below — trail in
+`.agents/review/index.md`, t2-1…t2-7.)**
 - Owner direction (2026-07-11): the color scheme follows the game as it moves —
   a night-club scene goes neon, a forest goes spring/earth tones. The campaign
   setup theme (T1) remains the baseline; scenes modulate the colors. Fonts
   never change per scene (readability and layout stability).
+- PREREQUISITE (t2-2): finding `poll-1` (stale poll responses repaint an
+  older campaign/scene — `.agents/review/findings/poll-1.md`) must be fixed
+  before or with this phase, or scene themes visibly revert on stale
+  responses. T2's frontend work builds on the session-epoch mechanism that
+  fix introduces.
 - Anchor: the scene theme is LOCATION state, not a per-turn mood signal.
   `locations` gains `theme_json` (db.js ALTER TABLE migration, existing
-  pattern). Rationale: the theme changes exactly when the fiction moves
-  somewhere else — predictable and thrash-free by construction (the
-  heroic-pointer stickiness problem never arises), zero additional AI calls,
-  and a revisited place looks the same (the layout consistency rule applied
-  to atmosphere).
-- Generation: extend `generateLocationLayout` (rpg-engine.js:490) — the
-  existing once-per-location continuity-role call — to also emit
-  `theme: {primary, secondary, text, text_dim}` as HSL triples matching the
-  location's atmosphere; likewise the opening-location call
-  (rpg-engine.js:1243). No new call sites, no per-turn cost.
+  pattern; NULL for all pre-existing rows). Rationale: the theme changes
+  exactly when the fiction moves somewhere else — predictable and
+  thrash-free by construction, no additional AI calls beyond the existing
+  per-location generation, and a revisited place looks the same (the layout
+  consistency rule applied to atmosphere).
+- Theme shape: `{primary, secondary, bg, text, text_dim}` — five HSL slots.
+  `bg` is included deliberately (t2-5): panel/border/glow derive from
+  bg+primary in `applyCampaignTheme` (public/app.js:1423-1450), so without a
+  scene bg the dominant surfaces would keep the campaign baseline and a
+  forest→nightclub move would only recolor accents. `bg` is dark-clamped on
+  validation so text stays readable on every derived surface.
+- Generation and the persistence carrier (t2-1, t2-6): the once-per-location
+  continuity-role call `generateLocationLayout` (rpg-engine.js:490) gains a
+  `theme` object in its response schema and returns `{layout, theme}`; the
+  opening-location call (rpg-engine.js:1243) likewise. The engine stamps the
+  validated theme onto the location update as `generated_theme` — a sibling
+  of the existing `generated_layout`, engine-stamped AFTER validation, so
+  `validateLocationUpdate` (rpg-state.js:505-511) does NOT carry a theme
+  field and per-turn model output can never inject or mutate one. Both
+  location INSERTs (rpg-engine.js:1367 opening, rpg-engine.js:1821 first
+  entry) write `theme_json`; hydration (`getCurrentLocation` path,
+  rpg-engine.js:304-313) parses and re-validates it onto `location.theme`.
+  Theme is write-once at row creation, read-only thereafter. Timing
+  precision: generation happens once per SUCCESSFULLY COMMITTED first entry —
+  a first-entry turn that final continuity rejects discards the candidate
+  (rpg-engine.js:1052-1063) and a retried entry regenerates; only the
+  committed result persists. That retry cost is accepted and documented.
 - Validation: `validateSceneTheme` in rpg-state.js reusing the T1 primitives
-  (`normalizeHslColor`, `clampHslLightness`; text clamped ≥60 lightness,
-  text_dim 40–80, exactly as rpg-state.js:1449-1463). Invalid or missing →
-  null → baseline applies. The theme rides the location record through the
-  existing referee/continuity gate; table talk cannot mutate location state,
-  so the theme cannot drift on questions — no new no-op work needed.
-- Payload: state payloads gain `sceneTheme` (validated location theme or
-  null) everywhere `themeColors` is emitted (rpg-engine.js:1416/1896/1983).
-  Seats receive it — scene colors are table-public, same as `themeColors` in
-  the seat-scoped view (rpg-state.js:933). Export bundles already carry
-  location rows wholesale; add `theme_json` to the P1 fixture assertions.
-- Frontend: `applyCampaignTheme` gains a `sceneTheme` parameter — its color
-  slots override the campaign baseline before the CSS variables are set
-  (public/app.js:940, 1414-1456); derived vars (bg/panel/border/glow)
-  recompute from the merged palette exactly as today, so every themed
-  surface — dice theater included — follows with no per-surface work. A
-  short CSS color transition gives a soft crossfade on scene change
-  (disabled under prefers-reduced-motion).
-- Success criteria: unit tests — clamp/reject in validateSceneTheme; merge
-  precedence (scene over baseline; null → baseline); revisit reuses the
-  stored theme without regenerating; a table-talk turn leaves the theme
-  unchanged; export/import round-trips `theme_json`. Suite green. Functional
-  smoke: two locations with distinct palettes visibly swap the UI theme on
-  movement. Feel gate: owner playtest verdict.
+  (`normalizeHslColor`, `clampHslLightness`; text ≥60 lightness, text_dim
+  40–80 as at rpg-state.js:1449-1463; bg clamped dark). Invalid or missing →
+  null → baseline applies. Table talk cannot mutate location state (existing
+  no-op net), so the theme cannot drift on questions.
+- Payload: state payloads gain `sceneTheme` (validated current-location
+  theme or null) everywhere `themeColors` is emitted
+  (rpg-engine.js:1416/1896/1983). Seats receive it via an explicit
+  seat-view whitelist addition next to `themeColors` (rpg-state.js:933) —
+  scene colors are table-public. Seat-boundary rule applies (see success
+  criteria).
+- Portability and forks (t2-3, t2-4 — the r1 "rows travel wholesale" claim
+  was FALSE; export/import/fork all project explicit fields): add
+  `theme_json` to the export projection (rpg-engine.js:2265-2274), to the
+  untrusted-bundle location validation (rpg-state.js:1129-1149), to the
+  import INSERT (rpg-engine.js:2372-2380), and to the fork location copy
+  (rpg-engine.js:2650-2663). The pinned v1 fixture stays byte-identical —
+  it now doubles as proof that themeless bundles import with null themes.
+  Fork pointer: fork replay only observes `turnData.location_update`
+  (rpg-engine.js:2497-2517), so a turn-1 fork must seed
+  `current_location_id` from the source campaign's opening location or the
+  fork stays on baseline even with theme_json copied — seed it during fork
+  creation.
+- Frontend: `applyCampaignTheme` gains a `sceneTheme` parameter — its slots
+  override the campaign baseline before the CSS variables are set
+  (public/app.js:940, 1414-1456); derived vars (panel/border/glow) recompute
+  from the merged palette exactly as today, so every themed surface — dice
+  theater included — follows with no per-surface work. A short CSS color
+  transition gives a soft crossfade on scene change (disabled under
+  prefers-reduced-motion). Stale-response safety comes from the poll-1
+  epoch (prerequisite above).
+- Success criteria: unit tests — clamp/reject in validateSceneTheme (incl.
+  dark-clamped bg); merge precedence (scene over baseline; null → baseline);
+  revisit reuses the stored theme without regenerating; a table-talk turn
+  leaves the theme unchanged; a rejected first-entry turn persists nothing;
+  a DB-backed export→import round trip carries a real theme AND the pinned
+  v1 fixture still imports (null themes); fork tests at turn 1 and later
+  both preserve the active scene theme. Seat-boundary regression (t2-7,
+  required by the standing rule in `.agents/state.md`): extend
+  `testSeatVisibility` (test.js:1818-1881) with a `sceneTheme` fixture,
+  assert exact propagation to the seat view and run the existing leak scan
+  over it. Suite green. Functional smoke: two locations with distinct
+  palettes visibly swap the UI theme on movement, including background and
+  panels, not just accents. Feel gate: owner playtest verdict.
 - Non-goals (v1): per-turn mood shifts inside one location (e.g. combat
   tint); per-scene fonts; coupling to heroic/image generation; retro-theming
   locations generated before this phase (their `theme_json` stays null →

@@ -3,7 +3,49 @@
 Workflow: see `.agents/playbooks/reviewloop.md`.
 Per-finding detail: see `.agents/review/findings/<id>.md`.
 
-## Active loop (started 2026-07-09, reviewer: codex)
+## Active loop (started 2026-07-11, reviewer: codex)
+
+Owner-ordered retroactive review of the dice roll theater (code + its plan
+slice, pinned range `fea8fb5..53dd6f3`) and plan review of the Phase T2
+scene-dynamic theming DRAFT (working tree at `53dd6f3`). Reviewer:
+codex-cli 0.144.1, read-only sandbox, structured-output schema. Context: the
+dice slice was implemented without owner plan approval (process defect,
+acknowledged); this review is part of its retroactive gate. Code fixes await
+an owner go; merges stay owner-gated.
+
+### Code findings (dt-* dice theater, poll-* pre-existing)
+
+| ID | Severity | Impact (one line) | Status | Branch |
+|----|----------|-------------------|--------|--------|
+| dt-1 | MEDIUM | Stale roll theater renders over the menu/another campaign after a switch, intercepting input until skip/timeout | `[ ]` | |
+| dt-2 | LOW | Clicking to skip turn A's dice also silently suppresses an already-queued turn B's theater | `[ ]` | |
+| dt-3 | LOW | Landed die goes generic green/red, contradicting the recorded theme-follow rider (plan/code conflict) | `[ ]` | |
+| poll-1 | HIGH | Pre-existing: a stale poll response renders campaign A's full state (theme incl.) over campaign B or the menu — no epoch/ownership check after await | `[ ]` | |
+
+Intake: codex returned 3 candidates on the dice range; all 3 admitted, 0
+declined. poll-1 admitted from the T2 pass's evidence (public/app.js:1223-1259,
+783-793) — both passes independently hit the same root cause; it predates the
+dice slice. dt-1's clean fix shares poll-1's epoch mechanism.
+
+### Plan findings (t2-*, against the Phase T2 draft in plan.md)
+
+| ID | Severity | Impact (one line) | Status |
+|----|----------|-------------------|--------|
+| t2-1 | HIGH | Draft named no persistence carrier — validators would silently discard the generated theme (NULL rows, never regenerated) | `[~]` revised |
+| t2-2 | HIGH | Stale-response repaint (= poll-1) breaks scene theming; draft ignored it | `[~]` prerequisite recorded |
+| t2-3 | HIGH | Draft's "export carries location rows wholesale" claim is FALSE — export/import project explicit fields; theme_json would be silently dropped | `[~]` revised |
+| t2-4 | MEDIUM | Forks omit theme_json; a turn-1 fork cannot reconstruct the opening-location pointer | `[~]` revised |
+| t2-5 | MEDIUM | Palette slots (primary/secondary/text/text_dim) cannot move bg/panel/border — nightclub keeps the forest background | `[~]` revised |
+| t2-6 | LOW | "Once per location, first entry only" is false when final continuity rejects the entry turn | `[~]` reworded |
+| t2-7 | LOW | Success criteria omitted the mandatory seat-boundary regression (sceneTheme enters the seat payload) | `[~]` revised |
+
+Intake: codex returned 7 candidates on the T2 draft; all 7 admitted (each
+verified against cited code), 0 declined. All are plan-text defects fixed by
+revising the draft; `[~]` until the codex re-review of the revision accepts.
+
+---
+
+## Closed loop (2026-07-09, reviewer: codex)
 
 Cross-model review of the landed S2/S3 seat-visibility work, pinned range
 `9effed2..0a8d712` (S2 server scoping 5595071, S2/S3 frontend a7d0f73,
