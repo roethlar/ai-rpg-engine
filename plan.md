@@ -33,6 +33,18 @@ heroic slot; the future heroic render and conditional map drop into slots this
 layout already provides. Files: public/index.html, public/styles.css,
 public/app.js.
 
+**Promoted slice — Dice roll theater (owner request 2026-07-11):** when a
+fresh turn arrives carrying engine-rolled check results, the frontend plays a
+short, skippable dice animation — a d20 tumbles and lands on the recorded
+roll, then shows the math (roll + modifier vs DC) and the outcome. Pure
+presentation: the die always lands on the engine's recorded roll
+(`turn.rollResults`); no engine, prompt, or state changes; the existing log
+roll card remains the durable record. Plays on the actor's own submit and on
+the poll path (the rest of the table sees the same roll land); never on
+campaign load, join, or journal backfill; respects prefers-reduced-motion;
+click skips. Gate is functional: owner one-look.
+Files: public/index.html, public/styles.css, public/app.js.
+
 - Make narration richer, more atmospheric, and less mechanical.
 - Improve scene visualization (owner direction recorded under "Maps & Character Miniatures" in Future Topics: overhead map + tokens replaces the per-turn scene SVG; image-gen hero renders for notable encounters come in a later phase — concrete scoping deferred until after Phase 0).
 - Better handling of NPC voices and relationships in narration.

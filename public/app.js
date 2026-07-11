@@ -472,7 +472,7 @@ function setupEventListeners() {
       }
 
       const gameState = await response.json();
-      renderGame(gameState, false, { narrate: true });
+      renderGame(gameState, false, { narrate: true, rollTheater: true });
     } catch (error) {
       console.error(error);
       // Decision 2026-07-03: transient failures surface OUTSIDE the GM's voice
@@ -992,6 +992,9 @@ function renderGame(gameState, resetNarrative = false, options = {}) {
     ? gameState.turn.rollResults
     : (gameState.turn.rollResult ? [gameState.turn.rollResult] : []);
   turnRolls.forEach(appendRollResultBubble);
+  // Theater only on turns that just happened (own submit, poll pickup) —
+  // never on campaign load, join, or backfill, where the rolls are history.
+  if (options.rollTheater) queueRollTheater(turnRolls);
   appendGMDialogue(gameState.turn.narrative);
   if (options.narrate) {
     narrateGmResponse(gameState.turn);
@@ -1245,7 +1248,7 @@ setInterval(async () => {
         } catch (e) { /* gap backfill is best-effort */ }
       }
       if (state.turn?.playerAction) appendPlayerAction(state.turn.playerAction);
-      renderGame(state, false);
+      renderGame(state, false, { rollTheater: true });
     } else {
       // Same turn, possibly changed table (joins, releases, style edits):
       // adopt the fresh snapshot so chip clicks re-render current data.
@@ -1810,6 +1813,92 @@ function showToast(msg, type = 'info') {
     toast.style.transition = 'opacity 0.5s';
     setTimeout(() => toast.remove(), 500);
   }, 4000);
+}
+
+// === Dice roll theater (plan.md Phase 1 slice, owner request 2026-07-11) ===
+// Cosmetic overlay on top of engine-rolled results: the die always lands on
+// the recorded roll; the log card (appendRollResultBubble) stays the record.
+const diceOverlayEl = document.getElementById('dice-overlay');
+const DICE_D20_SVG = `<svg viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <polygon points="60,10 105,36 105,88 60,114 15,88 15,36" fill="rgba(10,10,14,0.85)" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/>
+  <polygon points="60,34 86,82 34,82" fill="rgba(255,255,255,0.05)" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M60 10 L60 34 M15 36 L60 34 M105 36 L60 34 M15 36 L34 82 M15 88 L34 82 M60 114 L34 82 M105 36 L86 82 M105 88 L86 82 M60 114 L86 82" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>`;
+let diceTheaterQueue = Promise.resolve();
+let skipDiceTheater = false;
+
+function queueRollTheater(rolls) {
+  if (!Array.isArray(rolls) || rolls.length === 0) return;
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  skipDiceTheater = false;
+  rolls.forEach(roll => {
+    diceTheaterQueue = diceTheaterQueue.then(() => playOneRollTheater(roll)).catch(() => {});
+  });
+}
+// Exposed for live smoke tests and console debugging; cosmetic only.
+window.queueRollTheater = queueRollTheater;
+
+function playOneRollTheater(roll) {
+  if (skipDiceTheater || !roll || typeof roll.roll !== 'number') return Promise.resolve();
+  return new Promise(resolve => {
+    const costs = [];
+    if (!roll.success && typeof roll.applied_health_change === 'number' && roll.applied_health_change < 0) {
+      costs.push(`${roll.applied_health_change} HP`);
+    }
+    if (!roll.success && typeof roll.applied_mana_change === 'number' && roll.applied_mana_change < 0) {
+      costs.push(`${roll.applied_mana_change} MP`);
+    }
+    diceOverlayEl.innerHTML = `
+      <div class="dice-caption">
+        <div class="dice-check-label">${escapeHtml(roll.attribute || 'stat')} check &mdash; DC ${Number(roll.dc) || '?'}</div>
+        ${roll.reason ? `<div class="dice-reason">${escapeHtml(roll.reason)}</div>` : ''}
+      </div>
+      <div class="dice-stage tumbling">${DICE_D20_SVG}<div class="dice-number"></div></div>
+      <div class="dice-result">
+        <div class="dice-math"></div>
+        <div class="dice-verdict"></div>
+        ${costs.length ? `<div class="dice-cost">${escapeHtml(costs.join(', '))}</div>` : ''}
+      </div>
+      <div class="dice-skip-hint">click to skip</div>`;
+    diceOverlayEl.style.display = 'flex';
+    const stage = diceOverlayEl.querySelector('.dice-stage');
+    const numberEl = diceOverlayEl.querySelector('.dice-number');
+    const resultEl = diceOverlayEl.querySelector('.dice-result');
+    // The cycling digits are pure animation; only the landing value matters,
+    // and it is the engine's recorded roll.
+    numberEl.textContent = String(1 + Math.floor(Math.random() * 20));
+    const tick = setInterval(() => {
+      numberEl.textContent = String(1 + Math.floor(Math.random() * 20));
+    }, 80);
+    const timers = [];
+    let finished = false;
+    const finish = () => {
+      if (finished) return;
+      finished = true;
+      clearInterval(tick);
+      timers.forEach(clearTimeout);
+      diceOverlayEl.onclick = null;
+      diceOverlayEl.style.display = 'none';
+      diceOverlayEl.innerHTML = '';
+      resolve();
+    };
+    // A click skips this roll and everything still queued for the turn.
+    diceOverlayEl.onclick = () => { skipDiceTheater = true; finish(); };
+    timers.push(setTimeout(() => {
+      clearInterval(tick);
+      numberEl.textContent = String(roll.roll);
+      stage.classList.remove('tumbling');
+      stage.classList.add('landed', roll.success ? 'roll-landed-success' : 'roll-landed-failure');
+      const mod = Number(roll.modifier) || 0;
+      resultEl.querySelector('.dice-math').textContent =
+        `${roll.roll} ${mod >= 0 ? '+' : '-'} ${Math.abs(mod)} = ${roll.total} vs DC ${roll.dc}`;
+      const verdictEl = resultEl.querySelector('.dice-verdict');
+      verdictEl.textContent = roll.success ? 'Success' : 'Failure';
+      verdictEl.classList.add(roll.success ? 'success' : 'failure');
+      resultEl.classList.add('shown');
+    }, 1400));
+    timers.push(setTimeout(finish, 3200));
+  });
 }
 
 // Append a dice roll card in the narrative log (Rules Mode check results)

@@ -1672,6 +1672,154 @@ body.holodeck-idle .stars-bg { display: none; }
   color: #ef4444;
 }
 
+/* DICE ROLL THEATER (overlay animation; the log roll card stays the record) */
+.dice-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 600;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+  cursor: pointer;
+}
+
+.dice-stage {
+  position: relative;
+  width: 160px;
+  height: 160px;
+}
+
+.dice-stage svg {
+  width: 100%;
+  height: 100%;
+  color: hsl(var(--theme-primary));
+  filter: drop-shadow(0 6px 18px rgba(0, 0, 0, 0.6));
+}
+
+.dice-stage.tumbling {
+  animation: dice-tumble 0.55s ease-in-out infinite;
+}
+
+@keyframes dice-tumble {
+  0%   { transform: rotate(-14deg) translateY(0) scale(1); }
+  25%  { transform: rotate(8deg) translateY(-14px) scale(1.04); }
+  50%  { transform: rotate(-6deg) translateY(2px) scale(0.98); }
+  75%  { transform: rotate(12deg) translateY(-8px) scale(1.03); }
+  100% { transform: rotate(-14deg) translateY(0) scale(1); }
+}
+
+.dice-stage.landed {
+  animation: dice-land 0.35s ease-out;
+}
+
+@keyframes dice-land {
+  0%   { transform: scale(1.25); }
+  60%  { transform: scale(0.92); }
+  100% { transform: scale(1); }
+}
+
+.dice-stage.landed.roll-landed-success svg {
+  color: #10b981;
+  filter: drop-shadow(0 0 22px rgba(16, 185, 129, 0.55));
+}
+
+.dice-stage.landed.roll-landed-failure svg {
+  color: #ef4444;
+  filter: drop-shadow(0 0 22px rgba(239, 68, 68, 0.55));
+}
+
+.dice-number {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-top: 14px; /* optically center in the die's front face */
+  font-family: var(--font-title);
+  font-size: 42px;
+  font-weight: 800;
+  color: #fff;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.8);
+}
+
+.dice-caption {
+  text-align: center;
+  max-width: 420px;
+  padding: 0 16px;
+}
+
+.dice-check-label {
+  font-family: var(--font-title);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: hsl(var(--theme-text-dim));
+}
+
+.dice-reason {
+  margin-top: 4px;
+  font-size: 12.5px;
+  font-style: italic;
+  color: hsl(var(--theme-text-dim));
+  opacity: 0.85;
+}
+
+.dice-result {
+  min-height: 64px;
+  text-align: center;
+  opacity: 0;
+  transition: opacity 0.2s ease-out;
+}
+
+.dice-result.shown {
+  opacity: 1;
+}
+
+.dice-math {
+  font-size: 14px;
+  color: #fff;
+}
+
+.dice-verdict {
+  margin-top: 6px;
+  font-family: var(--font-title);
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+}
+
+.dice-verdict.success {
+  color: #10b981;
+  text-shadow: 0 0 14px rgba(16, 185, 129, 0.6);
+}
+
+.dice-verdict.failure {
+  color: #ef4444;
+  text-shadow: 0 0 14px rgba(239, 68, 68, 0.6);
+}
+
+.dice-cost {
+  margin-top: 4px;
+  font-size: 12px;
+  color: #ef4444;
+}
+
+.dice-skip-hint {
+  position: absolute;
+  bottom: 18px;
+  font-size: 11px;
+  letter-spacing: 1px;
+  color: hsl(var(--theme-text-dim));
+  opacity: 0.7;
+}
+
 /* TIMELINE STYLING */
 .timeline-node {
   background: rgba(255, 255, 255, 0.01);
