@@ -1186,6 +1186,10 @@ async function backfillGap(fromExclusive, toExclusive, epoch) {
     appendJournalTurns((journal.turns || [])
       .filter(t => t && t.turn_number > fromExclusive && t.turn_number < toExclusive));
   } catch (e) {
+    // A STALE failure must not seed the replacement table's retry queue
+    // (poll-1 r6): pendingGaps is per-table state, and this request was
+    // for a table we already left.
+    if (epoch !== sessionEpoch) return;
     const from = fromExclusive + 1, to = toExclusive - 1;
     if (to >= from && !pendingGaps.some(g => g.from === from && g.to === to)) {
       pendingGaps.push({ from, to });
