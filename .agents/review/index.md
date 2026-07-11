@@ -20,8 +20,31 @@ an owner go; merges stay owner-gated.
 | dt-1 | MEDIUM | Stale roll theater renders over the menu/another campaign after a switch, intercepting input until skip/timeout | `[x]` ACCEPTED, awaiting owner-gated merge | `fix/dt-1-theater-epoch` @ `497ffc5` |
 | dt-2 | LOW | Clicking to skip turn A's dice also silently suppresses an already-queued turn B's theater | `[x]` ACCEPTED, awaiting owner-gated merge | `fix/dt-2-skip-per-batch` @ `c04f0cd` |
 | dt-3 | LOW | Landed die goes generic green/red, contradicting the recorded theme-follow rider (plan/code conflict) | `[x]` ACCEPTED, awaiting owner-gated merge | `fix/dt-3-landed-die-theme` @ `e96a873` |
-| poll-1 | HIGH | Pre-existing: a stale poll response renders campaign A's full state (theme incl.) over campaign B or the menu — no epoch/ownership check after await | `[~]` REOPENED twice → r3 fix-up committed, verdict pending | `fix/poll-1-response-epoch` @ `06d331d` |
+| poll-1 | HIGH | Pre-existing: a stale poll response renders campaign A's full state (theme incl.) over campaign B or the menu — no epoch/ownership check after await | `[~]` REOPENED twice + skeptic regression fix; final verdict pending | `fix/poll-1-response-epoch` @ `1409b58` |
 | css-1 | MEDIUM | Pre-existing: `rgba(var(--theme-*), α)` with HSL-triple vars is invalid CSS — header/glass/panel fills and several glows compute unpainted on every theme today | `[ ]` admitted (r3 catch); fix awaits owner go, also a T2 prerequisite | |
+| jt-1 | HIGH | Pre-existing: Journal tab renders a stale campaign's history over the current one (empirically confirmed); Fork buttons then fork the wrong campaign | `[ ]` admitted (skeptic panel); fix awaits owner go | |
+| dr-1 | MEDIUM | Pre-existing: delete/release settle callbacks wipe theme/state over whichever table the user has since entered | `[ ]` admitted (skeptic panel); fix awaits owner go | |
+| tts-1 | MEDIUM | Pre-existing: the old table's GM voice keeps narrating over the menu/next campaign; skip pill unreachable on the menu | `[ ]` admitted (skeptic panel); fix awaits owner go | |
+| ds-1 | MEDIUM | Pre-existing: choice buttons allow overlapping submits — duplicated transcript entries and a mid-turn UI lie | `[ ]` admitted (skeptic panel); fix awaits owner go | |
+| fk-1 | MEDIUM | Pre-existing: a fork resolving after the user left (keyboard path) silently seizes the table | `[ ]` admitted (skeptic panel); fix awaits owner go | |
+
+Skeptic-panel round (2026-07-11, three parallel adversarial agents, ultracode):
+13 candidates. Five admitted as NEW pre-existing findings of the poll-1 class
+on untouched surfaces (jt-1 confirmed by an executed rig; docs above). One was
+a REGRESSION in the poll-1 branch itself — a delete settling mid-load left a
+blank screen — fixed at `1409b58` (loadCampaignsMenu now owns the menu
+screen) with guard `guard-poll-1e` (FAIL at `06d331d`, PASS at `1409b58`).
+Three were guard gaps proven by MUTATION TESTING: the headline submit-success
+discard was exercised by no guard (now `guard-poll-1c`, FAIL at base), the
+catch-path gate was untested (now `guard-poll-1d`, FAIL at `6188461`), and
+the journal fixtures diverged from the real full-history API (guard-poll-1b
+fixtures now serve full history + playerAction, with a never-re-append
+assertion). One duplicate declined: "dice theater replays over transitions"
+is dt-1, already fixed on its branch — the panel reviewed the poll-1 branch,
+which does not contain it; the stacked merge order covers it. Two LOW
+coverage notes (same-turn else-branch, pollInFlight not individually
+guarded) recorded here as accepted residual risk: the epoch check covers
+their scenarios; guarding each line individually is diminishing returns.
 
 poll-1 reopen round 1 (codex): two unguarded paths — the journal-backfill
 rollback window and the submit's error-path UI. Fix-up `555335a`. Reopen
