@@ -259,21 +259,26 @@ remains an owner playtest verdict on the whole phase.
   defaults); existing campaigns unaffected; suite green.
 - Files: rpg-engine.js, rpg-state.js, public/app.js, public/styles.css, test.js.
 
-**Phase T2: Scene-dynamic theming (DRAFT r3 2026-07-11 — awaiting owner
-approval; nothing here is buildable until the owner approves. r1 was
-codex-reviewed same day: 7 findings addressed; the r2 re-review reopened the
-persistence carrier (double-validation drop), added a contrast requirement,
-and pinned dt-3 as a prerequisite — all folded in below. Trail in
-`.agents/review/index.md`, t2-1…t2-7 + r2-1…r2-3.)**
+**Phase T2: Scene-dynamic theming (DRAFT r4 2026-07-11 — awaiting owner
+approval; nothing here is buildable until the owner approves. Review trail:
+r1 → 7 findings; r2 → carrier drop, contrast, dt-3 prerequisite; r3 → accent
+contrast, opacity compositing, and the pre-existing rgba/HSL variable defect
+(now finding css-1) — all folded in below. Trail in
+`.agents/review/index.md`.)**
 - Owner direction (2026-07-11): the color scheme follows the game as it moves —
   a night-club scene goes neon, a forest goes spring/earth tones. The campaign
   setup theme (T1) remains the baseline; scenes modulate the colors. Fonts
   never change per scene (readability and layout stability).
-- PREREQUISITE (t2-2): finding `poll-1` (stale poll responses repaint an
-  older campaign/scene — `.agents/review/findings/poll-1.md`) must be fixed
-  before or with this phase, or scene themes visibly revert on stale
-  responses. T2's frontend work builds on the session-epoch mechanism that
-  fix introduces.
+- PREREQUISITES: (1) finding `poll-1` (stale responses repaint an older
+  campaign/scene) — T2's frontend work builds on its session-epoch
+  mechanism; (2) finding `dt-3` (landed die color override); (3) finding
+  `css-1` — `rgba(var(--theme-*), α)` with HSL-triple variables is invalid
+  CSS, so the header/glass/panel fills and several glows compute
+  UNPAINTED today (public/styles.css:99-100,126,174,202,262,307 among
+  others); every such use migrates to `hsla(var(--theme-*), α)`, verified
+  by computed-style checks under a non-default palette. Without css-1 the
+  scene palette would recolor text and borders but not the dominant panel
+  surfaces, silently gutting this phase's visible effect.
 - Anchor: the scene theme is LOCATION state, not a per-turn mood signal.
   `locations` gains `theme_json` (db.js ALTER TABLE migration, existing
   pattern; NULL for all pre-existing rows). Rationale: the theme changes
@@ -315,14 +320,29 @@ and pinned dt-3 as a prerequisite — all folded in below. Trail in
   (`normalizeHslColor`, `clampHslLightness`; text ≥60 lightness, text_dim
   40–80 as at rpg-state.js:1449-1463; bg clamped dark). Lightness clamps
   alone do NOT guarantee readability (r2 re-review: bg `60,100%,30%` vs text
-  `0,100%,60%` ≈ 1.2:1), so validation additionally enforces minimum
-  contrast — text ≥4.5:1 and text_dim ≥3:1 against BOTH bg and the derived
-  panel surface (the panel derivation in public/app.js:1446-1450 is
-  deterministic, so the check can compute it) — repairing by stepping the
-  text lightness until compliant, rejecting to null if repair cannot reach
-  compliance. Adverse-hue palettes are required regression fixtures. Invalid
-  or missing → null → baseline applies. Table talk cannot mutate location
-  state (existing no-op net), so the theme cannot drift on questions.
+  `0,100%,60%` ≈ 1.2:1), so validation enforces minimum contrast, and the
+  contract covers every foreground role, not just body text (r3):
+  - text ≥4.5:1 and text_dim ≥3:1 against BOTH bg and the derived panel
+    (the panel derivation in public/app.js:1446-1450 is deterministic, so
+    the validator can compute it);
+  - text_dim is checked on its COMPOSITED color at the lowest opacity any
+    consumer applies (0.7 — e.g. roll reasons, timeline timestamps;
+    public/styles.css:1645-1650, 1765-1770, 1814-1820), and a stylesheet
+    scan test fails if any text_dim consumer drops below that documented
+    floor;
+  - primary/secondary render as headings and accents on bg/panel: ≥3:1
+    required against both;
+  - accents also serve as BUTTON/BADGE BACKGROUNDS under fixed light text
+    (Send button public/index.html:78-82, level badge): a derived
+    `--theme-on-accent` foreground is computed per palette (black or white,
+    whichever clears 4.5:1 on the accent) and those surfaces consume it
+    instead of hardcoded white.
+  Repair by stepping the offending slot's lightness until compliant;
+  reject to null when repair cannot converge. Adverse-hue fixtures are
+  required regressions: accent headings, the Send button, the level badge,
+  and near-white/near-black accent palettes. Invalid or missing → null →
+  baseline applies. Table talk cannot mutate location state (existing
+  no-op net), so the theme cannot drift on questions.
 - Payload: state payloads gain `sceneTheme` (validated current-location
   theme or null) everywhere `themeColors` is emitted
   (rpg-engine.js:1416/1896/1983). Seats receive it via an explicit
@@ -364,7 +384,9 @@ and pinned dt-3 as a prerequisite — all folded in below. Trail in
   assert exact propagation to the seat view and run the existing leak scan
   over it. Suite green. Functional smoke: two locations with distinct
   palettes visibly swap the UI theme on movement, including background and
-  panels, not just accents. Feel gate: owner playtest verdict.
+  panels, not just accents — asserted via COMPUTED styles on the header,
+  glass panels, and narrative panel under a non-default palette (guards
+  css-1 staying fixed). Feel gate: owner playtest verdict.
 - Non-goals (v1): per-turn mood shifts inside one location (e.g. combat
   tint); per-scene fonts; coupling to heroic/image generation; retro-theming
   locations generated before this phase (their `theme_json` stays null →

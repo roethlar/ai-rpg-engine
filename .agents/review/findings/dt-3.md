@@ -1,7 +1,7 @@
 # dt-3: Landed die drops the theme palette for generic green/red
 
 **Severity**: LOW — plan/code contradiction; observable as a themed die going generic at its most prominent moment. No functional harm.
-**Status**: In progress (fix committed, reviewer verdict pending)
+**Status**: Verified (ACCEPTED; awaiting owner-gated merge)
 **Branch**: `fix/dt-3-landed-die-theme` (stacked on `fix/dt-2-skip-per-batch`)
 **Commit**: `e96a873` (base `c04f0cd`)
 
@@ -34,4 +34,9 @@ None — the rider is the recorded intent; the code loses to the plan here.
 None.
 
 ## Reviewer comments
-(intake verdict only; fix not yet dispatched)
+codex-cli 0.144.1 · reviewed `e96a873` vs base `c04f0cd` · 2026-07-11 (UTC) ·
+verdict **ACCEPTED**, findings: none. "The diff removes all roll-landed-*
+selectors and class plumbing while retaining the landed animation; the die
+stays on --theme-primary and .dice-verdict/.dice-cost retain semantic
+green/red. The guard is non-vacuous and genuinely distinguishes the fix
+(magenta landed die at e96a873, stock green at c04f0cd)."

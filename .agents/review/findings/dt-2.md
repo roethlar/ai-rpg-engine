@@ -1,7 +1,7 @@
 # dt-2: Click-to-skip suppresses a later turn's queued theater
 
 **Severity**: LOW — a valid fresh turn's animation is silently skipped; the log card still records the roll, so information loss is cosmetic.
-**Status**: In progress (fix committed, reviewer verdict pending)
+**Status**: Verified (ACCEPTED; awaiting owner-gated merge)
 **Branch**: `fix/dt-2-skip-per-batch` (stacked on `fix/dt-1-theater-epoch`)
 **Commit**: `c04f0cd` (base `497ffc5`)
 
@@ -33,4 +33,8 @@ None — confirmed; window is narrow (needs B queued behind a still-playing A) w
 None.
 
 ## Reviewer comments
-(intake verdict only; fix not yet dispatched)
+codex-cli 0.144.1 · reviewed `c04f0cd` vs base `497ffc5` · 2026-07-11 (UTC) ·
+verdict **ACCEPTED**, findings: none. "Skip state and dt-1 epoch are scoped to
+each queueRollTheater batch; no skipDiceTheater leftovers. The serialized
+queue binds clicks to the active batch. The guard genuinely distinguishes the
+commits: 497ffc5 failed with bPlayed=false, c04f0cd passed with bPlayed=true."

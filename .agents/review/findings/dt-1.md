@@ -1,7 +1,7 @@
 # dt-1: Stale roll theater after campaign or session changes
 
 **Severity**: MEDIUM — wrong-context overlay intercepts pointer input over the menu/another campaign (self-clears ≤3.2s/roll, click-dismissable), and misattributes a roll to the wrong table.
-**Status**: In progress (fix committed, reviewer verdict pending)
+**Status**: Verified (ACCEPTED; awaiting owner-gated merge)
 **Branch**: `fix/dt-1-theater-epoch` (stacked on `fix/poll-1-response-epoch`)
 **Commit**: `497ffc5` (base `6188461`)
 
@@ -33,4 +33,11 @@ None — confirmed against code.
 Overlaps poll-1 (root: unguarded post-await renders). dt-1 scopes the theater surface only; poll-1 owns the full stale-render fix.
 
 ## Reviewer comments
-(intake verdict only; fix not yet dispatched)
+codex-cli 0.144.1 · reviewed `497ffc5` vs base `6188461` · 2026-07-11 (UTC) ·
+verdict **ACCEPTED**, findings: none. "The active finish handle dismisses the
+overlay synchronously and is cleared before promise continuations run; queued
+rolls capture and validate the enqueue-time epoch. Re-entrancy, declaration
+hoisting, and click-to-skip remain safe. The corrected guard independently
+passed on 497ffc5 and failed on 6188461." (Custom no_material_issue schema —
+the read-only reviewer could not run the browser guard itself; it verified
+the guard script and the recorded two-direction results.)

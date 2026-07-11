@@ -17,10 +17,22 @@ an owner go; merges stay owner-gated.
 
 | ID | Severity | Impact (one line) | Status | Branch |
 |----|----------|-------------------|--------|--------|
-| dt-1 | MEDIUM | Stale roll theater renders over the menu/another campaign after a switch, intercepting input until skip/timeout | `[~]` fix committed, verdict pending | `fix/dt-1-theater-epoch` @ `497ffc5` |
-| dt-2 | LOW | Clicking to skip turn A's dice also silently suppresses an already-queued turn B's theater | `[~]` fix committed, verdict pending | `fix/dt-2-skip-per-batch` @ `c04f0cd` |
-| dt-3 | LOW | Landed die goes generic green/red, contradicting the recorded theme-follow rider (plan/code conflict) | `[~]` fix committed, verdict pending | `fix/dt-3-landed-die-theme` @ `e96a873` |
-| poll-1 | HIGH | Pre-existing: a stale poll response renders campaign A's full state (theme incl.) over campaign B or the menu — no epoch/ownership check after await | `[~]` fix committed, verdict pending | `fix/poll-1-response-epoch` @ `6188461` |
+| dt-1 | MEDIUM | Stale roll theater renders over the menu/another campaign after a switch, intercepting input until skip/timeout | `[x]` ACCEPTED, awaiting owner-gated merge | `fix/dt-1-theater-epoch` @ `497ffc5` |
+| dt-2 | LOW | Clicking to skip turn A's dice also silently suppresses an already-queued turn B's theater | `[x]` ACCEPTED, awaiting owner-gated merge | `fix/dt-2-skip-per-batch` @ `c04f0cd` |
+| dt-3 | LOW | Landed die goes generic green/red, contradicting the recorded theme-follow rider (plan/code conflict) | `[x]` ACCEPTED, awaiting owner-gated merge | `fix/dt-3-landed-die-theme` @ `e96a873` |
+| poll-1 | HIGH | Pre-existing: a stale poll response renders campaign A's full state (theme incl.) over campaign B or the menu — no epoch/ownership check after await | `[~]` REOPENED → fix-up committed, r2 verdict pending | `fix/poll-1-response-epoch` @ `555335a` |
+| css-1 | MEDIUM | Pre-existing: `rgba(var(--theme-*), α)` with HSL-triple vars is invalid CSS — header/glass/panel fills and several glows compute unpainted on every theme today | `[ ]` admitted (r3 catch); fix awaits owner go, also a T2 prerequisite | |
+
+poll-1 reopen (codex, 2026-07-11): accepted the epoch mechanism and the
+guard, found two unguarded paths — (1) the journal-backfill window lets a
+same-campaign submit render turn N+1, then the released poll rolls back to
+turn N (epoch unchanged, monotonic check ran before the awaits); (2) the
+submit's non-OK/catch paths did their UI work (notice, input restore,
+settings modal) without an epoch check. Fix-up `555335a`: post-backfill
+re-check of submit ownership + turn monotonicity; error-path UI gated on
+epoch, finally still unconditional. Guard `guard-poll-1b.mjs`: both
+scenarios FAIL at `6188461`, PASS at `555335a`; original scenario still
+passes; suite green.
 
 Fix stack (owner go 2026-07-11): poll-1 → dt-1 → dt-2 → dt-3, each branch
 stacked on the previous (dt-1 builds on poll-1's epoch; merges owner-gated,
@@ -62,9 +74,18 @@ new findings, all admitted and folded into draft r3:
 
 | ID | Severity | Impact (one line) | Status |
 |----|----------|-------------------|--------|
-| r2-1 | HIGH | t2-1 carrier still broken: validateTurnData's second validation pass re-projects the location and drops the engine-stamped generated_theme before INSERT (generated_layout survives, theme would not) | `[~]` r3 mirrors generated_layout through rpg-state.js:544-553 |
-| r2-2 | MEDIUM | Independent HSL lightness clamps allow ~1.2:1 contrast — a valid palette can be unreadable while all stated tests pass | `[~]` r3 adds min-contrast repair/reject vs bg AND derived panel |
-| r2-3 | LOW | "Dice theater follows for free" is false until dt-3 lands (landed die is hard green/red) | `[~]` r3 pins dt-3 as a T2 prerequisite |
+| r2-1 | HIGH | t2-1 carrier still broken: validateTurnData's second validation pass re-projects the location and drops the engine-stamped generated_theme before INSERT (generated_layout survives, theme would not) | `[x]` closed by r3 (confirmed by r3 verdict) |
+| r2-2 | MEDIUM | Independent HSL lightness clamps allow ~1.2:1 contrast — a valid palette can be unreadable while all stated tests pass | `[x]` closed by r3 (confirmed by r3 verdict) |
+| r2-3 | LOW | "Dice theater follows for free" is false until dt-3 lands (landed die is hard green/red) | `[x]` closed by r3 (confirmed by r3 verdict) |
+
+r3 verdict: NOT accepted — carrier and dt-3 closed; three rendering findings,
+all admitted and folded into draft r4:
+
+| ID | Severity | Impact (one line) | Status |
+|----|----------|-------------------|--------|
+| r3-1 | MEDIUM | Accents (primary/secondary) outside the contrast contract — a passing palette can render the Send button white-on-white | `[~]` r4: accent roles ≥3:1, derived `--theme-on-accent` for accent backgrounds, fixtures |
+| r3-2 | MEDIUM | 0.7–0.85 opacity on text_dim surfaces drops below the promised 3:1 floor while validator tests pass | `[~]` r4: contrast checked on the composited color at the 0.7 floor + stylesheet scan test |
+| r3-3 | LOW | `rgba(var(--theme-*), α)` with HSL triples is invalid — panel/glow fills compute unpainted, contradicting the no-per-surface-work claim | `[~]` promoted to code finding css-1; r4 pins it as a T2 prerequisite |
 
 ---
 

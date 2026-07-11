@@ -1,9 +1,9 @@
 # poll-1: Stale poll responses render an older campaign/scene over the current one
 
 **Severity**: HIGH — a whole stale campaign state (narrative, theme, party, dice) can replace the currently loaded one; user actions then target a different campaign than the one displayed.
-**Status**: In progress (fix committed, reviewer verdict pending)
+**Status**: In progress (REOPENED by reviewer; fix-up committed, r2 verdict pending)
 **Branch**: `fix/poll-1-response-epoch`
-**Commit**: `6188461` (base `1894461`)
+**Commit**: `6188461` → fix-up `555335a` (base `1894461`)
 
 ## Evidence
 `public/app.js:1223-1259` — overlapping polls are possible; no campaign/epoch captured before the awaits; the guard is `state.turn?.number !== lastRenderedTurnNumber` which accepts *older* turn numbers too; no ownership re-check after await. Transitions that invalidate in-flight work: menu return `public/app.js:783-793`, campaign load `public/app.js:876-887`, fork switch `public/app.js:2116-2120`. `renderGame` applies the payload's theme unconditionally (`public/app.js:939-942`).
@@ -34,4 +34,19 @@ None — confirmed against code.
 Recorded as prerequisite for Phase T2 (finding t2-2). Fix ordering: poll-1 first or together with dt-1.
 
 ## Reviewer comments
-(intake verdict only; fix not yet dispatched)
+codex-cli 0.144.1 · reviewed `6188461` vs base `1894461` · 2026-07-11 (UTC) ·
+verdict **REOPENED** (2 findings; the epoch mechanism, bump ordering, cleanup
+blocks, and the guard's discriminating power were accepted):
+1. HIGH — journal-backfill window: the monotonic check ran before the journal
+   awaits; a same-campaign submit (no epoch bump) rendering turn N+1 lets the
+   released poll roll the table back to turn N.
+2. MEDIUM — stale submit failures: the non-OK and catch paths appended
+   notices, restored the input, and could open Settings on the replacement
+   table without an epoch check.
+
+Fix-up `555335a`: post-backfill re-check of `turnSubmitInFlight` + turn
+monotonicity immediately before render; error-path UI gated on the captured
+epoch; `finally` unconditional. Guard `guard-poll-1b.mjs` (both scenarios):
+FAIL at `6188461` (`rolledBack:true`, `noticeLeaked:true`,
+`inputHijacked:true`), PASS at `555335a`; the original stale-switch scenario
+still passes; suite green. r2 verdict pending.
