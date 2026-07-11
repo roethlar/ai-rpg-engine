@@ -20,7 +20,7 @@ an owner go; merges stay owner-gated.
 | dt-1 | MEDIUM | Stale roll theater renders over the menu/another campaign after a switch, intercepting input until skip/timeout | `[ ]` | |
 | dt-2 | LOW | Clicking to skip turn A's dice also silently suppresses an already-queued turn B's theater | `[ ]` | |
 | dt-3 | LOW | Landed die goes generic green/red, contradicting the recorded theme-follow rider (plan/code conflict) | `[ ]` | |
-| poll-1 | HIGH | Pre-existing: a stale poll response renders campaign A's full state (theme incl.) over campaign B or the menu — no epoch/ownership check after await | `[ ]` | |
+| poll-1 | HIGH | Pre-existing: a stale poll response renders campaign A's full state (theme incl.) over campaign B or the menu — no epoch/ownership check after await | `[~]` fix committed, verdict pending | `fix/poll-1-response-epoch` @ `6188461` |
 
 Intake: codex returned 3 candidates on the dice range; all 3 admitted, 0
 declined. poll-1 admitted from the T2 pass's evidence (public/app.js:1223-1259,
@@ -42,6 +42,15 @@ dice slice. dt-1's clean fix shares poll-1's epoch mechanism.
 Intake: codex returned 7 candidates on the T2 draft; all 7 admitted (each
 verified against cited code), 0 declined. All are plan-text defects fixed by
 revising the draft; `[~]` until the codex re-review of the revision accepts.
+
+r2 re-review verdict: NOT accepted — t2-2…t2-7 closed; t2-1 REOPENED plus two
+new findings, all admitted and folded into draft r3:
+
+| ID | Severity | Impact (one line) | Status |
+|----|----------|-------------------|--------|
+| r2-1 | HIGH | t2-1 carrier still broken: validateTurnData's second validation pass re-projects the location and drops the engine-stamped generated_theme before INSERT (generated_layout survives, theme would not) | `[~]` r3 mirrors generated_layout through rpg-state.js:544-553 |
+| r2-2 | MEDIUM | Independent HSL lightness clamps allow ~1.2:1 contrast — a valid palette can be unreadable while all stated tests pass | `[~]` r3 adds min-contrast repair/reject vs bg AND derived panel |
+| r2-3 | LOW | "Dice theater follows for free" is false until dt-3 lands (landed die is hard green/red) | `[~]` r3 pins dt-3 as a T2 prerequisite |
 
 ---
 

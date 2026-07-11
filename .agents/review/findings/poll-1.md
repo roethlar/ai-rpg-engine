@@ -1,9 +1,9 @@
 # poll-1: Stale poll responses render an older campaign/scene over the current one
 
 **Severity**: HIGH — a whole stale campaign state (narrative, theme, party, dice) can replace the currently loaded one; user actions then target a different campaign than the one displayed.
-**Status**: Open
-**Branch**: (cut on fix start: `fix/poll-1-response-epoch`)
-**Commit**:
+**Status**: In progress (fix committed, reviewer verdict pending)
+**Branch**: `fix/poll-1-response-epoch`
+**Commit**: `6188461` (base `1894461`)
 
 ## Evidence
 `public/app.js:1223-1259` — overlapping polls are possible; no campaign/epoch captured before the awaits; the guard is `state.turn?.number !== lastRenderedTurnNumber` which accepts *older* turn numbers too; no ownership re-check after await. Transitions that invalidate in-flight work: menu return `public/app.js:783-793`, campaign load `public/app.js:876-887`, fork switch `public/app.js:2116-2120`. `renderGame` applies the payload's theme unconditionally (`public/app.js:939-942`).
@@ -15,13 +15,17 @@ A poll for campaign A dispatched just before switching resolves after campaign B
 Pre-existing (predates the dice slice): the shared-table poll loop trusts any response that arrives, with no notion of "is this still the session/campaign/turn I asked about."
 
 ## Approach
-(proposed) A monotonically increasing session epoch bumped on campaign load / menu / seat-session / fork transitions; every async render path captures the epoch at dispatch and discards on mismatch after each await; reject non-monotonic turn snapshots; serialize the poll (skip if one is in flight). dt-1's theater invalidation hangs off the same epoch.
+`sessionEpoch` module counter + `bumpSessionEpoch()` (public/app.js:6-13), bumped at: menu return (`loadCampaignsMenu`), campaign load entry (`loadCampaign`), fork adoption (`forkCampaignTimeline`), and the seat-token session re-route. Consumers capture the epoch at dispatch and discard after every await on mismatch: the poll loop (also serialized via `pollInFlight`, with non-monotonic turn snapshots rejected), the turn submit path, and `loadCampaign` itself. dt-1's theater invalidation hangs off the same epoch.
 
 ## Files changed
-- (pending)
+- `public/app.js` — epoch declaration + 4 bump sites + 3 guarded consumers (46 insertions, 9 deletions)
 
 ## Guard proof
-Headless-browser check: stub a delayed poll response for campaign A, switch to B before it resolves, assert B's title/theme/log remain. Frontend not suite-covered; state in verdict record.
+The unit suite does not load browser modules, so the guard is a scripted headless-browser proof: `guard-poll-1.mjs` (session scratchpad) fabricates two campaigns via route interception, holds campaign Alpha's in-flight poll response across a switch to Beta, then releases it as a NEWER Alpha turn.
+- Fix reverted (master `public/app.js`): `{"pass":false,"staleVisible":true}` — Alpha's stale narrative rendered over Beta. FAIL confirmed.
+- Fix present (`6188461`): `{"pass":true,"staleVisible":false,"betaIntact":true}` — response discarded. PASS confirmed.
+- `AI_RETRY_BACKOFF_MS=10 node test.js` green at `6188461`.
+Process note: the first revert-proof run was done against the uncommitted fix and destroyed it (`git checkout master -- <file>` with branch == base); the fix was reapplied identically and committed before re-proving. Lesson recorded: commit before revert-proofs.
 
 ## Coder dispute (if any)
 None — confirmed against code.

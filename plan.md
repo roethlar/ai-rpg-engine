@@ -259,10 +259,12 @@ remains an owner playtest verdict on the whole phase.
   defaults); existing campaigns unaffected; suite green.
 - Files: rpg-engine.js, rpg-state.js, public/app.js, public/styles.css, test.js.
 
-**Phase T2: Scene-dynamic theming (DRAFT r2 2026-07-11 — awaiting owner
+**Phase T2: Scene-dynamic theming (DRAFT r3 2026-07-11 — awaiting owner
 approval; nothing here is buildable until the owner approves. r1 was
-codex-reviewed same day: 7 findings, all addressed below — trail in
-`.agents/review/index.md`, t2-1…t2-7.)**
+codex-reviewed same day: 7 findings addressed; the r2 re-review reopened the
+persistence carrier (double-validation drop), added a contrast requirement,
+and pinned dt-3 as a prerequisite — all folded in below. Trail in
+`.agents/review/index.md`, t2-1…t2-7 + r2-1…r2-3.)**
 - Owner direction (2026-07-11): the color scheme follows the game as it moves —
   a night-club scene goes neon, a forest goes spring/earth tones. The campaign
   setup theme (T1) remains the baseline; scenes modulate the colors. Fonts
@@ -285,27 +287,42 @@ codex-reviewed same day: 7 findings, all addressed below — trail in
   scene bg the dominant surfaces would keep the campaign baseline and a
   forest→nightclub move would only recolor accents. `bg` is dark-clamped on
   validation so text stays readable on every derived surface.
-- Generation and the persistence carrier (t2-1, t2-6): the once-per-location
-  continuity-role call `generateLocationLayout` (rpg-engine.js:490) gains a
-  `theme` object in its response schema and returns `{layout, theme}`; the
-  opening-location call (rpg-engine.js:1243) likewise. The engine stamps the
-  validated theme onto the location update as `generated_theme` — a sibling
-  of the existing `generated_layout`, engine-stamped AFTER validation, so
-  `validateLocationUpdate` (rpg-state.js:505-511) does NOT carry a theme
-  field and per-turn model output can never inject or mutate one. Both
-  location INSERTs (rpg-engine.js:1367 opening, rpg-engine.js:1821 first
-  entry) write `theme_json`; hydration (`getCurrentLocation` path,
-  rpg-engine.js:304-313) parses and re-validates it onto `location.theme`.
-  Theme is write-once at row creation, read-only thereafter. Timing
-  precision: generation happens once per SUCCESSFULLY COMMITTED first entry —
-  a first-entry turn that final continuity rejects discards the candidate
-  (rpg-engine.js:1052-1063) and a retried entry regenerates; only the
-  committed result persists. That retry cost is accepted and documented.
+- Generation and the persistence carrier (t2-1, t2-6; carrier corrected in
+  r3 after the r2 re-review caught the double-validation drop): the
+  once-per-location continuity-role call `generateLocationLayout`
+  (rpg-engine.js:490) gains a `theme` object in its response schema and
+  returns `{layout, theme}`; the opening-location call (rpg-engine.js:1243)
+  likewise. The carrier mirrors `generated_layout` EXACTLY, because the turn
+  pipeline validates twice: (1) raw model output passes
+  `validateLocationUpdate` (rpg-state.js:505-511), which strips any
+  model-supplied theme field — per-turn output can never inject one; (2) the
+  engine then stamps `generated_theme` (already `validateSceneTheme`-clean)
+  beside `generated_layout` (rpg-engine.js:1037-1043 region); (3)
+  `validateTurnData`'s re-validation projection (rpg-state.js:544-553) must
+  PRESERVE `generated_theme` exactly as it preserves `generated_layout` —
+  omitting it there silently drops every first-entry theme before the INSERT
+  (the r2 defect). Both location INSERTs (rpg-engine.js:1367 opening,
+  rpg-engine.js:1821 first entry) write `theme_json`; hydration
+  (rpg-engine.js:304-313) parses and re-validates onto `location.theme`.
+  Theme is write-once at row creation, read-only thereafter. A required
+  end-to-end test drives a stubbed normal first-entry turn and asserts the
+  new row's `theme_json` is populated (not just the opening location's).
+  Timing precision: generation happens once per SUCCESSFULLY COMMITTED first
+  entry — a first-entry turn that final continuity rejects discards the
+  candidate (rpg-engine.js:1052-1063) and a retried entry regenerates; only
+  the committed result persists. That retry cost is accepted and documented.
 - Validation: `validateSceneTheme` in rpg-state.js reusing the T1 primitives
   (`normalizeHslColor`, `clampHslLightness`; text ≥60 lightness, text_dim
-  40–80 as at rpg-state.js:1449-1463; bg clamped dark). Invalid or missing →
-  null → baseline applies. Table talk cannot mutate location state (existing
-  no-op net), so the theme cannot drift on questions.
+  40–80 as at rpg-state.js:1449-1463; bg clamped dark). Lightness clamps
+  alone do NOT guarantee readability (r2 re-review: bg `60,100%,30%` vs text
+  `0,100%,60%` ≈ 1.2:1), so validation additionally enforces minimum
+  contrast — text ≥4.5:1 and text_dim ≥3:1 against BOTH bg and the derived
+  panel surface (the panel derivation in public/app.js:1446-1450 is
+  deterministic, so the check can compute it) — repairing by stepping the
+  text lightness until compliant, rejecting to null if repair cannot reach
+  compliance. Adverse-hue palettes are required regression fixtures. Invalid
+  or missing → null → baseline applies. Table talk cannot mutate location
+  state (existing no-op net), so the theme cannot drift on questions.
 - Payload: state payloads gain `sceneTheme` (validated current-location
   theme or null) everywhere `themeColors` is emitted
   (rpg-engine.js:1416/1896/1983). Seats receive it via an explicit
@@ -327,13 +344,16 @@ codex-reviewed same day: 7 findings, all addressed below — trail in
 - Frontend: `applyCampaignTheme` gains a `sceneTheme` parameter — its slots
   override the campaign baseline before the CSS variables are set
   (public/app.js:940, 1414-1456); derived vars (panel/border/glow) recompute
-  from the merged palette exactly as today, so every themed surface — dice
-  theater included — follows with no per-surface work. A short CSS color
-  transition gives a soft crossfade on scene change (disabled under
-  prefers-reduced-motion). Stale-response safety comes from the poll-1
-  epoch (prerequisite above).
+  from the merged palette exactly as today, so every themed surface follows
+  with no per-surface work — for the dice theater this holds only once
+  finding dt-3 lands (its landed state currently overrides the die color
+  with fixed green/red), so dt-3 is a T2 prerequisite alongside poll-1. A
+  short CSS color transition gives a soft crossfade on scene change
+  (disabled under prefers-reduced-motion). Stale-response safety comes from
+  the poll-1 epoch (prerequisite above).
 - Success criteria: unit tests — clamp/reject in validateSceneTheme (incl.
-  dark-clamped bg); merge precedence (scene over baseline; null → baseline);
+  dark-clamped bg, and contrast repair/reject proven against adverse-hue
+  fixtures); merge precedence (scene over baseline; null → baseline);
   revisit reuses the stored theme without regenerating; a table-talk turn
   leaves the theme unchanged; a rejected first-entry turn persists nothing;
   a DB-backed export→import round trip carries a real theme AND the pinned
