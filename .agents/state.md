@@ -33,10 +33,13 @@ to `docs/history/state-archive.md`.
 - Design the reopened rules system (decision 2026-07-11 in
   `.agents/decisions.md`): a working, user-predictable ruleset; the
   freeform/no-rules path is not viable for multiplayer. Process set by the
-  owner 2026-07-11: the owner is gathering several existing rules systems and
-  will hand them over; the agent then synthesizes a system fitted to this
-  game from them. Waiting on that material — do not start the design without
-  it. Plan + phase promotion still required before implementation.
+  owner 2026-07-11: the owner is gathering several existing rules systems
+  (working in Claude on the web) and will hand them over; the agent then
+  synthesizes a system fitted to this game from them. Waiting on that
+  material — do not start the design without it. Plan + phase promotion
+  still required before implementation. The synthesis must also settle which
+  dice exist: the dice theater generalizes from d20-only via a `sides` field
+  on the roll record (rider on the Phase 1 slice in plan.md).
 - Run the playtest. Owner steps before play, on the hosting machine: set
   `ACCESS_SECRET` + `ADMIN_SECRET`, confirm an AI provider is configured
   there, expose the server, create the second character (party strip

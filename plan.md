@@ -44,6 +44,12 @@ the poll path (the rest of the table sees the same roll land); never on
 campaign load, join, or journal backfill; respects prefers-reduced-motion;
 click skips. Gate is functional: owner one-look.
 Files: public/index.html, public/styles.css, public/app.js.
+Riders (owner 2026-07-11): the die body/glow follows `--theme-primary` so it
+inherits campaign — and later scene-dynamic — theming automatically; verdict
+green/red stay semantic. Die-type generalization (d4–d12, d100, …) rides the
+reopened rules-system design: which dice exist is a property of the chosen
+system; when it lands, the roll record gains a `sides` field and the theater
+picks the matching die face. d20-only until then — the engine only rolls d20.
 
 - Make narration richer, more atmospheric, and less mechanical.
 - Improve scene visualization (owner direction recorded under "Maps & Character Miniatures" in Future Topics: overhead map + tokens replaces the per-turn scene SVG; image-gen hero renders for notable encounters come in a later phase — concrete scoping deferred until after Phase 0).
@@ -430,6 +436,17 @@ existing secrets warnings/production fail-closed startup behavior.
 ## Future Topics for Discussion (not yet scheduled)
 
 Raised during planning but deliberately deferred. **Per project rule, nothing here may be implemented until it is promoted into a concrete phase with planned entries.**
+
+- **Scene-dynamic theming (owner direction 2026-07-11 — not yet scheduled).**
+  Theming today is generated once at campaign setup (decision 2026-07-03,
+  Phase T1). The owner intends the color scheme to follow the *game* as it
+  moves: a night-club scene goes neon, a forest goes spring/earth tones. This
+  extends setup theming rather than replacing it — the campaign theme is the
+  baseline; scenes modulate it. Likely mechanism when promoted: a theme
+  signal through the referee/continuity gate (engine-owned state with
+  stickiness, like the focal-subject signal — never per-turn prompt freedom),
+  reusing the existing validated-HSL pipeline. Surfaces that read the theme
+  CSS variables (dice theater included) inherit scene theming for free.
 
 - **Owner/player settings split & simple auth.** AI provider config is server-owned (see decision 2026-06-11 in `.agents/decisions.md`); the open question is the mechanism. Leading idea: a separate `/admin` URL — not linked from the game UI — gated by a master password distinct from any per-player credentials, where the owner manages provider/model/keys (and model-name entry UX, e.g. presets/datalist, lives there too). Implies an eventually-real, if simple, auth system: players will need credentials to protect/reclaim their persistent characters once the game is hosted publicly, so per-player auth and owner auth should be designed together rather than bolted on twice. Current single-key UI is acceptable while operator and player are the same person.
 
