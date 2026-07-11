@@ -1864,7 +1864,6 @@ const DICE_D20_SVG = `<svg viewBox="0 0 120 120" fill="none" xmlns="http://www.w
   <path d="M60 10 L60 34 M15 36 L60 34 M105 36 L60 34 M15 36 L34 82 M15 88 L34 82 M60 114 L34 82 M105 36 L86 82 M105 88 L86 82 M60 114 L86 82" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>`;
 let diceTheaterQueue = Promise.resolve();
-let skipDiceTheater = false;
 // Finish handle of the roll currently on screen, so a table transition can
 // dismiss it synchronously (dt-1). Null when nothing is playing.
 let activeTheaterFinish = null;
@@ -1879,18 +1878,19 @@ function dismissRollTheater() {
 function queueRollTheater(rolls) {
   if (!Array.isArray(rolls) || rolls.length === 0) return;
   if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-  skipDiceTheater = false;
-  const epoch = sessionEpoch;
+  // One batch per turn (dt-2): click-to-skip drains only this turn's
+  // remaining rolls; a batch queued by a later turn keeps its own state.
+  const batch = { skipped: false, epoch: sessionEpoch };
   rolls.forEach(roll => {
-    diceTheaterQueue = diceTheaterQueue.then(() => playOneRollTheater(roll, epoch)).catch(() => {});
+    diceTheaterQueue = diceTheaterQueue.then(() => playOneRollTheater(roll, batch)).catch(() => {});
   });
 }
 // Exposed for live smoke tests and console debugging; cosmetic only.
 window.queueRollTheater = queueRollTheater;
 
-function playOneRollTheater(roll, epoch) {
-  if (epoch !== sessionEpoch) return Promise.resolve(); // queued for a table we left
-  if (skipDiceTheater || !roll || typeof roll.roll !== 'number') return Promise.resolve();
+function playOneRollTheater(roll, batch) {
+  if (batch.epoch !== sessionEpoch) return Promise.resolve(); // queued for a table we left
+  if (batch.skipped || !roll || typeof roll.roll !== 'number') return Promise.resolve();
   return new Promise(resolve => {
     const costs = [];
     if (!roll.success && typeof roll.applied_health_change === 'number' && roll.applied_health_change < 0) {
@@ -1935,8 +1935,8 @@ function playOneRollTheater(roll, epoch) {
       resolve();
     };
     activeTheaterFinish = finish;
-    // A click skips this roll and everything still queued for the turn.
-    diceOverlayEl.onclick = () => { skipDiceTheater = true; finish(); };
+    // A click skips this roll and the rest of ITS turn's batch only.
+    diceOverlayEl.onclick = () => { batch.skipped = true; finish(); };
     timers.push(setTimeout(() => {
       clearInterval(tick);
       numberEl.textContent = String(roll.roll);
