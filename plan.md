@@ -423,9 +423,13 @@ Raised during planning but deliberately deferred. **Per project rule, nothing he
 
 - **Model fallback tiering on transient provider errors.** Provider overload (e.g. Gemini 503) must never surface as a raw error in the DM's voice, and the DM cannot "take a break" — that kills the session. Direction: retry once, and/or fail over to a configured backup model per request. Open questions: how backup tiers are configured (depends on the owner-settings design above), and how failover interacts with Council role separation — a mid-chain model swap must not muddy the separation of duties or change adjudication behavior within a single turn. Frontend should restore the player's input and present transient failures as retriable, outside the DM's voice.
 
-- **Spells, abilities & ruleset consistency — PROMOTED 2026-07-03** (decision in
-  `.agents/decisions.md`: selectable at campaign start, lightweight house system
-  as default, open-source systems as later options). First-cut implementation:
+- **Spells, abilities & ruleset consistency — REOPENED 2026-07-11** (decision in
+  `.agents/decisions.md`): the engine needs a working, *user-predictable* rules
+  system; the freeform/no-rules path is not viable for multiplayer, and external
+  systems are back on the table. The 2026-07-03 first cut described below is
+  landed code but no longer the settled end state — a new design must be planned
+  and promoted before implementation. Original promotion (2026-07-03: selectable
+  at campaign start, lightweight house system as default). First-cut implementation:
   campaign creation gains a ruleset selection; the Setup role generates the
   house ruleset for the campaign (resolution = the engine's existing d20 +
   attribute mod vs DC; campaign-specific starting abilities/spells with costs

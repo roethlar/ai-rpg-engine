@@ -30,6 +30,11 @@ to `docs/history/state-archive.md`.
 
 ## Next
 
+- Design the reopened rules system (decision 2026-07-11 in
+  `.agents/decisions.md`): a working, user-predictable ruleset; the
+  freeform/no-rules path is not viable for multiplayer; external systems are
+  back on the table. Discussion → plan → phase promotion before any
+  implementation. Nothing scheduled yet.
 - Run the playtest. Owner steps before play, on the hosting machine: set
   `ACCESS_SECRET` + `ADMIN_SECRET`, confirm an AI provider is configured
   there, expose the server, create the second character (party strip

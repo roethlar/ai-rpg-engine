@@ -309,9 +309,38 @@ plumbing that must be designed in rather than bolted on.
 Supersedes:
 Nothing; concretizes the provider-strategy topic for images.
 
-### 2026-07-04 - External rulesets dropped; the generated house system is the system
+### 2026-07-11 - Rules system REOPENED: games need a working, user-predictable system; freeform is not viable for multiplayer
 
 Status: Active
+
+Decision:
+The rules-system question is reopened. Owner requirement: the engine must
+provide a working rules system that is *predictable to the user* — players
+can learn the rules and rely on them being applied the same way every time.
+The no-rules path (`rules_mode` off / ruleset "none") is judged "just AI-led
+storytime" and not useful for a multiplayer game. What ships — the generated
+house sheet hardened into something reliable, an adopted external system
+(back on the table), or another design — and what happens to the freeform
+option are OPEN design questions. Per the phased-development contract,
+nothing is implemented until a concrete plan/phase is approved.
+
+Reason:
+Owner 2026-07-11, on being shown the current shape (fixed d20 engine, an
+AI-generated house sheet as soft canon, dice optional per campaign):
+"undecide that. that is not my intention. we need to create a working,
+predictable to the user system for these games. no rules mode is just AI led
+storytime, and not useful for a multiplayer game."
+
+Supersedes:
+The 2026-07-04 "External rulesets dropped" decision below (status updated).
+The 2026-07-03 selectable-ruleset decision's specifics (house default,
+option list) are subject to the reopened design; its canon-state half — the
+ruleset is persistent, Council-consultable, player-viewable campaign state —
+stands unchallenged.
+
+### 2026-07-04 - External rulesets dropped; the generated house system is the system
+
+Status: Superseded (rules system reopened 2026-07-11 — see the decision above)
 
 Decision:
 No third-party/SRD rulesets will be adopted. The campaign-generated house
