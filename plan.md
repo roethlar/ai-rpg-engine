@@ -259,6 +259,55 @@ remains an owner playtest verdict on the whole phase.
   defaults); existing campaigns unaffected; suite green.
 - Files: rpg-engine.js, rpg-state.js, public/app.js, public/styles.css, test.js.
 
+**Phase T2: Scene-dynamic theming (DRAFT 2026-07-11 — awaiting owner approval;
+nothing here is buildable until the owner approves)**
+- Owner direction (2026-07-11): the color scheme follows the game as it moves —
+  a night-club scene goes neon, a forest goes spring/earth tones. The campaign
+  setup theme (T1) remains the baseline; scenes modulate the colors. Fonts
+  never change per scene (readability and layout stability).
+- Anchor: the scene theme is LOCATION state, not a per-turn mood signal.
+  `locations` gains `theme_json` (db.js ALTER TABLE migration, existing
+  pattern). Rationale: the theme changes exactly when the fiction moves
+  somewhere else — predictable and thrash-free by construction (the
+  heroic-pointer stickiness problem never arises), zero additional AI calls,
+  and a revisited place looks the same (the layout consistency rule applied
+  to atmosphere).
+- Generation: extend `generateLocationLayout` (rpg-engine.js:490) — the
+  existing once-per-location continuity-role call — to also emit
+  `theme: {primary, secondary, text, text_dim}` as HSL triples matching the
+  location's atmosphere; likewise the opening-location call
+  (rpg-engine.js:1243). No new call sites, no per-turn cost.
+- Validation: `validateSceneTheme` in rpg-state.js reusing the T1 primitives
+  (`normalizeHslColor`, `clampHslLightness`; text clamped ≥60 lightness,
+  text_dim 40–80, exactly as rpg-state.js:1449-1463). Invalid or missing →
+  null → baseline applies. The theme rides the location record through the
+  existing referee/continuity gate; table talk cannot mutate location state,
+  so the theme cannot drift on questions — no new no-op work needed.
+- Payload: state payloads gain `sceneTheme` (validated location theme or
+  null) everywhere `themeColors` is emitted (rpg-engine.js:1416/1896/1983).
+  Seats receive it — scene colors are table-public, same as `themeColors` in
+  the seat-scoped view (rpg-state.js:933). Export bundles already carry
+  location rows wholesale; add `theme_json` to the P1 fixture assertions.
+- Frontend: `applyCampaignTheme` gains a `sceneTheme` parameter — its color
+  slots override the campaign baseline before the CSS variables are set
+  (public/app.js:940, 1414-1456); derived vars (bg/panel/border/glow)
+  recompute from the merged palette exactly as today, so every themed
+  surface — dice theater included — follows with no per-surface work. A
+  short CSS color transition gives a soft crossfade on scene change
+  (disabled under prefers-reduced-motion).
+- Success criteria: unit tests — clamp/reject in validateSceneTheme; merge
+  precedence (scene over baseline; null → baseline); revisit reuses the
+  stored theme without regenerating; a table-talk turn leaves the theme
+  unchanged; export/import round-trips `theme_json`. Suite green. Functional
+  smoke: two locations with distinct palettes visibly swap the UI theme on
+  movement. Feel gate: owner playtest verdict.
+- Non-goals (v1): per-turn mood shifts inside one location (e.g. combat
+  tint); per-scene fonts; coupling to heroic/image generation; retro-theming
+  locations generated before this phase (their `theme_json` stays null →
+  baseline; they re-theme only if regenerated).
+- Files: db.js, rpg-engine.js, rpg-state.js, public/app.js,
+  public/styles.css, test.js.
+
 ## 2026-07-04 Queue (promoted under the delegated review loop)
 
 Owner delegation recorded in `.agents/decisions.md` (2026-07-04): open calls
@@ -426,7 +475,10 @@ existing secrets warnings/production fail-closed startup behavior.
 
 ## Non-Goals (for now)
 - Real-time simultaneous multiplayer
-- Full combat grid / tactical combat system
+- ~~Full combat grid / tactical combat system~~ — struck 2026-07-11: this was
+  agent-drafted day-one scoping that hardened without owner approval; the
+  owner decided tactical combat is IN SCOPE (decision 2026-07-11 in
+  `.agents/decisions.md`); depth and mechanics ride the rules-system synthesis
 - ~~New AI image generation~~ — superseded 2026-07-03 by the image-seam decision
   (`.agents/decisions.md`) and promoted into the Visual Phases above; the
   original caution survives as scope discipline: images are set pieces behind a
@@ -437,16 +489,11 @@ existing secrets warnings/production fail-closed startup behavior.
 
 Raised during planning but deliberately deferred. **Per project rule, nothing here may be implemented until it is promoted into a concrete phase with planned entries.**
 
-- **Scene-dynamic theming (owner direction 2026-07-11 — not yet scheduled).**
-  Theming today is generated once at campaign setup (decision 2026-07-03,
-  Phase T1). The owner intends the color scheme to follow the *game* as it
-  moves: a night-club scene goes neon, a forest goes spring/earth tones. This
-  extends setup theming rather than replacing it — the campaign theme is the
-  baseline; scenes modulate it. Likely mechanism when promoted: a theme
-  signal through the referee/continuity gate (engine-owned state with
-  stickiness, like the focal-subject signal — never per-turn prompt freedom),
-  reusing the existing validated-HSL pipeline. Surfaces that read the theme
-  CSS variables (dice theater included) inherit scene theming for free.
+- **Scene-dynamic theming — DRAFT PLAN WRITTEN 2026-07-11** (owner direction
+  2026-07-11; the plan is Phase T2 in the Visual Phases above, awaiting owner
+  approval). Original direction: the color scheme follows the *game* as it
+  moves — night-club neon, forest earth tones — extending, not replacing,
+  the T1 setup theme.
 
 - **Owner/player settings split & simple auth.** AI provider config is server-owned (see decision 2026-06-11 in `.agents/decisions.md`); the open question is the mechanism. Leading idea: a separate `/admin` URL — not linked from the game UI — gated by a master password distinct from any per-player credentials, where the owner manages provider/model/keys (and model-name entry UX, e.g. presets/datalist, lives there too). Implies an eventually-real, if simple, auth system: players will need credentials to protect/reclaim their persistent characters once the game is hosted publicly, so per-player auth and owner auth should be designed together rather than bolted on twice. Current single-key UI is acceptable while operator and player are the same person.
 

@@ -38,8 +38,10 @@ to `docs/history/state-archive.md`.
   synthesizes a system fitted to this game from them. Waiting on that
   material — do not start the design without it. Plan + phase promotion
   still required before implementation. The synthesis must also settle which
-  dice exist: the dice theater generalizes from d20-only via a `sides` field
-  on the roll record (rider on the Phase 1 slice in plan.md).
+  dice exist (the dice theater generalizes from d20-only via a `sides` field
+  on the roll record — rider on the Phase 1 slice in plan.md) and must
+  support tactical combat (owner decision 2026-07-11: in scope; the old
+  non-goal line was agent drift, now struck).
 - Run the playtest. Owner steps before play, on the hosting machine: set
   `ACCESS_SECRET` + `ADMIN_SECRET`, confirm an AI provider is configured
   there, expose the server, create the second character (party strip

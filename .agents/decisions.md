@@ -574,6 +574,37 @@ The candidate ranking in docs/ruleset-licensing.md as first written (Fate
 listed as the top genre-neutral option; Fate and ORC now excluded). The
 underlying license *facts* in that doc remain valid evidence.
 
+### 2026-07-11 - Tactical combat is IN SCOPE; the day-one "non-goal" line was never an owner decision
+
+Status: Active
+
+Decision:
+Tactical combat depth is a goal. The rules-system synthesis (2026-07-11
+reopen decision) and the maps/token work design toward it: the synthesized
+system must support tactical combat (initiative, positioning, action
+economy at whatever depth the synthesis lands on), and the structured
+location/map layer (Phase V2's deterministic render, occupancy, areas) is
+its groundwork. How deep — zones vs grid, movement rules, line of sight —
+is settled inside the rules-synthesis design, not here. The anti-"video-
+gamey" principle still governs *feel* (no forced action, table talk stays
+free), but it was about rushed resolution, never about combat depth.
+
+Provenance correction: "Full combat grid / tactical combat system" sat in
+plan.md's Non-Goals from the first agent-drafted plan commit (c2daa30,
+2026-06-05) and hardened through citation without ever being an owner
+decision. The owner's 2026-06-11 lean toward map+tokens with narrative
+resolution was a maps-design choice, not a combat-scope prohibition.
+
+Reason:
+Owner 2026-07-11, on having the provenance traced: "In scope — we want
+tactical combat." Chosen over reclassifying it as an open question.
+
+Supersedes:
+The "Full combat grid / tactical combat system" Non-Goals line in plan.md
+(removed); the "tactical depth stays at (b) … resolution remains narrative"
+framing in the maps topic, which becomes a starting point the rules
+synthesis may deepen, not a ceiling.
+
 ### 2026-07-11 - Housekeeping: fix/sv-* branches deleted; the three accidental merge commits stay
 
 Status: Active
