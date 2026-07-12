@@ -10,7 +10,12 @@ let currentCampaignId = null;
 // dispatch; a mismatch after an await means the table changed while the
 // request was in flight, so the response is stale and must not render.
 let sessionEpoch = 0;
-function bumpSessionEpoch() { sessionEpoch += 1; }
+function bumpSessionEpoch() {
+  sessionEpoch += 1;
+  // A table transition also invalidates any dice theater still playing or
+  // queued for the old table (dt-1); hoisted, defined with the theater code.
+  dismissRollTheater();
+}
 let currentCampaignTitle = '';
 let savedCharacters = [];
 // Player-appropriate settings only: AI provider/model/keys are server-owned
@@ -1986,19 +1991,31 @@ const DICE_D20_SVG = `<svg viewBox="0 0 120 120" fill="none" xmlns="http://www.w
 </svg>`;
 let diceTheaterQueue = Promise.resolve();
 let skipDiceTheater = false;
+// Finish handle of the roll currently on screen, so a table transition can
+// dismiss it synchronously (dt-1). Null when nothing is playing.
+let activeTheaterFinish = null;
+
+// Dismiss the active overlay immediately. Queued rolls die on their own:
+// each captured the epoch of the table that queued it and is dropped at
+// play time when the epoch has moved on.
+function dismissRollTheater() {
+  if (activeTheaterFinish) activeTheaterFinish();
+}
 
 function queueRollTheater(rolls) {
   if (!Array.isArray(rolls) || rolls.length === 0) return;
   if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   skipDiceTheater = false;
+  const epoch = sessionEpoch;
   rolls.forEach(roll => {
-    diceTheaterQueue = diceTheaterQueue.then(() => playOneRollTheater(roll)).catch(() => {});
+    diceTheaterQueue = diceTheaterQueue.then(() => playOneRollTheater(roll, epoch)).catch(() => {});
   });
 }
 // Exposed for live smoke tests and console debugging; cosmetic only.
 window.queueRollTheater = queueRollTheater;
 
-function playOneRollTheater(roll) {
+function playOneRollTheater(roll, epoch) {
+  if (epoch !== sessionEpoch) return Promise.resolve(); // queued for a table we left
   if (skipDiceTheater || !roll || typeof roll.roll !== 'number') return Promise.resolve();
   return new Promise(resolve => {
     const costs = [];
@@ -2040,8 +2057,10 @@ function playOneRollTheater(roll) {
       diceOverlayEl.onclick = null;
       diceOverlayEl.style.display = 'none';
       diceOverlayEl.innerHTML = '';
+      activeTheaterFinish = null;
       resolve();
     };
+    activeTheaterFinish = finish;
     // A click skips this roll and everything still queued for the turn.
     diceOverlayEl.onclick = () => { skipDiceTheater = true; finish(); };
     timers.push(setTimeout(() => {
