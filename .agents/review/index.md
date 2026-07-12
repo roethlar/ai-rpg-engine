@@ -17,10 +17,18 @@ an owner go; merges stay owner-gated.
 
 | ID | Severity | Impact (one line) | Status | Branch |
 |----|----------|-------------------|--------|--------|
-| dt-1 | MEDIUM | Stale roll theater renders over the menu/another campaign after a switch, intercepting input until skip/timeout | `[x]` ACCEPTED, awaiting owner-gated merge | `fix/dt-1-theater-epoch` @ `497ffc5` |
-| dt-2 | LOW | Clicking to skip turn A's dice also silently suppresses an already-queued turn B's theater | `[x]` ACCEPTED, awaiting owner-gated merge | `fix/dt-2-skip-per-batch` @ `c04f0cd` |
-| dt-3 | LOW | Landed die goes generic green/red, contradicting the recorded theme-follow rider (plan/code conflict) | `[x]` ACCEPTED, awaiting owner-gated merge | `fix/dt-3-landed-die-theme` @ `e96a873` |
-| poll-1 | HIGH | Pre-existing: a stale poll response renders campaign A's full state (theme incl.) over campaign B or the menu — no epoch/ownership check after await | `[x]` ACCEPTED at r5 (4 real probed reopens en route), awaiting owner-gated merge | `fix/poll-1-response-epoch` @ `e30bb06` |
+| dt-1 | MEDIUM | Stale roll theater renders over the menu/another campaign after a switch, intercepting input until skip/timeout | `[x]` merged | `fix/dt-1-theater-epoch` @ `497ffc5` |
+| dt-2 | LOW | Clicking to skip turn A's dice also silently suppresses an already-queued turn B's theater | `[x]` merged | `fix/dt-2-skip-per-batch` @ `c04f0cd` |
+| dt-3 | LOW | Landed die goes generic green/red, contradicting the recorded theme-follow rider (plan/code conflict) | `[x]` merged | `fix/dt-3-landed-die-theme` @ `e96a873` |
+| poll-1 | HIGH | Pre-existing: a stale poll response renders campaign A's full state (theme incl.) over campaign B or the menu — no epoch/ownership check after await | `[x]` merged (ACCEPTED at r5; 4 real probed reopens en route) | `fix/poll-1-response-epoch` @ `e30bb06` |
+
+Merge state (2026-07-11, owner go): all four merged to master in stack order
+(merges `3862fa4`, `ebb3fa8`, `4a1482f`, `87808cf`; every merge auto-clean).
+The MERGED combination re-verified: suite green and the full ten-guard
+browser battery (poll 1/1b/1c/1d/1e/1f/1g + dice dt1/dt2/dt3) ALL PASS
+against merged master — the stack was reviewed on per-branch bases, so this
+combined run is the integration proof. Branches retained (deletion is a
+separate owner call).
 | css-1 | MEDIUM | Pre-existing: `rgba(var(--theme-*), α)` with HSL-triple vars is invalid CSS — header/glass/panel fills and several glows compute unpainted on every theme today | `[ ]` admitted (r3 catch); fix awaits owner go, also a T2 prerequisite | |
 | jt-1 | HIGH | Pre-existing: Journal tab renders a stale campaign's history over the current one (empirically confirmed); Fork buttons then fork the wrong campaign | `[ ]` admitted (skeptic panel); fix awaits owner go | |
 | dr-1 | MEDIUM | Pre-existing: delete/release settle callbacks wipe theme/state over whichever table the user has since entered | `[ ]` admitted (skeptic panel); fix awaits owner go | |
