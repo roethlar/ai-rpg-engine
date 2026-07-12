@@ -4,6 +4,13 @@
 
 // Application state
 let currentCampaignId = null;
+
+// Session epoch (poll-1): bumped on every table transition — menu return,
+// campaign load, fork adoption, token re-route. Async flows capture it at
+// dispatch; a mismatch after an await means the table changed while the
+// request was in flight, so the response is stale and must not render.
+let sessionEpoch = 0;
+function bumpSessionEpoch() { sessionEpoch += 1; }
 let currentCampaignTitle = '';
 let savedCharacters = [];
 // Player-appropriate settings only: AI provider/model/keys are server-owned
@@ -339,6 +346,7 @@ function setupEventListeners() {
     // a seat token boots straight into its table (S3), a host token
     // returns to the campaign menu.
     if (apiConfig.accessToken !== tokenBefore && (isSeatToken(tokenBefore) || isSeatToken(apiConfig.accessToken))) {
+      bumpSessionEpoch();
       currentCampaignId = null;
       lastGameState = null;
       lastRenderedTurnNumber = null;
@@ -446,6 +454,7 @@ function setupEventListeners() {
 
     setActionInputState(false);
     turnSubmitInFlight = true;
+    const epoch = sessionEpoch;
 
     try {
       const response = await fetchWithTimeout(`/api/campaigns/${currentCampaignId}/turn`, {
@@ -462,6 +471,9 @@ function setupEventListeners() {
         // failures: say whose turn it is, restore the input, and stop —
         // no "retry the connection" framing.
         const body = await response.json().catch(() => ({}));
+        // Stale rejection from a table we already left: no UI work here
+        // either (the finally block still re-enables the controls).
+        if (epoch !== sessionEpoch) return;
         if (body.code === 'OUT_OF_TURN' || body.code === 'CHARACTER_REQUIRED') {
           appendSystemNotice(body.error || 'It is not your turn to act.');
           actionInput.value = actionText;
@@ -472,20 +484,46 @@ function setupEventListeners() {
       }
 
       const gameState = await response.json();
+      // The turn resolved on the campaign it was sent to; if the user has
+      // since left that table, its record is in that campaign's journal —
+      // rendering it here would paint the wrong table (poll-1).
+      if (epoch !== sessionEpoch) return;
+      // Gap backfill (poll-1 r2): other players' turns may sit between the
+      // last thing in this log and the turn this submit produced. Without
+      // this, rendering the submit's turn buries them permanently — the
+      // poll's own backfill dedupes against highestAppendedTurn and would
+      // skip them afterward.
+      const baseline = highestAppendedTurn ?? lastRenderedTurnNumber;
+      if (typeof gameState.turn?.number === 'number' &&
+          typeof baseline === 'number' &&
+          gameState.turn.number > baseline + 1) {
+        // Failure records the gap for the poll to retry (poll-1 r5): the
+        // head still renders, but the missing turns are never sealed out.
+        await backfillGap(baseline, gameState.turn.number, epoch);
+        if (epoch !== sessionEpoch) return;
+      }
       renderGame(gameState, false, { narrate: true, rollTheater: true });
     } catch (error) {
       console.error(error);
       // Decision 2026-07-03: transient failures surface OUTSIDE the GM's voice
-      // as a retriable state, with the player's typed input restored.
-      appendSystemNotice(`The connection to the AI provider failed (${error.message}). Your action was not lost — it has been restored below. Press send to retry.`);
-      actionInput.value = actionText;
-      actionInput.focus();
-      if (shouldOpenSettingsForError(error.message)) {
-        openSettingsModal();
+      // as a retriable state, with the player's typed input restored — but
+      // only on the table that submitted (poll-1 reopen): a stale failure
+      // must not append notices, restore a foreign action into the input,
+      // or pop Settings over the replacement table.
+      if (epoch === sessionEpoch) {
+        appendSystemNotice(`The connection to the AI provider failed (${error.message}). Your action was not lost — it has been restored below. Press send to retry.`);
+        actionInput.value = actionText;
+        actionInput.focus();
+        if (shouldOpenSettingsForError(error.message)) {
+          openSettingsModal();
+        }
       }
     } finally {
       turnSubmitInFlight = false;
-      setActionInputState(true);
+      // Always re-enable the controls; but focus only when still on the
+      // submitting table (poll-1 r2) — a stale settle must not steal focus
+      // from whatever the user is doing on the replacement table.
+      setActionInputState(true, epoch === sessionEpoch);
     }
   });
 }
@@ -786,11 +824,18 @@ async function loadCampaignsMenu() {
   if (seatMode) return;
   // Leaving a campaign for the menu: stop the poll and drop per-campaign
   // state so a stale campaign can never render over the holodeck idle.
+  bumpSessionEpoch();
   currentCampaignId = null;
   lastGameState = null;
   lastRenderedTurnNumber = null;
   myCharacterId = null;
+  pendingGaps = [];
   enterHolodeckIdle();
+  // Whoever loads the menu owns the screen (poll-1 r3): when this runs as
+  // a settle callback (campaign delete/release) it may have superseded an
+  // in-flight campaign load that already hid the menu — that load discards
+  // itself on the epoch check, so without this line NOTHING is visible.
+  campaignMenuScreen.style.display = 'flex';
   campaignListContainer.innerHTML = `<div class="loading-state"><i class="fa-solid fa-spinner fa-spin"></i> Loading campaigns...</div>`;
   
   try {
@@ -877,12 +922,15 @@ async function loadCampaignsMenu() {
 async function loadCampaign(campaignId) {
   campaignMenuScreen.style.display = 'none';
   showLoadingOverlay('Resuming campaign state...');
+  bumpSessionEpoch();
+  const epoch = sessionEpoch;
 
   try {
     const response = await fetchWithTimeout(`/api/campaigns/${campaignId}`);
     if (!response.ok) throw new Error(response.status === 401 ? 'Unauthorized. Check Access Token.' : 'Failed to load campaign data');
 
     const gameState = await response.json();
+    if (epoch !== sessionEpoch) return; // superseded by a newer transition
     currentCampaignId = campaignId;
     renderGame(gameState, true);
   } catch (error) {
@@ -955,6 +1003,20 @@ function renderGame(gameState, resetNarrative = false, options = {}) {
   // strip, and the off-turn input state. The sheet shows YOUR character.
   lastGameState = gameState;
   lastRenderedTurnNumber = gameState.turn?.number ?? lastRenderedTurnNumber;
+  // Track the furthest narrative in the log (poll-1 r2). A full reset
+  // (campaign load/fork) re-anchors it; incremental renders only advance it.
+  if (resetNarrative) {
+    appendedTurnNumbers = new Set();
+    pendingGaps = [];
+  }
+  if (typeof gameState.turn?.number === 'number') {
+    highestAppendedTurn = resetNarrative
+      ? gameState.turn.number
+      : Math.max(highestAppendedTurn ?? gameState.turn.number, gameState.turn.number);
+    appendedTurnNumbers.add(gameState.turn.number);
+  } else if (resetNarrative) {
+    highestAppendedTurn = null;
+  }
   resolveMyCharacter(gameState);
   renderParty(gameState);
   updateTurnBanner(gameState);
@@ -991,18 +1053,18 @@ function renderGame(gameState, resetNarrative = false, options = {}) {
   const turnRolls = Array.isArray(gameState.turn.rollResults)
     ? gameState.turn.rollResults
     : (gameState.turn.rollResult ? [gameState.turn.rollResult] : []);
-  turnRolls.forEach(appendRollResultBubble);
+  turnRolls.forEach(r => appendRollResultBubble(r, gameState.turn?.number));
   // Theater only on turns that just happened (own submit, poll pickup) —
   // never on campaign load, join, or backfill, where the rolls are history.
   if (options.rollTheater) queueRollTheater(turnRolls);
-  appendGMDialogue(gameState.turn.narrative);
+  appendGMDialogue(gameState.turn.narrative, gameState.turn?.number);
   if (options.narrate) {
     narrateGmResponse(gameState.turn);
   }
 
   // Scene grounding — especially valuable on clarification turns
   if (gameState.turn.sceneGrounding) {
-    appendSceneGrounding(gameState.turn.sceneGrounding);
+    appendSceneGrounding(gameState.turn.sceneGrounding, gameState.turn?.number);
   }
 
   // If the active tab is Journal, refresh the timeline
@@ -1064,6 +1126,76 @@ const DEFAULT_ACTION_PLACEHOLDER = "Act or ask the GM (e.g., 'Scan the corridor'
 let myCharacterId = null;
 let lastGameState = null;
 let lastRenderedTurnNumber = null;
+// Furthest turn whose narrative is in the log (poll-1 r2): the baseline
+// for gap detection.
+let highestAppendedTurn = null;
+// Exact turns present in the log (poll-1 r5): dedupe must be membership,
+// not a watermark — gap RECOVERY legitimately appends turns BELOW the
+// watermark after a transient journal failure.
+let appendedTurnNumbers = new Set();
+// Ranges a failed backfill could not fill (inclusive bounds). Every poll
+// tick retries them: a flaky journal request must not permanently seal
+// other players' turns out of the shared transcript.
+let pendingGaps = [];
+
+// Places a log node at its chronological position: nodes carry data-turn,
+// and a tagged node goes before the first node with a HIGHER turn — so
+// late gap recovery lands in reading order, not at the log's tail.
+function placeLogEntry(el, turnNumber) {
+  if (typeof turnNumber === 'number') {
+    el.dataset.turn = String(turnNumber);
+    const nodes = narrativeContainer.children;
+    for (let i = 0; i < nodes.length; i++) {
+      const t = Number(nodes[i].dataset ? nodes[i].dataset.turn : NaN);
+      if (Number.isFinite(t) && t > turnNumber) {
+        narrativeContainer.insertBefore(el, nodes[i]);
+        return;
+      }
+    }
+  }
+  narrativeContainer.appendChild(el);
+}
+
+// Appends journal turns in chronological order, skipping any turn already
+// in the log. Membership is checked at APPEND time, which makes racing
+// backfills (poll vs submit vs recovery) safe against both duplication
+// and loss.
+function appendJournalTurns(turns) {
+  (turns || [])
+    .filter(t => t && typeof t.turn_number === 'number')
+    .sort((a, b) => a.turn_number - b.turn_number)
+    .forEach(t => {
+      if (appendedTurnNumbers.has(t.turn_number)) return;
+      if (t.player_action) appendPlayerAction(t.player_action, t.turn_number);
+      appendGMDialogue(t.narrative, t.turn_number);
+      appendedTurnNumbers.add(t.turn_number);
+      highestAppendedTurn = Math.max(highestAppendedTurn ?? t.turn_number, t.turn_number);
+    });
+}
+
+// Fetches the journal and fills the EXCLUSIVE range (fromExclusive,
+// toExclusive). Any failure records the range in pendingGaps for the next
+// poll tick to retry (poll-1 r5).
+async function backfillGap(fromExclusive, toExclusive, epoch) {
+  try {
+    const journalResponse = await fetchWithTimeout(`/api/campaigns/${currentCampaignId}/journal`, {}, 15000);
+    if (epoch !== sessionEpoch) return;
+    if (!journalResponse.ok) throw new Error(`journal ${journalResponse.status}`);
+    const journal = await journalResponse.json();
+    if (epoch !== sessionEpoch) return;
+    appendJournalTurns((journal.turns || [])
+      .filter(t => t && t.turn_number > fromExclusive && t.turn_number < toExclusive));
+  } catch (e) {
+    // A STALE failure must not seed the replacement table's retry queue
+    // (poll-1 r6): pendingGaps is per-table state, and this request was
+    // for a table we already left.
+    if (epoch !== sessionEpoch) return;
+    const from = fromExclusive + 1, to = toExclusive - 1;
+    if (to >= from && !pendingGaps.some(g => g.from === from && g.to === to)) {
+      pendingGaps.push({ from, to });
+    }
+  }
+}
 
 function myCharacterKey(campaignId) {
   return `aetheria_my_character_${campaignId}`;
@@ -1220,34 +1352,61 @@ function displayedCharacter(gameState) {
 // founding browser must discover joiners, and its own lastGameState only
 // changes when someone else acts (a stale party-size gate would never open).
 let turnSubmitInFlight = false;
+let pollInFlight = false;
 setInterval(async () => {
   if (!currentCampaignId || document.hidden || !lastGameState) return;
   // Never race an in-flight submit: the submit's own render owns that turn.
-  if (turnSubmitInFlight) return;
+  // Serialize polls too — overlapping polls can resolve out of order.
+  if (turnSubmitInFlight || pollInFlight) return;
+  pollInFlight = true;
+  // Stale-response guard (poll-1): everything below renders only if the
+  // table is still the one this poll was dispatched against.
+  const epoch = sessionEpoch;
   try {
     const response = await fetchWithTimeout(`/api/campaigns/${currentCampaignId}`, {}, 15000);
+    if (epoch !== sessionEpoch) return; // table changed while fetching
     if (turnSubmitInFlight) return; // submit started while we were fetching
     if (!response.ok) return;
     const state = await response.json();
+    if (epoch !== sessionEpoch) return;
+    // Retry gaps a failed backfill left behind (poll-1 r5) — on EVERY tick,
+    // same-turn branch included; recovered turns insert in reading order
+    // via placeLogEntry and dedupe by membership.
+    if (pendingGaps.length) {
+      const gaps = pendingGaps;
+      pendingGaps = [];
+      for (const g of gaps) {
+        await backfillGap(g.from - 1, g.to + 1, epoch);
+        if (epoch !== sessionEpoch) return;
+      }
+      if (turnSubmitInFlight) return;
+    }
     if (state.turn?.number !== lastRenderedTurnNumber) {
+      // Within one campaign turn numbers only grow; an older snapshot is a
+      // stale response that lost a race, never something to render.
+      if (typeof lastRenderedTurnNumber === 'number' &&
+          typeof state.turn?.number === 'number' &&
+          state.turn.number < lastRenderedTurnNumber) return;
       // More than one turn may have landed between polls (table talk does
       // not advance the order, so bursts happen): backfill the gap from the
       // journal so the log stays complete, then render the latest normally.
-      if (typeof lastRenderedTurnNumber === 'number' && state.turn.number > lastRenderedTurnNumber + 1) {
-        try {
-          const journalResponse = await fetchWithTimeout(`/api/campaigns/${currentCampaignId}/journal`, {}, 15000);
-          if (journalResponse.ok) {
-            const journal = await journalResponse.json();
-            (journal.turns || [])
-              .filter(t => t.turn_number > lastRenderedTurnNumber && t.turn_number < state.turn.number)
-              .forEach(t => {
-                if (t.player_action) appendPlayerAction(t.player_action);
-                appendGMDialogue(t.narrative);
-              });
-          }
-        } catch (e) { /* gap backfill is best-effort */ }
+      // The append helper dedupes at append time against whatever a racing
+      // submit backfilled meanwhile (poll-1 r2) — no turn duplicates, none
+      // are lost.
+      const gapBaseline = highestAppendedTurn ?? lastRenderedTurnNumber;
+      if (typeof gapBaseline === 'number' && state.turn.number > gapBaseline + 1) {
+        await backfillGap(gapBaseline, state.turn.number, epoch);
       }
-      if (state.turn?.playerAction) appendPlayerAction(state.turn.playerAction);
+      if (epoch !== sessionEpoch) return;
+      // Re-check AFTER the backfill awaits: a same-campaign submit never
+      // bumps the epoch but may have rendered a newer turn while the
+      // journal was in flight — rendering this snapshot would roll the
+      // table backward (duplicate log entries, reverted theme/party/dice).
+      if (turnSubmitInFlight) return;
+      if (typeof state.turn?.number === 'number' &&
+          typeof lastRenderedTurnNumber === 'number' &&
+          state.turn.number <= lastRenderedTurnNumber) return;
+      if (state.turn?.playerAction) appendPlayerAction(state.turn.playerAction, state.turn.number);
       renderGame(state, false, { rollTheater: true });
     } else {
       // Same turn, possibly changed table (joins, releases, style edits):
@@ -1256,6 +1415,7 @@ setInterval(async () => {
       renderPartyState(state);
     }
   } catch (e) { /* transient — next poll retries */ }
+  finally { pollInFlight = false; }
 }, 12000);
 
 // Clears the situation surface: campaigns must never inherit another
@@ -1698,34 +1858,34 @@ function renderChoices(choices) {
 }
 
 // Dialog input handlers
-function setActionInputState(enabled) {
+function setActionInputState(enabled, focusInput = true) {
   actionInput.disabled = !enabled;
   btnSendAction.disabled = !enabled;
-  
+
   if (enabled) {
     btnSendAction.innerHTML = '<span>Send</span> <i class="fa-solid fa-paper-plane"></i>';
-    actionInput.focus();
+    if (focusInput) actionInput.focus();
   } else {
     btnSendAction.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
   }
 }
 
 // Append player bubble
-function appendPlayerAction(text) {
+function appendPlayerAction(text, turnNumber) {
   const el = document.createElement('div');
   el.className = 'log-entry log-player';
   const cleanPlayerText = escapeHtml(text);
-  
+
   el.innerHTML = DOMPurify.sanitize(`
     <div class="speaker"><i class="fa-solid fa-user"></i> You</div>
     <div class="content">${cleanPlayerText}</div>
   `);
-  narrativeContainer.appendChild(el);
+  placeLogEntry(el, turnNumber);
   scrollToBottom();
 }
 
 // Append GM description with markdown support and DOMPurify sanitization
-function appendGMDialogue(markdownText) {
+function appendGMDialogue(markdownText, turnNumber) {
   const el = document.createElement('div');
   el.className = 'log-entry log-gm';
 
@@ -1737,7 +1897,7 @@ function appendGMDialogue(markdownText) {
     <div class="speaker"><i class="fa-solid fa-dice-d20"></i> Game Master</div>
     <div class="content">${cleanHtml}</div>
   `;
-  narrativeContainer.appendChild(el);
+  placeLogEntry(el, turnNumber);
   scrollToBottom();
 }
 
@@ -1751,7 +1911,7 @@ function escapeHtml(str) {
                 .replace(/'/g, '&#039;');
 }
 
-function appendSceneGrounding(groundingText) {
+function appendSceneGrounding(groundingText, turnNumber) {
   if (!groundingText || !narrativeContainer) return;
   const el = document.createElement('div');
   el.className = 'log-entry log-scene';
@@ -1760,7 +1920,7 @@ function appendSceneGrounding(groundingText) {
     <div class="speaker"><i class="fa-solid fa-eye"></i> Current Situation</div>
     <div class="content scene-grounding">${safeText}</div>
   `;
-  narrativeContainer.appendChild(el);
+  placeLogEntry(el, turnNumber);
   scrollToBottom();
 }
 
@@ -1902,7 +2062,7 @@ function playOneRollTheater(roll) {
 }
 
 // Append a dice roll card in the narrative log (Rules Mode check results)
-function appendRollResultBubble(roll) {
+function appendRollResultBubble(roll, turnNumber) {
   const el = document.createElement('div');
   el.className = 'log-entry log-roll';
   const costs = [];
@@ -1931,7 +2091,7 @@ function appendRollResultBubble(roll) {
       </div>
     </div>
   `);
-  narrativeContainer.appendChild(el);
+  placeLogEntry(el, turnNumber);
   scrollToBottom();
 }
 
@@ -2114,8 +2274,11 @@ window.forkCampaignTimeline = async function(turnNumber) {
     }
 
     const newCampaignState = await response.json();
+    // Adopting the fork is a table transition: invalidate anything still
+    // in flight against the source campaign before rendering the new one.
+    bumpSessionEpoch();
     currentCampaignId = newCampaignState.campaignId;
-    
+
     // Switch to the newly created branched campaign!
     renderGame(newCampaignState, true);
     setActiveTab('inventory'); // return tab focus to inventory
