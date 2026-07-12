@@ -1723,15 +1723,9 @@ body.holodeck-idle .stars-bg { display: none; }
   100% { transform: scale(1); }
 }
 
-.dice-stage.landed.roll-landed-success svg {
-  color: #10b981;
-  filter: drop-shadow(0 0 22px rgba(16, 185, 129, 0.55));
-}
-
-.dice-stage.landed.roll-landed-failure svg {
-  color: #ef4444;
-  filter: drop-shadow(0 0 22px rgba(239, 68, 68, 0.55));
-}
+/* The landed die keeps the theme palette (dt-3): semantic green/red live
+   on .dice-verdict and .dice-cost only, so campaign — and later scene —
+   theming carries through the landing moment. */
 
 .dice-number {
   position: absolute;

@@ -2067,7 +2067,7 @@ function playOneRollTheater(roll, batch) {
       clearInterval(tick);
       numberEl.textContent = String(roll.roll);
       stage.classList.remove('tumbling');
-      stage.classList.add('landed', roll.success ? 'roll-landed-success' : 'roll-landed-failure');
+      stage.classList.add('landed');
       const mod = Number(roll.modifier) || 0;
       resultEl.querySelector('.dice-math').textContent =
         `${roll.roll} ${mod >= 0 ? '+' : '-'} ${Math.abs(mod)} = ${roll.total} vs DC ${roll.dc}`;
