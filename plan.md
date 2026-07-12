@@ -259,12 +259,14 @@ remains an owner playtest verdict on the whole phase.
   defaults); existing campaigns unaffected; suite green.
 - Files: rpg-engine.js, rpg-state.js, public/app.js, public/styles.css, test.js.
 
-**Phase T2: Scene-dynamic theming (DRAFT r7 2026-07-11 — awaiting owner
-approval of the plan; the SCOPING question is settled by the owner's
-flat-design decision in `.agents/decisions.md`. Review trail: r1–r6 in
-`.agents/review/index.md`; the r4–r6 validation-machinery escalation is
-resolved by REMOVING its cause — T2-s below flattens the UI first, so
-validation shrinks to enumerated flat-pair checks.)**
+**Phase T2: Scene-dynamic theming (r7 — APPROVED by the owner 2026-07-11
+("1. yes" to "approve the theming plan? scene palettes per location + the
+flatten-styling step first — approving the plan green-lights
+implementation"). Implementation order: the six open review findings
+(css-1 is a hard prerequisite) → T2-s → T2. Review trail: r1–r6 in
+`.agents/review/index.md`; the r4–r6 validation-machinery escalation was
+resolved by the owner's flat-design decision — T2-s flattens the UI first,
+so validation shrinks to enumerated flat-pair checks.)**
 
 **T2-s — Styling normalization (prerequisite slice, replaces the r6
 validation rig):**

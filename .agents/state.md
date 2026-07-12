@@ -6,15 +6,12 @@ to `docs/history/state-archive.md`.
 
 ## Now
 
-- Active review loop (2026-07-11): dice roll theater (retroactive — it was
-  built without owner plan approval, a process defect) + Phase T2 theming
-  plan. See `.agents/review/index.md`. STATUS: all four owner-approved code
-  fixes (poll-1, dt-1..3) are reviewer-ACCEPTED on stacked branches awaiting
-  owner-gated merges (order: poll-1 → dt-1 → dt-2 → dt-3); six more admitted
-  findings (css-1, jt-1, dr-1, tts-1, ds-1, fk-1) await an owner fix-go;
-  T2 draft r7 + the T2-s flat-styling slice await plan approval (the owner's
-  flat-design decision settled the scope). All pushes HELD; master carries
-  unpushed commits.
+- Active review loop (2026-07-11): see `.agents/review/index.md`. Owner
+  quadruple-go (2026-07-11): (1) T2+T2-s theming plan APPROVED; (2) merge
+  the four accepted fixes (poll-1, dt-1..3, stack order); (3) fix the six
+  open findings (css-1, jt-1, dr-1, tts-1, ds-1, fk-1) through the loop;
+  (4) push once merged. Work queue: merges+push, then the six fixes
+  (css-1 first — T2-s prerequisite), then T2-s, then T2.
 - **Priority: the remote two-human multiplayer playtest** (decision 2026-07-09).
   App-side readiness is DONE — Phase S seats S1–S3 are built, reviewed, and on
   master. Connectivity (transport/TLS/tunnel) is owner-handled and out of repo
