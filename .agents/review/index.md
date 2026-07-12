@@ -29,7 +29,7 @@ browser battery (poll 1/1b/1c/1d/1e/1f/1g + dice dt1/dt2/dt3) ALL PASS
 against merged master — the stack was reviewed on per-branch bases, so this
 combined run is the integration proof. Branches retained (deletion is a
 separate owner call).
-| css-1 | MEDIUM | Pre-existing: `rgba(var(--theme-*), α)` with HSL-triple vars is invalid CSS — header/glass/panel fills and several glows compute unpainted on every theme today | `[ ]` admitted (r3 catch); fix awaits owner go, also a T2 prerequisite | |
+| css-1 | MEDIUM | Pre-existing: `rgba(var(--theme-*), α)` with HSL-triple vars is invalid CSS — header/glass/panel fills and several glows compute unpainted on every theme today | `[~]` fix committed (owner go), verdict pending. Guard `guard-css-1`: all three surfaces transparent/none on master, painted at the fix | `fix/css-1-hsla-theme-vars` @ `32af1ba` |
 | jt-1 | HIGH | Pre-existing: Journal tab renders a stale campaign's history over the current one (empirically confirmed); Fork buttons then fork the wrong campaign | `[ ]` admitted (skeptic panel); fix awaits owner go | |
 | dr-1 | MEDIUM | Pre-existing: delete/release settle callbacks wipe theme/state over whichever table the user has since entered | `[ ]` admitted (skeptic panel); fix awaits owner go | |
 | tts-1 | MEDIUM | Pre-existing: the old table's GM voice keeps narrating over the menu/next campaign; skip pill unreachable on the menu | `[ ]` admitted (skeptic panel); fix awaits owner go | |
