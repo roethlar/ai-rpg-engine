@@ -3,6 +3,26 @@
 Workflow: see `.agents/playbooks/reviewloop.md`.
 Per-finding detail: see `.agents/review/findings/<id>.md`.
 
+## Active loop (2026-07-13, reviewer: codex) — owner-reported bugs
+
+Owner decision 2026-07-12: **all** code goes through this loop with codex; no exemption
+for small, obvious, or owner-approved changes (`.agents/decisions.md`). Two branches were
+caught by that rule and are unmerged pending review.
+
+| ID | Severity | Impact (one line) | Status | Branch |
+|----|----------|-------------------|--------|--------|
+| map-1 | MEDIUM | Situation-panel area labels overrun their box: adjacent labels collide and the rightmost is clipped by the canvas edge | `[~]` REOPENED at r1 — 3 real defects (surrogate split, clip-id collision, canvas overflow still open); fix-ups pending | `fix/map-label-overflow` @ `b178222` |
+| css-1 | MEDIUM | Pre-existing: `rgba(var(--theme-*), α)` over HSL-triple vars is invalid CSS — header/glass/panel fills compute unpainted on every theme | `[!]` BLOCKED — cannot be reviewed: the `guard-css-1` this index cited was an ad-hoc browser check that was never committed, and the repo has no browser harness. Codex cannot reproduce a guard proof. Owner decision needed. | `fix/css-1-hsla-theme-vars` @ `32af1ba` |
+
+map-1 r1 verdict (codex 0.144.1, `guard_confirmed: true` — it observed the revert go red,
+so the guard is real): REOPENED. The reviewer confirmed the guard and the glyph-estimate
+approach, graded the deliberately-scoped-out sibling defect as acceptable, and then found
+three defects the coder missed — a UTF-16 surrogate split on truncation, a clipPath id
+collision between the validated-distinct area ids `east wing` and `east-wing`, and, most
+importantly, that **the canvas-edge half of the reported bug was never fixed at all**
+(`validateLocationLayout` clamps `x` and `w` independently, so a valid `{x:92, w:20}` area
+runs past the 100-wide viewBox). Detail and the coder's acceptance: `findings/map-1.md`.
+
 ## Active rules-system plan loop (started 2026-07-11, reviewer: claude)
 
 Owner-requested synthesis of the handed-over rules-system survey into a
