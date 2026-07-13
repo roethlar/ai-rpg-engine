@@ -670,6 +670,60 @@ Raised during planning but deliberately deferred. **Per project rule, nothing he
   in the shell are not automatically product bugs. Success check: launches, creates or
   loads a campaign, plays a turn, exits cleanly leaving no orphan server process.
 
+- **Model catalog in /admin (planned 2026-07-12, owner request; STATUS: APPROVED + QUEUED
+  by the owner 2026-07-12 — combo-box shape approved; not yet started, no branch cut).**
+  Problem: every model field in `/admin` is free text (`admin.html`: primary `#model`,
+  `#fb-model`, and five `#role-<key>-model`), so the operator must already know each
+  provider's model strings. Compounding it, the per-provider default models hardcoded in
+  `api-client.js` (`grok-3` at :283, `claude-3-5-sonnet-20241022` at :280) are stale —
+  the Anthropic one is retired — so a provider selected with the model left blank can
+  resolve to a dead string and fail at call time.
+
+  Design (combo-box shape, owner-approved 2026-07-12: fetched names are *suggestions*
+  over a text input, never a strict select — a failed fetch must degrade to exactly
+  today's behavior):
+
+  1. New `model-catalog.js` exporting `listModels(provider, {apiKey, ollamaUrl, baseUrl})`
+     → `string[]`. Per-provider pinned endpoints and response shapes:
+     - `gemini`: `GET generativelanguage.googleapis.com/v1beta/models?key=` — keep entries
+       whose `supportedGenerationMethods` includes `generateContent`; strip the `models/`
+       prefix.
+     - `openai`: `GET api.openai.com/v1/models`, Bearer → `data[].id`.
+     - `claude`: `GET api.anthropic.com/v1/models`, `x-api-key` + `anthropic-version:
+       2023-06-01` → `data[].id`.
+     - `grok`: `GET api.x.ai/v1/models`, Bearer → `data[].id`.
+     - `ollama`: `GET {ollamaUrl or http://localhost:11434}/api/tags` → `models[].name`.
+     - `custom`: OpenAI-shaped `GET {baseUrl}/models`, only when `baseUrl` passes the
+       existing SSRF validator.
+     Host policy: reuse `validateUrlForSsrfAsync` and the `trustedHosts` allowlist that
+     already live in `api-client.js` (api-client.js:82-90, 112-120). Do NOT introduce a
+     second allowlist — one canonical location for that rule.
+  2. New route `POST /api/admin/ai/models`, under the existing admin gate (`server.js:284`
+     mounts `authenticateAdmin` + `rateLimit(20, 60000)` on all of `/api/admin`). Body:
+     `{provider, apiKey?, ollamaUrl?, baseUrl?}`. Key precedence: request-supplied key when
+     non-empty (so a key can be tested before it is saved), else the stored admin key, else
+     the provider's env key. Errors return through `server-errors.js`; the route is
+     host-only and must never reach a seat.
+  3. `admin.html` / `admin.js`: each model input keeps `type="text"` and gains a `list=`
+     pointing at a `<datalist>`, plus a "Refresh models" control per provider-scoped group
+     (primary, fallback, each role). Results cached per provider in page memory for the
+     session.
+
+  Non-goals (v1): the voice/TTS and image model fields (separate seams — `tts-providers.js`,
+  `image-providers.js`); server-side or persisted catalog caching; capability metadata beyond
+  the model id.
+
+  Security note (load-bearing): the Gemini key travels in the query string, so a provider
+  error body or URL must never be logged or echoed to the client — sanitize before it
+  leaves `listModels`. The `ollama` and `custom` paths are the only ones touching
+  loopback/operator-supplied hosts and must route through the existing SSRF validator.
+
+  Verification: `node test.js` green. New unit tests cover the pure per-provider response
+  parsers (captured payload → expected id list) — that is the guardable surface; the network
+  call itself is not unit-tested. Guard proof per AGENTS.md: revert a parser, confirm the
+  test goes red. Live: `/admin` → select provider → Refresh → list populates → pick a model
+  → Save → play a turn. No playtest gate (dev tooling, not a game phase).
+
 **Review Process**: After completing each phase, we will test a full play session together, gather feedback, and only then move to the next phase. No code will be merged until it demonstrably improves the playing experience.
 
 **Current Priority** (2026-07-09): the remote two-human multiplayer playtest itself. App-side readiness (S2 seat-scoped visibility, S3 seat bootstrap/mint flow, README) landed 2026-07-09; a cross-model review then found and closed six defects in it (`.agents/review/index.md`). Suite green with leak guards proven, API-level live smoke clean; the two-browser end-to-end is exactly what the playtest exercises. Remaining before play: owner sets ACCESS_SECRET + ADMIN_SECRET, ensures an AI provider is configured on the hosting machine (provider config is machine-local), exposes the server (owner-handled), mints seats. The playtest is the pending close point for the open feel gates.
