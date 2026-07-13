@@ -656,6 +656,84 @@ Raised during planning but deliberately deferred. **Per project rule, nothing he
 
 - **Portable characters & campaigns — format DECIDED, PROMOTED 2026-07-04** (versioned single-file JSON bundle, export first, forward importability required; implementation is Phase P in the 2026-07-04 Queue; ownership/auth interactions stay future). Original discussion: Open question raised 2026-06-15. Goal: a character and/or a full campaign should be exportable as a self-contained, restorable artifact that can move between deployments — backup, host migration, handing a save to another player/operator, resuming elsewhere — with continuity intact. **Distinct from the cross-campaign persistence topic above:** that one is about reusing a character across campaigns *within a single deployment* (the check-in/out lock); this one is about crossing the deployment boundary. For continuity to survive a move, the artifact must carry the *structured* state the Council consults, not transient prompt text — campaign outline, turn/state history, memories, NPCs (relationship + accumulated notes), character sheets, ruleset/known-abilities facts, and (once they exist) location state and voice/visual identity anchors. A portable artifact is therefore a versioned serialization of that structured state. Open questions: artifact format (single-file bundle vs. DB dump) and how it tracks the SQLite→Postgres direction; **schema versioning / migration** so an export from an older engine still imports (this is the load-bearing hard part, and it couples to every state-shape change made by other topics); scope (character-only vs. whole-campaign export); interaction with user ownership/auth and the one-active-campaign-per-character lock (who may import, and how to avoid duplicate "live" copies of the same character); and **trust posture for imported artifacts** — externally supplied campaign/character data is untrusted input and must be treated as data, never as instructions to the Council or engine (same boundary as the bootstrap-packet rule in AGENTS.md and the player-chat-never-to-GM rule above). Provenance: surfaced while scouting an external agent-identity project (`ethagent`, an Ethereum/ERC-8004 system for owning AI agents as wallet-held tokens with encrypted IPFS-backed memory). Nothing from it was adopted — its on-chain ownership / encryption / IPFS / ENS stack is irrelevant to narrative coherence, and the engine's structured DB state already does the memory job far better — but it prompted the portability idea, which would be built natively against the engine's own state store, not borrowed.
 
+- **Friends & Fables — comparative direction (owner, 2026-07-12).** The owner reviewed
+  Friends & Fables and pulled five directions from it. Recorded here with the corrections
+  established when they were assessed against repo evidence; nothing below is scheduled,
+  and most of it is gated on the rules chassis.
+
+  - **Gated on the chassis — do not build before D0–D14 are settled**
+    (`.agents/review/rules-system-plan-intake.md`):
+    - **Richer character sheet** (F&F shows tabs: Sheet / Inventory / Progression /
+      Relationships / Memories; equipment slots, currency, derived AC, carrying capacity).
+      The sheet is a *view of the chassis*, so it cannot be designed first. F&F's sheet is
+      D&D 5e — six attributes, Armor Class, class/level — while the intake's D4
+      recommendation is four attributes (STR/AGI/INT/WIL). Copying the sheet would silently
+      choose 5e through the UI, which is both an unmade owner decision and the thing
+      `docs/ruleset-licensing.md` exists to keep us careful about. Settle the chassis, and
+      the sheet falls out of it.
+    - **A deterministic resolver replacing part of an AI role.** This is the intake's own
+      headline conclusion arrived at independently: the engine owns every number, die,
+      resource, condition and state transition; models emit validated identifiers and enums,
+      never arithmetic. It is the Referee becoming mostly code, and it cannot be specified
+      until the effect catalog exists (intake F2, HIGH).
+    - **Correction, load-bearing:** *externality is not what makes a roll unfudgeable.* A
+      separate process, an MCP hop or a dice microservice adds latency and a new trust
+      boundary, not integrity. What makes a roll honest is that the model never emits the
+      number and never gets a second look at it — the engine rolls, writes the result to a
+      ledger, and hands narration an immutable fact to describe rather than a value to
+      negotiate. An in-process module does this perfectly. Today the engine already rolls
+      (`rpg-state.js:1388`, a real d20; the Council path calls it at `rpg-engine.js:925`),
+      so the fear is not yet realised — but the turn record round-trips dice through
+      `state_changes_json` and the rehydrate path at `rpg-engine.js:1958-1976` reads
+      `dice_rolls` back out of it. **Open question to audit:** can a model get a `dice_rolls`
+      key into that blob and have its numbers survive?
+
+  - **Not gated — separable from the rules work:**
+    - **GM continue mode** (F&F: Continue / Manual / Players Only). Small and well-shaped.
+      "Players Only" — a message the GM never sees and will not respond to — is squarely the
+      Phase 0 table-talk concern (the repo's stated highest-priority core complaint) and
+      overlaps the player-only-channel topic above, whose firm boundary already says player
+      chat is never routed to the Council as an actionable turn.
+    - **Persistent per-area map images.** Generate a location's map/art once on first entry
+      and reuse it on revisit rather than regenerating every time the pub or the bridge is
+      seen. This is an extension of the Maps & Character Miniatures topic and the Visual
+      Phases (V1–V4) above, which already own the coherence-on-revisit requirement and the
+      "generate once on first entry, load on revisit" rule — see there, not here.
+      **Trap, concrete:** `locations` carries `layout_json` but has *no image carrier column*.
+      Adding one walks straight into the defect the T2 review found and re-found — the second
+      validation pass in `validateTurnData` re-projects the location and drops engine-stamped
+      fields before the INSERT, which is exactly how `generated_theme` was being silently
+      discarded (finding r2-1 in `.agents/review/index.md`). A naively added `map_image`
+      column will be dropped on write the same way. Fix the carrier first.
+
+  - **Per-character memories** (F&F exposes memories the GM can access, per character).
+    Half-gap: a `memories` table exists but is **campaign-scoped** — `campaign_id`,
+    `turn_number`, `importance`, `summary`, `keywords`, with no `character_id` — so there is
+    no per-character slice today. Adding one is a small schema change with one non-small
+    consequence: memories become seat-visible state, and the seat boundary is where a
+    cross-model review found six defects and where four of the first six *fixes* were
+    themselves wrong. Anything entering a seat payload gets the full guard treatment
+    (`scopeStateForSeat`, leak-scan, revert-proof).
+
+  - **MCP already exists.** The repo serves `aetheria-gm-mcp` over SSE at `/api/mcp/sse`
+    (`server.js:792`), so external agents can already drive the game. This is a *transport*
+    for outside clients, and is not the right home for an internal dice resolver — see the
+    unfudgeability correction above.
+
+- **Zone-vs-grid fork is LIVE again (2026-07-12).** The Maps topic above forked tactical
+  fidelity into (a) zone positions, (b) map + tokens with narrative resolution, and (c) a
+  full tactical grid with coordinates/movement/line-of-sight, and the owner leaned (b) in
+  June — partly *because* (c) collided with a "full combat grid / tactical combat" non-goal.
+  **That non-goal has since been struck** (owner decision 2026-07-11: tactical combat is in
+  scope; the non-goal line was agent drift), so the fork genuinely reopens. Two pieces of
+  evidence bear on it: the rules intake's D6 recommends **zones over the existing
+  location/occupancy layer**, not a grid; and the shipped Situation panel is *already
+  zone-shaped* — `layout_json` models named areas ("Cracked Plaza", "Collapsed Windmills")
+  with tokens placed in them. A grid would discard that and imply exact coordinates, movement
+  in feet, and line-of-sight — a far heavier engine, and a worse fit for a GM narrating prose.
+  Recommendation to the owner when D6 is asked: keep zones, and let the generated map image be
+  the *backdrop* under the zone overlay rather than replacing the zone model.
+
 ## Dev Tooling (not a game phase — no playtest gate, but still plan-backed)
 
 - **Tauri desktop shell (approved 2026-07-03, owner request).** A standalone native
