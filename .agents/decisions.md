@@ -20,6 +20,43 @@ Supersedes:
 <Optional prior decision, doc, or rule.>
 -->
 
+### 2026-07-12 - All code goes through the reviewloop playbook with codex as reviewer; plan first, then code
+
+Status: Active
+
+Decision:
+Every code change goes through `.agents/playbooks/reviewloop.md` with codex as the
+reviewer. This is unconditional and there is no per-change exemption: size, urgency,
+obviousness, an owner go on the change itself, and a passing test suite are all
+irrelevant to whether the loop is required. An owner approval to *make* a change is
+not an approval to merge it unreviewed. Docs-only changes are outside this rule.
+
+Sequencing: planning completes before coding starts. Work is planned — and, where the
+playbook calls for it, the plan itself is review-accepted — before implementation
+begins. "Get everything planned, then coding can start" (owner, 2026-07-12).
+
+Consequence for work already on disk: any code branch built without going through the
+loop is unreviewed and must not be merged until it has. As of this decision that names
+`fix/map-label-overflow` @ `b178222` (the Situation-panel label fix — owner-approved to
+build, built, suite green with a proven revert-guard, but never review-dispatched).
+It stays parked and enters the loop when coding starts.
+
+Reason:
+The loop has repeatedly earned its keep on this repo, and the failures it catches are
+exactly the ones a passing suite does not: on the 2026-07-09 seat-visibility round, four
+of six findings were reopened by the reviewer and every reopen named a real defect —
+including two that were caught only because the *fixes themselves* were re-reviewed. Two
+guards were caught being vacuous in the same period. A change that looks obviously
+correct to its author is precisely the change that gets merged without a second pair of
+eyes, so exempting "small" or "obvious" changes would exempt the highest-risk ones.
+Planning first exists so the loop reviews a plan against intent rather than reverse-
+engineering intent from a diff.
+
+Supersedes:
+Nothing. Tightens the standing development contract (2026-06-05, above) — that decision
+gates *phases* on a playtest; this one gates *every code change* on the review loop and
+puts planning ahead of implementation.
+
 ### 2026-06-05 - Phased development with promotion gates and playtest review (from plan.md)
 
 Status: Active
