@@ -10,14 +10,43 @@ to `docs/history/state-archive.md`.
   completes before coding starts (owner decision 2026-07-12, `.agents/decisions.md`).
   Unconditional — no exemption for small, obvious, urgent, or owner-approved
   changes, and a green suite is not a substitute. Docs-only changes are out of
-  scope. Two code branches are therefore PARKED AND UNMERGED until they go
-  through the loop:
-  - `fix/map-label-overflow` @ `b178222` — Situation-panel area labels overran
-    their boxes (`map-render.js` drew names as bare SVG `<text>`, which neither
-    wraps nor clips). Owner-approved to build; suite green; revert-proof done
-    (guard goes red with the fix reverted). Never review-dispatched.
-  - `fix/css-1-hsla-theme-vars` @ `32af1ba` — verdict dispatched 2026-07-11 but
-    never returned. Re-dispatch it.
+  scope.
+- **IN FLIGHT: both open branches were reviewed by codex on 2026-07-13 and BOTH
+  were REOPENED with real defects.** Verdict trails are committed; neither is
+  merged; master carries docs only. Fix-ups are the next code action, then
+  re-dispatch each. Full detail: `.agents/review/index.md` + `findings/{css-1,map-1}.md`.
+  - `fix/css-1-hsla-theme-vars` @ `d4d18bd` — **the FIX (`32af1ba`) is confirmed
+    correct** (reviewer verified the premise and graded the migration a pure
+    function-name change; 134 + 23 = 157 reconciles; no invalid consumer left in
+    `public/` or `map-render.js`). **The GUARD (`d4d18bd`) is not.** The reviewer
+    defeated it by execution: it appended
+    `.probe { --panel-alias: var(--theme-panel); background: rgba(var(--panel-alias), 0.7); }`
+    in its own worktree and the suite still passed. The scanner matches only the
+    literal `rgba(var(--theme-…))` spelling, so custom-property indirection walks
+    past it — a vacuous guard in a new costume. Fix-ups: resolve indirection
+    transitively, strip CSS comments before scanning, replace the `>100`
+    anti-vacuous heuristic (101 matches inside a comment satisfy it).
+  - `fix/map-label-overflow` @ `b178222` — three real defects. (1) **The reported
+    bug is only half fixed**: `validateLocationLayout` clamps `x` and `w`
+    independently, so `{x:92, w:20}` is valid and the label still runs off the
+    100-wide canvas — the right-edge clipping the owner screenshotted is untouched;
+    the branch only closed area-to-area collision. (2) Truncation splits UTF-16
+    surrogate pairs (an emoji name becomes a lone high surrogate). (3) clipPath ids
+    collide: the validated-distinct ids `east wing` and `east-wing` both slugify to
+    the same fragment id, so one area's label resolves against the wrong clip and
+    vanishes. Reviewer graded the guard itself REAL and the deliberately-scoped-out
+    sibling defect (below) as acceptable.
+- **Reviewer dispatches fail closed and have failed twice.** css-1's 2026-07-11
+  dispatch never returned a verdict, and a 2026-07-13 dispatch died on a provider
+  capacity error. Neither became an accept. Expect this; re-dispatch.
+- **Recorded process defect, corrected 2026-07-13:** `.agents/review/index.md`
+  asserted from 2026-07-11 that a `guard-css-1` existed and proved the surfaces
+  transparent-on-master / painted-at-the-fix. **No such committed guard ever
+  existed** — it was an ad-hoc browser check, and the repo has **no browser
+  harness** (no Playwright in `package.json` or `node_modules`). The reviewer was
+  explicit that the new static scanner does not retroactively substantiate that
+  browser claim. Treat every "guard-*" named in older index prose as unverified
+  until a committed artifact is found.
 - **The rules system is the next big feature** (owner, 2026-07-12: "it's the next
   big feature, and a lot rides on it"), but it is NOT being designed yet — the
   owner is housekeeping first. **D0 is DECIDED** (2026-07-12, `.agents/decisions.md`):
@@ -28,14 +57,17 @@ to `docs/history/state-archive.md`.
   Present decisions ONE AT A TIME (owner, 2026-07-12) and never bundle "should we?"
   with "now?" — those are separate questions. No rules code before the remaining
   decisions, a concrete phase, and an accepted plan review.
-- Active review loop (2026-07-11): see `.agents/review/index.md`. Owner
-  quadruple-go (2026-07-11): (1) T2+T2-s theming plan APPROVED; (2) merge
-  the four accepted fixes (poll-1, dt-1..3, stack order); (3) fix the six
-  open findings (css-1, jt-1, dr-1, tts-1, ds-1, fk-1) through the loop;
-  (4) push once merged. Items 1, 2 and 4 are DONE; css-1's fix is committed on
-  `fix/css-1-hsla-theme-vars` @ `32af1ba` with its verdict dispatched but never
-  returned — re-dispatch it. Remaining queue: css-1 verdict, then jt-1 (HIGH),
-  dr-1, tts-1, ds-1, fk-1, then T2-s, then T2.
+- Review loop backlog (from the 2026-07-11 owner quadruple-go; T2+T2-s plan
+  APPROVED, four fixes merged, push done). Still owner-approved to fix through the
+  loop, none started: **jt-1 (HIGH — Journal tab renders a stale campaign's history
+  and Fork then forks the wrong campaign)**, dr-1, tts-1, ds-1, fk-1. Then T2-s,
+  then T2 (css-1 is T2-s's prerequisite). Table: `.agents/review/index.md`.
+- Queued, planned, owner-approved, not started: the `/admin` model catalog
+  (plan.md → Dev Tooling). Fetches real model names from the selected provider so
+  the operator need not know them; combo-box shape (suggestions over a text input,
+  never a strict select). Motivated partly by stale hardcoded defaults in
+  `api-client.js` — `grok-3` (:283) and `claude-3-5-sonnet-20241022` (:280, retired
+  Oct 2025) — which a provider selected with a blank model still resolves to.
 - **Priority: the remote two-human multiplayer playtest** (decision 2026-07-09).
   App-side readiness is DONE — Phase S seats S1–S3 are built, reviewed, and on
   master. Connectivity (transport/TLS/tunnel) is owner-handled and out of repo
@@ -61,9 +93,18 @@ to `docs/history/state-archive.md`.
 
 ## Next
 
-- Continue the rules-system decision queue — this is the next big feature, but the
-  owner sets the pace and was housekeeping when D0 landed. D0 is DECIDED; D1 (the
-  die) is the next ask. Present the queue in
+- **STOP POINT — an unanswered question is on the table.** The session ended with the
+  owner asked: *do the reopen fix-ups now, or park?* Both branches are reopened and
+  await that answer. **Do not start the fix-ups without it** — the owner has twice
+  corrected this session for acting on an approval it did not have, and was explicit
+  that "should we?" and "now?" are separate questions that must never be bundled.
+  When the go comes, the work is: rewrite the css-1 scanner (transitive
+  custom-property indirection, comment stripping, a real anti-vacuous assertion) and
+  the map-1 label fitter (grapheme-safe truncation, collision-free clip ids, clamp the
+  box to the canvas), commit each, revert-proof each, re-dispatch each to codex.
+- Continue the rules-system decision queue — the next big feature, but the owner sets
+  the pace and was housekeeping when D0 landed. D0 is DECIDED; **D1 (the die) is the
+  next ask**. Present the queue in
   `.agents/review/rules-system-plan-intake.md` ONE item at a time and wait; record
   approved wording durably as each lands. Then write the concrete phase and iterate
   pinned reviews to acceptance before any implementation. The synthesis must settle
@@ -80,15 +121,19 @@ to `docs/history/state-archive.md`.
   there, expose the server, create the second character (party strip
   **+ Join**, host-only), mint its seat (key icon beside the chip), send that
   token to the other player.
-- Both post-review housekeeping items are CLOSED (owner 2026-07-11, recorded
-  in `.agents/decisions.md`): the six `fix/sv-*` branches are deleted
-  (re-verified fully in master first), and the three accidental merge commits
-  stay — history rewrite declined; do not re-propose it.
+- Branch cleanup is DONE (owner 2026-07-12): the four merged fix branches and the
+  redundant `plan/rules-system` are deleted, content-verified on master first, and a
+  stale worktree registration (`/private/tmp/ai-rpg-rules-plan`, directory long gone)
+  was pruned. Only the two live review branches remain. Also CLOSED earlier
+  (2026-07-11): the six `fix/sv-*` branches are deleted, and the three accidental
+  merge commits stay — history rewrite declined; do not re-propose it.
 
 ## Blockers
 
 - Nothing technical. Network exposure for the playtest is owner-handled
   infrastructure (owner, 2026-07-09), not a repo task.
+- Process, not technical: the reopen fix-ups are blocked on the owner's answer to
+  "now, or park?" (see `## Next`).
 
 ## Verification
 
@@ -96,10 +141,20 @@ to `docs/history/state-archive.md`.
   rather than trusting a group count written here. The suite is hermetic:
   `RPG_DB_PATH` redirects it to a temp DB, closed and removed on exit (before
   2026-07-09 it opened the operator's real dev database).
+- **There is NO browser harness.** No Playwright in `package.json` or `node_modules`.
+  Any `guard-*` named in older `.agents/review/index.md` prose as a browser check was
+  ad-hoc (run through a Playwright MCP plugin) and was never committed — do not assume
+  a cited guard exists as an artifact until you find the file. A committed reviewer
+  cannot reproduce an uncommitted guard, and the loop fails closed on that.
 - When a change ships with a test, prove the test guards it (AGENTS.md), and
   beware the vacuous guard — a test that re-implements the logic it checks
   cannot fail when the fix is reverted. This bit twice on 2026-07-09; the
   anti-pattern and its cure are recorded in `.agents/playbooks/reviewloop.md`.
+  **It bit a third time on 2026-07-13, in a new costume:** the css-1 scanner guard
+  did not re-implement anything, but it matched only the *literal spelling* of the
+  defect (`rgba(var(--theme-…))`), so custom-property indirection defeated it. A guard
+  must cover the *class*, not the one spelling you thought of. The reviewer found this
+  by writing a bypass and watching the suite pass — that is the standard to hold.
   The seat boundary's predicates are already extracted for exactly this
   reason: `findLiveSeat`, `boundVoiceDirective`, `selectSpeakingCharacter`,
   `errorPayloadFor`.
