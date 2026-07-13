@@ -6,14 +6,28 @@ to `docs/history/state-archive.md`.
 
 ## Now
 
+- **ALL CODE GOES THROUGH THE REVIEWLOOP** with codex as reviewer, and planning
+  completes before coding starts (owner decision 2026-07-12, `.agents/decisions.md`).
+  Unconditional — no exemption for small, obvious, urgent, or owner-approved
+  changes, and a green suite is not a substitute. Docs-only changes are out of
+  scope. Two code branches are therefore PARKED AND UNMERGED until they go
+  through the loop:
+  - `fix/map-label-overflow` @ `b178222` — Situation-panel area labels overran
+    their boxes (`map-render.js` drew names as bare SVG `<text>`, which neither
+    wraps nor clips). Owner-approved to build; suite green; revert-proof done
+    (guard goes red with the fix reverted). Never review-dispatched.
+  - `fix/css-1-hsla-theme-vars` @ `32af1ba` — verdict dispatched 2026-07-11 but
+    never returned. Re-dispatch it.
 - **The rules system is the next big feature** (owner, 2026-07-12: "it's the next
-  big feature, and a lot rides on it"). The survey material HAS arrived and
-  Claude's pinned read-only intake is done: it returned `ready_for_owner_decisions`
-  with fourteen admitted plan findings and a D0–D14 owner decision queue. See
-  `.agents/review/rules-system-plan-intake.md`. D0 (overall frame) is the next
-  ask. No rules code before the decisions, a concrete phase, and an accepted
-  plan review. The intake landed here on 2026-07-12 by cherry-pick from the
-  `plan/rules-system` branch (docs-only; that branch is now redundant).
+  big feature, and a lot rides on it"), but it is NOT being designed yet — the
+  owner is housekeeping first. **D0 is DECIDED** (2026-07-12, `.agents/decisions.md`):
+  a fixed house chassis with generated per-campaign flavor skins. That unblocks
+  D1, D2, D4, D6, D11, D12 and D14 in the decision queue —
+  `.agents/review/rules-system-plan-intake.md`, which holds all fourteen admitted
+  findings and the queue; D1 (the die) is the next ask when the owner is ready.
+  Present decisions ONE AT A TIME (owner, 2026-07-12) and never bundle "should we?"
+  with "now?" — those are separate questions. No rules code before the remaining
+  decisions, a concrete phase, and an accepted plan review.
 - Active review loop (2026-07-11): see `.agents/review/index.md`. Owner
   quadruple-go (2026-07-11): (1) T2+T2-s theming plan APPROVED; (2) merge
   the four accepted fixes (poll-1, dt-1..3, stack order); (3) fix the six
@@ -40,18 +54,25 @@ to `docs/history/state-archive.md`.
   it legitimately differs per host. Check it where you are — its absence here
   says nothing about anywhere else, and is not a fact worth recording. Where
   no image provider is configured, heroics are inert by design.
-- Push state (verified 2026-07-12 at local master `d4d8d18`): both remotes
-  (gitea `origin` + `github`) hold master in sync with local. Re-derive with
+- Push state (as of 2026-07-12): local master carries UNPUSHED docs commits
+  (both remotes were last in sync at `d4d8d18`). Re-derive with
   `git ls-remote <remote> HEAD` rather than trusting this line; push policy is
-  `.agents/push-policy.md`.
+  `.agents/push-policy.md` — a push go means both remotes unless the owner says
+  otherwise.
+- Known, unfixed, recorded here so it is not rediscovered: `map-render.js:99`
+  draws the location title as an unclipped SVG `<text>`, the same defect class the
+  parked `fix/map-label-overflow` fixes for area labels. A long location name will
+  overrun the canvas. Deliberately left out of that branch's scope.
 
 ## Next
 
-- Continue the rules-system plan loop — this is the next big feature. Present the
-  decision queue in `.agents/review/rules-system-plan-intake.md` to the owner one
-  item at a time, starting with D0; record approved wording durably. Then write
-  the concrete phase and iterate pinned reviews to acceptance before any
-  implementation. The synthesis must settle the die (the dice theater generalizes
+- Continue the rules-system decision queue — this is the next big feature, but the
+  owner sets the pace and was housekeeping when D0 landed. D0 is DECIDED; D1 (the
+  die) is the next ask. Present the queue in
+  `.agents/review/rules-system-plan-intake.md` ONE item at a time and wait; record
+  approved wording durably as each lands. Then write the concrete phase and iterate
+  pinned reviews to acceptance before any implementation. The synthesis must settle
+  the die (the dice theater generalizes
   from d20-only via a `sides` field on the roll record — rider on the Phase 1
   slice in plan.md), the engine-owned ability/effect schema, multiplayer choice
   timing, legacy/versioning policy, and tactical combat (owner decision
