@@ -54,11 +54,6 @@ to `docs/history/state-archive.md`.
   it legitimately differs per host. Check it where you are — its absence here
   says nothing about anywhere else, and is not a fact worth recording. Where
   no image provider is configured, heroics are inert by design.
-- Push state (as of 2026-07-12): local master carries UNPUSHED docs commits
-  (both remotes were last in sync at `d4d8d18`). Re-derive with
-  `git ls-remote <remote> HEAD` rather than trusting this line; push policy is
-  `.agents/push-policy.md` — a push go means both remotes unless the owner says
-  otherwise.
 - Known, unfixed, recorded here so it is not rediscovered: `map-render.js:99`
   draws the location title as an unclipped SVG `<text>`, the same defect class the
   parked `fix/map-label-overflow` fixes for area labels. A long location name will
