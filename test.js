@@ -2631,6 +2631,33 @@ async function testStructuredLocations() {
   assert.strictEqual(hostile.includes('<script>'), false, 'Model-supplied names are XML-escaped');
   assert.strictEqual(hostile.includes('&lt;script&gt;'), true);
 
+  // Labels fit their box. SVG <text> neither wraps nor clips, so a long area
+  // name used to run out of its rect and collide with the neighbouring area
+  // (owner-reported: "Collapsed Windmills" overlapping "Cracked Plaza", and the
+  // rightmost label clipped by the canvas edge).
+  const LONG_AREA = 'Collapsed Windmills of the Eastern Reach';
+  const narrow = renderLocationMap(
+    validateLocationLayout({
+      name: 'Dusthaven',
+      areas: [
+        { id: 'windmills', name: LONG_AREA, x: 0, y: 0, w: 20, h: 20 },
+        { id: 'plaza', name: 'Cracked Plaza', x: 22, y: 0, w: 20, h: 20 }
+      ]
+    }),
+    []
+  );
+  assert.strictEqual(narrow.includes(LONG_AREA), false, 'A long area name is not drawn at full length in a narrow box');
+  assert.strictEqual(narrow.includes('…'), true, 'Overlong area labels are ellipsized');
+  assert.strictEqual(narrow.includes('clip-path='), true, 'Area labels are clipped to their own box');
+
+  // …but a label that fits is left alone.
+  const roomy = renderLocationMap(
+    validateLocationLayout({ name: 'Dusthaven', areas: [{ id: 'plaza', name: 'Cracked Plaza', x: 0, y: 0, w: 60, h: 20 }] }),
+    []
+  );
+  assert.strictEqual(roomy.includes('Cracked Plaza'), true, 'A label that fits its box is drawn in full');
+  assert.strictEqual(roomy.includes('…'), false, 'A label that fits is not ellipsized');
+
   // Canon injection: the GM sees the structured record (omniscience)
   const outline = { title: 'T', setting: 'S', acts: [], major_locations: [{ name: 'L', description: 'D' }], key_npcs: [{ name: 'N', role: 'R', personality: 'P' }], starting_quest: { title: 'Q', description: 'D' }, theme_colors: {} };
   const character = { name: 'Vex', class: 'Diver', attributes: {}, health: 100, max_health: 100, mana: 50, max_mana: 50, xp: 0, level: 1, inventory: [], abilities: [] };

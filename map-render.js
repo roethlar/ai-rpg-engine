@@ -26,6 +26,36 @@ function initialsFor(name) {
   return (words[0][0] + words[1][0]).toUpperCase();
 }
 
+const AREA_LABEL = {
+  fontSize: 2.8,
+  padding: 1.5,
+  // Average glyph advance as a fraction of font-size. Deliberately generous:
+  // overestimating glyph width keeps fewer characters, so a wide-glyph name
+  // ("WWW") still fits rather than spilling. There is no text measurement
+  // available here — the render is a pure string builder with no DOM.
+  glyphRatio: 0.62
+};
+
+/**
+ * Fits an area label to its box. SVG <text> neither wraps nor clips, so a name
+ * longer than its rect runs straight out of it and over the neighbouring area.
+ * Returns '' when the box cannot hold even one glyph (caller draws no label).
+ */
+function fitAreaLabel(name, boxWidth) {
+  const available = boxWidth - AREA_LABEL.padding * 2;
+  const maxChars = Math.floor(available / (AREA_LABEL.fontSize * AREA_LABEL.glyphRatio));
+  if (maxChars < 1) return '';
+  const text = String(name).trim();
+  if (text.length <= maxChars) return text;
+  if (maxChars === 1) return '…';
+  return text.slice(0, maxChars - 1).trimEnd() + '…';
+}
+
+/** Stable, collision-free clip-path id — the render must stay deterministic. */
+function slugify(value) {
+  return String(value).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'x';
+}
+
 const TOKEN_FILL = {
   player: 'var(--theme-primary, hsl(210 100% 55%))',
   npc: 'var(--theme-secondary, hsl(290 100% 60%))',
@@ -63,9 +93,16 @@ export function renderLocationMap(layout, occupancy = []) {
     parts.push(`<line x1="${from.cx}" y1="${from.cy}" x2="${to.cx}" y2="${to.cy}" stroke="var(--theme-text-dim, hsl(210 10% 65%))" stroke-width="0.6" stroke-dasharray="2,1.5" opacity="0.7" />`);
   }
 
+  const clipPrefix = `am-${slugify(layout.name)}`;
   for (const area of layout.areas) {
     parts.push(`<rect x="${area.x}" y="${area.y}" width="${area.w}" height="${area.h}" rx="1.5" fill="var(--theme-panel, hsl(220 25% 12%))" stroke="var(--theme-border, hsl(220 20% 20%))" stroke-width="0.5" />`);
-    parts.push(`<text x="${area.x + 1.5}" y="${area.y + 3.4}" font-size="2.8" fill="var(--theme-text-dim, hsl(210 10% 65%))" font-family="inherit">${escapeXml(area.name)}</text>`);
+    const label = fitAreaLabel(area.name, area.w);
+    if (!label) continue;
+    // Ellipsis fits the common case; the clip is the backstop, so a glyph-width
+    // underestimate still cannot bleed a label into the next area.
+    const clipId = `${clipPrefix}-${slugify(area.id)}`;
+    parts.push(`<clipPath id="${clipId}"><rect x="${area.x}" y="${area.y}" width="${area.w}" height="${area.h}" rx="1.5" /></clipPath>`);
+    parts.push(`<text clip-path="url(#${clipId})" x="${area.x + AREA_LABEL.padding}" y="${area.y + 3.4}" font-size="${AREA_LABEL.fontSize}" fill="var(--theme-text-dim, hsl(210 10% 65%))" font-family="inherit">${escapeXml(label)}</text>`);
   }
 
   // Fixed features: small diamonds along the top of their area.
