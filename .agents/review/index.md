@@ -3,6 +3,22 @@
 Workflow: see `.agents/playbooks/reviewloop.md`.
 Per-finding detail: see `.agents/review/findings/<id>.md`.
 
+## Active rules-system plan loop (started 2026-07-11, reviewer: claude)
+
+Owner-requested synthesis of the handed-over rules-system survey into a
+custom, implementation-ready system and plan. Read-only intake reviewed pinned
+snapshot `526aa5c` with Claude Code 2.1.207 (`claude-opus-4-8`, high effort,
+structured output). Verdict: `ready_for_owner_decisions` — **not** plan
+acceptance. It admitted 14 plan gaps (5 HIGH) and produced a 15-decision queue.
+D0 (fixed bespoke chassis + generated flavor versus the alternatives) is the
+next owner ask. No rules code is authorized before the decisions are recorded,
+a concrete phase is written, and Claude accepts that pinned plan snapshot.
+
+Detailed intake and decision queue:
+`.agents/review/rules-system-plan-intake.md`.
+
+---
+
 ## Active loop (started 2026-07-11, reviewer: codex)
 
 Owner-ordered retroactive review of the dice roll theater (code + its plan

@@ -6,12 +6,22 @@ to `docs/history/state-archive.md`.
 
 ## Now
 
+- **The rules system is the next big feature** (owner, 2026-07-12: "it's the next
+  big feature, and a lot rides on it"). The survey material HAS arrived and
+  Claude's pinned read-only intake is done: it returned `ready_for_owner_decisions`
+  with fourteen admitted plan findings and a D0–D14 owner decision queue. See
+  `.agents/review/rules-system-plan-intake.md`. D0 (overall frame) is the next
+  ask. No rules code before the decisions, a concrete phase, and an accepted
+  plan review. The intake landed here on 2026-07-12 by cherry-pick from the
+  `plan/rules-system` branch (docs-only; that branch is now redundant).
 - Active review loop (2026-07-11): see `.agents/review/index.md`. Owner
   quadruple-go (2026-07-11): (1) T2+T2-s theming plan APPROVED; (2) merge
   the four accepted fixes (poll-1, dt-1..3, stack order); (3) fix the six
   open findings (css-1, jt-1, dr-1, tts-1, ds-1, fk-1) through the loop;
-  (4) push once merged. Work queue: merges+push, then the six fixes
-  (css-1 first — T2-s prerequisite), then T2-s, then T2.
+  (4) push once merged. Items 1, 2 and 4 are DONE; css-1's fix is committed on
+  `fix/css-1-hsla-theme-vars` @ `32af1ba` with its verdict dispatched but never
+  returned — re-dispatch it. Remaining queue: css-1 verdict, then jt-1 (HIGH),
+  dr-1, tts-1, ds-1, fk-1, then T2-s, then T2.
 - **Priority: the remote two-human multiplayer playtest** (decision 2026-07-09).
   App-side readiness is DONE — Phase S seats S1–S3 are built, reviewed, and on
   master. Connectivity (transport/TLS/tunnel) is owner-handled and out of repo
@@ -30,24 +40,25 @@ to `docs/history/state-archive.md`.
   it legitimately differs per host. Check it where you are — its absence here
   says nothing about anywhere else, and is not a fact worth recording. Where
   no image provider is configured, heroics are inert by design.
-- Push state (verified 2026-07-11): both remotes (gitea `origin` + `github`)
-  hold master in sync with local. Re-derive with `git ls-remote <remote> HEAD`
-  rather than trusting this line; push policy is `.agents/push-policy.md`.
+- Push state (verified 2026-07-12 at local master `d4d8d18`): both remotes
+  (gitea `origin` + `github`) hold master in sync with local. Re-derive with
+  `git ls-remote <remote> HEAD` rather than trusting this line; push policy is
+  `.agents/push-policy.md`.
 
 ## Next
 
-- Design the reopened rules system (decision 2026-07-11 in
-  `.agents/decisions.md`): a working, user-predictable ruleset; the
-  freeform/no-rules path is not viable for multiplayer. Process set by the
-  owner 2026-07-11: the owner is gathering several existing rules systems
-  (working in Claude on the web) and will hand them over; the agent then
-  synthesizes a system fitted to this game from them. Waiting on that
-  material — do not start the design without it. Plan + phase promotion
-  still required before implementation. The synthesis must also settle which
-  dice exist (the dice theater generalizes from d20-only via a `sides` field
-  on the roll record — rider on the Phase 1 slice in plan.md) and must
-  support tactical combat (owner decision 2026-07-11: in scope; the old
-  non-goal line was agent drift, now struck).
+- Continue the rules-system plan loop — this is the next big feature. Present the
+  decision queue in `.agents/review/rules-system-plan-intake.md` to the owner one
+  item at a time, starting with D0; record approved wording durably. Then write
+  the concrete phase and iterate pinned reviews to acceptance before any
+  implementation. The synthesis must settle the die (the dice theater generalizes
+  from d20-only via a `sides` field on the roll record — rider on the Phase 1
+  slice in plan.md), the engine-owned ability/effect schema, multiplayer choice
+  timing, legacy/versioning policy, and tactical combat (owner decision
+  2026-07-11: in scope; the old non-goal line was agent drift, now struck).
+  Downstream and BLOCKED on the chassis: the character sheet, the deterministic
+  resolver that replaces part of the Referee role, and tactical positioning —
+  see the Friends & Fables entries in plan.md Future Topics.
 - Run the playtest. Owner steps before play, on the hosting machine: set
   `ACCESS_SECRET` + `ADMIN_SECRET`, confirm an AI provider is configured
   there, expose the server, create the second character (party strip
