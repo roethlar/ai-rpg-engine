@@ -2,6 +2,7 @@ import assert from 'assert';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
+import { fileURLToPath } from 'url';
 import { parseJsonSafe, validateTurnData, validateRequiredChecks, rollCheck, forceNoOpTurnState, applyCharacterUpdate, applyDiceConsequences, buildVoiceScript, TABLE_TALK_KINDS } from './rpg-state.js';
 import { AIClient, resolveAgentConfig, isTransientAiError } from './api-client.js';
 
@@ -1310,6 +1311,50 @@ async function testNpcAppearance() {
 // -------------------------------------------------------------
 // Test: agent-generated genre theming (Phase T1)
 // -------------------------------------------------------------
+/**
+ * css-1: the theme custom properties hold HSL *triples* ("220, 25%, 12%"), not
+ * rgb channels — see validateOutlineData's theme_colors above and the writer in
+ * public/app.js. A triple is only legal inside hsl()/hsla(). Substituted into
+ * rgb()/rgba() it yields `rgba(220, 25%, 12%, 0.7)`, which mixes a number with
+ * percentages — not valid legacy rgb syntax (CSS Color 4 §rgb-functions) — so the
+ * browser drops the WHOLE declaration at parse time and the surface silently
+ * renders unpainted.
+ *
+ * This is a no-DOM scanner over the shipped stylesheet: it asserts the *form* is
+ * absent, which is the defect. It cannot assert the rendered pixels (the repo has
+ * no browser harness), but the form mismatch is the bug — the parse-drop follows
+ * from it. The scanner also catches any FUTURE rgba(var(--theme-*)) added by hand.
+ */
+async function testThemeVarConsumers() {
+  console.log(' - Running theme-variable consumer tests (css-1)...');
+  const stylesPath = path.join(path.dirname(fileURLToPath(import.meta.url)), 'public', 'styles.css');
+  const css = fs.readFileSync(stylesPath, 'utf8');
+
+  const invalid = [];
+  const rgbConsumer = /\b(rgba?)\(\s*var\(\s*(--theme-[a-z0-9-]+)/gi;
+  let match;
+  while ((match = rgbConsumer.exec(css)) !== null) {
+    const line = css.slice(0, match.index).split('\n').length;
+    invalid.push(`public/styles.css:${line} — ${match[1]}(var(${match[2]}), …)`);
+  }
+  assert.deepStrictEqual(
+    invalid, [],
+    'rgb()/rgba() cannot consume an HSL-triple theme var: the declaration is invalid and the ' +
+    'browser drops it, so the surface never paints. Use hsl()/hsla(). Offenders:\n  ' +
+    invalid.join('\n  ')
+  );
+
+  // Anti-vacuous: the assertion above is trivially satisfiable by an empty or
+  // renamed stylesheet. Prove the file really is the themed stylesheet and really
+  // does consume the theme vars — through the VALID form.
+  const validConsumers = (css.match(/\bhsla?\(\s*var\(\s*--theme-/gi) || []).length;
+  assert.ok(
+    validConsumers > 100,
+    `Expected public/styles.css to consume --theme-* widely via hsl()/hsla(); found only ${validConsumers}. ` +
+    'Either the stylesheet moved or this guard is no longer reading it.'
+  );
+}
+
 async function testThemeGeneration() {
   console.log(' - Running agent-generated theming tests...');
   const { validateOutlineData, THEME_FONT_OPTIONS } = await import('./rpg-state.js');
@@ -2008,6 +2053,7 @@ async function runAll() {
     await testSeatLifecycle();
     await testSeatErrorPayloads();
     await testSeatVisibility();
+    await testThemeVarConsumers();
     await testThemeGeneration();
     await testVoiceScript();
     await testTtsProviderSeam();
