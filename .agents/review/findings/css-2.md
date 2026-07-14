@@ -147,4 +147,50 @@ parses, not what the file spells.**
 | `ff77b95` (css-2 r1)  | yes | **FAIL** — names `public/index.html:21` |
 | `ff77b95` (css-2 r1)  | no  | **PASS** — no false positive |
 
-### r2 — pending re-dispatch at head `ff77b95`
+### r2 — codex 0.144.3, head `ff77b95`, base `a16d4c7` (2026-07-14)
+
+**Verdict: REOPENED. `guard_confirmed: true`** — it executed the two-direction proof itself and
+confirmed the guard is real. It then found **five** further divergences between what my scanner
+reads and what a browser actually parses. **Every one carries an executed reproduction in which
+the full suite stayed green while the surface was broken.** The reframe from "write a bypass" to
+"parser-fidelity testing" avoided the content filter that killed r1; the substance was unchanged.
+
+| # | site | reproduction (suite GREEN in all five) |
+|---|------|----------------------------------------|
+| 1 | `test.js:1434` | **Cross-file alias.** `:root { --css2-cross-file-panel: var(--theme-panel); }` in `styles.css`, consumed by `rgba(var(--css2-cross-file-panel), 0.7)` in an `index.html` inline style. |
+| 2 | `test.js:1360` | **Incomplete decoding.** `r&#103ba(…)` (numeric reference with **no trailing semicolon**) and `rgba&lpar;var&lpar;--theme-panel&rpar;, 0.7&rpar;` (named references for the parens). |
+| 3 | `test.js:1340` | **`<style>` is RAWTEXT.** `<style><!-- .x { background: rgba(var(--theme-panel), 0.7); } --></style>` — inside `<style>` the markers are CSS **CDO/CDC tokens**, not an HTML comment, so the rule is live. My blanking *hid live CSS from my own scanner*. |
+| 4 | `test.js:1332` | **CSS comment blanking is not string-aware.** `content: "/*"; background: rgba(var(--theme-panel), 0.7); --end-marker: "*/";` — `/*` inside a CSS *string* is not a comment, so I blanked a live declaration. |
+| 5 | `test.js:1463` | **`map-render.js` exclusion is a real hole.** It changed `map-render.js:67` to `fill="rgba(var(--theme-panel, 220, 25%, 12%), 0.7)"`; suite green, map areas lose their themed fill. |
+
+**Coder assessment — the reviewer is right, and my Known-Gaps defense was a rationalization.**
+I had declared #5 "acceptable scope discipline" and #2/#4-class encodings "accepted residual risk
+because they do not occur by accident." The reviewer disproved the first with a realistic one-line
+edit to a real production file. On the rest, honesty requires splitting them by *accident
+plausibility*, which is the only defensible axis:
+
+- **#1 and #5 are realistic accidents.** A developer adds `--panel-tint: var(--theme-panel)` in
+  `styles.css` and uses it in an inline style; a developer adds an `rgba()` fill to the map SVG.
+  Both are ordinary edits. These are must-fix, and #1 is a genuine *design* error on my part —
+  CSS custom properties are **document-global** (they cascade from `:root`), so building the alias
+  graph per-file was simply wrong.
+- **#3 and #4 are correctness bugs in my own blanking**, not merely adversarial inputs. Both make
+  the scanner *blind itself* to live CSS — #3 in particular fires on the legacy
+  `<style><!-- … --></style>` idiom, which is real markup, not an attack.
+- **#2 is the unbounded one.** It is nevertheless closeable *properly* rather than by another
+  spelling patch: decode numeric references with and without the trailing semicolon, plus the
+  bounded set of named references whose expansion is an ASCII character relevant to CSS syntax
+  (`&lpar;` `&rpar;` `&comma;` `&sol;` `&ast;` `&semi;` `&quot;` …) — a few dozen, not the full
+  ~2200-entry table.
+
+**The pattern is the finding.** This is the third consecutive round in which a reviewer has broken
+this scanner (css-1 r1–r5 on spelling; css-2 r1 on entities; css-2 r2 on five more). A hand-rolled
+text scanner is losing to a real parser, repeatedly, and each round I patch the divergence it
+happens to demonstrate. The root cause is upstream of the guard: `--theme-*` holds a **bare HSL
+triple** that *looks* legal inside `rgba()`. If the theme vars held complete colors, there would be
+no triple to smuggle and no defect class to lint — the cause would be removed rather than
+instrumented, which is exactly the principle this repo already applied at T2 r6→r7. That is a
+production change (157 consumers, the `app.js` writer, `validateOutlineData`'s triple format,
+persisted `theme_colors`, `map-render.js` fallbacks) and therefore an owner decision, not an
+autonomous one. **Routed to the owner rather than iterated on autonomously** — the same stop the
+T2 loop took when the demands became a scoping question.
