@@ -5,7 +5,8 @@ glows silently render without their intended fills/effects on EVERY theme, today
 theming (T2) would visibly no-op on the dominant surfaces, which is why this is also a T2
 prerequisite.
 **Status**: MERGED (2026-07-14) — accepted at r5; owner go; merge `41e1938` on master.
-**Branch**: `fix/css-1-hsla-theme-vars` (merged; branch retained until owner cleanup)
+**Branch**: `fix/css-1-hsla-theme-vars` — deleted after content verify (`public/styles.css` +
+`test.js` identical to master; tip `09bb433` ancestor of master). Never pushed to remotes.
 **Commit**: `32af1ba` (fix) + `d4d18bd` + `76502b2` + `bbbeda2` + `5ab50ef` + `09bb433` (head);
 merged to master at `41e1938`
 

@@ -12,11 +12,10 @@ to `docs/history/state-archive.md`.
   changes, and a green suite is not a substitute. Docs-only changes are out of
   scope.
 - **IN FLIGHT:** map-1 is **REOPENED**. css-1 is **MERGED** to master at `41e1938`
-  (accepted r5; owner go 2026-07-14). Full detail: `.agents/review/index.md` +
-  `findings/{css-1,map-1}.md`.
-  - `fix/css-1-hsla-theme-vars` @ `09bb433` — **MERGED** (`41e1938`). Theme
-    `rgba`→`hsla` migration + class-level no-DOM guard on master. Branch retained
-    until owner cleanup.
+  (accepted r5; owner go 2026-07-14); its branch is **deleted** after content verify.
+  Full detail: `.agents/review/index.md` + `findings/{css-1,map-1}.md`.
+  - css-1 — **MERGED** (`41e1938`, tip was `09bb433`). Theme `rgba`→`hsla` + class-level
+    no-DOM guard on master. Local branch deleted (never on remotes).
   - `fix/map-label-overflow` @ `b178222` — three real defects. (1) **The reported
     bug is only half fixed**: `validateLocationLayout` clamps `x` and `w`
     independently, so `{x:92, w:20}` is valid and the label still runs off the
@@ -106,11 +105,10 @@ to `docs/history/state-archive.md`.
   there, expose the server, create the second character (party strip
   **+ Join**, host-only), mint its seat (key icon beside the chip), send that
   token to the other player.
-- Branch cleanup is DONE (owner 2026-07-12): the four merged fix branches and the
-  redundant `plan/rules-system` are deleted, content-verified on master first, and a
-  stale worktree registration (`/private/tmp/ai-rpg-rules-plan`, directory long gone)
-  was pruned. Only the two live review branches remain. Also CLOSED earlier
-  (2026-07-11): the six `fix/sv-*` branches are deleted, and the three accidental
+- Branch cleanup (2026-07-14): `fix/css-1-hsla-theme-vars` deleted after content
+  verify on master (code identical; tip ancestor). Only live review branch left:
+  `fix/map-label-overflow`. Earlier (2026-07-12): four merged fix branches +
+  `plan/rules-system` deleted; (2026-07-11): six `fix/sv-*` deleted. Three accidental
   merge commits stay — history rewrite declined; do not re-propose it.
 
 ## Blockers
