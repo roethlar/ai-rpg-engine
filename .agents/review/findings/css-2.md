@@ -4,10 +4,11 @@
 from reaching a surface unpainted, and it took five reopen rounds (r1–r5) to close the last
 spelling-vs-class hole. It still reads only `public/styles.css`. Two other tracked files consume
 `--theme-*` today, so the same defect can be reintroduced in either one and the suite stays green.
-**Status**: In progress — REOPENED at r1 by a reviewer-demonstrated bypass, fixed at `ff77b95`;
-re-review pending (the r1 dispatch was content-filtered before it could return a verdict envelope).
+**Status**: In progress — REOPENED at r1 (1 bypass) and r2 (5 bypasses); all six closed at
+`0229679`; r3 re-review pending. Owner go to fix-and-re-review rather than park or re-scope
+(2026-07-14).
 **Branch**: `fix/css-2-scanner-scope`
-**Commit**: `b8d1b49` (fix) + `ff77b95` (r1 fix-up, head)
+**Commit**: `b8d1b49` (fix) + `ff77b95` (r1 fix-up) + `0229679` (r2 fix-up, head)
 
 ## Evidence
 `test.js::testThemeVarConsumers` (at `41e1938`) reads exactly one file:
@@ -194,3 +195,47 @@ production change (157 consumers, the `app.js` writer, `validateOutlineData`'s t
 persisted `theme_colors`, `map-render.js` fallbacks) and therefore an owner decision, not an
 autonomous one. **Routed to the owner rather than iterated on autonomously** — the same stop the
 T2 loop took when the demands became a scoping question.
+
+**Owner ruling (2026-07-14): fix the five and re-review once more.** Not a re-scope, not a park.
+The root-cause option (drop the bare-triple theme format, which would delete the defect class and
+the scanner with it) stays on the table if a further round finds more holes; it is recorded above
+and in the r2 commit message so it is not lost.
+
+### r2 fix-up — `0229679`
+
+All five closed at the level of the *divergence*, not the spelling:
+
+1. **Global alias graph** (`mergeAliasMaps`) — the alias graph now spans every scanned file,
+   because custom properties cascade from `:root`. A probe asserts a *per-file* graph cannot see
+   the cross-file alias, so the fix cannot silently regress into the bug it closed.
+2. **`decodeHtmlEntities`** — trailing semicolon is now optional, and the named-reference table
+   covers the references expanding to CSS-significant ASCII (bounded to that subset by design,
+   not all ~2200 entries).
+3. **`mapOutsideRawText`** — HTML-level rewriting (comment blanking, entity decoding) now applies
+   only *outside* `<style>`/`<script>`, because those are RAWTEXT: the comment markers are CSS
+   CDO/CDC tokens there and the enclosed rules are live.
+4. **`blankCssComments` is string-aware** — a comment opener inside a CSS string is not a comment.
+5. **`map-render.js` is in scope.**
+
+JS files now get **no** comment blanking at all, by design: blanking `//` to end-of-line could
+hide a same-line offender behind a `//` inside a string, and string-aware block-comment blanking
+would need a real JS tokenizer. A commented-out offender in a JS file therefore fails the suite —
+a false *positive*, the fail-closed direction. The alternative risks a false *negative*, which is
+the entire bug.
+
+**r2 guard proof — all six reproductions replayed against the REAL production files** (not
+fixtures), at both heads:
+
+| reproduction | guard `ff77b95` | guard `0229679` |
+|---|---|---|
+| cross-file alias (`styles.css` → `index.html`) | GREEN (missed) | **RED (caught)** |
+| numeric reference, no semicolon (`r&#103ba`) | GREEN | **RED** |
+| named references forge the parens (`&lpar;`/`&rpar;`) | GREEN | **RED** |
+| `<style>` RAWTEXT CDO/CDC (rule is live) | GREEN | **RED** |
+| CSS string `"/*"` hiding a live declaration | GREEN | **RED** |
+| `map-render.js:67` rgba fill | GREEN | **RED** |
+| clean tree, no injection | — | GREEN (no false positive) |
+
+Suite green at `0229679`.
+
+### r3 — pending re-dispatch at head `0229679`
