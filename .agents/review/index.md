@@ -13,6 +13,19 @@ caught by that rule and are unmerged pending review.
 |----|----------|-------------------|--------|--------|
 | map-1 | MEDIUM | Situation-panel area labels overrun their box: adjacent labels collide and the rightmost is clipped by the canvas edge | `[~]` REOPENED at r1 — 3 real defects (surrogate split, clip-id collision, canvas overflow still open); fix-ups pending | `fix/map-label-overflow` @ `b178222` |
 | css-1 | MEDIUM | Pre-existing: `rgba(var(--theme-*), α)` over HSL-triple vars is invalid CSS — header/glass/panel fills compute unpainted on every theme | `[x]` MERGED at `41e1938` (ACCEPTED r5); branch deleted | `09bb433` (was `fix/css-1-hsla-theme-vars`) |
+| css-2 | MEDIUM | The css-1 guard scans only `styles.css`, but `index.html` (inline styles) and `app.js` also author theme-var CSS — the same defect can be reintroduced there with the suite green | `[ ]` admitted (post-merge review of css-1, owner go 2026-07-14) | `fix/css-2-scanner-scope` |
+| css-3 | LOW | `--theme-glow` is dead: defined 6× in `styles.css`, written on every theme apply, read nowhere. No observable failure — a DECLINE by the intake gate, admitted on an explicit owner go | `[ ]` admitted (owner override) | `fix/css-3-dead-theme-glow` (stacks on css-2) |
+
+Intake, css-2 + css-3 (2026-07-14, post-merge review of the css-1 commits, owner go "yes, both"):
+two candidates, both admitted, zero declined-with-work. The css-1 **fix** was re-verified as correct
+and complete on master (zero invalid consumers anywhere in tracked code, not just in the scanned
+file) and its guard as genuinely non-vacuous; no defect was found in the merged code itself. Both
+new findings are *residue*: css-2 is the r1–r5 "guard the class, not the spelling" lesson applied one
+level up (the guard covers the class in only one of the files where the class can occur); css-3 is
+dead-variable hygiene that **fails the intake gate on its own merits** (no observable failure) and is
+admitted solely on the owner's override — recorded that way in `findings/css-3.md` so the record does
+not imply cleanup findings pass triage unaided. Per the 2026-07-12 decision both go through the loop
+with codex regardless of size or owner approval.
 
 **css-1 r1 verdict** (codex 0.144.1, `guard_confirmed: true`): REOPENED — but the split matters.
 The reviewer **independently verified the premise** (the theme vars really are HSL triples) and
