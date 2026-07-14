@@ -1141,8 +1141,17 @@ found the counts themselves were wrong (below); a count-driven sweep leaves surv
    `hsl(210, 100%, 50%)`, which is **perfectly valid CSS that my own grammar would have REJECTED**.
    The guard would have failed against the app's own generated themes.)*
 
-   The grammar therefore accepts **either separator**, and **no alpha**:
-   `/^hsl\(\s*\d{1,3}\s*(?:,\s*|\s+)\d{1,3}%\s*(?:,\s*|\s+)\d{1,3}%\s*\)$/`
+   The grammar therefore accepts **either whole form**, and **no alpha**. *(r3: the previous
+   revision chose each separator **independently**, so it accepted the **mixed** form
+   `hsl(210, 100% 50%)` — which is **invalid CSS**. It would have passed the guard and broken every
+   consuming declaration. `\s` also admits whitespace CSS does not.)* Alternate the two **whole**
+   forms, and match ASCII space explicitly:
+
+   ```
+   /^hsl\((?:\d{1,3}, ?\d{1,3}%, ?\d{1,3}%|\d{1,3} \d{1,3}% \d{1,3}%)\)$/
+   ```
+   — comma-separated (what the runtime writer emits, via `normalizeHslColor`) **or**
+   space-separated (what the stylesheet uses). Never a mixture, never an alpha component.
    - Applied to all **42** `--theme-*` definitions in `public/styles.css` (which use the canonical
      space form).
    - Applied to the **writer's output**: unit-test `applyCampaignTheme`'s produced value strings —
@@ -1189,9 +1198,19 @@ found the counts themselves were wrong (below); a count-driven sweep leaves surv
   mis-map.)*
   The check that actually catches the risk is a pure text assertion, in Node, with no rendering
   involved: parse `public/styles.css`, extract every `color-mix(in srgb, var(--theme-*) N%,
-  transparent)`, and assert the resulting `(line, variable, N)` set equals the pinned table exactly
+  transparent)`, and assert the result equals the pinned table exactly
   — same 25 entries, same variables, same percentages, no more and no fewer. A transposed or dropped
-  alpha fails loudly. **A rewrite cannot be checked against itself, because the table is the
+  alpha fails loudly.
+
+  > **DO NOT KEY THE ASSERTIONS BY LINE NUMBER.** *(r3 — keyed by line, this test would have failed
+  > a **CORRECT** migration.)* The table's line numbers are **pre-migration**. Deleting the six
+  > `--theme-glow` definitions (`:18, :37, :48, :59, :70, :1198`) **shifts every entry below them** —
+  > the first 21 by five lines, the last four by six. A correct rewrite would go red unless someone
+  > left blank lines behind to preserve numbering, which is absurd. **Key by stable identity
+  > instead**: the `(selector, property, variable, percentage)` tuple, or ordered occurrence. The
+  > line numbers in the table are a **human navigation aid only — never the assertion key.**
+
+  **A rewrite cannot be checked against itself, because the table is the
   independently-extracted expectation and it is written down above.**
 - Beyond that, the visual pass below is a *sanity* check, not the proof. Stateful surfaces
   (hover/focus, animation, tabs, scene cards, the die glow at `styles.css:1075`) are covered by the
@@ -1231,8 +1250,11 @@ found the counts themselves were wrong (below); a count-driven sweep leaves surv
   `app.js` writer paths (:1603-1618 and :1621-1631) and `THEME_VAR_NAMES` upkeep — and if any of
   that is missed, generated themes silently inherit stale or default translucent colours. Do not
   attempt it as an afterthought inside this phase.
-- Mis-mapping a single alpha (`0.45` → `45%`) silently changes one surface's translucency. The
-  25-entry transformation table and the computed-style diff — not eyeballing — are what catch it.
+- Mis-mapping a single alpha (`0.45` → `45%`) silently changes one surface's translucency. **The
+  pinned 25-entry table, asserted in `node test.js`, is what catches it** — not eyeballing.
+  *(r3: this line previously also demanded "the computed-style diff", which the Success metrics
+  section correctly **withdraws** as unimplementable — no browser harness — leaving a cold
+  implementer with two contradictory gates. There is exactly ONE gate for this risk: the table.)*
 
 ### Documentation that teaches the SUPERSEDED contract (must be fixed, r1)
 
@@ -1242,15 +1264,21 @@ Leaving these in place instructs a future cold agent to restore the abandoned be
   composition never breaks." That is **false for `rgba` today** (it *is* the css-1 bug, written down
   as a guarantee) and wholly obsolete after this phase. Rewrite it to state the real reason
   components are kept: **clamping**.
-- **plan.md Phase T2 — THREE clauses, not two** *(r2 found the one that matters most)*:
-  1. **`plan.md:296-300` — the dangerous one.** T2's approved text instructs that "every such use
+- **plan.md Phase T2 — FOUR clauses.** *(r2 found the dangerous one; r3 found a fourth that my
+  "exhaustive" sweep had missed. Take the hint: grep T2 for `hsla`, `rgba`, `scanner`, and `glow`
+  rather than trusting this list to be complete.)*
+  1. **`:296-300` — the dangerous one.** T2's approved text instructs that "every such use
      **migrates to `hsla(var(--theme-*), α)`**". After CT that form is **invalid**
      (`hsla(hsl(…), α)`) and drops the very panel surfaces T2 depends on. A cold T2 implementer
-     following the approved plan would reintroduce css-1 wholesale. **Supersede explicitly.**
-  2. `~:357` — still requires the no-DOM consumer scanner to survive. CT deletes it.
-  3. `~:385-389` — still describes derived `--theme-glow` recomputation. CT deletes that variable.
+     following the approved plan would reintroduce css-1 wholesale.
+  2. **`:310-312` — the one r3 caught.** "panel/border/**glow** derive from bg+primary in
+     `applyCampaignTheme`" — this still tells a future implementer that `--theme-glow` exists and
+     must be recomputed. CT deletes it. (The cited line range `public/app.js:1423-1450` is also
+     already stale.)
+  3. `~:357` — still requires the no-DOM consumer scanner to survive. CT deletes it.
+  4. `~:385-389` — still describes derived `--theme-glow` recomputation.
 
-  All three must be struck or annotated as superseded **in the same slice**, not "later".
+  All four must be struck or annotated as superseded **in the same slice**, not "later".
 
 ### Files to change
 
