@@ -909,6 +909,54 @@ in the narration text itself** ("Ye'll not be findin' the old road tonight"), wh
 `rpg-prompts.js` concern, costs nothing, and works on *any* TTS provider including the current one.
 Recorded here so it is not lost; it is a **separate, optional slice**, not part of this phase.
 
+### Batch consecutive same-speaker lines into ONE request (owner, 2026-07-14)
+
+**Why this is here.** The plan review found that `/api/audio/narrate` allows 20 requests/minute
+(`server.js:728`) while a turn can carry up to 40 voice lines (`rpg-state.js:292` caps at 40), and
+that the first failure aborts every remaining line (`public/app.js:1541-1548` throws out of the
+loop). The first draft's answer was a failure policy — a band-aid. The owner asked the better
+question: **"why does 40 lines need to be 40 requests?"** It does not.
+
+Today `public/app.js:1519-1548` is a serial loop issuing **one POST per line**. Two reasons, only
+one of which still holds:
+1. **Each line may use a different voice** (narrator vs a given NPC). Real, and it survives.
+2. **Audio begins after the first line** instead of waiting for the whole turn to synthesize. A
+   genuine latency win; keep it.
+
+Neither forces one request *per line*. **Coalesce consecutive lines that share a speaker into a
+single request.** A turn is a handful of speaker *runs*, not 40 alternations.
+
+**Grok's inline tags are what make this possible, and OpenAI's design is what prevented it.**
+OpenAI steers via the `instructions` **request field**, so merging four lines flattens them to one
+delivery and loses per-line tone. Grok steers **inside the text**, so a merged run keeps per-line
+delivery:
+
+```
+[tense] The door gives way. [pause] [whispers] Something far below stops moving to listen.
+```
+
+One request, one voice, per-line delivery preserved. This is the capability verified on 2026-07-14
+paying for itself. Grok's text limit is 15,000 characters — far beyond any turn.
+
+**Consequences, including the one that cuts against it:**
+- A 40-line turn becomes roughly 5–8 requests, so the rate limit stops being a live hazard. Raise
+  the cap anyway to match a real turn — it was plainly never sized against one — but the batching,
+  not the cap, is the fix.
+- **Failure granularity becomes COARSER**: a failed request now loses a whole *run*, not one line.
+  The owner's failure policy (below) therefore applies per **run**. State this plainly; do not sell
+  the batching as free.
+- **Batching applies to the Grok path only.** OpenAI keeps one request per line, because its
+  per-request `instructions` cannot carry per-line tone. Do not "unify" the two paths by degrading
+  OpenAI's steering.
+- Time-to-first-audio is bounded by the first *run* rather than the first *line*. Runs are short at
+  the start of a scene; accept it, and measure it in the playtest rather than assuming.
+
+**Failure policy (owner, 2026-07-14): skip and keep going.** A failed run is dropped and narration
+continues with the next one — "a GM who stumbles on a word keeps talking." This replaces the current
+behaviour, where the first failure throws out of the loop and **silently kills every remaining
+line**. Do not retry into a rate limit. Surface a single non-blocking notice, not one per failure
+(`voiceErrorShown` at `app.js:1549-1555` already debounces this).
+
 ### Success metrics
 
 - `AI_RETRY_BACKOFF_MS=10 node test.js` green, including a **provider endpoint pin** for
