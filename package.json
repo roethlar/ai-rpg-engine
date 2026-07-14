@@ -7,6 +7,7 @@
   "scripts": {
     "start": "node server.js",
     "test": "node test.js",
+    "test:browser": "node test-browser.mjs",
     "desktop": "npm --prefix desktop run dev"
   },
   "dependencies": {
@@ -22,5 +23,8 @@
     "mcp-server"
   ],
   "author": "Antigravity",
-  "license": "MIT"
+  "license": "MIT",
+  "devDependencies": {
+    "playwright": "1.61.1"
+  }
 }
