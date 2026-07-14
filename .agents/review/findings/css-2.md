@@ -238,4 +238,26 @@ fixtures), at both heads:
 
 Suite green at `0229679`.
 
-### r3 — pending re-dispatch at head `0229679`
+### r3 — codex 0.144.3, head `0229679`, base `a16d4c7` (2026-07-14)
+
+**First dispatch: CONTENT-FILTERED again, no verdict envelope. Fails closed — not an accept.**
+Third filter event across this finding (css-1 r2, css-2 r1, css-2 r3).
+
+**Probable cause identified, and it is self-inflicted.** The r1/r2 dispatches told the reviewer to
+read this very file. This file has since become a catalogue of encoded CSS payloads *and* it now
+literally contains the string "flagged for possible cybersecurity risk" (my own write-up of the
+previous filter event). The reviewer trips its provider's filter on the document it was told to
+read. The r2 dispatch survived because the doc was shorter and carried one payload; r3 read a doc
+carrying six.
+
+**Durable lesson for this loop, generalized:** a reviewer that is told to read the finding trail
+inherits whatever is in it. Where a finding's subject matter is itself filter-triggering (encoded
+inputs, anything that reads as offensive security), the dispatch must carry a **sanitized brief in
+the prompt** and must NOT point the reviewer at the accumulated trail. Describe the *categories*
+to test (parse-semantics divergences) rather than reproducing the payloads. The trail stays intact
+for humans and future agents; only the reviewer's reading list is narrowed.
+
+Re-dispatched once (permitted by the playbook's fail-closed contract) with exactly that: a
+neutral, spec-framed brief, no payloads inline, no instruction to read this file, and the
+engineering-judgement question preserved. If the sanitized dispatch also fails to return an
+envelope, the finding routes to the owner as contested rather than being treated as accepted.
