@@ -777,13 +777,15 @@ Raised during planning but deliberately deferred. **Per project rule, nothing he
     unsupported-cascade guard, the grouping-rule recursion, the `@import` branch) that a cold
     implementation could omit entirely and *still pass every guard proof* — plus a route that matched
     the loopback host without its port, and a missing `browser.close()` on the failure path.
-  - **r5 (current) — every mechanism below was EXECUTED against real Chromium and the real
+  - **r5 (`371520b`) — REJECTED, 4 findings.** The oracle passed a third time, but the
+    unsupported-cascade guard was **too lenient and permitted a real false pass** (see Phase B step
+    2b), and Phase E's own assertions had no proofs.
+  - **r6 (current) — every mechanism below was EXECUTED against real Chromium and the real
     `public/styles.css` before being written down.** Measured on master: **184 var-bearing
-    declarations, 47 distinct per theme context, 282 assertions, 0 failures, 0 stray custom
-    properties, 0 external requests**. Sabotage cases **G1, G1b, G3, G6, G7a, G7b** are each confirmed
-    caught; G3 is confirmed to fail *as a Phase B declaration failure* rather than via the
-    unsupported-cascade diagnostic. Do not restore an earlier design — the traps are in "Rejected
-    designs".
+    declarations, 47 distinct per theme context, 282 assertions, 0 failures, 0 unsupported cascades,
+    0 external requests**. Sabotage cases **G1, G1b, G3, G6, G7a, G7b** are each confirmed caught; G3
+    is confirmed to fail *as a Phase B declaration failure* rather than via the unsupported-cascade
+    diagnostic. Do not restore an earlier design — the traps are in "Rejected designs".
 
   **The single most important lesson, and the reason this plan is trustworthy now:** the r2 reviewer
   reasoned carefully about CSS semantics and got a load-bearing detail **wrong**, in the direction
@@ -918,21 +920,40 @@ Raised during planning but deliberately deferred. **Per project rule, nothing he
          property and value**.
        - Dedupe by `(context, name, value, customs)` — identical declarations share a fate. **Measured:
          184 units collapse to 47 distinct per context, ×6 contexts = 282 assertions.**
-    2b. **FAIL-CLOSED GUARD — a custom property defined outside a theme block.** The probe reproduces
-       exactly two sources of custom properties: the **six theme blocks** (via `body.className`, which
-       the probe inherits) and the **rule under test's own** `--x:` declarations. A custom property
-       defined by *some other* rule that matches the same element is a cascade the isolated probe
-       **cannot model** — and it would fail *silently*, in the dangerous direction: the probe would
-       inherit the `:root` alias, differ from `unset`, and report green while the real element drops
-       its background.
-       So: **collect every custom-property definition in the sheet, and FAIL if any lives in a rule
-       that is neither one of the six theme blocks nor a rule that also consumes it.** Message:
-       "unsupported cascade: `<selector>` defines `<--prop>` outside a theme block; the probe cannot
-       model this — extend the harness before shipping this CSS."
+    2b. **FAIL-CLOSED GUARD — a custom property whose cascade the probe cannot model.** The probe
+       reproduces exactly two sources of custom properties: the **six theme blocks** (via
+       `body.className`, which the probe inherits) and the **rule under test's own** `--x:`
+       declarations. Anything else is a cascade it **cannot model**, and it fails *silently, in the
+       dangerous direction* — reporting green while the real element drops its declaration.
+
+       **The rule (get this exactly right — a looser version was measured to give a real false pass):**
+
+       > A custom property defined **outside the six theme blocks** is **UNSUPPORTED** if **any rule
+       > other than its defining rule consumes it**.
+
+       - Defined outside a theme block and **consumed only inside its own rule** → **fine**: the
+         same-rule `customs` travel with the unit, so the probe models it exactly. *(This is the shape
+         G3 exercises.)*
+       - Defined outside a theme block and **never consumed** → **fine, and harmless**: nothing can go
+         IACVT from a value nobody reads.
+       - Defined outside a theme block and **consumed by a different rule** → **STOP.** Message:
+         "unsupported cascade: `<selector>` defines `<--prop>`, which `<other-selector>` consumes; the
+         isolated probe cannot model this — extend the harness before shipping this CSS."
+
+       **Why the third case is not theoretical.** Measured counterexample:
+       ```css
+       .some-widget       { --shared: 10px; width: var(--shared); }
+       .some-widget:hover { background-color: var(--shared, red); }
+       ```
+       The probe for the hover unit gets **no customs** (they live in a different rule), so
+       `var(--shared, red)` takes its **fallback**, computes `red`, differs from `unset`, and the
+       harness reports **GREEN**. On the real hovered element `--shared` is `10px`, the fallback is
+       never used, and `background-color: 10px` is **IACVT — silently dropped**. Confirmed in Chromium:
+       Phase B green, the real element broken. **A guard that only asks "does the defining rule also
+       consume it?" does NOT catch this** — it stays silent. The rule above does.
+
        **Measured: master has 47 custom-property definitions and ALL of them are inside the six theme
-       blocks, so this guard is green today** — and it converts a silent unsoundness into a loud stop
-       the moment someone writes the first local custom property. *(Verified: injecting
-       `.some-widget { --local-accent: … }` fires it.)*
+       blocks, so this guard is green today** — and it converts a silent unsoundness into a loud stop.
     2c. **Known limitation, with a fail-closed cure — the initial-value coincidence.** A declaration
        whose *valid* computed value happens to equal what `unset` computes is indistinguishable from a
        dropped one (e.g. `:root { --fx: none } .item { filter: var(--fx) }` — valid, but `filter`
@@ -1051,6 +1072,18 @@ Raised during planning but deliberately deferred. **Per project rule, nothing he
   will **not** match — it would silently inherit the `:root` defaults and Phase C would go red on
   healthy master.
 
+  **Fixture lifecycle — both halves are load-bearing.** Every probe/control/sentinel element in Phases
+  A, B and D:
+  1. **Must be ATTACHED, beneath `document.body`.** The whole theme mechanism is *inheritance* from the
+     body's class. A **detached** element inherits nothing, so **every `--theme-*` would read as
+     UNDEFINED** and Phase A would go red on healthy master while looking like a real finding. Build
+     the fixture with `document.body.innerHTML = …` (or `appendChild`), never in a detached fragment.
+  2. **Must be fully RESET between assertions** — `el.style.cssText = ''` before each case, which
+     clears inline longhands *and* inline custom properties in one step. Reusing an element without a
+     full reset leaks a previous unit's `--tmp` or a previous shorthand's longhands into the next, and
+     results become **order-dependent** — a class of flake that would not reproduce the measured
+     282/0 run.
+
   **Server boot — concrete, because `server.js` gives no help.** `server.js:24` reads
   `PORT = process.env.PORT || 3000` and `app.listen()` fires only **after** async DB init
   (`server.js:~1050`); it exports no listener and reports no bound port. So:
@@ -1123,12 +1156,20 @@ Raised during planning but deliberately deferred. **Per project rule, nothing he
     The css-1 *scanner* guard passed its own guard proof and was still worthless, because it matched
     only the **literal spelling** of the defect. A guard must cover the **class**, not the one spelling
     you thought of.
-  - **G6 — the proof that step 2b's unsupported-cascade guard exists.** Nothing else forces it: an
-    implementation could omit 2b entirely and still pass G1–G5. So inject a custom property in a rule
-    that is neither a theme block nor a consumer — `.some-widget { --local-accent: hsl(10 50% 50%); }`
-    — and the harness must **stop with the unsupported-cascade diagnostic**, naming `.some-widget` and
-    `--local-accent`. Revert; it passes. **Confirmed: fires, and Phase B stays at 0 failures — so it is
-    a distinct signal from a declaration failure, which is what makes G3's disambiguation meaningful.**
+  - **G6 — the proof that step 2b's unsupported-cascade guard exists AND is the strict version.**
+    Nothing else forces it: an implementation could omit 2b entirely and still pass G1–G5. Inject
+    **exactly this** — it is the shape that produces a real false pass, and the *only* shape that
+    proves the guard is strict enough:
+    ```css
+    .some-widget       { --shared: 10px; width: var(--shared); }
+    .some-widget:hover { background-color: var(--shared, red); }
+    ```
+    The harness must **stop with the unsupported-cascade diagnostic**, naming `--shared`. Revert; it
+    passes.
+    **Do NOT use an unconsumed custom property (`.some-widget { --local-accent: … }`) for this proof.**
+    Measured: that shape is **harmless** — nothing reads it, so nothing can go IACVT — and a guard that
+    fires on it while staying silent on the shape above is the *lenient* guard, which **passes G6 and
+    still ships the false pass.** An earlier draft of this plan made exactly that mistake.
   - **G7 — the proof that the collector really recurses.** The generic `.cssRules` walk and the
     separate `@import` branch are both load-bearing, and **neither is proved by G1–G6**: an
     implementation that skipped either would still pass, because the main sheet's 184 units keep Phase
@@ -1136,10 +1177,24 @@ Raised during planning but deliberately deferred. **Per project rule, nothing he
     - **G7a — nested in a grouping rule:**
       `@media (min-width: 1px) { .nested-probe { background: rgba(var(--theme-panel), 0.7); } }`
       **Confirmed: caught in all six contexts.**
-    - **G7b — inside an imported sheet:** `@import` a stylesheet containing
-      `.imported-probe { background: rgba(var(--theme-panel), 0.7); }`
-      **Confirmed: caught in all six contexts** — this is the one that proves the
-      `rule.styleSheet.cssRules` branch, which plain `.cssRules` recursion does **not** reach.
+    - **G7b — inside an imported sheet.** This is the only proof that exercises
+      `rule.styleSheet.cssRules`, which plain `.cssRules` recursion does **not** reach. Use a `data:`
+      URL so no file has to be created, served, or cleaned up — **and put it at the very TOP of
+      `styles.css`, above every other rule**, because CSS ignores an `@import` that follows a style
+      rule (a proof placed at the bottom silently does nothing and "passes"):
+      ```css
+      @import url("data:text/css,.imported-probe%20%7Bbackground%3Argba(var(--theme-panel)%2C0.7)%7D");
+      ```
+      **Confirmed: caught in all six contexts.**
+  - **G8 — the proof that Phase E's cardinality floors exist.** G4 only proves the *reachability*
+    check; an implementation could drop the floors entirely and still pass it. So **replace
+    `styles.css` with a small but perfectly valid stylesheet** (two or three themed rules). The
+    stylesheet loads and CSSOM is readable, so G4's check is satisfied — but the harness must still
+    **FAIL on the unit floor** (< 150 units). Revert; it passes.
+  - **G9 — the proof that the external-request assertion exists.** Nothing else creates an external
+    request, so the assertion could be omitted and every other proof would still pass. Add an external
+    subresource to the probe document (e.g. a `<link rel="stylesheet" href="https://example.com/x.css">`).
+    The harness must **FAIL**, reporting the aborted URL. Revert; it passes.
   - **G2 — Phase C, not Phase A.** Delete `--theme-primary` from `.theme-fantasy`; **Phase C** must
     fail (fantasy's primary now equals the default's). It does **not** make Phase A report UNDEFINED:
     `:root` still defines the var and custom properties **inherit**, so the probe sees a perfectly

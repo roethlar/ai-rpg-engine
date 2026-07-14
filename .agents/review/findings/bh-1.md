@@ -168,6 +168,44 @@ findings accepted; **one refuted with evidence.**
 assertions, **0 failures, 0 stray custom properties, 0 external requests attempted**. G1, G1b, G3, G6,
 G7a, G7b all confirmed caught.
 
+## Disposition of the 4 r5 findings (pinned at `371520b`)
+
+The oracle passed a third time. But r5 found a **real false pass** — the harness reporting green while
+the real element is broken — and executing its counterexample confirmed it exactly.
+
+| # | Lens | Finding (r5) | Disposition |
+|---|---|---|---|
+| 1 | correctness | **The step-2b exemption permits a cross-rule cascade that is a genuine IACVT false pass.** Exempting a custom property because *its own rule* also consumes it says nothing about *other* rules consuming it. | **VALID, and CONFIRMED IN CHROMIUM.** See below — this is the most important finding of the round. The rule is now strict, and **G6 is replaced**, because the old G6 tested a shape that is *harmless*. |
+| 2 | correctness | **Phase E's cardinality floors and external-request assertion have no non-vacuous proof.** G4 only exercises reachability, so an implementation could drop both and pass everything. | **VALID.** New **G8** (replace `styles.css` with a small but *valid* sheet — reachability passes, the unit floor must still fail) and **G9** (add an external subresource — the harness must fail, naming the aborted URL). |
+| 3 | cold-impl | **Fixtures are never said to be attached to `document.body`,** yet theme activation depends entirely on inheritance from the body class. | **VALID and dangerous.** A **detached** element inherits nothing, so **every `--theme-*` would read UNDEFINED** and Phase A would go red on healthy master *while looking like a real finding*. Now specified, along with a full `style.cssText = ''` reset between assertions. |
+| 4 | cold-impl | **G7b has no executable recipe** — no such stylesheet exists, and CSS ignores an `@import` that follows a style rule. | **VALID.** G7b now uses a `data:` URL `@import` (no file to create, serve or clean up), with an explicit instruction to place it **at the top of the sheet** — a proof placed at the bottom silently does nothing and "passes". |
+
+### The false pass, confirmed
+
+```css
+.some-widget       { --shared: 10px; width: var(--shared); }
+.some-widget:hover { background-color: var(--shared, red); }
+```
+
+The probe for the hover unit receives **no customs** (they live in a *different* rule), so
+`var(--shared, red)` takes its **fallback**, computes `red`, differs from `unset`, and Phase B reports
+**GREEN**. On the real hovered element `--shared` is `10px`, the fallback is never used, and
+`background-color: 10px` is **IACVT — silently dropped**.
+
+**Measured in Chromium:** old guard **silent**, Phase B **green (0 failures)**, real element
+**broken** (`--shared` really does compute to `10px`). The refined guard catches it, stays silent on
+G3's same-rule shape, and stays silent on healthy master.
+
+**The strict rule:** a custom property defined outside the six theme blocks is **UNSUPPORTED if any
+rule other than its defining rule consumes it**. Defined-and-consumed only within its own rule is
+fine (the same-rule customs travel with the unit — G3's shape). Defined and **never consumed** is fine
+and **harmless**: nothing reads it, so nothing can go IACVT.
+
+**That last clause retires the old G6.** It injected an *unconsumed* custom property — measured
+harmless — so a **lenient** guard could fire on it, pass G6, and still ship the false pass. G6 is now
+r5's counterexample itself, the only shape that proves the guard is strict enough. *A guard proof that
+a wrong implementation also passes is not a guard proof.*
+
 ## Guard proofs the implementation MUST produce
 
 Non-negotiable; the harness is worthless without them. G1, G1b, G3, G6, G7a, G7b and G5's mechanism
@@ -193,16 +231,24 @@ are already **known to be achievable** — the scratchpad probes achieved every 
   its own guard proof and was still worthless because it matched only the **literal spelling** of the
   defect and indirection walked straight past it (`.agents/state.md`, Verification — "it bit a third
   time, in a new costume"). A guard must cover the **class**, not one spelling.
-- **G6 — proves the unsupported-cascade guard (step 2b) exists.** Inject
-  `.some-widget { --local-accent: hsl(10 50% 50%); }`; the harness must stop with the
-  unsupported-cascade diagnostic. Without this, an implementation can omit 2b and pass everything else.
+- **G6 — proves the unsupported-cascade guard (step 2b) exists AND is strict.** Inject the
+  cross-rule shape (`.some-widget { --shared: 10px; width: var(--shared) }` +
+  `.some-widget:hover { background-color: var(--shared, red) }`); the harness must stop with the
+  unsupported-cascade diagnostic. **Do not use an unconsumed custom property** — that shape is
+  harmless, and a lenient guard passes it while still shipping the false pass.
 - **G7a — proves grouping-rule recursion.** A broken declaration nested in `@media` must be caught.
 - **G7b — proves the `@import` branch.** A broken declaration inside an `@import`ed sheet must be
-  caught. This is the only proof that exercises `rule.styleSheet.cssRules`; plain `.cssRules`
+  caught (use a `data:` URL, **at the top of the sheet** — CSS ignores an `@import` after a style
+  rule). This is the only proof that exercises `rule.styleSheet.cssRules`; plain `.cssRules`
   recursion never reaches it, and the main sheet's units keep Phase E green regardless.
-- **G4 — fail-closed.** Point the probe document at a non-existent stylesheet: the harness must
-  **FAIL** (Phase E), not pass with zero assertions. Without Phase E, a stylesheet that fails to load
-  yields zero declarations, zero assertions, and a **green run**.
+- **G4 — fail-closed (reachability).** Point the probe document at a non-existent stylesheet: the
+  harness must **FAIL** (Phase E), not pass with zero assertions.
+- **G8 — fail-closed (cardinality floors).** Replace `styles.css` with a small but **valid** sheet:
+  reachability passes, so G4 is satisfied, but the **unit floor must still fail**. Without this an
+  implementation can drop the floors entirely and pass every other proof.
+- **G9 — fail-closed (external requests).** Add an external subresource to the probe document; the
+  harness must **FAIL**, naming the aborted URL. Nothing else creates an external request, so the
+  assertion could otherwise be silently omitted.
 
 ## The trap, restated
 
