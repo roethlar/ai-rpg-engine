@@ -50,6 +50,33 @@ good each individual frame looks. Grok Imagine's reference-image (image-to-image
 considered as a substitute anchor mechanism and left unexplored rather than adopted, because
 it is a design change to the seam, not a drop-in provider.
 
+**Grok TTS capabilities — VERIFIED BY EXPERIMENT against the live API, 2026-07-14.** Recorded
+because a handed-over plan document (`~/Dev/grok_api_updates.md`) got most of this wrong, and
+because Grok *itself*, asked about its own API, also got it wrong. Neither is evidence. The API is.
+
+- **Endpoint** `POST https://api.x.ai/v1/tts`. Body: `text`, `voice_id`, `language` (required),
+  `output_format`, `speed`. Returns raw audio bytes. There is **no free-text steering field** —
+  no equivalent of OpenAI's `instructions`.
+- **26 built-in voices** (19 male, 7 female, multilingual), listable at `GET /v1/tts/voices`.
+  NOT the "21 flagship voices" the handed-over doc claimed, and not the five the published docs
+  page lists. `orion` is real. This is more than double the 12-voice OpenAI NPC pool in use today.
+- **Voice cloning** exists (`POST /v1/custom-voices`, cap **30**). Ruled impractical by the owner:
+  it needs a reference recording per character.
+- **Inline delivery tags WORK** (`[whispers]`, `[laughs]`, `[angry]`, `[tense]`, …). Proven two
+  ways: the tag words do not appear in a Whisper transcript of the output (so they are not read
+  aloud), and `[laughs] You actually did it!` transcribes as "Haha, you actually did it!" — the
+  model produced an actual laugh. The vocabulary is open-ended: `[angry]` works and is not a
+  documented example. Owner confirmed by ear: tense and whisper are clearly distinct from joy.
+- **Accents DO NOT work.** There is no accent parameter, and an `[accent]` tag does not
+  meaningfully change the voice (owner, by ear, 2026-07-14, on an A/B of the same line and voice).
+  **The only accent lever is dialect spelling in the text itself** ("Ye'll not be findin'…"),
+  which is a Narration-prompt concern, costs nothing, and works on *any* TTS provider.
+
+Net: Grok trades OpenAI's free-text steering (which *can* do accents on demand, but which the
+owner found flat) for 26 timbres plus working delivery tags. The owner's design — one voice for
+the GM, the rest cycled across NPCs with a habitual mood per character — is viable on Grok, and
+maps onto per-NPC voice-directive and per-line tone fields the engine already computes.
+
 Known blocker for any new TTS provider, recorded so it is not rediscovered: the voice layer is
 structurally OpenAI-coupled. `tts-providers.js:10` pins `TTS_VOICES` to OpenAI voice names and
 `validateVoiceProfile` coerces anything outside that set to `'marin'`; `NPC_VOICE_POOL` (:35)
