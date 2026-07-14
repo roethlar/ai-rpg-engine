@@ -20,6 +20,87 @@ Supersedes:
 <Optional prior decision, doc, or rule.>
 -->
 
+### 2026-07-14 - Grok Imagine is out for NPC and location imagery; TTS is the provider priority
+
+Status: Active
+
+Decision:
+Grok Imagine will **not** be used for NPC or location images. It exposes no seed, and the
+image seam has carried an *identity anchor* since day one (owner direction, `image-providers.js:9-13`):
+callers record the returned seed and replay it so a given NPC or place stays visually
+consistent across renders. A provider that cannot hold that anchor cannot serve those
+subjects. Owner wording (2026-07-14): "if we can't keep the same image base for NPCs &
+locations then grok imagine is out for that."
+
+Maps were raised as a possible exception, on the reasoning that a map does not change once
+drawn. This is NOT decided and is not a licence to implement: maps today are **deliberately
+AI-free** — `map-render.js:3` renders a top-down SVG with "no AI in the render path", and the
+SVG inherits the campaign's CSS theme variables. Putting Grok Imagine behind maps would *add*
+AI to a path intentionally kept free of it, and would forfeit theme inheritance. Treat it as
+an open Future Topic requiring its own promotion, not as an approved slice.
+
+Instead, **TTS is the priority**: the owner found the OpenAI implementation unimpressive —
+"it sounded unnatural and had no variance for accents or mood" (2026-07-14).
+
+Reason:
+Visual identity persistence is a *feel* property, and feel is this repo's stated bar
+(`.agents/repo-guidance.md`: every change must improve fun and feel like a real GM). An
+image provider that silently re-rolls an NPC's face each turn degrades exactly that, however
+good each individual frame looks. Grok Imagine's reference-image (image-to-image) support was
+considered as a substitute anchor mechanism and left unexplored rather than adopted, because
+it is a design change to the seam, not a drop-in provider.
+
+**Provider choice, settled by listening test (owner, 2026-07-14): GROK TTS WINS.** Owner wording:
+"grok tts wins. it's just that much better. when openai releases a 5o model I will revisit, but for
+now it's grok." Decided by ear on a controlled A/B — the same lines, the same GM instruction the
+engine actually sends (`server.js:742`), OpenAI's real configured path (`marin` /
+`gpt-4o-mini-tts`) against Grok — not from documentation or vendor claims.
+
+**Shape: Grok is ADDED ALONGSIDE OpenAI, not swapped in destructively** (owner, 2026-07-14). Grok
+becomes the provider of choice; OpenAI stays registered and selectable in `/admin`. The TTS seam
+was built for exactly this (`tts-providers.js:5`: "new providers … register here … and become
+selectable in /admin"). Reasons this is not a straight replacement: the owner intends to revisit
+if OpenAI ships a stronger model; OpenAI is the only provider that can do accents on demand; and a
+provider that disappoints in a real session must be revertible without a code change.
+
+**Grok TTS capabilities — VERIFIED BY EXPERIMENT against the live API, 2026-07-14.** Recorded
+because a handed-over plan document (`~/Dev/grok_api_updates.md`) got most of this wrong, and
+because Grok *itself*, asked about its own API, also got it wrong. Neither is evidence. The API is.
+
+- **Endpoint** `POST https://api.x.ai/v1/tts`. Body: `text`, `voice_id`, `language` (required),
+  `output_format`, `speed`. Returns raw audio bytes. There is **no free-text steering field** —
+  no equivalent of OpenAI's `instructions`.
+- **26 built-in voices** (19 male, 7 female, multilingual), listable at `GET /v1/tts/voices`.
+  NOT the "21 flagship voices" the handed-over doc claimed, and not the five the published docs
+  page lists. `orion` is real. This is more than double the 12-voice OpenAI NPC pool in use today.
+- **Voice cloning** exists (`POST /v1/custom-voices`, cap **30**). Ruled impractical by the owner:
+  it needs a reference recording per character.
+- **Inline delivery tags WORK** (`[whispers]`, `[laughs]`, `[angry]`, `[tense]`, …). Proven two
+  ways: the tag words do not appear in a Whisper transcript of the output (so they are not read
+  aloud), and `[laughs] You actually did it!` transcribes as "Haha, you actually did it!" — the
+  model produced an actual laugh. The vocabulary is open-ended: `[angry]` works and is not a
+  documented example. Owner confirmed by ear: tense and whisper are clearly distinct from joy.
+- **Accents DO NOT work.** There is no accent parameter, and an `[accent]` tag does not
+  meaningfully change the voice (owner, by ear, 2026-07-14, on an A/B of the same line and voice).
+  **The only accent lever is dialect spelling in the text itself** ("Ye'll not be findin'…"),
+  which is a Narration-prompt concern, costs nothing, and works on *any* TTS provider.
+
+Net: Grok trades OpenAI's free-text steering (which *can* do accents on demand, but which the
+owner found flat) for 26 timbres plus working delivery tags. The owner's design — one voice for
+the GM, the rest cycled across NPCs with a habitual mood per character — is viable on Grok, and
+maps onto per-NPC voice-directive and per-line tone fields the engine already computes.
+
+Known blocker for any new TTS provider, recorded so it is not rediscovered: the voice layer is
+structurally OpenAI-coupled. `tts-providers.js:10` pins `TTS_VOICES` to OpenAI voice names and
+`validateVoiceProfile` coerces anything outside that set to `'marin'`; `NPC_VOICE_POOL` (:35)
+is all OpenAI voices and `assignNpcVoiceProfile` stamps `provider: 'openai'` and persists the
+voice into `npcs.voice_json`. A Grok provider would therefore receive an OpenAI voice id and
+xAI would reject it (its built-ins are ara/eve/leo/rex/sal). Making the voice layer
+provider-aware is required work for *any* new TTS vendor, and existing campaigns carry OpenAI
+voice ids in the DB, so back-compat is part of it. The seam anticipated this
+(`tts-providers.js:5`: "new providers (e.g. voice-cloning services for unique NPC voices)
+register here"), but the voice *pool* did not.
+
 ### 2026-07-12 - Rules D0: a fixed house chassis, with generated per-campaign flavor skins
 
 Status: Active

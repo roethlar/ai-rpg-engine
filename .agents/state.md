@@ -11,6 +11,36 @@ to `docs/history/state-archive.md`.
   Unconditional — no exemption for small, obvious, urgent, or owner-approved
   changes, and a green suite is not a substitute. Docs-only changes are out of
   scope.
+- **TWO PHASES ARE QUEUED, BOTH PLANNED, NEITHER STARTED** (owner: "queue up both,
+  there's no deadline", 2026-07-14). Both are in plan.md; both need plan acceptance
+  before any code. Owner set no order.
+  - **Phase V — Grok TTS.** Grok won a controlled listening test and is added
+    *alongside* OpenAI (decisions.md, 2026-07-14). The blocker it solves: the voice
+    layer is structurally OpenAI-coupled, so merely registering a Grok provider fails
+    on every line (`server.js:735`/`:761` gate the voice on the OpenAI `TTS_VOICES`
+    set, so a Grok voice falls back to `'marin'`, which Grok then 404s). Grok's
+    verified capabilities are recorded in decisions.md — **26 voices, delivery tags
+    work, accents do not.** Do not re-derive them from vendor docs or by asking a
+    model; both were wrong. Feel phase → playtest gate.
+  - **Phase CT — theme colour format.** Store complete colours in `--theme-*` instead
+    of bare HSL component lists, deleting the css-1 defect class and the css-2 scanner
+    with it. Plan review r1 returned **17 findings and the central claim was false**;
+    revised at `e12aa7b`, r2 review in flight. Intended visual result is
+    pixel-identical.
+- **css-2 is ABANDONED, and its branch must never be merged.** `fix/css-2-scanner-scope`
+  @ `0229679` **crashes the suite** (a `RangeError` on an out-of-range character
+  reference) and **rejects valid CSS**. Three review rounds defeated the scanner 1, then
+  5, then **16** times; reviewer and coder independently concluded a text scanner cannot
+  police encoded CSS and the approach was **not converging**. Phase CT is the agreed root
+  fix. Full record: `.agents/review/findings/css-2.md`. **If you are tempted to "just
+  harden the scanner", read that file first — that is the trap this cost a day to escape.**
+  css-3 (dead `--theme-glow`) is SUPERSEDED and folds into Phase CT.
+- **Reviewer dispatches: a filter-triggering finding poisons its own trail.** Three css-*
+  dispatches were content-filtered by the reviewer's provider. Cause: the dispatch told
+  codex to read the finding doc, and that doc had become a catalogue of encoded CSS
+  payloads. **Fix, now standing practice:** carry a sanitized, spec-framed brief in the
+  prompt; describe the *categories* to test rather than reproducing payloads; do not point
+  the reviewer at the accumulated trail. The sanitized re-dispatch returned cleanly.
 - **IN FLIGHT:** map-1 is **REOPENED**. css-1 is **MERGED** to master at `41e1938`
   (accepted r5; owner go 2026-07-14); its branch is **deleted** after content verify.
   Full detail: `.agents/review/index.md` + `findings/{css-1,map-1}.md`.
@@ -83,9 +113,18 @@ to `docs/history/state-archive.md`.
 
 ## Next
 
+- **Phase CT plan review r2 is in flight** at `e12aa7b`. On acceptance, implement as ONE
+  atomic slice through the reviewloop. On reopen, revise and re-review.
+- **Phase V (Grok TTS) plan review has NOT been dispatched yet.** Dispatch it, accept it,
+  then implement. Owner set no order between V and CT; V is the one that improves the game,
+  CT only guards an already-fixed bug.
 - **map-1** is still REOPENED; its fix-ups (grapheme-safe truncation, collision-free
   clip ids, clamp the box to the canvas) still need an explicit go (or park). Do not
   start map-1 without it. css-1 is merged.
+- Optional, recorded so it is not lost: **accents come from dialect spelling in the
+  narration text** ("Ye'll not be findin'…"), not from any TTS provider — none can do
+  accents. That is an `rpg-prompts.js` slice, provider-agnostic and free. Not part of
+  Phase V.
 - Continue the rules-system decision queue — the next big feature, but the owner sets
   the pace and was housekeeping when D0 landed. D0 is DECIDED; **D1 (the die) is the
   next ask**. Present the queue in

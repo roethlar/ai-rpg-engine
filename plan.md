@@ -810,6 +810,506 @@ This plan will be updated as we learn from implementation and playtesting.
 
 ---
 
+## Phase V: Grok TTS — 26 voices, delivery tags, provider-aware voice profiles (promoted 2026-07-14, owner go)
+
+A **feel** phase: it exists because the owner judged OpenAI's narration flat ("it sounded unnatural
+and had no variance for accents or mood") and judged Grok's clearly better on a controlled
+listening test. It therefore carries a **playtest gate** (repo-guidance: Phase review gate).
+
+Grounding facts (all verified against the live API 2026-07-14, recorded in `.agents/decisions.md`
+— do **not** re-derive them from vendor docs or by asking a model, both of which were wrong):
+Grok TTS is `POST https://api.x.ai/v1/tts` with `text` / `voice_id` / `language` (required) /
+`output_format` / `speed`, returning raw audio bytes. **26 built-in voices.** **No free-text
+steering field.** **Inline delivery tags work** (`[whispers]`, `[angry]`, open vocabulary).
+**Accents do not.**
+
+Owner decisions this phase implements: Grok is the provider of choice, **added alongside** OpenAI
+rather than replacing it (OpenAI stays registered and selectable in `/admin`); and NPC voices are
+"one voice for the GM, the rest cycled across NPCs, each with a habitual mood — the bartender is
+usually happy, the thief is usually whispering."
+
+### Problem
+
+The voice layer is **structurally OpenAI-coupled**, so registering a Grok provider alone would
+fail on literally every line:
+
+- `tts-providers.js:10` — `TTS_VOICES` is a hardcoded set of OpenAI voice names, and
+  `validateVoiceProfile` (:24) **coerces anything outside it to `'marin'`**.
+- `tts-providers.js:35` — `NPC_VOICE_POOL` is all OpenAI voices; `assignNpcVoiceProfile` (:42)
+  stamps `provider: 'openai'` and the result is persisted to `npcs.voice_json`.
+- `server.js:735` and `server.js:761` — both gate the chosen voice on `TTS_VOICES.has(...)`. A Grok
+  voice is rejected, falls back to `'marin'`, and `'marin'` is then sent to Grok, which 404s
+  (`Voice 'marin' not found` — observed).
+- `tts-providers.js:61` — steering rides in `instructions`, which Grok has no field for.
+
+Existing campaigns already persist OpenAI voice names in `npcs.voice_json` and
+`campaigns.narrator_voice_json`, so this cannot be a rename.
+
+### Design
+
+1. **Per-provider voice registries** (`tts-providers.js`). Replace the single `TTS_VOICES` /
+   `NPC_VOICE_POOL` with a registry keyed by provider:
+   `{ openai: { voices, defaultVoice: 'marin', npcPool }, grok: { voices, defaultVoice, npcPool } }`.
+   **Pin Grok's 26 voice ids as a literal list** (verified 2026-07-14) rather than fetching
+   `GET /v1/tts/voices` at validation time — a network call inside the validation path is a new
+   failure mode on every turn. (The endpoint is noted for a future `/admin` voice catalog, which is
+   the same shape as the queued model catalog; not this phase.)
+   Keep `TTS_VOICES` exported as the OpenAI set for back-compat with existing importers
+   (`server.js:15`), or update the importers — do not leave two sources of truth.
+
+2. **Provider-aware validation.** `validateVoiceProfile(raw, provider)` validates `voice` against
+   *that provider's* set and defaults to *that provider's* default. It must not silently coerce a
+   valid Grok voice to `'marin'`.
+
+3. **Provider-portable NPC voices, with NO database migration.** `assignNpcVoiceProfile(npc, index)`
+   is already deterministic by index. Add a stable `voiceSeed` (integer) to the profile and resolve
+   the *name* at synthesis time from the **active** provider's pool:
+   `voice = pool[seed % pool.length]`. Back-compat: when a stored profile has no `voiceSeed`
+   (every existing row), derive the seed from a stable hash of the NPC name, so existing NPCs keep
+   a fixed voice without a migration. The stored `voice` string becomes a hint for its own
+   provider, never a cross-provider constraint. Result: switching provider re-derives every voice
+   deterministically instead of 404ing, and voices stay sticky per NPC.
+
+4. **Delivery: `instructions` → inline tags.** Grok's steering channel is a leading tag on the text.
+   - Add a bounded `mood` field to the voice profile: a short habitual-delivery descriptor
+     (e.g. `warm, booming`). This is the owner's "bartender is usually happy" — it is the NPC's
+     *baseline*, stored once at NPC creation, sticky like the voice.
+   - Source it from the model at NPC creation: `rpg-prompts.js` already asks for `personality` and
+     `quirks`; add a short `voice_mood`. Validate in `rpg-state.js` alongside the other NPC fields.
+     Where absent (existing NPCs), omit the tag — degrade to tone only, never invent one.
+   - At synthesis, Grok's text becomes `[<mood>, <tone>] <text>` (either part optional; no tag at
+     all when both are absent). The per-line `tone` the engine already emits on `narration_lines`
+     supplies the moment-to-moment variance; `mood` supplies the character's baseline.
+   - **OpenAI's path is unchanged**: `mood` folds into the existing `instructions` string. Both
+     providers therefore consume the same two inputs; only the rendering differs.
+   - **Sanitize the tag.** `mood` and `tone` originate from a model and are prepended to text that
+     will be *spoken*. Restrict to a conservative charset (letters, spaces, commas, hyphens) and a
+     short length cap, so a malformed value cannot inject spoken content or break the tag. The seat
+     path already bounds `tone` via `boundVoiceDirective` (`server.js:753`) — reuse, do not
+     duplicate, that bound.
+
+5. **`server.js` — remove the OpenAI-shaped gates.** `:735` and `:761` must validate against the
+   *active provider's* voice set, not `TTS_VOICES`. This is the change that actually unblocks Grok.
+
+6. **Key resolution.** `getServerAiConfig().voiceApiKey` must resolve per provider: for `grok`, use
+   `XAI_API_KEY || GROK_API_KEY`, matching the text path (`api-client.js:299`) rather than inventing
+   a new convention. `voiceModel` is meaningless for Grok (no model parameter) and must be ignored
+   for it, not sent.
+
+7. **`/admin`.** The voice-provider control is driven by `listTtsProviders()`, so Grok appears once
+   registered; confirm the model field is hidden or ignored for Grok, and that the voice list
+   offered reflects the selected provider's 26 (or 13) names.
+
+8. **`language` is REQUIRED by the xAI endpoint.** Default `'en'`. A missing `language` is a 400.
+
+### Accents (explicitly scoped OUT of the provider work)
+
+Grok cannot do accents, and no provider switch will give them. The only lever is **dialect spelling
+in the narration text itself** ("Ye'll not be findin' the old road tonight"), which is a
+`rpg-prompts.js` concern, costs nothing, and works on *any* TTS provider including the current one.
+Recorded here so it is not lost; it is a **separate, optional slice**, not part of this phase.
+
+### Success metrics
+
+- `AI_RETRY_BACKOFF_MS=10 node test.js` green, including a **provider endpoint pin** for
+  `api.x.ai/v1/tts` (the suite already pins provider endpoints — `test.js:814` pins OpenAI's) and an
+  assertion that **the xAI key is never sent to `api.openai.com` and vice versa** (the key-leak
+  class already fixed once for the Grok text path).
+- **Seat boundary re-tested.** `.agents/state.md` requires this whenever a field is added to a seat
+  payload or an error path — this phase adds `mood` to a voice profile. Mint a seat, drive a turn,
+  leak-scan the payload: NPC `instructions`/`mood` must never reach a seat (they embed NPC
+  personality; `server.js:745-748` resolves them server-side precisely so that text never leaves
+  the server).
+- **Playtest gate (feel).** A real session with voice on. The GM sounds distinct from the NPCs; NPCs
+  sound distinct from each other and are *sticky* across turns; a character's habitual mood is
+  audible; per-line tone visibly varies delivery (the whisper/tense/joy distinction the owner
+  confirmed by ear). The phase is not complete until the owner confirms it is better in play, not
+  merely different.
+- Switching provider back to OpenAI in `/admin` still works, and existing campaigns' NPCs keep
+  working voices under both providers (this is what step 3 buys).
+
+### Files to change
+
+- `tts-providers.js` — per-provider registries; `validateVoiceProfile(raw, provider)`; `voiceSeed`;
+  `synthesizeGrok`; tag rendering + sanitization; register `grok`
+- `server.js` — `:735`/`:761` provider-aware voice gates; per-provider key resolution; pass
+  `mood`/`tone` through
+- `rpg-prompts.js` — NPC `voice_mood`
+- `rpg-state.js` — validate `voice_mood`
+- `admin/` — voice provider/voice-list wiring
+- `test.js` — provider registry tests, endpoint pin, key-isolation, seat-leak guard
+- `.agents/decisions.md`, `plan.md` — already recorded
+
+### Process
+
+Code, so it goes through `.agents/playbooks/reviewloop.md` with codex (decision 2026-07-12), and
+**this plan is review-accepted before implementation begins**. Sequencing against Phase CT: the two
+are independent (CSS vs voice) and touch disjoint files; take them one at a time to keep the loop's
+one-finding-one-branch discipline, owner to set the order.
+
+---
+
+## Phase CT: Theme colour format — store colours, not loose components (promoted 2026-07-14, owner go)
+
+Not a feel phase: the intended visual result is **pixel-identical**. It is a correctness phase
+that removes a defect *class*, and it deletes ~400 lines of test code rather than adding any.
+No playtest gate; a visual no-regression check gates it instead (below).
+
+### Problem
+
+The `--theme-*` custom properties store **bare HSL component lists** (`--theme-panel: 220, 25%,
+12%;`). A component list is only meaningful inside `hsl()`/`hsla()`. Substituted anywhere else —
+notably `rgb()`/`rgba()` — the declaration is invalid, the browser **drops it at parse time**, and
+the surface renders unpainted with no error. That shipped as finding **css-1** (fixed and merged
+at `41e1938`).
+
+Finding **css-2** then tried to prevent recurrence with a static scanner in `test.js` that reads
+the source files and fails the suite on any `rgb()`/`rgba()` consuming a theme var. It does not
+work and cannot be made to work cheaply: across three review rounds the reviewer defeated it 1,
+then 5, then **16** times (`.agents/review/findings/css-2.md`). By r3 the scanner was wrong in
+both directions — it **crashed the suite** on an out-of-range character reference, and it
+**rejected valid CSS**. Reviewer and coder independently concluded the approach is **not
+converging**: it had become a partial re-implementation of an HTML parser, a CSS tokenizer, the
+cascade, and a JS-output interpreter. Owner ruling 2026-07-14: go to the root fix.
+
+**Remove the cause instead of instrumenting it** — the same principle already applied at T2 r6→r7.
+
+### What the migration actually buys (r1 correction — the earlier claim was FALSE)
+
+The first draft of this plan claimed a complete-colour format makes consumer mistakes
+**impossible**. **That is wrong, and the plan review was right to reject it.** `rgba(var(--theme-panel), .7)`
+is *still* invalid once the variable expands to `hsl(…)` — `rgba()` takes numbers, not a colour —
+so the declaration is still dropped and the surface still renders unpainted. A definition-site
+guard cannot prevent someone typing that.
+
+State the benefit correctly, because it is still large and it is the whole justification:
+
+- **Today the format sets a trap.** `hsla(var(--theme-panel), 0.7)` is **valid** and
+  `rgba(var(--theme-panel), 0.7)` is **invalid**, and the two are visually near-identical. The
+  correct form is indistinguishable at a glance from the broken one, and the broken one is a
+  *natural* thing to reach for. That is why css-1 shipped, and why the aliasing/encoding arms race
+  in css-2 seemed worth fighting — the mistake was easy to make by accident.
+- **After the migration there is no trap and no near-identical valid twin.** The only correct
+  usages are `var(--theme-panel)` and `color-mix(…)`. `hsla(var(--theme-panel), .7)` **also stops
+  working**, so there is no longer a valid sibling to confuse with the broken one. Nobody reaches
+  for `rgba()` around a value that is already a colour.
+
+So the migration converts a *trap* into an ordinary *typo*. The residual risk is a plain typo, and
+a plain typo is caught by a plain regex — see the guard in step 8. **The guard is a typo lint, not
+a proof, and it must never again be escalated into a parser.** css-2 established, over three
+rounds and 16 defeats, that a text scanner cannot police encoded CSS. It does not need to: an
+encoded offender is not an accident, and the threat model here is a developer slip, not a
+committer hiding CSS from the linter.
+
+### What does NOT change: the internal component format
+
+The component-list format is load-bearing and stays exactly as it is:
+
+- `rpg-state.js:1449-1457` **clamps components** (`normalizeHslColor`, `clampHslLightness` — the
+  background is forced dark, text forced readable) so a generated theme cannot come back
+  unreadable. Clamping needs components.
+- `rpg-prompts.js:19-24` asks the model for components. Models produce this reliably.
+- Components are persisted **inside `campaign_outlines.outline_json`** (revalidated at
+  `rpg-engine.js:1933-1935`, emitted at :1983). *(r1 correction: the earlier draft named a
+  `campaigns.theme_colors` column. **No such column exists.**)*
+- **There is NO database migration, NO prompt change, and NO validator change.** The plan review
+  independently verified this conclusion against the code.
+
+*(r1 correction: the earlier draft called components "upstream-only". They are not.
+`rpg-state.js:79-101` `createFallbackSvg` is a legitimate **downstream** consumer — it interpolates
+a triple into `hsl(${…})` in a generated SVG string. That path consumes the **internal triple**, not
+the CSS custom property, so it keeps working untouched. Preserve it.)*
+
+**Only the value written into the CSS custom property changes.** That is what keeps the phase small.
+
+### Known limit of the invariant (r1, stated rather than papered over)
+
+The invariant is "**app-owned CSS** never puts a bare component list into a CSS context." It does
+**not** extend to model-authored or imported content: the engine asks the model for an
+`svg_illustration` (`rpg-prompts.js:221`), accepts it (`rpg-state.js:253-255`), accepts imported SVG
+(`rpg-state.js:1229-1230`), and injects it (`public/app.js:1037-1039`). Arbitrary SVG could contain
+`hsl(var(--theme-primary))`, which after this migration becomes `hsl(hsl(…))` and is dropped.
+Model SVG uses literal colours in practice, so this is a latent, not live, defect — but the plan
+claims no invariant over it, and does not pretend to. If it ever matters it is a separate finding,
+not silent scope creep.
+
+### Design
+
+**Do not drive any step from a COUNT.** Enumerate the sites and transform each one. The r1 review
+found the counts themselves were wrong (below); a count-driven sweep leaves survivors.
+
+1. **`public/styles.css` — definitions: 48 total, of which 6 are `--theme-glow` (deleted in step 4),
+   leaving 42 to convert.** *(r1 correction: the earlier draft said "48 become complete colours".)*
+   Blocks: `:root` (:6), `.theme-cyberpunk` (:29), `.theme-fantasy` (:40), `.theme-horror` (:51),
+   `.theme-scifi` (:62), `body.holodeck-idle` (:1190). Each becomes a complete colour in ONE
+   canonical form, because the guard in step 8 validates that exact grammar:
+   `--theme-panel: 220, 25%, 12%;` → `--theme-panel: hsl(220 25% 12%);`
+
+2. **`public/styles.css` — opaque consumers (132).** `hsl(var(--theme-x))` → `var(--theme-x)`.
+
+3. **`public/styles.css` — translucent consumers: THE EXACT 25-ENTRY TABLE.** *(r2: the previous
+   draft only promised this table and gave a compressed line list, so a wrong rewrite could be
+   checked against itself. Here it is, extracted from the file — this IS the checklist, and it is
+   pinned as test data in step 9.)*
+
+   `hsla(var(--X), α)` → `color-mix(in srgb, var(--X) <α×100>%, transparent)`
+
+   | line | variable | α | → |
+   |------|----------|------|-----|
+   | 99   | `--theme-primary`   | 0.05 | 5%  |
+   | 100  | `--theme-secondary` | 0.03 | 3%  |
+   | 126  | `--theme-panel`     | 0.7  | 70% |
+   | 174  | `--theme-panel`     | 0.45 | 45% |
+   | 202  | `--theme-primary`   | 0.3  | 30% |
+   | 206  | `--theme-primary`   | 0.5  | 50% |
+   | 262  | `--theme-panel`     | 0.35 | 35% |
+   | 307  | `--theme-primary`   | 0.15 | 15% |
+   | 308  | `--theme-primary`   | 0.3  | 30% |
+   | 359  | `--theme-panel`     | 0.2  | 20% |
+   | 381  | `--theme-primary`   | 0.1  | 10% |
+   | 382  | `--theme-primary`   | 0.25 | 25% |
+   | 385  | `--theme-primary`   | 0.05 | 5%  |
+   | 468  | `--theme-secondary` | 0.08 | 8%  |
+   | 469  | `--theme-secondary` | 0.3  | 30% |
+   | 496  | `--theme-panel`     | 0.8  | 80% |
+   | 528  | `--theme-primary`   | 0.08 | 8%  |
+   | 552  | `--theme-primary`   | 0.2  | 20% |
+   | 732  | `--theme-primary`   | 0.25 | 25% |
+   | 876  | `--theme-primary`   | 0.1  | 10% |
+   | 1075 | `--theme-primary`   | 0.6  | 60% |
+   | 1389 | `--theme-primary`   | 0.15 | 15% |
+   | 1389 | `--theme-secondary` | 0.15 | 15% |
+   | 1391 | `--theme-primary`   | 0.3  | 30% |
+   | 1617 | `--theme-primary`   | 0.6  | 60% |
+
+   (Line 1389 carries **two** — do not drive this from a line count either.)
+
+   The r1 review independently verified all 25 compute identical sRGB channels and alpha under
+   `color-mix`, **with no semantic exception** for gradients, `backdrop-filter` surfaces, borders, or
+   box/text/drop shadows. That holds only while the source colour is **opaque** — which step 9's
+   grammar enforces (an alpha-bearing source silently halves: a 50%-alpha colour mixed at 45%
+   renders at 22.5%).
+
+4. **`--theme-glow` is DELETED here** (6 definitions + the writer at `public/app.js:1610` + its
+   `THEME_VAR_NAMES` entry at :1579). It is dead — defined and written, read nowhere (finding
+   **css-3**). *(r1 correction: the earlier draft justified this by claiming a quadruple "has no
+   complete-colour form". **False** — `hsl(H S L / A)` is exactly that. **Deadness alone** justifies
+   the deletion. The correction matters because that same alpha syntax is what a pre-baked fallback
+   would need.)* Supersedes the standalone css-3 branch plan.
+
+5. **`public/app.js` — the theme WRITER.** `applyCampaignTheme` (:1582) writes component strings.
+   Wrap each at the boundary: `set('--theme-primary', primary)` →
+   `set('--theme-primary', \`hsl(${primary})\`)`. Cover **both** paths — the body-level `set` helper
+   (:1603-1618) **and** the legacy component-only `documentElement.style.setProperty` calls
+   (:1621-1631), including the derived panel/border values built from `bgParts`
+   (`${h}, ${s}%, ${l}%` → `hsl(${h} ${s}% ${l}%)`).
+
+6. **`public/app.js` — the three LIVE CONSUMERS the first draft MISSED** *(r1; this was the plan's
+   worst omission — it scoped app.js as "just the writer")*. These build inline styles and would
+   become invalid `hsl(hsl(…))`:
+   - `:1688` — `actCard.style.borderLeft = '2px solid hsl(var(--theme-primary))'` → active-act
+     border disappears.
+   - `:1713` — empty-Inventory placeholder, `color: hsl(var(--theme-text-dim))`.
+   - `:1780` — empty-Codex placeholder, same.
+   Each becomes `var(--theme-x)`.
+
+7. **`public/index.html` — inline styles (:215, :409, :416)** *(r1; the first draft scoped this file
+   out entirely)*. `hsl(var(--theme-border))` → `var(--theme-border)`: Journal search-bar border,
+   the access-token divider, and the Settings divider.
+
+8. **`map-render.js` — TEN substitutions, not nine** *(r1 correction: `:67` carries **both** a panel
+   `fill` **and** a border `stroke`)*. Sites: `:30, :31, :46, :63, :67 (×2), :68, :81, :94, :99`.
+   `hsl(var(--theme-primary, 210, 100%, 55%))` → `var(--theme-primary, hsl(210 100% 55%))` — the
+   fallback must itself become a complete colour. (The SVG is injected via `innerHTML`, so it
+   inherits the document's custom properties.)
+
+9. **`test.js` — DELETE the scanner.** Remove `testThemeVarConsumers` and every helper it owns
+   (`blankCssComments`, `blankHtmlComments`, `mapOutsideRawText`, `decodeHtmlEntities`,
+   `prepareHtml`, `HTML_NAMED_ENTITIES`, `extractCssVarNames`, `findMatchingParen`,
+   `collectVarAliases`, `mergeAliasMaps`, `resolvesToThemeTriple`, `findInvalidThemeRgbConsumers`,
+   `themeConsumerTargets`) plus its `runAll` registration.
+
+   Replace it with **two small checks**. Neither is a parser, and neither may ever grow into one.
+
+   **(a) Opaque-colour grammar — ONE grammar, applied to BOTH the stylesheet and the writer.**
+   *(r1: a "starts with `hsl(`/`rgb(`/`#`/`color(`" test is worthless — `hsl(220 25%)`, `#12` and
+   `color(nonsense)` all pass, and so does an **alpha-bearing** colour, which silently halves every
+   `color-mix` consumer.)*
+   *(**r2 — a real bug in the previous draft.** It specified a space-separated grammar,
+   `/^hsl\(\d{1,3} \d{1,3}% \d{1,3}%\)$/`. But `normalizeHslColor` (`rpg-state.js:109-118`) returns
+   **comma-separated** components — `"210, 100%, 50%"` — so the runtime writer emits
+   `hsl(210, 100%, 50%)`, which is **perfectly valid CSS that my own grammar would have REJECTED**.
+   The guard would have failed against the app's own generated themes.)*
+
+   The grammar therefore accepts **either whole form**, and **no alpha**. *(r3: the previous
+   revision chose each separator **independently**, so it accepted the **mixed** form
+   `hsl(210, 100% 50%)` — which is **invalid CSS**. It would have passed the guard and broken every
+   consuming declaration. `\s` also admits whitespace CSS does not.)* Alternate the two **whole**
+   forms, and match ASCII space explicitly:
+
+   ```
+   /^hsl\((?:\d{1,3}, ?\d{1,3}%, ?\d{1,3}%|\d{1,3} \d{1,3}% \d{1,3}%)\)$/
+   ```
+   — comma-separated (what the runtime writer emits, via `normalizeHslColor`) **or**
+   space-separated (what the stylesheet uses). Never a mixture, never an alpha component.
+   - Applied to all **42** `--theme-*` definitions in `public/styles.css` (which use the canonical
+     space form).
+   - Applied to the **writer's output**: unit-test `applyCampaignTheme`'s produced value strings —
+     **both** paths (`app.js:1603-1618` and the legacy root writer `:1621-1631`) — against the same
+     grammar. Do not merely assert the code is `hsl(...)`-wrapped; assert the **string it actually
+     produces** matches. That is what would have caught this.
+
+   **(b) Consumer typo lint — deliberately dumb, explicitly not a proof.**
+   A **case-insensitive** regex *(r2: CSS function names are case-insensitive; `RGBA(` is legal and
+   a lowercase-only lint misses it)* over the four app-owned runtime files (`public/styles.css`,
+   `public/index.html`, `public/app.js`, `map-render.js`) asserting that no
+   `rgb(`/`rgba(`/`hsl(`/`hsla(` **immediately wraps** `var(--theme-…)`. After the migration every
+   such form is invalid, so this is a clean signal with no false positives.
+
+   > **SCOPE OF THIS LINT, STATED HONESTLY** *(r2)*. It catches the **direct spelling** and nothing
+   > more. It does **not** catch ordinary indirection — an intermediate custom property, or a style
+   > string composed in JavaScript — and it does not catch encoded CSS. **That residual risk is
+   > ACCEPTED, deliberately**, and it is small precisely because the migration removed the trap: with
+   > whole colours there is no reason to wrap a theme variable in a colour function at all, so the
+   > direct spelling is the only slip anyone plausibly makes.
+   >
+   > **Do not "harden" this into a parser.** css-2 spent three review rounds and 16 defeats proving a
+   > text scanner cannot police CSS, and this entire phase exists because that was the wrong fight.
+   > If a future round demonstrates a way past this regex, the correct response is to **shrug** — an
+   > encoded or aliased offender is not an accident. Anyone tempted otherwise: read
+   > `.agents/review/findings/css-2.md` before touching this.
+
+### Success metrics
+
+- `AI_RETRY_BACKOFF_MS=10 node test.js` green.
+- **Scoped** grep — `hsla?\(\s*var\(\s*--theme-` and `rgba?\(\s*var\(\s*--theme-` return zero over
+  **runtime sources only** (`public/styles.css`, `public/index.html`, `public/app.js`,
+  `map-render.js`). *(r1: a repo-wide grep can never reach zero — tracked docs quote these forms as
+  examples, e.g. this very plan and `.agents/review/findings/css-1.md:29`.)*
+- The scanner and its helpers are gone from `test.js` (net line count **down**).
+- **The 25-entry table above is PINNED AS TEST DATA and asserted in `node test.js`** — this is the
+  primary defence against a mis-mapped alpha, and it needs **no browser**.
+  *(r2 fixes two errors here. First, the previous draft called for a `getComputedStyle` diff — but
+  **this repo has NO browser harness** (`.agents/state.md`, and T2 r6→r7 explicitly declined to
+  build one), so that gate was unimplementable, exactly the trap T2's r5-3 finding named. Second,
+  even with a browser it would not work: correct `color-mix(in srgb, …)` results **serialize
+  differently** from legacy `hsla` inside gradients even when the resolved RGBA is identical, so
+  every correct rewrite would "differ" and the resulting blanket waivers would hide the one real
+  mis-map.)*
+  The check that actually catches the risk is a pure text assertion, in Node, with no rendering
+  involved: parse `public/styles.css`, extract every `color-mix(in srgb, var(--theme-*) N%,
+  transparent)`, and assert the result equals the pinned table exactly
+  — same 25 entries, same variables, same percentages, no more and no fewer. A transposed or dropped
+  alpha fails loudly.
+
+  > **DO NOT KEY THE ASSERTIONS BY LINE NUMBER.** *(r3 — keyed by line, this test would have failed
+  > a **CORRECT** migration.)* The table's line numbers are **pre-migration**. Deleting the six
+  > `--theme-glow` definitions (`:18, :37, :48, :59, :70, :1198`) **shifts every entry below them** —
+  > the first 21 by five lines, the last four by six. A correct rewrite would go red unless someone
+  > left blank lines behind to preserve numbering, which is absurd. **Key by stable identity
+  > instead**: the `(selector, property, variable, percentage)` tuple, or ordered occurrence. The
+  > line numbers in the table are a **human navigation aid only — never the assertion key.**
+
+  **A rewrite cannot be checked against itself, because the table is the
+  independently-extracted expectation and it is written down above.**
+- Beyond that, the visual pass below is a *sanity* check, not the proof. Stateful surfaces
+  (hover/focus, animation, tabs, scene cards, the die glow at `styles.css:1075`) are covered by the
+  table, since a `color-mix` percentage is correct or it is not regardless of when it renders.
+- **Visual check across all five themes** (`.theme-cyberpunk`, `.theme-fantasy`, `.theme-horror`,
+  `.theme-scifi`, `:root`) plus `body.holodeck-idle`, covering the surfaces css-1 broke **and** the
+  six newly-scoped consumers (`app.js:1688/1713/1780`, `index.html:215/409/416`).
+- **BOTH writer paths exercised**, not just one *(r1)*: a generated (AI) full-theme campaign
+  (the body-level writer, `app.js:1603-1618`) **and** a legacy component-only campaign (the root
+  writer, `:1621-1631`).
+- **The map is tested with the variables ABSENT**, not merely observed looking themed *(r1: an
+  injected map always inherits `:root`, so a broken fallback is invisible in normal rendering)* —
+  assert the emitted SVG source directly, or render it with the custom properties unset.
+
+### Risks
+
+- **`color-mix()` support is a COMPATIBILITY DECISION, not a local spike** *(r1: a single Tauri
+  check on one machine proves nothing about the canonical browser path, and
+  `desktop/src-tauri/src/main.rs:59-61` shows WebKitGTK is Linux-specific — the macOS shell is
+  WKWebView. An unsupported engine discards **all 25** declarations, including the entire midpoint
+  filter at `styles.css:1075`.)*
+  Therefore: **declare supported engine minimums, grounded in authoritative compatibility data, and
+  be honest that local runs are smoke tests rather than a matrix.** *(r2: "test that matrix" was a
+  bluff — running a current Chromium, a current Firefox and whichever Tauri port happens to be on
+  the implementing machine exercises **none** of the declared floors, and exercises only one of
+  WKWebView / WebKitGTK. Do not claim coverage that is not being produced.)*
+  `color-mix()` baseline support: **Chrome/Edge 111** (Mar 2023), **Firefox 113** (May 2023),
+  **Safari/WebKit 16.2** (Dec **2022**), **WebKitGTK 2.38** (Sep **2022**). *(r2 correction: the
+  previous draft said "all 2023" — false for the two WebKit floors.)* Cite the compatibility source
+  in `README.md` rather than implying the floors were tested here.
+  The web path is canonical (plan.md Dev Tooling), so the minimum is a **product statement**: record
+  it in `README.md`. Then run smoke checks — and label them as such — on a current Chromium, a
+  current Firefox, and the Tauri shell of the implementing machine.
+- **If a target engine fails, the pre-baked fallback is a SEPARATE, SEPARATELY-REVIEWED SLICE — not
+  a sentence in this plan** *(r1)*. It is not "more variables": it is **18 distinct
+  primary/secondary/panel alpha levels × 6 theme blocks ≈ 108 definitions**, plus writes on **both**
+  `app.js` writer paths (:1603-1618 and :1621-1631) and `THEME_VAR_NAMES` upkeep — and if any of
+  that is missed, generated themes silently inherit stale or default translucent colours. Do not
+  attempt it as an afterthought inside this phase.
+- Mis-mapping a single alpha (`0.45` → `45%`) silently changes one surface's translucency. **The
+  pinned 25-entry table, asserted in `node test.js`, is what catches it** — not eyeballing.
+  *(r3: this line previously also demanded "the computed-style diff", which the Success metrics
+  section correctly **withdraws** as unimplementable — no browser harness — leaving a cold
+  implementer with two contradictory gates. There is exactly ONE gate for this risk: the table.)*
+
+### Documentation that teaches the SUPERSEDED contract (must be fixed, r1)
+
+Leaving these in place instructs a future cold agent to restore the abandoned behaviour:
+
+- `rpg-state.js:1443-1445` — the comment claims triples exist "so the CSS `hsl(var())`/`rgba(var())`
+  composition never breaks." That is **false for `rgba` today** (it *is* the css-1 bug, written down
+  as a guarantee) and wholly obsolete after this phase. Rewrite it to state the real reason
+  components are kept: **clamping**.
+- **plan.md Phase T2 — FOUR clauses.** *(r2 found the dangerous one; r3 found a fourth that my
+  "exhaustive" sweep had missed. Take the hint: grep T2 for `hsla`, `rgba`, `scanner`, and `glow`
+  rather than trusting this list to be complete.)*
+  1. **`:296-300` — the dangerous one.** T2's approved text instructs that "every such use
+     **migrates to `hsla(var(--theme-*), α)`**". After CT that form is **invalid**
+     (`hsla(hsl(…), α)`) and drops the very panel surfaces T2 depends on. A cold T2 implementer
+     following the approved plan would reintroduce css-1 wholesale.
+  2. **`:310-312` — the one r3 caught.** "panel/border/**glow** derive from bg+primary in
+     `applyCampaignTheme`" — this still tells a future implementer that `--theme-glow` exists and
+     must be recomputed. CT deletes it. (The cited line range `public/app.js:1423-1450` is also
+     already stale.)
+  3. `~:357` — still requires the no-DOM consumer scanner to survive. CT deletes it.
+  4. `~:385-389` — still describes derived `--theme-glow` recomputation.
+
+  All four must be struck or annotated as superseded **in the same slice**, not "later".
+
+### Files to change
+
+- `public/styles.css` — 42 definitions converted (+6 glow removed), 132 opaque consumers, 25
+  translucent consumers
+- `public/app.js` — `applyCampaignTheme` writer (**both** paths); the **three inline-style
+  consumers** at :1688/:1713/:1780; `THEME_VAR_NAMES` loses `--theme-glow`
+- `public/index.html` — 3 inline-style consumers (:215, :409, :416)
+- `map-render.js` — **10** SVG substitutions (`:67` has two)
+- `test.js` — scanner deleted; canonical-grammar definition guard + consumer typo lint added
+- `rpg-state.js` — the superseded comment at :1443-1445
+- `plan.md` — supersede the T2 clauses that require the scanner and the glow var
+- `README.md` — the declared browser minimums
+- `.agents/decisions.md` — the format decision and the css-2 abandonment
+- `.agents/review/findings/css-2.md`, `css-3.md`, `.agents/review/index.md` — close out
+
+### Process
+
+Per the 2026-07-12 decision this is code and goes through `.agents/playbooks/reviewloop.md` with
+codex. **The plan itself is reviewed and accepted before implementation begins.**
+
+**Ship as ONE atomic slice** *(r1 endorsed)*: splitting definitions from consumers creates a broken
+intermediate state, and no smaller format change removes loose components while keeping runtime
+translucency. The single exception is the `color-mix` fallback above, which becomes its own slice
+*if* it is ever needed.
+
+The abandoned `fix/css-2-scanner-scope` branch is NOT merged (it crashes the suite and rejects valid
+CSS); it is retained only until this phase lands, then deleted.
+
+---
+
 ## Progress Log
 
 **Phase 0 — Initial Prompt & Data Changes (completed first pass)**
