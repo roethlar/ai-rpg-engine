@@ -4,10 +4,10 @@
 glows silently render without their intended fills/effects on EVERY theme, today. Scene-dynamic
 theming (T2) would visibly no-op on the dominant surfaces, which is why this is also a T2
 prerequisite.
-**Status**: REOPENED (r4, 2026-07-14) — custom-property name matcher still ASCII-only; non-ASCII name residual. Fix-up pending.
+**Status**: Verified / ACCEPTED (r5, 2026-07-14) — awaiting owner-gated merge.
 
 **Branch**: `fix/css-1-hsla-theme-vars`
-**Commit**: `32af1ba` (fix) + `d4d18bd` + `76502b2` + `bbbeda2` + `5ab50ef` (underscore names)
+**Commit**: `32af1ba` (fix) + `d4d18bd` + `76502b2` + `bbbeda2` + `5ab50ef` + `09bb433` (head)
 
 ## Evidence
 `public/app.js:1446-1450` stores `--theme-panel` (and friends) as **HSL triples** like
@@ -221,3 +221,20 @@ adding characters.** The durable fix is to stop matching "ASCII identifier chars
 match a custom-property name as CSS delimits it (`--` then until `,` / whitespace / `)` /
 other value delimiters). That closes underscore, non-ASCII letters, and the next spelling
 in one change.
+
+### r5 — codex, 2026-07-14T05:49Z — verdict: **ACCEPTED**
+
+- **Reviewer**: codex-cli 0.144.3, `--sandbox workspace-write`, enforced output schema
+- **Reviewed head SHA**: `09bb4334c8fc34fdcadc9fa2c34cb2fc4d7c0c4f`
+- **Base SHA**: `a58fc58ce4f13e5fcb126464f28f58c63f26aee3`
+- **`guard_confirmed`**: **true** — head green; base styles → RED (23 offenders); probes a–e
+  each RED independently; styles restored after each.
+
+**Comments:**
+
+1. Guard proof observed by execution (head / base revert / five residual probes).
+2. No material residual gap found for this repo’s app-written ASCII `--theme-*` variables in
+   `public/styles.css`.
+
+**Coder's assessment:** accept stands. Branch is ready for an **owner-gated** merge; do not
+merge on agent authority.

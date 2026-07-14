@@ -15,17 +15,11 @@ to `docs/history/state-archive.md`.
   were REOPENED with real defects.** Verdict trails are committed; neither is
   merged; master carries docs only. Fix-ups are the next code action, then
   re-dispatch each. Full detail: `.agents/review/index.md` + `findings/{css-1,map-1}.md`.
-  - `fix/css-1-hsla-theme-vars` @ `d4d18bd` — **the FIX (`32af1ba`) is confirmed
-    correct** (reviewer verified the premise and graded the migration a pure
-    function-name change; 134 + 23 = 157 reconciles; no invalid consumer left in
-    `public/` or `map-render.js`). **The GUARD (`d4d18bd`) is not.** The reviewer
-    defeated it by execution: it appended
-    `.probe { --panel-alias: var(--theme-panel); background: rgba(var(--panel-alias), 0.7); }`
-    in its own worktree and the suite still passed. The scanner matches only the
-    literal `rgba(var(--theme-…))` spelling, so custom-property indirection walks
-    past it — a vacuous guard in a new costume. Fix-ups: resolve indirection
-    transitively, strip CSS comments before scanning, replace the `>100`
-    anti-vacuous heuristic (101 matches inside a comment satisfy it).
+  - `fix/css-1-hsla-theme-vars` @ `09bb433` — **ACCEPTED at r5** (codex,
+    guard_confirmed true). Production fix graded correct at r1; guard rewritten
+    through r5 (aliases, nested var() fallbacks, delimiter-based names, production
+    anchors, fixture probes). Awaiting **owner-gated merge**. Trail:
+    `.agents/review/findings/css-1.md`.
   - `fix/map-label-overflow` @ `b178222` — three real defects. (1) **The reported
     bug is only half fixed**: `validateLocationLayout` clamps `x` and `w`
     independently, so `{x:92, w:20}` is valid and the label still runs off the
@@ -93,15 +87,9 @@ to `docs/history/state-archive.md`.
 
 ## Next
 
-- **STOP POINT — an unanswered question is on the table.** The session ended with the
-  owner asked: *do the reopen fix-ups now, or park?* Both branches are reopened and
-  await that answer. **Do not start the fix-ups without it** — the owner has twice
-  corrected this session for acting on an approval it did not have, and was explicit
-  that "should we?" and "now?" are separate questions that must never be bundled.
-  When the go comes, the work is: rewrite the css-1 scanner (transitive
-  custom-property indirection, comment stripping, a real anti-vacuous assertion) and
-  the map-1 label fitter (grapheme-safe truncation, collision-free clip ids, clamp the
-  box to the canvas), commit each, revert-proof each, re-dispatch each to codex.
+- **css-1 is ACCEPTED** at `09bb433` — owner-gated merge when ready. **map-1** is still
+  REOPENED; its fix-ups (grapheme-safe truncation, collision-free clip ids, clamp the
+  box to the canvas) still need an explicit go (or park). Do not start map-1 without it.
 - Continue the rules-system decision queue — the next big feature, but the owner sets
   the pace and was housekeeping when D0 landed. D0 is DECIDED; **D1 (the die) is the
   next ask**. Present the queue in
@@ -132,8 +120,8 @@ to `docs/history/state-archive.md`.
 
 - Nothing technical. Network exposure for the playtest is owner-handled
   infrastructure (owner, 2026-07-09), not a repo task.
-- Process, not technical: the reopen fix-ups are blocked on the owner's answer to
-  "now, or park?" (see `## Next`).
+- Process, not technical: map-1 fix-ups still need an explicit go (or park). css-1 is
+  accepted and only needs an owner merge go.
 
 ## Verification
 
