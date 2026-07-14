@@ -810,6 +810,148 @@ This plan will be updated as we learn from implementation and playtesting.
 
 ---
 
+## Phase CT: Theme colour format — store colours, not loose components (promoted 2026-07-14, owner go)
+
+Not a feel phase: the intended visual result is **pixel-identical**. It is a correctness phase
+that removes a defect *class*, and it deletes ~400 lines of test code rather than adding any.
+No playtest gate; a visual no-regression check gates it instead (below).
+
+### Problem
+
+The `--theme-*` custom properties store **bare HSL component lists** (`--theme-panel: 220, 25%,
+12%;`). A component list is only meaningful inside `hsl()`/`hsla()`. Substituted anywhere else —
+notably `rgb()`/`rgba()` — the declaration is invalid, the browser **drops it at parse time**, and
+the surface renders unpainted with no error. That shipped as finding **css-1** (fixed and merged
+at `41e1938`).
+
+Finding **css-2** then tried to prevent recurrence with a static scanner in `test.js` that reads
+the source files and fails the suite on any `rgb()`/`rgba()` consuming a theme var. It does not
+work and cannot be made to work cheaply: across three review rounds the reviewer defeated it 1,
+then 5, then **16** times (`.agents/review/findings/css-2.md`). By r3 the scanner was wrong in
+both directions — it **crashed the suite** on an out-of-range character reference, and it
+**rejected valid CSS**. Reviewer and coder independently concluded the approach is **not
+converging**: it had become a partial re-implementation of an HTML parser, a CSS tokenizer, the
+cascade, and a JS-output interpreter. Owner ruling 2026-07-14: go to the root fix.
+
+**Remove the cause instead of instrumenting it** — the same principle already applied at T2 r6→r7.
+If the custom property holds a *complete colour*, there is no loose component list to smuggle
+anywhere, the defect class ceases to exist, and the scanner is deleted.
+
+### Explicit non-goal: the internal/DB/prompt triple format does NOT change
+
+The component-list format is load-bearing *upstream* and stays exactly as it is:
+
+- `rpg-state.js:1450-1457` **clamps components** (`normalizeHslColor`, `clampHslLightness` — the
+  background is forced dark, text forced readable) so a generated theme cannot come back
+  unreadable. Clamping needs components.
+- `rpg-prompts.js:19-24` asks the model for components (`"primary": "HSL color (e.g. '210, 100%,
+  50%')"`). Models produce this reliably and it is trivially validatable.
+- `campaigns.theme_colors` persists components. **There is NO database migration and NO
+  back-compat shim.**
+
+The component list remains the internal representation end-to-end. **Only the value written into
+the CSS custom property changes.** This is what makes the phase small.
+
+### Design
+
+1. **`public/styles.css` — definitions (48 across 6 blocks).** Blocks: `:root` (:6),
+   `.theme-cyberpunk` (:29), `.theme-fantasy` (:40), `.theme-horror` (:51), `.theme-scifi` (:62),
+   `body.holodeck-idle` (:1190). Each becomes a complete colour:
+   `--theme-panel: 220, 25%, 12%;` → `--theme-panel: hsl(220 25% 12%);`
+   (space-separated modern syntax; the comma form is equally valid — be consistent.)
+
+2. **`public/styles.css` — opaque consumers (132).** `hsl(var(--theme-x))` → `var(--theme-x)`.
+
+3. **`public/styles.css` — translucent consumers (25).** `hsla(var(--theme-x), α)` →
+   `color-mix(in srgb, var(--theme-x) <α×100>%, transparent)`. Map each alpha exactly
+   (`0.45` → `45%`). `color-mix(in srgb, C X%, transparent)` yields C at X% alpha for an opaque C,
+   so the rendered result is identical.
+
+4. **`--theme-glow` is DELETED here** (6 definitions + the writer at `public/app.js:1610` + its
+   `THEME_VAR_NAMES` entry at :1579). It is dead — defined and written, read nowhere (finding
+   **css-3**) — and it is a *quadruple* (components **plus alpha**), so it has no complete-colour
+   form anyway. This **supersedes the standalone css-3 branch plan**, which was to stack on the
+   now-abandoned css-2 branch; css-3 closes as part of this phase.
+
+5. **`public/app.js` — the writer.** `applyCampaignTheme` (:1582) writes component strings from
+   the validated `theme_colors`. Wrap each at the boundary: `set('--theme-primary', primary)` →
+   `set('--theme-primary', \`hsl(${primary})\`)`. Cover **both** paths — the body-level `set`
+   helper (:1604-1615) and the `documentElement.style.setProperty` calls (:1621-1631), including
+   the derived panel/border values built from `bgParts` (`${h}, ${s}%, ${l}%` → `hsl(${h} ${s}%
+   ${l}%)`). `THEME_VAR_NAMES` (:1579) is a list of *names* and needs no change beyond dropping
+   `--theme-glow`.
+
+6. **`map-render.js` — SVG fallbacks (:30, :31, :46, :63, :67, :68, :81, :94, :99).**
+   `hsl(var(--theme-primary, 210, 100%, 55%))` → `var(--theme-primary, hsl(210 100% 55%))`. The
+   fallback must itself become a complete colour. (The SVG is injected via `innerHTML` and so
+   inherits the document's custom properties.)
+
+7. **`test.js` — DELETE the scanner.** Remove `testThemeVarConsumers` and every helper it owns
+   (`blankCssComments`, `blankHtmlComments`, `mapOutsideRawText`, `decodeHtmlEntities`,
+   `prepareHtml`, `HTML_NAMED_ENTITIES`, `extractCssVarNames`, `findMatchingParen`,
+   `collectVarAliases`, `mergeAliasMaps`, `resolvesToThemeTriple`, `findInvalidThemeRgbConsumers`,
+   `themeConsumerTargets`) plus its `runAll` registration.
+
+   Replace it with a guard on the **definition site**, which is where the format contract now
+   lives. This is the whole point of the migration: the invariant becomes local and checkable
+   without parsing anything.
+
+   - Every `--theme-*` definition in `public/styles.css` must be a **complete colour** — its value
+     must start with `hsl(`, `rgb(`, `#`, or `color(`, and must NOT be a bare component list
+     (`/^\s*[\d.]+\s*,/`). 48 definitions, one file.
+   - `public/app.js` must not write a bare component list: every `--theme-*` `setProperty`/`set`
+     value must be wrapped in `hsl(...)`.
+
+   This cannot be defeated by encoding, because it does not hunt for *consumers* anywhere in the
+   codebase — it asserts the *format at the source*. A consumer mistake is now simply impossible:
+   there is no loose component list in existence to misuse.
+
+### Success metrics
+
+- `AI_RETRY_BACKOFF_MS=10 node test.js` green.
+- `git grep -nE 'hsla?\(\s*var\(\s*--theme-'` and `git grep -nE 'rgba?\(\s*var\(\s*--theme-'`
+  both return **zero** — the forms are now unrepresentable, not merely absent.
+- The scanner and its helpers are gone from `test.js` (net line count **down**).
+- **Visual no-regression, the real gate.** The app must look pixel-identical. Check all five
+  built-in themes (`.theme-cyberpunk`, `.theme-fantasy`, `.theme-horror`, `.theme-scifi`, and the
+  `:root` default) plus `body.holodeck-idle`, specifically the surfaces css-1 originally broke:
+  the app header, `.glass-card`, `.panel-section`, `.narrative-panel`, `.log-player`, the
+  `.input-area`, `.quest-act-badge`, and `.btn-primary`'s glow.
+- **A generated (AI) theme still applies**: create a campaign and confirm `applyCampaignTheme`
+  paints it — this exercises the `hsl(...)`-wrapping writer, not just the static stylesheet.
+- The location map still renders themed (`map-render.js` fallbacks).
+
+### Risks
+
+- **`color-mix()` in the Tauri shell.** The desktop shell renders in **WebKitGTK**, a third engine
+  (plan.md Dev Tooling; `styles.css:7` already documents a WebKit-specific `color-scheme` quirk).
+  `color-mix` is supported in current WebKit, but this MUST be verified in the shell
+  (`cargo build` in `desktop/src-tauri`, then `npm run desktop`), not only in a browser. **If it
+  is unsupported there, fall back to pre-baked alpha variants** (`--theme-panel-45` etc. per
+  block) — more variables, but no new CSS function. Do not discover this after the CSS is
+  rewritten: verify `color-mix` in the shell FIRST, on a one-line spike.
+- Mis-mapping an alpha (`0.45` → `45%`) silently changes a surface's translucency. The visual
+  check above is what catches it.
+
+### Files to change
+
+- `public/styles.css` — 48 definitions, 132 opaque consumers, 25 translucent consumers, 6 glow
+  definitions removed
+- `public/app.js` — `applyCampaignTheme` writer (both paths); `THEME_VAR_NAMES` loses `--theme-glow`
+- `map-render.js` — 9 SVG fallbacks
+- `test.js` — scanner deleted; definition-format guard added
+- `.agents/decisions.md` — record the format decision and the css-2 abandonment
+- `.agents/review/findings/css-2.md`, `css-3.md`, `.agents/review/index.md` — close out
+
+### Process
+
+Per the 2026-07-12 decision this is code and goes through `.agents/playbooks/reviewloop.md` with
+codex. **The plan itself is reviewed and accepted before implementation begins.** The abandoned
+`fix/css-2-scanner-scope` branch is NOT merged (it crashes the suite and rejects valid CSS); it is
+retained only until this phase lands, then deleted.
+
+---
+
 ## Progress Log
 
 **Phase 0 — Initial Prompt & Data Changes (completed first pass)**

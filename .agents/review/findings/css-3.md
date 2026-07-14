@@ -5,9 +5,25 @@ nothing renders wrong. By the playbook's intake gate (`Evidence` + `Predicted ob
 `Justified severity`) this is a **DECLINE**, and it is recorded as such below. It is admitted
 anyway on an **explicit owner go** (2026-07-14, "yes, both"), which outranks the intake default.
 The honest justification is hygiene, not correctness.
-**Status**: Open
-**Branch**: `fix/css-3-dead-theme-glow` (stacked on `fix/css-2-scanner-scope` — see Approach)
-**Commit**: (filled in after commit)
+**Status**: SUPERSEDED (2026-07-14) — folded into **Phase CT** (plan.md, "Theme colour format").
+Never started as a standalone branch.
+**Branch**: none. The planned `fix/css-3-dead-theme-glow` was to stack on `fix/css-2-scanner-scope`,
+which has since been **abandoned** (css-2 stopped at r3: 16 findings, suite-aborting crash, false
+positives; the scanner approach was ruled not converging). That base no longer exists to build on.
+**Commit**: (see Phase CT)
+
+> **Why this folds in rather than shipping separately.** Phase CT migrates every `--theme-*`
+> property from a bare HSL component list to a complete colour. `--theme-glow` is stored as a
+> *quadruple* — components **plus** an alpha (`210, 100%, 55%, 0.15`) — so it has **no
+> complete-colour form**, and Phase CT's new definition-format guard (every `--theme-*` definition
+> must be a complete colour) would reject it outright. The migration therefore *forces* its
+> removal; deleting it in Phase CT is the same work with none of the branch-stacking. The dead-var
+> assertion this finding proposed is also unnecessary there: Phase CT's guard checks the
+> definition site, which catches a dead quadruple as a side effect.
+>
+> The finding's substance is unchanged and still true — `--theme-glow` is dead, defined 6×, written
+> on every theme apply, read nowhere — and its removal is carried, with the owner's go, into
+> Phase CT step 4.
 
 ## Evidence
 Every occurrence of `theme-glow` in tracked code (at `41e1938`):
