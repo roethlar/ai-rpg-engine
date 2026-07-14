@@ -76,15 +76,50 @@ One thing was grafted in from Claude's version (`861f2b5`): the comment warning 
 to harden the typo lint into a parser**, with a pointer to `findings/css-2.md`. Without it, the next
 person to find a way past the regex will "fix" it — which is precisely the trap css-2 documents.
 
-## NOT verified (stated, not faked)
+## Visual verification — CLOSED (2026-07-14, ad-hoc Playwright)
 
-- **No browser harness exists in this repo.** The rendered appearance is unverified beyond the app
-  booting and serving the migrated CSS. The visual smoke pass across the five themes and the
-  holodeck idle **has not been run**.
-- The Chromium/Firefox compatibility matrix **was not run** — neither is installed on this machine.
-  The floors are declared in `README.md` from MDN's compatibility data, not from local testing, and
-  the README says so.
-- codex reported both of these honestly rather than claiming them.
+The owner enabled a Playwright plugin, which closed the one open gap. **The migration is
+PIXEL-IDENTICAL to master across all six themes.**
+
+Method (Chromium, 1200×800, animations and transitions frozen):
+
+| theme | master vs master (control) | master vs ct-1 |
+|---|---|---|
+| `:root` | identical | **identical** |
+| `.theme-cyberpunk` | identical | **identical** |
+| `.theme-fantasy` | identical | **identical** |
+| `.theme-horror` | identical | **identical** |
+| `.theme-scifi` | identical | **identical** |
+| `body.holodeck-idle` | identical | **identical** |
+
+Computed styles agree colour-for-colour. The 84 raw string differences are **serialization only** —
+`color-mix()` computes to `color(srgb …)` where legacy `hsla()` computes to `rgba(…)`; normalized to
+0–255 they are the same colour. This is exactly what the plan review predicted, and it is why a naive
+computed-style diff was rejected as a gate. **Zero newly-unpainted surfaces** (the css-1 symptom).
+
+**Two false alarms in the harness, recorded because they are instructive:**
+1. **The first probe reintroduced css-1 itself.** It styled its host with
+   `background: hsl(var(--theme-bg, …))` — which on ct-1 becomes `hsl(hsl(…))`, invalid, dropped,
+   transparent. It reported a 92% pixel difference that was **measuring the harness's own bug**, not
+   the migration. Fixed by using a literal colour in the probe.
+2. **A ~2/255 delta looked like a real regression until a control was run.** Capturing *master twice*
+   produced the SAME magnitude of difference, on a *different theme each run* — the signature of
+   animation timing, not colour. Freezing animations dropped the noise floor to zero and both
+   comparisons to pixel-identical. **Always measure the noise floor before attributing a difference
+   to the change.**
+
+## Still NOT verified (stated, not faked)
+
+- **This is an AD-HOC check, NOT a committed guard.** Playwright was installed in a scratchpad;
+  `package.json` is untouched. A future reviewer **cannot reproduce this**, and it will not catch a
+  regression. This repo has been burned by exactly that confusion before (`.agents/state.md`: an
+  earlier `guard-css-1` was an uncommitted browser check later ruled to substantiate nothing).
+  Treating this as a guard would repeat that error. A committed browser harness is a **separate
+  decision** — a dependency plus code, requiring a plan and an owner go (and note T2's r6 review
+  previously rejected a browser rig for lacking an install/lockfile/isolation story).
+- The Chromium/Firefox/WebKit **compatibility matrix was not run**; only Chromium was exercised. The
+  floors in `README.md` come from MDN's compatibility data, not local testing, and the README says
+  so. The Tauri/WebKitGTK shell was not exercised.
 
 ## Reviewer comments
 
