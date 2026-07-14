@@ -4,10 +4,10 @@
 glows silently render without their intended fills/effects on EVERY theme, today. Scene-dynamic
 theming (T2) would visibly no-op on the dominant surfaces, which is why this is also a T2
 prerequisite.
-**Status**: Verified / ACCEPTED (r5, 2026-07-14) — awaiting owner-gated merge.
-
-**Branch**: `fix/css-1-hsla-theme-vars`
-**Commit**: `32af1ba` (fix) + `d4d18bd` + `76502b2` + `bbbeda2` + `5ab50ef` + `09bb433` (head)
+**Status**: MERGED (2026-07-14) — accepted at r5; owner go; merge `41e1938` on master.
+**Branch**: `fix/css-1-hsla-theme-vars` (merged; branch retained until owner cleanup)
+**Commit**: `32af1ba` (fix) + `d4d18bd` + `76502b2` + `bbbeda2` + `5ab50ef` + `09bb433` (head);
+merged to master at `41e1938`
 
 ## Evidence
 `public/app.js:1446-1450` stores `--theme-panel` (and friends) as **HSL triples** like

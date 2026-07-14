@@ -11,14 +11,12 @@ to `docs/history/state-archive.md`.
   Unconditional — no exemption for small, obvious, urgent, or owner-approved
   changes, and a green suite is not a substitute. Docs-only changes are out of
   scope.
-- **IN FLIGHT:** css-1 is **ACCEPTED** at r5 awaiting owner-gated merge; map-1 is
-  still **REOPENED**. Full detail: `.agents/review/index.md` +
+- **IN FLIGHT:** map-1 is **REOPENED**. css-1 is **MERGED** to master at `41e1938`
+  (accepted r5; owner go 2026-07-14). Full detail: `.agents/review/index.md` +
   `findings/{css-1,map-1}.md`.
-  - `fix/css-1-hsla-theme-vars` @ `09bb433` — **ACCEPTED at r5** (codex,
-    guard_confirmed true). Production fix graded correct at r1; guard rewritten
-    through r5 (aliases, nested var() fallbacks, delimiter-based names, production
-    anchors, fixture probes). Awaiting **owner-gated merge**. Trail:
-    `.agents/review/findings/css-1.md`.
+  - `fix/css-1-hsla-theme-vars` @ `09bb433` — **MERGED** (`41e1938`). Theme
+    `rgba`→`hsla` migration + class-level no-DOM guard on master. Branch retained
+    until owner cleanup.
   - `fix/map-label-overflow` @ `b178222` — three real defects. (1) **The reported
     bug is only half fixed**: `validateLocationLayout` clamps `x` and `w`
     independently, so `{x:92, w:20}` is valid and the label still runs off the
@@ -86,9 +84,9 @@ to `docs/history/state-archive.md`.
 
 ## Next
 
-- **css-1 is ACCEPTED** at `09bb433` — owner-gated merge when ready. **map-1** is still
-  REOPENED; its fix-ups (grapheme-safe truncation, collision-free clip ids, clamp the
-  box to the canvas) still need an explicit go (or park). Do not start map-1 without it.
+- **map-1** is still REOPENED; its fix-ups (grapheme-safe truncation, collision-free
+  clip ids, clamp the box to the canvas) still need an explicit go (or park). Do not
+  start map-1 without it. css-1 is merged.
 - Continue the rules-system decision queue — the next big feature, but the owner sets
   the pace and was housekeeping when D0 landed. D0 is DECIDED; **D1 (the die) is the
   next ask**. Present the queue in
@@ -119,12 +117,11 @@ to `docs/history/state-archive.md`.
 
 - Nothing technical. Network exposure for the playtest is owner-handled
   infrastructure (owner, 2026-07-09), not a repo task.
-- Process, not technical: map-1 fix-ups still need an explicit go (or park). css-1 is
-  accepted and only needs an owner merge go.
+- Process, not technical: map-1 fix-ups still need an explicit go (or park).
 
 ## Verification
 
-- Automated: `AI_RETRY_BACKOFF_MS=10 node test.js` — green at `cae74df`. Run it
+- Automated: `AI_RETRY_BACKOFF_MS=10 node test.js` — green at merge `41e1938`. Run it
   rather than trusting a group count written here. The suite is hermetic:
   `RPG_DB_PATH` redirects it to a temp DB, closed and removed on exit (before
   2026-07-09 it opened the operator's real dev database).
