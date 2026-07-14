@@ -20,6 +20,54 @@ Supersedes:
 <Optional prior decision, doc, or rule.>
 -->
 
+### 2026-07-14 - Division of labour: codex IMPLEMENTS, Claude PLANS and ADVERSARIALLY VERIFIES
+
+Status: Active
+
+Decision:
+The reviewloop's roles are **reassigned, not abandoned**. For work that is well-specified by an
+accepted plan, **codex writes the implementation** and **Claude reviews it adversarially**. Claude's
+job moves upstream: interrogate handed-over material, establish facts by experiment, write the plan,
+and attack the result. The loop's independence is preserved by *swapping* the roles, never by
+dropping the second pair of eyes. Owner wording (2026-07-14): "codex implement and judge the
+outcome… continue with this revised workflow."
+
+Superseded: the 2026-07-12 decision's assumption that Claude codes and codex reviews. The rest of
+that decision — **all code goes through the loop, unconditionally; planning completes before coding**
+— is UNCHANGED and still binding.
+
+Reason — decided by a controlled experiment, not by preference:
+Both agents implemented the SAME accepted plan (Phase CT), independently and blind. The results were
+compared on evidence (`.agents/review/findings/ct-1.md`):
+
+- **Correctness: a tie.** Both were behaviourally identical to each other AND to an oracle
+  transcribed from the original writer, across four cases including edge conditions. Both survived a
+  9-defect mutation battery, including two mutations that emit perfectly valid CSS.
+- **Completeness: codex won.** It updated `README.md` (Claude forgot), asserted the emitted SVG
+  source (Claude skipped it), and rewrote the dangerous superseded plan clause rather than merely
+  annotating it. It followed the plan more literally and did not get bored and skip a step.
+- **Speed: codex won decisively** — ~4.5 minutes against a much longer Claude session.
+- **Reliability: codex won.** Claude's own mutation script silently corrupted its working tree (a
+  `git checkout` that rejects the whole command when one path is untracked), and Claude came within
+  one verification step of committing four injected defects.
+
+Where Claude demonstrably added value on the same day, and where it should therefore be pointed:
+refusing a handed-over plan document that was largely fabricated; establishing an API's real
+behaviour **by experiment** when both the vendor docs and the model's own self-description were
+wrong; finding that a "just register a provider" task was blocked by a structurally coupled voice
+layer; and being wrong about the css-2 scanner in a way the loop caught. That is planning,
+verification and judgement — not typing.
+
+Consequences:
+- A plan must be good enough for a **cold** agent to execute. Plan reviews now include a
+  cold-implementer lens ("could a context-free agent execute this and get it right?") alongside the
+  correctness lens. That lens found what four correctness rounds missed — twice — including that the
+  plan's own commits were stranded on a branch the plan forbids merging.
+- codex cannot review what codex wrote. When codex implements, **Claude is the reviewer**, and the
+  review must be adversarial and executed (mutation testing, oracles), not read-and-approve.
+- Design-heavy or trust-boundary work (e.g. Phase V, which touches the seat/auth boundary) may still
+  warrant Claude implementing, with codex reviewing. Choose by the nature of the work, not by habit.
+
 ### 2026-07-14 - Grok Imagine is out for NPC and location imagery; TTS is the provider priority
 
 Status: Active
