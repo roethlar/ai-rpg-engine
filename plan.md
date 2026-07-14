@@ -809,14 +809,21 @@ Raised during planning but deliberately deferred. **Per project rule, nothing he
     property's *text* proves nothing: custom properties accept arbitrary token streams, so
     `--theme-bg: banana` reads back happily. Use a **typed sentinel probe** on an **inherited**
     property (`color`), with the parent set to a literal sentinel `rgb(1, 2, 3)`. For each of the six
-    theme contexts × each of the seven `--theme-*` names, read two probes:
-    | probe | computed | verdict |
-    |---|---|---|
-    | `color: var(--theme-X, rgb(4, 5, 6))` | `rgb(4, 5, 6)` | var is **UNDEFINED** |
-    | `color: var(--theme-X)` | `rgb(1, 2, 3)` (the inherited sentinel) | var is **DEFINED BUT NOT A COLOUR** |
-    | `color: var(--theme-X)` | anything else | **valid colour** — record it |
-    Assert every var in every context lands in the third row. The two sentinels must be colours no
-    theme uses.
+    theme contexts × each of the seven `--theme-*` names, read **two** probes:
+    - **probe A** — `color: var(--theme-X, rgb(4, 5, 6))` (has a fallback)
+    - **probe B** — `color: var(--theme-X)` (no fallback)
+
+    **Read them as an ORDERED decision — the order is load-bearing, because an undefined var and an
+    invalid one both drive probe B to the sentinel:**
+    1. probe A computes `rgb(4, 5, 6)` ⇒ the fallback was taken ⇒ the var is **UNDEFINED**. *(An
+       undefined var also sends probe B to `rgb(1,2,3)`, which is why probe A must be read first.)*
+    2. otherwise, probe B computes `rgb(1, 2, 3)` ⇒ the var *was* substituted and the result was not
+       a colour, so the declaration went IACVT and `color` fell back to the **inherited** sentinel
+       ⇒ **DEFINED BUT NOT A COLOUR**.
+    3. otherwise ⇒ **valid colour**; record probe B's computed value for Phase C.
+
+    Assert every var in every context lands in case 3. Both sentinels must be colours **no theme
+    uses** — otherwise a legitimate value is misread as a failure.
 
   - **Phase B — the expression battery (the heart of the harness).** For each distinct
     `(property, value)` pair collected via CSSOM (dedupe — many rules share an expression) × each of
