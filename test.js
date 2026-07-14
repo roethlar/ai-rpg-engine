@@ -1322,25 +1322,55 @@ async function testNpcAppearance() {
  *
  * No-DOM scanner over the shipped stylesheet. It guards the defect *class*, not
  * one literal spelling (r1 reopen: a custom-property alias sailed past a
- * direct-only regex). Comments are blanked before scanning so they cannot hide
- * offenders or pad anti-vacuous checks. The anti-vacuous side is production
- * anchors in live CSS, not a coarse match-count heuristic.
+ * direct-only regex; r2 residual: nested `var(--x, var(--theme-…))` fallbacks
+ * also sail past a first-arg-only matcher). Comments are blanked before scanning
+ * so they cannot hide offenders or pad anti-vacuous checks. The anti-vacuous
+ * side is production anchors in live CSS, not a coarse match-count heuristic.
  */
 function blankCssComments(css) {
   // Keep newlines so line numbers still map to the original file.
   return css.replace(/\/\*[\s\S]*?\*\//g, (block) => block.replace(/[^\n]/g, ' '));
 }
 
-/** Custom props defined as `var(--other)` (optional fallback ignored). */
+/** Every custom-property name referenced by a `var(--name…)` in `fragment`. */
+function extractCssVarNames(fragment) {
+  const names = [];
+  const re = /var\(\s*(--[a-zA-Z0-9-]+)/gi;
+  let m;
+  while ((m = re.exec(fragment)) !== null) names.push(m[1]);
+  return names;
+}
+
+/** Index of the matching `)` for `css[openIdx] === '('`, or -1. */
+function findMatchingParen(css, openIdx) {
+  let depth = 0;
+  for (let i = openIdx; i < css.length; i++) {
+    const ch = css[i];
+    if (ch === '(') depth++;
+    else if (ch === ')') {
+      depth--;
+      if (depth === 0) return i;
+    }
+  }
+  return -1;
+}
+
+/**
+ * Custom props whose value references other custom props via var(), including
+ * nested fallbacks (`var(--missing, var(--theme-panel))`). Each ref is an edge
+ * in the alias graph; a theme triple flowing through any fallback taints the name.
+ */
 function collectVarAliases(css) {
   const aliases = new Map(); // --name -> [--ref, ...]
-  const defRe = /(--[a-zA-Z0-9-]+)\s*:\s*var\(\s*(--[a-zA-Z0-9-]+)/g;
+  // Value ends at `;` or `{`/`}` (selector boundaries). Nested parens allowed.
+  const defRe = /(--[a-zA-Z0-9-]+)\s*:([^;{}]+)/g;
   let m;
   while ((m = defRe.exec(css)) !== null) {
     const name = m[1];
-    const ref = m[2];
+    const refs = extractCssVarNames(m[2]);
+    if (refs.length === 0) continue;
     if (!aliases.has(name)) aliases.set(name, []);
-    aliases.get(name).push(ref);
+    aliases.get(name).push(...refs);
   }
   return aliases;
 }
@@ -1356,22 +1386,30 @@ function resolvesToThemeTriple(name, aliases, seen = new Set()) {
 }
 
 /**
- * Find rgb()/rgba() consumers of any custom property that is, or transitively
- * aliases, a --theme-* triple. `css` must already have comments blanked if the
- * caller wants comment-immunity.
+ * Find rgb()/rgba() calls whose arguments reference any custom property that
+ * is, or transitively aliases (including via nested var() fallbacks), a
+ * --theme-* triple. `css` must already have comments blanked if the caller
+ * wants comment-immunity.
  */
 function findInvalidThemeRgbConsumers(css, { pathLabel = 'stylesheet' } = {}) {
   const aliases = collectVarAliases(css);
   const invalid = [];
-  const rgbConsumer = /\b(rgba?)\(\s*var\(\s*(--[a-zA-Z0-9-]+)/gi;
+  const startRe = /\b(rgba?)\(/gi;
   let match;
-  while ((match = rgbConsumer.exec(css)) !== null) {
+  while ((match = startRe.exec(css)) !== null) {
     const fn = match[1];
-    const varName = match[2];
-    if (!resolvesToThemeTriple(varName, aliases)) continue;
+    const openIdx = match.index + match[0].length - 1;
+    const closeIdx = findMatchingParen(css, openIdx);
+    if (closeIdx < 0) continue;
+    const args = css.slice(openIdx + 1, closeIdx);
+    const refs = extractCssVarNames(args);
+    const themeRefs = [...new Set(refs.filter((r) => resolvesToThemeTriple(r, aliases)))];
+    if (themeRefs.length === 0) continue;
     const line = css.slice(0, match.index).split('\n').length;
-    const via = varName.startsWith('--theme-') ? '' : ' (aliases a --theme-* triple)';
-    invalid.push(`${pathLabel}:${line} — ${fn}(var(${varName}), …)${via}`);
+    const detail = themeRefs.map((r) => (
+      r.startsWith('--theme-') ? r : `${r} (aliases a --theme-* triple)`
+    )).join(', ');
+    invalid.push(`${pathLabel}:${line} — ${fn}(… ${detail} …)`);
   }
   return invalid;
 }
@@ -1422,8 +1460,8 @@ async function testThemeVarConsumers() {
     );
   }
 
-  // Fixture: the r1 demonstrated bypass (and multi-hop) must be detected.
-  // If this scanner is weakened back to direct-only matching, these fail.
+  // Fixture probes: prior demonstrated bypasses must stay caught. If this
+  // scanner is weakened, these fail.
   const probeOneHop = blankCssComments(
     '.probe { --panel-alias: var(--theme-panel); background: rgba(var(--panel-alias), 0.7); }'
   );
@@ -1444,6 +1482,24 @@ async function testThemeVarConsumers() {
   assert.strictEqual(
     probeMultiHopHits.length, 1,
     `css-1 guard must catch multi-hop indirection; got: ${JSON.stringify(probeMultiHopHits)}`
+  );
+
+  // r2 residual (executed by codex before its session was content-filtered):
+  // nested var() fallbacks that still resolve to a theme triple.
+  const probeNestedFallbackDef = blankCssComments(
+    '.probe { --panel-alias: var(--css1-absent, var(--theme-panel)); background: rgba(var(--panel-alias), 0.7); }'
+  );
+  assert.strictEqual(
+    findInvalidThemeRgbConsumers(probeNestedFallbackDef, { pathLabel: 'probe' }).length, 1,
+    'css-1 guard must catch theme triples reached via nested var() fallbacks in a definition'
+  );
+
+  const probeNestedFallbackArg = blankCssComments(
+    '.probe { background: rgba(var(--css1-absent, var(--theme-panel)), 0.7); }'
+  );
+  assert.strictEqual(
+    findInvalidThemeRgbConsumers(probeNestedFallbackArg, { pathLabel: 'probe' }).length, 1,
+    'css-1 guard must catch theme triples nested in var() fallbacks inside rgba() args'
   );
 
   // Comments must not create false positives (invalid form only in a comment).
