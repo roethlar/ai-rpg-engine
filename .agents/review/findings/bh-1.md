@@ -121,10 +121,30 @@ red:
    `transition*`/`animation*` declarations are excluded from the battery outright (and logged), since a
    dropped transition cannot leave a surface unpainted.
 
+## Disposition of the 10 r3 findings (pinned at `a014cb7`)
+
+r3's verdict on the core: *"should PASS healthy master … would catch css-1 … I found no existing
+declaration that should falsely fail."* The oracle is settled. What it found instead was one **real
+self-contradiction in the plan text**, one **precedence trap**, and four **soundness gaps** — all
+accepted, none disputed.
+
+| # | Lens | Finding (r3) | Disposition |
+|---|---|---|---|
+| 1 | correctness | **A declaration's fate is not selector-independent.** A custom property defined by a *different* rule matching the same element is a cascade the isolated probe cannot model — it would inherit the `:root` alias, differ from `unset`, and report **green while the real element drops its background**. | **VALID; now GUARDED, not engineered around.** Measured: **all 47 custom-property definitions in `styles.css` live inside the six theme blocks**, so the probe's isolation model is exactly right *today*. Phase B step **2b** now **FAILS** if any custom property is defined outside a theme block (and outside the rule consuming it), with "unsupported cascade — extend the harness". Verified: injecting `.some-widget { --local-accent: … }` fires it; master is clean. A silent unsoundness became a loud stop. |
+| 2 | correctness | **Equality with `unset` is not proof of a drop.** A *valid* declaration whose computed value coincides with `unset`'s (e.g. `--fx: none` consumed by `filter`) is a **false failure**. | **VALID; documented limit + fail-closed cure.** There are **zero** such declarations on master (0 failures / 282 assertions), so no speculative machinery is being built. Every Phase B failure is hard; the only escape is an explicit allowlist entry `{selector, property, value, reason}` that **ships empty** and needs a written justification. |
+| 3 | correctness | **Generic `.cssRules` recursion misses `@import`** — a `CSSImportRule` exposes its rules at `.styleSheet.cssRules`, not `.cssRules`. | **FIXED and verified.** An `else if (rule.styleSheet?.cssRules)` branch added. Importing the sheet a second time doubled the unit count 184 → 368, proving the branch runs. (No `@import` in `styles.css` today — closed before it opened.) |
+| 4 | correctness | **The spawned server inherits `NODE_ENV`.** `server.js:1043` `process.exit(1)`s when `NODE_ENV=production && !ACCESS_SECRET`, so a developer with that in their shell gets a dead child and a readiness timeout on a healthy checkout. | **FIXED and verified.** The spawn env now sets `NODE_ENV: 'test'` and **deletes** `ACCESS_SECRET`/`ADMIN_SECRET`. |
+| 5 | correctness | **No guard proof covers Phase D.** Every proof mutated `styles.css`, so an implementation that skipped or re-implemented the module import would pass them all — and the browser command could stay green while `theme-vars.js` returned bare component lists. | **VALID — this is the vacuous-guard anti-pattern, caught before it shipped.** New **G5**: make `toThemeColor` return the bare component list (i.e. **revert Phase CT**); Phase D must FAIL, reporting every `--theme-*` as NOT-A-COLOUR. Confirmed achievable: `220, 25%, 12%` → `DEFINED-BUT-NOT-A-COLOUR`; `hsl(220 25% 12%)` → `VALID`. |
+| 6 | correctness | **Aborting non-local requests is not the same as asserting nobody made one.** The run could be hermetic and green while an external URL was silently aborted. | **FIXED.** The route handler now **records** every aborted URL and **Phase E fails if the list is non-empty**. Measured: empty on master. |
+| 7 | cold-impl | **The plan contradicted itself on cardinality**: it claimed 282 assertions but also "only 18 distinct `(property, value)` pairs", which over six contexts is 108 — below Phase E's own floor of 250. A cold agent following it goes RED. | **VALID — and the number was mine.** The "18" came from this plan's own earlier draft, produced by the **broken pre-shorthand collector**. The real figure, measured: **184 units → 47 distinct per context → 282 assertions**. The bogus number is struck. |
+| 8 | cold-impl | **Two overlapping Playwright routes have unspecified precedence.** Handlers match in reverse registration order and `continue()` does not chain (only `fallback()` does) — register them wrong and the catch-all `continue()`s `/__bh1__` to Express, which 404s: no probe document, Phase E red on healthy master. | **FIXED.** The plan now mandates **exactly ONE route handler** (fulfil the probe URL / continue local / record+abort external) and ships the code. No precedence left to get wrong. |
+| 9 | cold-impl | **Phase D's fixtures used bare identifiers** (`fullThemeVars({primary, secondary, …})`) — a `ReferenceError` if copied literally. | **FIXED.** Four fixtures now given as a literal, copy-paste code block. |
+| 10 | cold-impl | **Teardown omits awaiting exit and the SQLite WAL sidecars.** `db.js:88` enables WAL; `test.js:25` removes `-wal`/`-shm` for exactly this reason. | **FIXED.** Teardown now awaits child exit, then removes `<db>`, `<db>-wal`, `<db>-shm`. |
+
 ## Guard proofs the implementation MUST produce
 
-Non-negotiable; the harness is worthless without them. G1, G1b and G3 are already **known to be
-achievable** — the r3 probe achieved them.
+Non-negotiable; the harness is worthless without them. G1, G1b, G3 and G5's mechanism are already
+**known to be achievable** — the scratchpad probes achieved them.
 
 - **G1** — reintroduce css-1 (`background: rgba(var(--theme-panel), 0.7)` on `.glass-card`): Phase B
   must **FAIL**, naming selector, property and theme. Revert: passes.
@@ -134,6 +154,10 @@ achievable** — the r3 probe achieved them.
   collapses). It does **NOT** make Phase A report UNDEFINED — custom properties inherit from `:root`.
 - **G2b** — `--theme-bg: banana` in a theme block: Phase A must report **DEFINED BUT NOT A COLOUR**.
 - **G2c** — delete `--theme-primary` from **`:root`**: Phase A must report **UNDEFINED**.
+- **G5 — the proof that Phase D guards anything.** Every other proof mutates `styles.css`, so an
+  implementation whose Phase D skipped the module import (or re-implemented it) would pass them all.
+  Make `toThemeColor` in `theme-vars.js` return the bare component list — **revert Phase CT** — and
+  **Phase D must FAIL**, reporting every `--theme-*` as NOT-A-COLOUR. Revert; it passes.
 - **G3 — anti-vacuity.** Break it through **custom-property indirection** (`--tmp: var(--theme-panel);`
   then `background: rgba(var(--tmp), 0.7);`). Must **still fail**. The css-1 *scanner* guard passed
   its own guard proof and was still worthless because it matched only the **literal spelling** of the

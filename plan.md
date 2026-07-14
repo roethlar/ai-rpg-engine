@@ -768,11 +768,16 @@ Raised during planning but deliberately deferred. **Per project rule, nothing he
     *collector* was broken, and a **scratchpad probe against a real Chromium then found a defect
     the reviewer had explicitly reasoned was fine** (see "The shorthand trap" below). That probe is
     also what validated everything now specified here.
-  - **r3 (current) — every mechanism below was EXECUTED against real Chromium and the real
-    `public/styles.css` before being written down.** Measured on master @ `74d464d`: **184
-    var-bearing declarations, 282 assertions, 0 failures**; sabotage cases G1/G1b/G3 each caught in
-    **all six** theme contexts. Do not restore an earlier design — the traps are in "Rejected
-    designs".
+  - **r3 (`a014cb7`) — REJECTED, 10 findings.** The oracle was confirmed sound ("should pass current
+    master while catching css-1") but the plan **contradicted itself on cardinality**, left Playwright
+    **route precedence** unresolved, and had four real soundness gaps (cascade context, `@import`,
+    inherited `NODE_ENV`, and no proof that Phase D guards anything).
+  - **r4 (current) — every mechanism below was EXECUTED against real Chromium and the real
+    `public/styles.css` before being written down.** Measured on master: **184 var-bearing
+    declarations, 47 distinct per theme context, 282 assertions, 0 failures**; sabotage cases
+    G1/G1b/G3 each caught in **all six** theme contexts; the `@import`, stray-custom-property and
+    bare-component probes all behave as specified. Do not restore an earlier design — the traps are
+    in "Rejected designs".
 
   **The single most important lesson, and the reason this plan is trustworthy now:** the r2 reviewer
   reasoned carefully about CSS semantics and got a load-bearing detail **wrong**, in the direction
@@ -842,6 +847,13 @@ Raised during planning but deliberately deferred. **Per project rule, nothing he
   `@container` or `@scope` if one is ever added. Self-maintaining: a themed rule added tomorrow is
   tested tomorrow.
 
+  **`@import` needs its own branch — it is the one grouping rule that does NOT have `.cssRules`.** A
+  `CSSImportRule` exposes the imported rules at **`rule.styleSheet.cssRules`**. Without that branch an
+  imported sheet is silently skipped, and Phase E's floor is still met by the main sheet, so the run
+  stays green. So: `if (rule.cssRules) walk(rule.cssRules); else if (rule.styleSheet?.cssRules)
+  walk(rule.styleSheet.cssRules);`. **Verified** — importing the sheet a second time doubled the unit
+  count from 184 to 368. (There is no `@import` in `styles.css` today; this closes it before it opens.)
+
   **This is NOT css-2.** css-2 wrote its own CSS parser and used **that** as the *oracle* — it
   rejected valid CSS and crashed the suite. Here the **browser** parses and the **browser** is the
   oracle. The only text handling is splitting an already-**browser-serialized** declaration block
@@ -886,7 +898,33 @@ Raised during planning but deliberately deferred. **Per project rule, nothing he
        - probe: `setProperty(name, value)`. control: `setProperty(name, 'unset')`.
        - **FAIL** if *no* property in `owned` differs between them. Report the **theme, selector,
          property and value**.
-       - Dedupe by `(context, name, value, customs)` — identical declarations share a fate.
+       - Dedupe by `(context, name, value, customs)` — identical declarations share a fate. **Measured:
+         184 units collapse to 47 distinct per context, ×6 contexts = 282 assertions.**
+    2b. **FAIL-CLOSED GUARD — a custom property defined outside a theme block.** The probe reproduces
+       exactly two sources of custom properties: the **six theme blocks** (via `body.className`, which
+       the probe inherits) and the **rule under test's own** `--x:` declarations. A custom property
+       defined by *some other* rule that matches the same element is a cascade the isolated probe
+       **cannot model** — and it would fail *silently*, in the dangerous direction: the probe would
+       inherit the `:root` alias, differ from `unset`, and report green while the real element drops
+       its background.
+       So: **collect every custom-property definition in the sheet, and FAIL if any lives in a rule
+       that is neither one of the six theme blocks nor a rule that also consumes it.** Message:
+       "unsupported cascade: `<selector>` defines `<--prop>` outside a theme block; the probe cannot
+       model this — extend the harness before shipping this CSS."
+       **Measured: master has 47 custom-property definitions and ALL of them are inside the six theme
+       blocks, so this guard is green today** — and it converts a silent unsoundness into a loud stop
+       the moment someone writes the first local custom property. *(Verified: injecting
+       `.some-widget { --local-accent: … }` fires it.)*
+    2c. **Known limitation, with a fail-closed cure — the initial-value coincidence.** A declaration
+       whose *valid* computed value happens to equal what `unset` computes is indistinguishable from a
+       dropped one (e.g. `:root { --fx: none } .item { filter: var(--fx) }` — valid, but `filter`
+       computes to `none` either way). The differential cannot tell these apart, so such a declaration
+       is a **false failure**. **There are ZERO of them on master (0 failures across 282 assertions).**
+       Do not build machinery for a case that does not exist. Instead: every Phase B failure is a hard
+       failure, and the only escape is an explicit **allowlist** entry
+       `{selector, property, value, reason}` — **which must ship empty** and requires a written
+       justification per entry. If someone ever writes such a declaration, the harness goes red once
+       and a human writes one line. Fail closed, and never silently.
     3. **`all: initial` on the wrapper is required, and it is safe.** Without it, an *inherited*
        property whose declared value equals its inherited value is indistinguishable from `unset`:
        measured, `font-family: var(--font-body)` on `body` produced a **false failure in every
@@ -913,25 +951,38 @@ Raised during planning but deliberately deferred. **Per project rule, nothing he
   - **Phase D — the `theme-vars.js` boundary.** `public/theme-vars.js` is the one place that turns
     model-emitted HSL components into colours, so it is the other half of the class. `import()` the
     **real module** from the running server, call it on these **four** fixtures, apply each returned
-    `--theme-*` as an inline custom property, and re-run **Phase A's validity probe** on the result:
-    1. `fullThemeVars({primary, secondary, background, text, text_dim})` — all fields.
-    2. `fullThemeVars({primary, secondary, background, text})` — **no `text_dim`** (the optional path).
-    3. `baseThemeVars('210, 100%, 50%', '330, 100%, 50%', '220, 30%, 8%')` — all three args.
-    4. `baseThemeVars(undefined, undefined, undefined)` — the defaults path.
+    `--theme-*` as an inline custom property, and re-run **Phase A's validity probe** on the result.
+    **The fixtures are literal — copy them exactly** (r3 flagged that the earlier `{primary, …}`
+    shorthand would be a `ReferenceError` if copied):
+    ```js
+    const C = { primary: '210, 100%, 50%', secondary: '330, 100%, 50%',
+                background: '220, 30%, 8%', text: '210, 20%, 95%', text_dim: '210, 10%, 65%' };
+    fullThemeVars(C)                                                    // 1. all fields
+    fullThemeVars({ primary: C.primary, secondary: C.secondary,
+                    background: C.background, text: C.text })           // 2. no text_dim
+    baseThemeVars(C.primary, C.secondary, C.background)                 // 3. all three args
+    baseThemeVars(undefined, undefined, undefined)                      // 4. the defaults path
+    ```
+    Every `--theme-*` each call returns must land in Phase A's **case 3 (valid colour)**.
     **`fullThemeVars` requires `colors.text`** — `theme-vars.js:28` calls `toThemeColor(colors.text)`
-    unguarded, so passing an object without `text` throws a `TypeError`. Do **not** write that
-    fixture; it would make healthy master red. *(That unguarded call is a latent robustness gap in
-    product code. It is **out of scope for bh-1** — record it, do not fix it here.)*
+    unguarded, so an object without `text` throws a `TypeError`. Do **not** write that fixture; it
+    would make healthy master red. *(That unguarded call is a latent robustness gap in product code.
+    It is **out of scope for bh-1** — record it, do not fix it here.)*
     Do **not** re-implement the module's logic in the harness — that is the vacuous-guard
-    anti-pattern; call the real module.
+    anti-pattern; call the real module. **G5 (below) is what proves you didn't.**
 
   - **Phase E — fail closed.** Assert the harness actually *did* something:
     - `styles.css` must be **reachable through CSSOM** (a `SecurityError` here is a hard failure, not
       a skip);
-    - the collected **unit count ≥ 150** and **assertions ≥ 250** (measured on master: **184** and
-      **282**). Note these are **raw var-bearing declarations**, not deduplicated `(property, value)`
-      pairs — of which there are only **18**, so a threshold written against the deduped set would be
-      wrong by an order of magnitude.
+    - **no external request was attempted** (see the route handler below) — the abort list must be
+      empty. Aborting a request is not the same as asserting nobody made one.
+    - the collected **unit count ≥ 150** and **assertions ≥ 250**.
+      **Measured on master: 184 units → 47 distinct per theme context → 47 × 6 = 282 assertions.**
+      The units figure counts **raw var-bearing declarations**; the assertions figure counts
+      **post-dedupe** probes. Both floors above are checked against the numbers above and both pass.
+      *(An earlier draft of this plan cited "18 distinct `(property, value)` pairs". **That number was
+      wrong** — it came from the broken pre-shorthand collector. Ignore it; the real figure is 47 per
+      context.)*
     Without Phase E, a stylesheet that fails to load yields zero declarations, zero assertions, and a
     **green run** — the vacuous pass this repo has shipped three times.
 
@@ -942,17 +993,32 @@ Raised during planning but deliberately deferred. **Per project rule, nothing he
   - `import('/theme-vars.js')` is blocked by CORS (`server.js` sends no `Access-Control-Allow-Origin`
     for static files).
 
-  Both were **observed**, not predicted. Fix: serve the probe document **from the server's own
-  origin** using Playwright request interception —
-  `page.route('http://127.0.0.1:<port>/__bh1__', r => r.fulfill({contentType: 'text/html', body}))`,
-  then `page.goto()` that URL. The document's origin is then the server's, `/styles.css` and
-  `/theme-vars.js` are same-origin (**verified: 291 rules readable, module imports cleanly**), and
-  **nothing is added to `server.js` and no fixture file is added to `public/`.**
+  Both were **observed**, not predicted. Serve the probe document **from the server's own origin** via
+  Playwright request interception, then `page.goto()` that URL. Origin becomes the server's,
+  `/styles.css` and `/theme-vars.js` are same-origin (**verified: 291 rules readable, module imports
+  cleanly**), **nothing is added to `server.js`, and no fixture file is added to `public/`.**
+
+  **Use exactly ONE route handler. Do not register two.** Two overlapping routes (a specific
+  `/__bh1__` fulfiller plus a catch-all) create a **precedence trap**: Playwright matches handlers in
+  **reverse registration order**, and `route.continue()` goes straight to the network **without**
+  consulting the other handler (only `route.fallback()` chains). Register them in the wrong order and
+  the catch-all `continue()`s `/__bh1__` to Express, which 404s — **no probe document, and Phase E
+  goes red on healthy master.** One handler has no precedence to get wrong:
+  ```js
+  const external = [];
+  await page.route('**/*', route => {
+    const url = route.request().url();
+    if (url === probeUrl) return route.fulfill({ contentType: 'text/html', body: probeHtml });
+    if (new URL(url).hostname === '127.0.0.1') return route.continue();
+    external.push(url);              // Phase E asserts this stays EMPTY
+    return route.abort();
+  });
+  ```
 
   **Hermetic.** The harness **never loads `public/index.html`** — it pulls Google Fonts and cdnjs, so
-  navigating to it makes the run depend on DNS. Belt and braces: `page.route('**/*')` **aborts every
-  request whose hostname is not `127.0.0.1`**, so a stray external URL fails loudly rather than
-  silently phoning home.
+  navigating to it would make the run depend on DNS. The handler above aborts every non-`127.0.0.1`
+  request **and records it**, and **Phase E fails if the list is non-empty** — so a stray external URL
+  is a loud failure, not a silent abort. **Measured: the list is empty on master.**
 
   **The six theme contexts, and how to activate them.** They are:
   `''` (the `:root` default), `theme-cyberpunk`, `theme-fantasy`, `theme-horror`, `theme-scifi`,
@@ -967,12 +1033,20 @@ Raised during planning but deliberately deferred. **Per project rule, nothing he
   (`server.js:~1050`); it exports no listener and reports no bound port. So:
   1. Get a free port by binding a throwaway `net` server to port `0`, reading `.address().port`,
      closing it.
-  2. `spawn('node', ['server.js'])` with `env: {...process.env, PORT, RPG_DB_PATH: <temp file>}`.
-     **`RPG_DB_PATH` is mandatory** — the unit suite's convention — so the run never touches the dev
-     DB. **No AI provider key is needed**; nothing here creates a campaign.
+  2. `spawn('node', ['server.js'])` with `env: {...process.env, PORT, RPG_DB_PATH: <temp file>,
+     NODE_ENV: 'test'}`, **and `delete env.ACCESS_SECRET; delete env.ADMIN_SECRET`**.
+     - **`RPG_DB_PATH` is mandatory** — the unit suite's convention — so the run never touches the dev
+       DB. **No AI provider key is needed**; nothing here creates a campaign.
+     - **`NODE_ENV` must be overridden, not inherited.** `server.js:1043` does
+       `process.exit(1)` when `NODE_ENV === 'production' && !ACCESS_SECRET`. A developer whose shell
+       happens to export `NODE_ENV=production` would otherwise get a child that dies instantly and a
+       readiness poll that times out — on a perfectly healthy checkout.
   3. **Poll `GET http://127.0.0.1:<port>/styles.css` until it answers**, with a timeout. Do not sleep
      a fixed interval and do not parse the child's stdout.
-  4. **`finally`: kill the child and remove the temp DB** — on success *and* on failure.
+  4. **`finally` — on success *and* on failure:** kill the child, **await its exit**, then remove the
+     temp DB **and its WAL sidecars**. `db.js:88` runs `PRAGMA journal_mode = WAL`, so the on-disk set
+     is `<db>`, `<db>-wal`, `<db>-shm` — `test.js:25` already removes all three for exactly this
+     reason. Unlinking only the main file leaves litter (and can error on an open handle).
 
   **Install / lockfile — the T2 r6 objection, answered.**
   - `playwright` as a **devDependency**, pinned, with `package-lock.json` updated.
@@ -1021,6 +1095,15 @@ Raised during planning but deliberately deferred. **Per project rule, nothing he
     report **DEFINED BUT NOT A COLOUR**.
   - **G2c — Phase A's undefined path:** delete `--theme-primary` from **`:root`**; Phase A must report
     **UNDEFINED** for the default context.
+  - **G5 — the proof that Phase D guards anything.** Every other proof here mutates `styles.css` or the
+    stylesheet URL, so **an implementation whose Phase D silently skipped the module import, or
+    re-implemented it, would pass all of them.** So mutate the module itself: in `theme-vars.js`, make
+    `toThemeColor` return the bare component list (`return components.trim()`) instead of
+    `hsl(<components>)` — i.e. **revert Phase CT**. **Phase D must FAIL**, reporting every `--theme-*`
+    it produced as **DEFINED BUT NOT A COLOUR**. Revert; it passes. *(Confirmed achievable: a bare
+    component list `220, 25%, 12%` fed to Phase A's discriminator comes back
+    `DEFINED-BUT-NOT-A-COLOUR`, while `hsl(220 25% 12%)` comes back `VALID`.)* This is the exact
+    regression Phase CT fixed, and Phase D is the only thing standing between it and a silent return.
   - **G4 — fail-closed:** point the probe document at a non-existent stylesheet; the harness must
     **FAIL** (Phase E), not pass with zero assertions.
   - The unit suite (`node test.js`) is **unchanged and still hermetic** — no new dependency reaches it.
@@ -1049,12 +1132,14 @@ Raised during planning but deliberately deferred. **Per project rule, nothing he
   6. **Reading `--theme-*` values back as text.** Cannot prove they are valid colours.
   7. **A global `animation/transition: none !important` freeze.** Manufactures false failures by
      overriding the declarations under test. Correct for screenshots; wrong here.
-  8. **A static CSS scanner.** See css-2: three review rounds, 22 reviewer defeats, a suite crash, and
+  8. **Two Playwright routes (a specific fulfiller + a catch-all).** A precedence trap: handlers match
+     in reverse registration order and `continue()` does not chain. Use one handler.
+  9. **A static CSS scanner.** See css-2: three review rounds, 22 reviewer defeats, a suite crash, and
      valid CSS rejected — `docs/history/css-2-abandoned-scanner.md`. **The entire reason bh-1 exists
      is that this approach does not work.**
 
-  **Prior review findings that the EVIDENCE corrects** (checked against `styles.css` @ `74d464d`;
-  recorded so a re-reviewer does not re-raise them):
+  **Prior review findings that the EVIDENCE corrects** (recorded so a re-reviewer does not re-raise
+  them):
   - r1 cited "the pulse keyframe" among missed css-1 sites. `@keyframes d20-pulse` — the one
     `.roll-d20-icon` actually runs — contains **no theme vars at all**, only `transform`. The themed
     keyframe is **`@keyframes pulse-glow`**. Both are enumerated automatically by CSSOM.
@@ -1062,6 +1147,13 @@ Raised during planning but deliberately deferred. **Per project rule, nothing he
     trap". The reviewer's reasoning was careful and wrong; the browser settled it.
   - r2 claimed G2 would report Phase A **UNDEFINED**. It would not — custom properties inherit from
     `:root`. G2 is now a **Phase C** proof, with G2b/G2c added to exercise Phase A's other two paths.
+  - r3 cited "only 18 distinct `(property, value)` pairs" against Phase E's floor. **That figure was
+    from this plan's own earlier draft and was wrong** — it was produced by the broken
+    pre-shorthand collector. The measured figure is **47 distinct declarations per theme context**,
+    hence 282 assertions. The contradiction was real; the number was not.
+  - r3 warned that a custom property could be defined by a non-theme rule and defeat the isolated
+    probe. **True in principle, and now guarded** (Phase B step 2b) — but **not a live defect**: all
+    47 custom-property definitions in `styles.css` are inside the six theme blocks.
 
 - **Model catalog in /admin (planned 2026-07-12, owner request; STATUS: APPROVED + QUEUED
   by the owner 2026-07-12 — combo-box shape approved; not yet started, no branch cut).**
