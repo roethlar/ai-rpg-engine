@@ -259,5 +259,50 @@ for humans and future agents; only the reviewer's reading list is narrowed.
 
 Re-dispatched once (permitted by the playbook's fail-closed contract) with exactly that: a
 neutral, spec-framed brief, no payloads inline, no instruction to read this file, and the
-engineering-judgement question preserved. If the sanitized dispatch also fails to return an
-envelope, the finding routes to the owner as contested rather than being treated as accepted.
+engineering-judgement question preserved. **The sanitized dispatch returned cleanly** — the
+mitigation works, and is now the standing rule for this finding's dispatches.
+
+**Verdict (sanitized re-dispatch): REOPENED. `guard_confirmed: true`. SIXTEEN findings.**
+
+The reviewer confirmed the guard proof is real (red at HEAD, green at BASE) and that the five r2
+fixes close the literal cases they targeted — and then demonstrated that the scanner is now wrong
+in **both** directions. Selected, all verified by execution:
+
+- **It CRASHES.** `test.js:1418` — numeric references go straight to `String.fromCodePoint`, so
+  `&#x110000;` throws `RangeError` and aborts the entire suite. A browser emits U+FFFD. Harmless
+  malformed markup now takes the test run down.
+- **It rejects VALID code** (false positives — a new failure direction the guard did not have
+  before): `test.js:1391` — mapping `dash`/`hyphen` to ASCII `-` rewrites a *distinct* custom
+  property into `--theme-panel`; `test.js:1340` — quote state survives an unescaped newline;
+  `test.js:1632` — a later numeric override that renders valid `rgba()` is rejected because a
+  stale theme edge remains in the merged graph (the graph is not cascade/computed-value
+  semantics).
+- **The r2 map-render.js fix does not actually work.** `test.js:1609` — it scans raw JavaScript,
+  but `public/app.js:1450` feeds the emitted SVG through `innerHTML`, so character references
+  decode *there*. An `r&#103;ba(` in `map-render.js` still ships with the suite green.
+- **More parse divergences**: CSS identifier escapes (`r\gba(`, and `--css2-a\lias` denoting the
+  same property as `--css2-alias`); `/*` inside an unquoted `url()` token; HTML comments matched
+  as substrings rather than tokenizer states; raw-text end-tag matching both incomplete and
+  overbroad (`</style data-review>`, NBSP in `</style >`, `<style>` inside a quoted attribute);
+  SVG foreign content parsed differently from HTML `<style>`; aliases created at runtime via
+  `style.setProperty('--x', 'var(--theme-panel)')`.
+
+**Reviewer's engineering judgement (asked for explicitly, and unprompted as to direction):**
+
+> `test.js:1315` — migrate `--theme-*` to complete `<color>` values consumed directly with
+> `var()`, add explicit translucent variants where needed, then retire this linter. The one-time
+> schema/data migration is smaller and safer than maintaining partial HTML tokenization, CSS
+> tokenization, cascade resolution, and JavaScript-output interpretation; **the verified
+> divergences show this approach is not converging.**
+
+**Coder assessment: agreed, and the owner's own stopping condition is met.** The owner authorized
+the r2 round on the explicit condition "if it finds a fourth round of holes, that's the signal the
+whole approach is wrong and we go to the root fix" (2026-07-14). It found sixteen, including a
+crash and false positives. The scanner has been reimplementing an HTML parser, a CSS tokenizer,
+the cascade, and a JS-output interpreter — badly — for a bug that is *already fixed*. Chasing
+round four would be the treadmill, not diligence.
+
+**This branch must NOT be merged as it stands**: it introduces a suite-aborting crash and rejects
+valid CSS. Its value is the recorded knowledge, not the code.
+
+**Status: routed to the owner for the root-cause decision.** No further scanner rounds.
