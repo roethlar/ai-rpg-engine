@@ -761,172 +761,268 @@ Raised during planning but deliberately deferred. **Per project rule, nothing he
   A committed harness is the only thing that catches this class automatically. It would have caught
   css-1 on day one.
 
-  **REVISION HISTORY. This plan was rewritten on 2026-07-14 after its first plan review returned
-  9 findings and the verdict "as written, this would NOT work" — the original core assertion went
-  red on healthy master. Do not restore the earlier design; the specific traps it fell into are
-  recorded under "Rejected designs" below.**
+  **REVISION HISTORY — READ THIS FIRST.**
+  - **r1 (`df9f3f4`) — REJECTED, 9 findings**, verdict "as written it would NOT work": the core
+    assertion went red on healthy master.
+  - **r2 (`74d464d`) — REJECTED, 11 findings.** The redesign was sound in outline but its
+    *collector* was broken, and a **scratchpad probe against a real Chromium then found a defect
+    the reviewer had explicitly reasoned was fine** (see "The shorthand trap" below). That probe is
+    also what validated everything now specified here.
+  - **r3 (current) — every mechanism below was EXECUTED against real Chromium and the real
+    `public/styles.css` before being written down.** Measured on master @ `74d464d`: **184
+    var-bearing declarations, 282 assertions, 0 failures**; sabotage cases G1/G1b/G3 each caught in
+    **all six** theme contexts. Do not restore an earlier design — the traps are in "Rejected
+    designs".
+
+  **The single most important lesson, and the reason this plan is trustworthy now:** the r2 reviewer
+  reasoned carefully about CSS semantics and got a load-bearing detail **wrong**, in the direction
+  that would have shipped a harness that passed green on the exact bug it exists to catch. Only
+  running a browser found it. **Do not reason about CSS. Execute it.**
 
   ---
 
-  **Design — a DIFFERENTIAL, EXPRESSION-LEVEL oracle in a real browser.**
+  **THE SHORTHAND TRAP — the defect that would have made the whole harness worthless.**
 
-  Three load-bearing decisions, in order of importance.
+  A `var()` inside a **shorthand** makes that shorthand's longhands "pending-substitution". In CSSOM
+  they are still *enumerated* by `rule.style[i]`, but **`getPropertyValue()` returns the EMPTY STRING
+  for every one of them.** The shorthand's real text is only retrievable under the *shorthand's* own
+  name.
+
+  css-1 was `background: rgba(var(--theme-panel), 0.7)` — a **`background` shorthand**. So a
+  collector that iterates `rule.style` by index and keeps declarations whose *value* contains
+  `var(--theme-` **collects nothing for it**, never probes it, and **reports green while the bug is
+  present**. Measured: such a collector sees **115** var-bearing declarations where the correct one
+  sees **184**. Everything it misses is a shorthand — i.e. exactly the shape css-1 had.
+
+  This is the same failure as the css-1 *scanner* guard (which matched only one literal spelling), in
+  a new costume. **The collector below is the fix; keep its shape.**
+
+  ---
+
+  **Design — a per-DECLARATION differential oracle, executed in a real browser.**
 
   **(1) The unit under test is the DECLARATION, not the surface.** The bug class is *"a declaration
-  that references a `--theme-*` var is silently dropped."* css-1 was `rgba(var(--theme-panel), 0.7)`
-  — the **value expression** is what the browser rejects. The selector is irrelevant: two rules using
-  the same expression shape fail or succeed together. So the harness enumerates **declarations**, not
-  surfaces, and tests each expression directly. This is what makes the harness exhaustive, and it is
-  why the original hand-curated surface matrix (which the review showed was missing at least eight
-  real sites) is gone.
+  whose value uses `var()` is silently dropped"*. The **value expression** is what the browser
+  rejects; the selector is irrelevant, and two rules sharing an expression share its fate. So the
+  harness enumerates **declarations**, never a hand-curated surface list.
 
-  **(2) The oracle is DIFFERENTIAL, never a hardcoded expected value.** For each declaration, style a
-  **probe** element with it and leave an identical **control** sibling unstyled, in the same theme
-  context. Then:
+  Note the class is **`var()`**, not `--theme-`. Narrowing the filter to `var(--theme-` reintroduces
+  the literal-spelling trap: `--tmp: var(--theme-panel); background: rgba(var(--tmp), 0.7);` is the
+  same bug reached through one hop, and a `--theme-`-only filter walks straight past it. **Collect
+  every declaration whose value contains `var(`.**
 
-  > **If applying the declaration changes NOTHING in the probe's computed style, the browser dropped
-  > it.** That is the entire test.
+  **(2) The oracle is DIFFERENTIAL against `unset`, never a hardcoded expected value.** When a
+  `var()` declaration fails it becomes *invalid at computed-value time* (IACVT), and the property
+  computes **exactly as if the declaration said `unset`** — inherited value if the property inherits,
+  initial value otherwise. So:
 
-  This works because a `var()` declaration that fails is *invalid at computed-value time* (IACVT): the
-  property silently reverts to its inherited or initial value — i.e. exactly the control's value. The
-  oracle makes **no assumption about which property should be non-transparent**, which is what killed
-  the original design (see Rejected designs #1). It handles `background-color`, `background-image`
-  gradients, `box-shadow`, `border-color`, `color`, `filter`/`drop-shadow` and shorthands uniformly,
-  and it never rots when a designer changes `45%` to `50%`.
+  > **probe** = the declaration applied. **control** = the same property set to **`unset`**.
+  > **If they compute the same, the browser dropped it.** That is the entire test.
 
-  **(3) The declaration list is derived from the browser's OWN parse (CSSOM), not from a hand-written
-  matrix and not from a custom parser.** Walk `document.styleSheets` for `styles.css`, recursing into
-  `CSSMediaRule` and `CSSKeyframesRule`, and collect every declaration whose value contains
-  `var(--theme-`. This is **self-maintaining**: a themed rule added tomorrow is tested tomorrow, with
-  no matrix to update and no way to "forget" a surface. It is emphatically **not** css-2 — css-2 wrote
-  its own CSS parser and used it as the *oracle* (and it crashed the suite and rejected valid CSS).
-  Here the browser parses, and the browser is the oracle; the enumeration only decides *what to probe*.
-  **Read `docs/history/css-2-abandoned-scanner.md` before touching this.**
+  The control **must be `unset`, not a bare unstyled element.** A bare control is wrong in *both*
+  directions, and this was measured: with `* { box-sizing: border-box }` in the sheet, a dropped
+  `box-sizing: var(--x)` computes `content-box` while a bare control computes `border-box` — they
+  differ, so the harness calls the dropped declaration "survived" (**false pass**); and a *healthy*
+  `box-sizing: border-box` matches the bare control exactly (**false failure**). An `unset` control
+  is correct in both. It also means the oracle needs no assumption about which property should be
+  non-transparent — the assumption that killed r1.
+
+  **(3) The browser resolves the declaration's own longhands.** A surviving `background: <colour>`
+  still leaves `background-image: none`, identical to `unset` — so comparing *one* longhand is
+  uninformative. The predicate is per-declaration: **at least one of the longhands the declaration
+  owns must differ from the control.** Get that longhand set from the browser, not from a table:
+  apply the declaration alone to a scratch element and read back `scratch.style[i]`. No
+  shorthand→longhand map, no prefix heuristics (both were tried and **fail** on `border-color`,
+  `border-radius`, and a `background` whose `background-clip` is separately overridden, all of which
+  occur in this stylesheet).
+
+  **(4) Enumeration comes from the browser's OWN parse (CSSOM), with GENERIC recursion.** Walk
+  `document.styleSheets`, recursing into **any rule that has a `.cssRules` collection** — not an
+  allowlist of `CSSMediaRule`/`CSSKeyframesRule`, which would silently skip `@supports`, `@layer`,
+  `@container` or `@scope` if one is ever added. Self-maintaining: a themed rule added tomorrow is
+  tested tomorrow.
+
+  **This is NOT css-2.** css-2 wrote its own CSS parser and used **that** as the *oracle* — it
+  rejected valid CSS and crashed the suite. Here the **browser** parses and the **browser** is the
+  oracle. The only text handling is splitting an already-**browser-serialized** declaration block
+  (`rule.style.cssText`) on **top-level semicolons** (paren/quote-depth aware, ~12 lines) to recover
+  each declaration's `name: value`. That text is normalized, comment-free and balanced before we see
+  it, and the split never judges validity — it cannot reject anything. **Read
+  `docs/history/css-2-abandoned-scanner.md` before touching this.**
 
   **Phases — implement in this order.**
 
   - **Phase A — every `--theme-*` var resolves to a colour the browser accepts.** Reading a custom
     property's *text* proves nothing: custom properties accept arbitrary token streams, so
     `--theme-bg: banana` reads back happily. Use a **typed sentinel probe** on an **inherited**
-    property (`color`), with the parent set to a literal sentinel `rgb(1, 2, 3)`. For each of the six
-    theme contexts × each of the seven `--theme-*` names, read **two** probes:
+    property (`color`), under a parent whose `color` is a literal sentinel `rgb(1, 2, 3)`. For each
+    of the six theme contexts × each of the seven `--theme-*` names read **two** probes:
     - **probe A** — `color: var(--theme-X, rgb(4, 5, 6))` (has a fallback)
     - **probe B** — `color: var(--theme-X)` (no fallback)
 
     **Read them as an ORDERED decision — the order is load-bearing, because an undefined var and an
-    invalid one both drive probe B to the sentinel:**
-    1. probe A computes `rgb(4, 5, 6)` ⇒ the fallback was taken ⇒ the var is **UNDEFINED**. *(An
-       undefined var also sends probe B to `rgb(1,2,3)`, which is why probe A must be read first.)*
-    2. otherwise, probe B computes `rgb(1, 2, 3)` ⇒ the var *was* substituted and the result was not
-       a colour, so the declaration went IACVT and `color` fell back to the **inherited** sentinel
-       ⇒ **DEFINED BUT NOT A COLOUR**.
+    invalid one both drive probe B to the sentinel.** (All three rows below were executed and
+    confirmed; the values are measured, not predicted.)
+    1. probe A computes `rgb(4, 5, 6)` ⇒ the fallback was taken ⇒ the var is **UNDEFINED**.
+    2. otherwise probe B computes `rgb(1, 2, 3)` ⇒ the var *was* substituted, the result was not a
+       colour, the declaration went IACVT, and `color` fell back to the **inherited** sentinel ⇒
+       **DEFINED BUT NOT A COLOUR**.
     3. otherwise ⇒ **valid colour**; record probe B's computed value for Phase C.
 
     Assert every var in every context lands in case 3. Both sentinels must be colours **no theme
-    uses** — otherwise a legitimate value is misread as a failure.
+    uses**.
 
-  - **Phase B — the expression battery (the heart of the harness).** For each distinct
-    `(property, value)` pair collected via CSSOM (dedupe — many rules share an expression) × each of
-    the six theme contexts: apply it to the probe and diff the **full computed style** against the
-    control. **Require at least one property to differ.** Zero differences ⇒ dropped ⇒ **FAIL**,
-    reporting the theme, the property, the value, and **every source selector that uses that
-    expression** (keep the selector list during enumeration purely so failures are actionable).
-    - **Self-check, mandatory:** *before* applying the declaration, assert probe and control compute
-      **identically**. If they do not, the scaffolding is broken and every result is meaningless —
-      fail immediately. This is what stops the harness from passing vacuously.
-    - **Both probe and control inherit the sentinel `color: rgb(1, 2, 3)` from their parent.** This
-      matters: `border-color`'s initial value is `currentcolor`, so a dropped `border-color` computes
-      to the sentinel on *both* elements and correctly registers as "no difference".
+  - **Phase B — the declaration battery (the heart of the harness).**
+    1. **Collect.** Walk the CSSOM generically. For each rule, split `rule.style.cssText` into
+       declarations. Keep the rule's **custom-property declarations** (`--x: …`) as *context*. For
+       every **non-custom** declaration whose value contains `var(`, record a **unit**:
+       `{selector, name, value, owned, customs}` where `owned` = the longhands the browser says that
+       declaration sets (scratch-element method, above).
+    2. **Probe.** For each unit × each of the six theme contexts:
+       - probe and control are two sibling `<div>`s inside a wrapper carrying **`all: initial`**
+         (see below).
+       - apply the unit's **`customs` to BOTH** — this is what makes indirection (`--tmp`) resolve
+         identically on each side, so it cancels out of the diff.
+       - probe: `setProperty(name, value)`. control: `setProperty(name, 'unset')`.
+       - **FAIL** if *no* property in `owned` differs between them. Report the **theme, selector,
+         property and value**.
+       - Dedupe by `(context, name, value, customs)` — identical declarations share a fate.
+    3. **`all: initial` on the wrapper is required, and it is safe.** Without it, an *inherited*
+       property whose declared value equals its inherited value is indistinguishable from `unset`:
+       measured, `font-family: var(--font-body)` on `body` produced a **false failure in every
+       theme**, because the probe inherited the very value it was setting. `all: initial` puts every
+       inherited property at its initial value so no such coincidence exists. **Custom properties are
+       not affected by `all`** — verified: `--theme-primary` still reads `hsl(210 100% 55%)` through
+       the wrapper — so the theme context still flows into the probes.
+    4. **Exclude `transition*` and `animation*`, and LOG what was excluded.** A dropped transition
+       cannot leave a surface unpainted, so they are outside the bug class. Measured: 2 exclusions on
+       master (`body :: transition`, `.stars-bg :: transition`). **Do not silently cap coverage —
+       print the exclusions.**
+    5. **Do NOT add a global `animation: none !important` freeze.** The r1 plan required one, carried
+       over from the *screenshot* experiment where it was correct. Here it is actively harmful: an
+       `!important` freeze overrides the very `transition`/`animation` declarations under test and
+       manufactures false failures. This harness never screenshots and never observes a running
+       animation — keyframe declarations are probed as **plain declarations**, which is also why the
+       r1 worry about pausing a pulse keyframe is moot.
 
-  - **Phase C — the theme actually changes.** Using the colours Phase A recorded, assert
+  - **Phase C — the theme actually changes.** From the colours Phase A recorded, assert
     `--theme-primary` and `--theme-bg` are **distinct across all six contexts**. Guards a theme class
-    silently not applying at all — which Phase B alone would not catch, since a stuck theme still
+    silently not applying at all — which Phase B alone cannot catch, because a stuck theme still
     paints *something*.
 
   - **Phase D — the `theme-vars.js` boundary.** `public/theme-vars.js` is the one place that turns
-    model-emitted HSL components into colours (`.agents/state.md`, the theme-var contract), so it is
-    the other half of the class. Import the **real module** into the page from the running server
-    (`import('http://127.0.0.1:<port>/theme-vars.js')`), call `fullThemeVars` and `baseThemeVars` on
-    representative inputs, apply each returned `--theme-*` as an inline custom property, and re-run
-    **Phase A's validity probe** against them. Proves the JS→CSS boundary emits colours the browser
-    accepts. (Do **not** re-implement the function's logic in the harness — that is the vacuous-guard
-    anti-pattern `.agents/state.md` records; call the real module.)
+    model-emitted HSL components into colours, so it is the other half of the class. `import()` the
+    **real module** from the running server, call it on these **four** fixtures, apply each returned
+    `--theme-*` as an inline custom property, and re-run **Phase A's validity probe** on the result:
+    1. `fullThemeVars({primary, secondary, background, text, text_dim})` — all fields.
+    2. `fullThemeVars({primary, secondary, background, text})` — **no `text_dim`** (the optional path).
+    3. `baseThemeVars('210, 100%, 50%', '330, 100%, 50%', '220, 30%, 8%')` — all three args.
+    4. `baseThemeVars(undefined, undefined, undefined)` — the defaults path.
+    **`fullThemeVars` requires `colors.text`** — `theme-vars.js:28` calls `toThemeColor(colors.text)`
+    unguarded, so passing an object without `text` throws a `TypeError`. Do **not** write that
+    fixture; it would make healthy master red. *(That unguarded call is a latent robustness gap in
+    product code. It is **out of scope for bh-1** — record it, do not fix it here.)*
+    Do **not** re-implement the module's logic in the harness — that is the vacuous-guard
+    anti-pattern; call the real module.
 
-  - **Phase E — fail closed.** Assert the harness actually *did* something: `styles.css` must be
-    reachable through CSSOM, and the collected declaration count must be **≥ 100** (evidence: 149
-    themed declarations on master at `36c4167`). Without this, a stylesheet that fails to load yields
-    zero declarations, zero assertions, and a **green run** — the exact vacuous pass this repo has
-    been bitten by three times.
+  - **Phase E — fail closed.** Assert the harness actually *did* something:
+    - `styles.css` must be **reachable through CSSOM** (a `SecurityError` here is a hard failure, not
+      a skip);
+    - the collected **unit count ≥ 150** and **assertions ≥ 250** (measured on master: **184** and
+      **282**). Note these are **raw var-bearing declarations**, not deduplicated `(property, value)`
+      pairs — of which there are only **18**, so a threshold written against the deduped set would be
+      wrong by an order of magnitude.
+    Without Phase E, a stylesheet that fails to load yields zero declarations, zero assertions, and a
+    **green run** — the vacuous pass this repo has shipped three times.
 
-  **Hermetic by construction.** The harness never loads `public/index.html` — that page pulls Google
-  Fonts and cdnjs, so navigating to it makes the run depend on DNS (a review finding). Instead the
-  probe document is built with Playwright's `setContent()` and links **only** the real stylesheet by
-  absolute URL (`http://127.0.0.1:<port>/styles.css`). Belt and braces: `page.route()` **aborts every
-  request whose host is not `127.0.0.1`**, so a future stray external URL fails loudly instead of
-  silently phoning home. No test-only route is added to `server.js` and no fixture file is added to
-  `public/`.
+  **The probe document must be SAME-ORIGIN — this is not optional.** `page.setContent()` leaves the
+  document at an **opaque origin** (`origin: "null"`), and then:
+  - `styleSheets[i].cssRules` throws **`SecurityError: Cannot access rules`** — the entire collector
+    is dead;
+  - `import('/theme-vars.js')` is blocked by CORS (`server.js` sends no `Access-Control-Allow-Origin`
+    for static files).
 
-  **Server boot.** The harness boots the server itself: `RPG_DB_PATH` at a temp file (the unit suite's
-  convention — it must **never** touch the dev DB), a **free port** chosen at runtime rather than
-  assuming 3000, and **no AI provider key needed** — nothing here creates a campaign. Tear the server
-  down and remove the temp DB on exit, including on failure.
+  Both were **observed**, not predicted. Fix: serve the probe document **from the server's own
+  origin** using Playwright request interception —
+  `page.route('http://127.0.0.1:<port>/__bh1__', r => r.fulfill({contentType: 'text/html', body}))`,
+  then `page.goto()` that URL. The document's origin is then the server's, `/styles.css` and
+  `/theme-vars.js` are same-origin (**verified: 291 rules readable, module imports cleanly**), and
+  **nothing is added to `server.js` and no fixture file is added to `public/`.**
 
-  **Lessons from the 2026-07-14 ad-hoc run that MUST be encoded, or the harness will lie:**
-  1. **Probe scaffolding uses LITERAL colours only.** The first ad-hoc probe styled *itself* with
-     `background: hsl(var(--theme-bg, …))` — which after Phase CT is `hsl(hsl(…))`, invalid, dropped —
-     so **the harness reintroduced css-1 and then reported a 92% pixel difference that was its own
-     bug**. Every sentinel and every scaffold colour in this harness is a literal.
-  2. **Freeze animations and transitions** (`*, *::before, *::after { animation: none !important;
-     transition: none !important; }`) before measuring, or transitions in flight make computed values
-     non-deterministic. Note this harness never needs to *observe* an animation: keyframe declarations
-     are probed as plain declarations (Phase B), which is why the review's worry about the pulse
-     keyframe does not require pausing anything.
-  3. **`color-mix()` computes to `color(srgb …)` where `hsla()` computes to `rgba(…)`.** Any colour
-     *comparison* must normalize to 0–255 first. (Phase B's diff is equality-only, so this bites
-     mainly in Phase C's distinctness check and in failure messages.)
+  **Hermetic.** The harness **never loads `public/index.html`** — it pulls Google Fonts and cdnjs, so
+  navigating to it makes the run depend on DNS. Belt and braces: `page.route('**/*')` **aborts every
+  request whose hostname is not `127.0.0.1`**, so a stray external URL fails loudly rather than
+  silently phoning home.
+
+  **The six theme contexts, and how to activate them.** They are:
+  `''` (the `:root` default), `theme-cyberpunk`, `theme-fantasy`, `theme-horror`, `theme-scifi`,
+  `holodeck-idle`. **Set them as `document.body.className`, one at a time, resetting between.** They
+  must go on the **`<body>` element itself**: the sixth block is written `body.holodeck-idle`
+  (`styles.css:1185`), a **type-qualified** selector that a wrapper `<div class="holodeck-idle">`
+  will **not** match — it would silently inherit the `:root` defaults and Phase C would go red on
+  healthy master.
+
+  **Server boot — concrete, because `server.js` gives no help.** `server.js:24` reads
+  `PORT = process.env.PORT || 3000` and `app.listen()` fires only **after** async DB init
+  (`server.js:~1050`); it exports no listener and reports no bound port. So:
+  1. Get a free port by binding a throwaway `net` server to port `0`, reading `.address().port`,
+     closing it.
+  2. `spawn('node', ['server.js'])` with `env: {...process.env, PORT, RPG_DB_PATH: <temp file>}`.
+     **`RPG_DB_PATH` is mandatory** — the unit suite's convention — so the run never touches the dev
+     DB. **No AI provider key is needed**; nothing here creates a campaign.
+  3. **Poll `GET http://127.0.0.1:<port>/styles.css` until it answers**, with a timeout. Do not sleep
+     a fixed interval and do not parse the child's stdout.
+  4. **`finally`: kill the child and remove the temp DB** — on success *and* on failure.
 
   **Install / lockfile — the T2 r6 objection, answered.**
   - `playwright` as a **devDependency**, pinned, with `package-lock.json` updated.
   - Browsers are **not** vendored: `npx playwright install chromium` is a one-time documented setup
     step (README + `.agents/repo-guidance.md`).
-  - **Chromium only.** No multi-engine matrix — it is not verifiable on one dev machine and claiming
-    it would be a lie.
-  - **When Chromium is missing the harness EXITS NON-ZERO** (print: `browser harness CANNOT RUN — run
-    \`npx playwright install chromium\``). **It must not exit 0.** The original plan said "skip and
-    exit 0", which the review correctly called out as defeating the entire gate: the required command
-    would report success while no assertion ever ran. A machine without the browser is a machine that
-    **cannot** verify this class, and it must say so.
+  - **Chromium only.** No multi-engine matrix — not verifiable on one dev machine; claiming it would
+    be a lie.
+  - **When Chromium is missing the harness EXITS NON-ZERO** (`browser harness CANNOT RUN — run
+    \`npx playwright install chromium\``). **It must not exit 0.** r1 said "skip and exit 0", which
+    defeats the entire gate: the required command would report success while no assertion ever ran.
+    A machine that cannot verify this class must say so.
 
   **Entry point and the honest coverage claim.** A **separate** command — `npm run test:browser`, NOT
   folded into `node test.js`, which stays dependency-light and hermetic. This repo has **no CI**, so
   the command is only as good as the rule that invokes it. Record in `.agents/repo-guidance.md`
   (Verification): **`npm run test:browser` is REQUIRED before merging any change to
   `public/styles.css` or `public/theme-vars.js`.**
-  - **That list is deliberately shorter than the original plan's.** The review found the old list
-    (which included `public/index.html`, `public/app.js` and `map-render.js`) **overstated coverage**:
-    the harness drives theme contexts directly, so it never exercises `app.js`'s theme wiring and
-    never touches `map-render.js` at all. Guarding two files honestly beats claiming five.
+  - **That list is deliberately shorter than r1's**, which also named `public/index.html`,
+    `public/app.js` and `map-render.js`. The review found that **overstated coverage**: the harness
+    drives theme contexts directly, so it never exercises `app.js`'s theme wiring and never touches
+    `map-render.js`. Guarding two files honestly beats claiming five.
   - **Known gap, stated rather than papered over:** `app.js` decides *which* theme class and which
-    inline vars get applied. Phase D covers the value-producing half of that path (`theme-vars.js`);
-    the wiring half is **not** covered by this harness. Do not write a merge rule that implies it is.
+    inline vars get applied. Phase D covers the value-producing half of that path
+    (`theme-vars.js`); the wiring half is **not** covered. Do not write a merge rule implying it is.
   - This is a **process** guarantee, not a technical one. Say so.
 
   **Success metrics.**
-  - `npm run test:browser` passes on master.
-  - **Guard proof G1 (mandatory — this is the whole point):** reintroduce css-1 — put
-    `background: rgba(var(--theme-panel), 0.7)` on `.glass-card` — and Phase B must **FAIL**, naming
-    the selector, the property and the theme. Revert; it passes. A harness that cannot detect css-1 is
-    worthless, since css-1 is why it exists.
-  - **G2:** delete `--theme-primary` from `.theme-fantasy`; Phase A must fail it as **UNDEFINED**.
-  - **G3 — anti-vacuity, and non-optional.** The css-1 *scanner* guard passed its own guard proof and
-    was still worthless, because it matched only the **literal spelling** of the defect and custom-
-    property indirection walked straight past it (`.agents/state.md`, Verification — "it bit a third
-    time, in a new costume"). So break it **through indirection**: add `--tmp: var(--theme-panel);`
-    and then `background: rgba(var(--tmp), 0.7);`. The harness must **still fail**. A guard must cover
-    the **class**, not the one spelling you thought of. *(The differential oracle should pass this for
-    free — it never pattern-matches the value. If it does not, the design is wrong, not the test.)*
-  - **G4 — fail-closed proof:** point the probe document at a non-existent stylesheet URL. The harness
-    must **FAIL** (Phase E), not pass with zero assertions.
+  - `npm run test:browser` passes on master (**measured: 184 units, 282 assertions, 0 failures**).
+  - **G1 (mandatory — the whole point):** reintroduce css-1 — `background: rgba(var(--theme-panel),
+    0.7)` on `.glass-card` — and Phase B must **FAIL**, naming selector, property and theme. Revert;
+    it passes. **Confirmed in the r3 probe: caught in all six contexts.** A harness that cannot detect
+    css-1 is worthless, since css-1 is why it exists.
+  - **G1b (the shorthand trap):** `border-color: rgba(var(--theme-border), 0.5)` on `.glass-card` must
+    also **FAIL** — this is the shape that a naive collector renders invisible. **Confirmed: caught in
+    all six contexts.**
+  - **G3 — anti-vacuity, and non-optional.** Break it through **custom-property indirection**:
+    `--tmp: var(--theme-panel);` then `background: rgba(var(--tmp), 0.7);`. Must **still fail**. The
+    css-1 *scanner* guard passed its own guard proof and was still worthless, because it matched only
+    the **literal spelling** of the defect. A guard must cover the **class**, not the one spelling you
+    thought of. **Confirmed: caught in all six contexts.**
+  - **G2 — Phase C, not Phase A.** Delete `--theme-primary` from `.theme-fantasy`; **Phase C** must
+    fail (fantasy's primary now equals the default's). It does **not** make Phase A report UNDEFINED:
+    `:root` still defines the var and custom properties **inherit**, so the probe sees a perfectly
+    valid colour. *(r1 asserted the opposite; it was wrong.)*
+  - **G2b — Phase A's not-a-colour path:** set `--theme-bg: banana` in a theme block; Phase A must
+    report **DEFINED BUT NOT A COLOUR**.
+  - **G2c — Phase A's undefined path:** delete `--theme-primary` from **`:root`**; Phase A must report
+    **UNDEFINED** for the default context.
+  - **G4 — fail-closed:** point the probe document at a non-existent stylesheet; the harness must
+    **FAIL** (Phase E), not pass with zero assertions.
   - The unit suite (`node test.js`) is **unchanged and still hermetic** — no new dependency reaches it.
 
   **Files**: `package.json` (devDep + `test:browser` script), `package-lock.json`, `test-browser.mjs`
@@ -934,37 +1030,38 @@ Raised during planning but deliberately deferred. **Per project rule, nothing he
 
   **Non-goals**: screenshot baselines; a multi-engine matrix; testing gameplay flows; anything
   requiring an AI key; `app.js` theme wiring; `map-render.js`. This harness guards **one** thing —
-  that themed declarations survive the browser's parser and actually paint.
+  that declarations using `var()` survive the browser's parser and actually paint.
 
-  **Rejected designs — do not re-propose these; each was tried or reviewed and failed.**
-  1. **"No themed surface computes to transparent."** The original core assertion. It **goes red on
-     healthy master**: `.btn-primary` paints with a `linear-gradient`, so its `background-color` is
-     *legitimately* `rgba(0, 0, 0, 0)`. Likewise `.stars-bg` themes `background-image` (two
-     radial-gradients), not `background-color`. Any blanket per-surface property assumption has this
-     failure mode; the differential oracle exists precisely to avoid needing one.
-  2. **A hand-curated surface matrix.** The original listed eight surfaces and the review found at
-     least eight more real themed sites it missed — most of them **stateful** (`.choice-btn:hover`,
-     `.action-form input:focus`, `.tab-btn.active`, `.campaign-card:hover`, `.ability-tier`,
-     `.roll-d20-icon`, `.stars-bg`) — plus a themed **keyframe**. A curated list drifts the moment
-     someone adds a rule. CSSOM enumeration replaces it.
-  3. **Asserting "not transparent" against the live app page.** Cannot prove *the tested declaration*
-     survived: a later cascade rule can repaint the element and mask the failure. Isolated probes fix
-     this.
-  4. **Reading `--theme-*` values back as text.** Cannot prove they are valid colours — custom
-     properties accept arbitrary token streams. Phase A's typed sentinel probe fixes this.
-  5. **A static CSS scanner.** See css-2: three review rounds, 22 reviewer defeats, a suite crash, and
-     valid CSS rejected. `docs/history/css-2-abandoned-scanner.md`. **The entire reason bh-1 exists is
-     that this approach does not work.**
+  **Rejected designs — do not re-propose these; each was tried, reviewed, or executed, and failed.**
+  1. **"No themed surface computes to transparent."** r1's core assertion. It **goes red on healthy
+     master**: `.btn-primary` paints with a `linear-gradient`, so its `background-color` is
+     *legitimately* `rgba(0, 0, 0, 0)`; `.stars-bg` themes `background-image`; `.roll-d20-icon` has no
+     background at all. Any blanket per-surface property assumption has this failure mode.
+  2. **A hand-curated surface matrix.** r1 listed eight surfaces; the review found at least eight more
+     real themed sites, most of them stateful. A curated list drifts the moment someone adds a rule.
+  3. **Collecting only declarations whose value contains `var(--theme-`.** Misses (a) every
+     **shorthand** (their longhands serialize to `""`) — including css-1's own `background` — and
+     (b) every **indirection** through an intermediate custom property. Measured: sees 115 of 184.
+  4. **A bare unstyled control.** Wrong in both directions; see decision (2).
+  5. **Prefix-trimming or a hardcoded shorthand→longhand map.** Fails on `border-color`,
+     `border-radius`, and a `background` whose `background-clip` is separately overridden — all
+     present in this stylesheet. Ask the browser instead.
+  6. **Reading `--theme-*` values back as text.** Cannot prove they are valid colours.
+  7. **A global `animation/transition: none !important` freeze.** Manufactures false failures by
+     overriding the declarations under test. Correct for screenshots; wrong here.
+  8. **A static CSS scanner.** See css-2: three review rounds, 22 reviewer defeats, a suite crash, and
+     valid CSS rejected — `docs/history/css-2-abandoned-scanner.md`. **The entire reason bh-1 exists
+     is that this approach does not work.**
 
-  **Two review findings that the evidence CORRECTS** (checked against `styles.css` at `36c4167`; noted
-  so the next reviewer does not re-raise them):
-  - The review cited "the pulse keyframe" among missed css-1 sites. `@keyframes d20-pulse` — the one
-    `.roll-d20-icon` actually runs — contains **no theme vars at all** (only `transform`). The themed
-    keyframe is **`@keyframes pulse-glow`** (a `drop-shadow` `color-mix` on `--theme-primary`). Both
-    are enumerated automatically by CSSOM, so the finding is *closed*, but by a different route than
-    it assumed.
-  - `.roll-d20-icon`'s themed properties are `color` and `text-shadow`; it has **no background**. A
-    background-oriented oracle would have tested the wrong property on it — finding 1 again.
+  **Prior review findings that the EVIDENCE corrects** (checked against `styles.css` @ `74d464d`;
+  recorded so a re-reviewer does not re-raise them):
+  - r1 cited "the pulse keyframe" among missed css-1 sites. `@keyframes d20-pulse` — the one
+    `.roll-d20-icon` actually runs — contains **no theme vars at all**, only `transform`. The themed
+    keyframe is **`@keyframes pulse-glow`**. Both are enumerated automatically by CSSOM.
+  - r2 concluded the design **would** catch css-1 as specified. **It would not** — see "The shorthand
+    trap". The reviewer's reasoning was careful and wrong; the browser settled it.
+  - r2 claimed G2 would report Phase A **UNDEFINED**. It would not — custom properties inherit from
+    `:root`. G2 is now a **Phase C** proof, with G2b/G2c added to exercise Phase A's other two paths.
 
 - **Model catalog in /admin (planned 2026-07-12, owner request; STATUS: APPROVED + QUEUED
   by the owner 2026-07-12 — combo-box shape approved; not yet started, no branch cut).**
