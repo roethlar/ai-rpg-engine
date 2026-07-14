@@ -42,6 +42,11 @@ The engine stores all events in a persistent SQLite database, which double-funct
 ## Native Installation (Direct Run)
 
 Aetheria GM runs on any machine (Windows, macOS, Linux) with Node.js installed.
+The themed UI uses CSS `color-mix()`, so the supported browser floors are
+Chrome/Edge 111, Firefox 113, and Safari/WebKit 16.2; see the
+[MDN browser-compatibility table](https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Values/color_value/color-mix#browser_compatibility).
+The Linux desktop shell renders through the machine's installed WebKitGTK rather
+than a separately declared WebKitGTK floor; verify the shell on the target machine.
 
 ### 1. Install Dependencies
 Clone or copy the directory and run:

@@ -2,9 +2,9 @@ import assert from 'assert';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
-import { fileURLToPath } from 'url';
 import { parseJsonSafe, validateTurnData, validateRequiredChecks, rollCheck, forceNoOpTurnState, applyCharacterUpdate, applyDiceConsequences, buildVoiceScript, TABLE_TALK_KINDS } from './rpg-state.js';
 import { AIClient, resolveAgentConfig, isTransientAiError } from './api-client.js';
+import { baseThemeVars, fullThemeVars } from './public/theme-vars.js';
 
 // Hermetic store: db.js opens its file at module load, and several tests
 // dynamically import rpg-engine.js (which pulls db.js in). Redirect BEFORE
@@ -972,6 +972,12 @@ async function testStructuredLocations() {
   assert.strictEqual(svg1, svg2, 'Render is deterministic');
   assert.strictEqual(svg1.includes('Flooded Nave'), true, 'Area labels drawn');
   assert.strictEqual(svg1.includes('<circle'), true, 'Occupancy tokens drawn');
+  assert.strictEqual(
+    svg1.includes('var(--theme-primary, hsl(210 100% 55%))'),
+    true,
+    'Map source carries a complete-colour fallback when theme variables are absent'
+  );
+  assert.strictEqual(svg1.includes('hsl(var(--theme-'), false, 'Map source never wraps whole-colour theme variables in hsl()');
   assert.strictEqual(renderLocationMap(null, []), null, 'No layout → no map');
   const hostile = renderLocationMap(
     validateLocationLayout({ name: 'X', areas: [{ id: 'a', name: '<script>alert(1)</script>', x: 0, y: 0, w: 20, h: 20 }] }),
@@ -1309,243 +1315,125 @@ async function testNpcAppearance() {
 }
 
 // -------------------------------------------------------------
-// Test: agent-generated genre theming (Phase T1)
+// Test: complete-colour theme contract (Phase CT) + generated theming (Phase T1)
 // -------------------------------------------------------------
-/**
- * css-1: the theme custom properties hold HSL *triples* ("220, 25%, 12%"), not
- * rgb channels — see validateOutlineData's theme_colors above and the writer in
- * public/app.js. A triple is only legal inside hsl()/hsla(). Substituted into
- * rgb()/rgba() it yields `rgba(220, 25%, 12%, 0.7)`, which mixes a number with
- * percentages — not valid legacy rgb syntax (CSS Color 4 §rgb-functions) — so the
- * browser drops the WHOLE declaration at parse time and the surface silently
- * renders unpainted.
- *
- * No-DOM scanner over the shipped stylesheet. It guards the defect *class*, not
- * one literal spelling (r1 reopen: a custom-property alias sailed past a
- * direct-only regex; r2 residual: nested `var(--x, var(--theme-…))` fallbacks
- * also sail past a first-arg-only matcher). Comments are blanked before scanning
- * so they cannot hide offenders or pad anti-vacuous checks. The anti-vacuous
- * side is production anchors in live CSS, not a coarse match-count heuristic.
- */
-function blankCssComments(css) {
-  // Keep newlines so line numbers still map to the original file.
-  return css.replace(/\/\*[\s\S]*?\*\//g, (block) => block.replace(/[^\n]/g, ' '));
-}
+function testThemeColorContract() {
+  console.log(' - Running complete-colour theme contract tests (Phase CT)...');
+  const hslColor = /^hsl\((?:\d{1,3}, ?\d{1,3}%, ?\d{1,3}%|\d{1,3} \d{1,3}% \d{1,3}%)\)$/;
 
-/**
- * Every custom-property name referenced by a `var(--name…)` in `fragment`.
- * Names are matched by CSS delimiters (not an ASCII character class): after `--`,
- * take characters until whitespace, comma, or `)` — so underscore, non-ASCII
- * letters, etc. are included (r3/r4 reopen class).
- */
-function extractCssVarNames(fragment) {
-  const names = [];
-  const re = /var\(\s*(--[^,\s)]+)/gi;
-  let m;
-  while ((m = re.exec(fragment)) !== null) names.push(m[1]);
-  return names;
-}
+  const fullColors = {
+    primary: '320, 100%, 55%',
+    secondary: '180, 100%, 45%',
+    background: '275, 45%, 30%',
+    text: '180, 100%, 60%',
+    text_dim: '320, 30%, 70%'
+  };
+  const full = fullThemeVars(fullColors);
+  assert.deepStrictEqual(full, {
+    '--theme-primary': 'hsl(320, 100%, 55%)',
+    '--theme-secondary': 'hsl(180, 100%, 45%)',
+    '--theme-bg': 'hsl(275, 45%, 30%)',
+    '--theme-text': 'hsl(180, 100%, 60%)',
+    '--theme-text-dim': 'hsl(320, 30%, 70%)',
+    '--theme-panel': 'hsl(275, 45%, 34%)',
+    '--theme-border': 'hsl(275, 45%, 42%)'
+  }, 'Full generated themes map every slot and derive panel/border from the background');
 
-/** Index of the matching `)` for `css[openIdx] === '('`, or -1. */
-function findMatchingParen(css, openIdx) {
-  let depth = 0;
-  for (let i = openIdx; i < css.length; i++) {
-    const ch = css[i];
-    if (ch === '(') depth++;
-    else if (ch === ')') {
-      depth--;
-      if (depth === 0) return i;
+  const legacy = baseThemeVars('210, 100%, 50%', '330, 100%, 50%', '220, 30%, 8%');
+  assert.deepStrictEqual(legacy, {
+    '--theme-primary': 'hsl(210, 100%, 50%)',
+    '--theme-secondary': 'hsl(330, 100%, 50%)',
+    '--theme-bg': 'hsl(220, 30%, 8%)',
+    '--theme-panel': 'hsl(220, 30%, 12%)',
+    '--theme-border': 'hsl(220, 30%, 20%)'
+  }, 'Legacy themes keep their root-level key set and do not acquire text slots');
+  assert.strictEqual('--theme-text' in legacy, false);
+  assert.strictEqual('--theme-text-dim' in legacy, false);
+
+  for (const [pathLabel, vars] of [['full theme writer', full], ['legacy theme writer', legacy]]) {
+    for (const [name, value] of Object.entries(vars)) {
+      assert.match(value, hslColor, `${pathLabel} ${name} must be an opaque complete HSL colour: ${value}`);
     }
   }
-  return -1;
-}
 
-/**
- * Custom props whose value references other custom props via var(), including
- * nested fallbacks (`var(--missing, var(--theme-panel))`). Each ref is an edge
- * in the alias graph; a theme triple flowing through any fallback taints the name.
- */
-function collectVarAliases(css) {
-  const aliases = new Map(); // --name -> [--ref, ...]
-  // Value ends at `;` or `{`/`}` (selector boundaries). Nested parens allowed.
-  // Name: `--` then until `:` / whitespace (delimiter-based, not ASCII-class).
-  const defRe = /(--[^:\s]+)\s*:([^;{}]+)/g;
-  let m;
-  while ((m = defRe.exec(css)) !== null) {
-    const name = m[1];
-    const refs = extractCssVarNames(m[2]);
-    if (refs.length === 0) continue;
-    if (!aliases.has(name)) aliases.set(name, []);
-    aliases.get(name).push(...refs);
+  const styles = fs.readFileSync(new URL('./public/styles.css', import.meta.url), 'utf8');
+  const definitions = [...styles.matchAll(/^\s*(--theme-[\w-]+)\s*:\s*([^;]+);/gm)]
+    .map((match) => [match[1], match[2].trim()]);
+  assert.strictEqual(definitions.length, 42, 'All six theme blocks define the seven live theme variables');
+  for (const [name, value] of definitions) {
+    assert.match(value, hslColor, `${name} stylesheet definition must be an opaque complete HSL colour: ${value}`);
   }
-  return aliases;
-}
 
-function resolvesToThemeTriple(name, aliases, seen = new Set()) {
-  // --theme-* is the HSL-triple contract (written by app.js / :root defaults).
-  if (name.startsWith('--theme-')) return true;
-  if (seen.has(name)) return false;
-  seen.add(name);
-  const refs = aliases.get(name);
-  if (!refs) return false;
-  return refs.some((ref) => resolvesToThemeTriple(ref, aliases, seen));
-}
-
-/**
- * Find rgb()/rgba() calls whose arguments reference any custom property that
- * is, or transitively aliases (including via nested var() fallbacks), a
- * --theme-* triple. `css` must already have comments blanked if the caller
- * wants comment-immunity.
- */
-function findInvalidThemeRgbConsumers(css, { pathLabel = 'stylesheet' } = {}) {
-  const aliases = collectVarAliases(css);
-  const invalid = [];
-  const startRe = /\b(rgba?)\(/gi;
-  let match;
-  while ((match = startRe.exec(css)) !== null) {
-    const fn = match[1];
-    const openIdx = match.index + match[0].length - 1;
-    const closeIdx = findMatchingParen(css, openIdx);
-    if (closeIdx < 0) continue;
-    const args = css.slice(openIdx + 1, closeIdx);
-    const refs = extractCssVarNames(args);
-    const themeRefs = [...new Set(refs.filter((r) => resolvesToThemeTriple(r, aliases)))];
-    if (themeRefs.length === 0) continue;
-    const line = css.slice(0, match.index).split('\n').length;
-    const detail = themeRefs.map((r) => (
-      r.startsWith('--theme-') ? r : `${r} (aliases a --theme-* triple)`
-    )).join(', ');
-    invalid.push(`${pathLabel}:${line} — ${fn}(… ${detail} …)`);
-  }
-  return invalid;
-}
-
-async function testThemeVarConsumers() {
-  console.log(' - Running theme-variable consumer tests (css-1)...');
-  const stylesPath = path.join(path.dirname(fileURLToPath(import.meta.url)), 'public', 'styles.css');
-  const raw = fs.readFileSync(stylesPath, 'utf8');
-  const css = blankCssComments(raw);
-
-  const invalid = findInvalidThemeRgbConsumers(css, { pathLabel: 'public/styles.css' });
-  assert.deepStrictEqual(
-    invalid, [],
-    'rgb()/rgba() cannot consume an HSL-triple theme var (directly or via custom-property ' +
-    'indirection): the declaration is invalid and the browser drops it, so the surface never ' +
-    'paints. Use hsl()/hsla(). Offenders:\n  ' +
-    invalid.join('\n  ')
-  );
-
-  // Anti-vacuous: prove we are reading the real themed stylesheet and that the
-  // defect's critical surfaces still use the valid form. Comments are blanked
-  // above, so commented-out matches cannot satisfy these. A coarse "> N matches"
-  // heuristic is deliberately not used — r1 showed 101 hits inside a comment
-  // (or any non-production padding) could satisfy one.
-  const anchors = [
-    {
-      label: '--theme-panel is defined as an HSL triple',
-      re: /--theme-panel\s*:\s*\d+\s*,\s*\d+%\s*,\s*\d+%\s*;/,
-    },
-    {
-      label: 'body background uses hsl(var(--theme-bg))',
-      re: /background-color\s*:\s*hsl\(\s*var\(\s*--theme-bg\s*\)\s*\)/,
-    },
-    {
-      label: 'header/panel fill uses hsla(var(--theme-panel), α)',
-      re: /background-color\s*:\s*hsla\(\s*var\(\s*--theme-panel\s*\)\s*,/,
-    },
-    {
-      label: 'primary accent uses hsla(var(--theme-primary), α)',
-      re: /\bhsla\(\s*var\(\s*--theme-primary\s*\)\s*,/,
-    },
+  const expectedAlphaConsumers = [
+    ['--theme-primary', 5],
+    ['--theme-secondary', 3],
+    ['--theme-panel', 70],
+    ['--theme-panel', 45],
+    ['--theme-primary', 30],
+    ['--theme-primary', 50],
+    ['--theme-panel', 35],
+    ['--theme-primary', 15],
+    ['--theme-primary', 30],
+    ['--theme-panel', 20],
+    ['--theme-primary', 10],
+    ['--theme-primary', 25],
+    ['--theme-primary', 5],
+    ['--theme-secondary', 8],
+    ['--theme-secondary', 30],
+    ['--theme-panel', 80],
+    ['--theme-primary', 8],
+    ['--theme-primary', 20],
+    ['--theme-primary', 25],
+    ['--theme-primary', 10],
+    ['--theme-primary', 60],
+    ['--theme-primary', 15],
+    ['--theme-secondary', 15],
+    ['--theme-primary', 30],
+    ['--theme-primary', 60]
   ];
-  for (const anchor of anchors) {
-    assert.ok(
-      anchor.re.test(css),
-      `css-1 guard anti-vacuous anchor missing: ${anchor.label}. ` +
-      'Either public/styles.css moved/emptied or the valid form was removed from a critical surface.'
+  const alphaConsumers = [...styles.matchAll(
+    /color-mix\(in srgb, var\((--theme-[^)]+)\) (\d+)%, transparent\)/g
+  )].map((match) => [match[1], Number(match[2])]);
+  assert.deepStrictEqual(
+    alphaConsumers,
+    expectedAlphaConsumers,
+    'Theme translucency must match the independently pinned 25-entry ordered alpha table'
+  );
+
+  // Consumer typo lint. Case-insensitive because CSS function names are (`RGBA(` is legal).
+  //
+  // ⚠ THIS LINT CATCHES THE DIRECT SPELLING AND NOTHING MORE — BY DESIGN. It does not catch
+  // aliasing through an intermediate custom property, styles composed in JavaScript, or encoded
+  // CSS. That residual risk is ACCEPTED, deliberately, and it is small precisely because the
+  // migration removed the TRAP: now that --theme-* holds a whole colour, there is no reason to
+  // wrap it in a colour function at all, so the direct spelling is the only slip anyone plausibly
+  // makes.
+  //
+  // DO NOT "HARDEN" THIS INTO A PARSER. A previous attempt (finding css-2) tried to police this
+  // class with a static scanner and was defeated by a reviewer 1, then 5, then 16 times across
+  // three rounds — HTML character references, RAWTEXT <style> semantics, CSS string tokenization,
+  // cross-file cascade aliases, CSS identifier escapes — until it crashed the suite on malformed
+  // markup AND rejected valid CSS. It had become a bad re-implementation of an HTML parser, a CSS
+  // tokenizer, and the cascade. Reviewer and coder independently concluded it was not converging;
+  // THIS PHASE is the agreed alternative. If a future round finds a way past this regex, the
+  // correct response is to shrug — an encoded offender is not an accident, and someone with commit
+  // access has better options than hiding a colour from a linter.
+  //
+  // Read .agents/review/findings/css-2.md before you touch this.
+  const runtimeTargets = ['public/styles.css', 'public/index.html', 'public/app.js', 'map-render.js'];
+  const wrappedThemeVar = /\b(?:rgba?|hsla?)\(\s*var\(\s*--theme-/gi;
+  for (const target of runtimeTargets) {
+    const source = fs.readFileSync(new URL(`./${target}`, import.meta.url), 'utf8');
+    assert.strictEqual(
+      wrappedThemeVar.test(source),
+      false,
+      `${target} wraps a whole-colour --theme-* variable in a colour function. A --theme-* var now ` +
+      'holds a COMPLETE COLOUR, so wrapping it in rgb()/rgba()/hsl()/hsla() is invalid CSS and the ' +
+      'browser silently drops the declaration (that was finding css-1). Use var(--theme-x), or ' +
+      'color-mix(in srgb, var(--theme-x) N%, transparent) for translucency.'
     );
+    wrappedThemeVar.lastIndex = 0;
   }
-
-  // Fixture probes: prior demonstrated bypasses must stay caught. If this
-  // scanner is weakened, these fail.
-  const probeOneHop = blankCssComments(
-    '.probe { --panel-alias: var(--theme-panel); background: rgba(var(--panel-alias), 0.7); }'
-  );
-  const probeOneHopHits = findInvalidThemeRgbConsumers(probeOneHop, { pathLabel: 'probe' });
-  assert.strictEqual(
-    probeOneHopHits.length, 1,
-    `css-1 guard must catch one-hop custom-property indirection; got: ${JSON.stringify(probeOneHopHits)}`
-  );
-  assert.ok(
-    probeOneHopHits[0].includes('--panel-alias') && probeOneHopHits[0].includes('aliases'),
-    `css-1 guard probe message should name the alias: ${probeOneHopHits[0]}`
-  );
-
-  const probeMultiHop = blankCssComments(
-    '.probe { --a: var(--theme-panel); --b: var(--a); background: rgba(var(--b), 0.5); }'
-  );
-  const probeMultiHopHits = findInvalidThemeRgbConsumers(probeMultiHop, { pathLabel: 'probe' });
-  assert.strictEqual(
-    probeMultiHopHits.length, 1,
-    `css-1 guard must catch multi-hop indirection; got: ${JSON.stringify(probeMultiHopHits)}`
-  );
-
-  // r2 residual (executed by codex before its session was content-filtered):
-  // nested var() fallbacks that still resolve to a theme triple.
-  const probeNestedFallbackDef = blankCssComments(
-    '.probe { --panel-alias: var(--css1-absent, var(--theme-panel)); background: rgba(var(--panel-alias), 0.7); }'
-  );
-  assert.strictEqual(
-    findInvalidThemeRgbConsumers(probeNestedFallbackDef, { pathLabel: 'probe' }).length, 1,
-    'css-1 guard must catch theme triples reached via nested var() fallbacks in a definition'
-  );
-
-  const probeNestedFallbackArg = blankCssComments(
-    '.probe { background: rgba(var(--css1-absent, var(--theme-panel)), 0.7); }'
-  );
-  assert.strictEqual(
-    findInvalidThemeRgbConsumers(probeNestedFallbackArg, { pathLabel: 'probe' }).length, 1,
-    'css-1 guard must catch theme triples nested in var() fallbacks inside rgba() args'
-  );
-
-  // r3 residual: underscore is a valid CSS custom-property character.
-  const probeUnderscoreName = blankCssComments(
-    '.probe { --panel_alias: var(--theme-panel); background: rgba(var(--panel_alias), 0.7); }'
-  );
-  assert.strictEqual(
-    findInvalidThemeRgbConsumers(probeUnderscoreName, { pathLabel: 'probe' }).length, 1,
-    'css-1 guard must catch custom-property names that use underscores'
-  );
-
-  // r4 residual: non-ASCII letters are valid in CSS custom-property names.
-  // Delimiter-based matching (not an ASCII class) is what closes this class.
-  const probeNonAsciiName = blankCssComments(
-    '.probe { --panél-alias: var(--theme-panel); background: rgba(var(--panél-alias), 0.7); }'
-  );
-  assert.strictEqual(
-    findInvalidThemeRgbConsumers(probeNonAsciiName, { pathLabel: 'probe' }).length, 1,
-    'css-1 guard must catch non-ASCII custom-property names'
-  );
-
-  // Comments must not create false positives (invalid form only in a comment).
-  const probeCommentOnly = blankCssComments(
-    '/* rgba(var(--theme-panel), 0.7) */ .ok { background: hsla(var(--theme-panel), 0.7); }'
-  );
-  assert.deepStrictEqual(
-    findInvalidThemeRgbConsumers(probeCommentOnly, { pathLabel: 'probe' }),
-    [],
-    'css-1 guard must ignore invalid forms that exist only inside CSS comments'
-  );
-
-  // Non-theme custom props used in rgba are out of this finding's scope.
-  const probeUnrelated = blankCssComments(
-    '.x { --rgb-channels: 255, 0, 0; background: rgba(var(--rgb-channels), 0.5); }'
-  );
-  assert.deepStrictEqual(
-    findInvalidThemeRgbConsumers(probeUnrelated, { pathLabel: 'probe' }),
-    [],
-    'css-1 guard must not flag rgba() over non-theme custom properties'
-  );
 }
 
 async function testThemeGeneration() {
@@ -2246,7 +2134,7 @@ async function runAll() {
     await testSeatLifecycle();
     await testSeatErrorPayloads();
     await testSeatVisibility();
-    await testThemeVarConsumers();
+    testThemeColorContract();
     await testThemeGeneration();
     await testVoiceScript();
     await testTtsProviderSeam();
