@@ -745,6 +745,87 @@ Raised during planning but deliberately deferred. **Per project rule, nothing he
   in the shell are not automatically product bugs. Success check: launches, creates or
   loads a campaign, plays a turn, exits cleanly leaving no orphan server process.
 
+- **Browser harness — `bh-1` (planned 2026-07-14, owner go; NOT STARTED).**
+
+  **Problem — this is the one bug class this codebase keeps shipping.** CSS declarations that the
+  browser silently **drops** render nothing and raise no error. `node test.js` cannot see it, and
+  neither can a human skimming a diff. It has bitten repeatedly:
+  - **css-1**: `rgba(var(--theme-*), α)` over HSL-triple vars — invalid, dropped, the header, glass
+    cards, narrative panel and input area computed **transparent on every theme**, undetected.
+  - **css-2**: three review rounds and 22 defeats trying to catch that *statically*, ending in a
+    scanner that crashed the suite and rejected valid CSS. **The root cause of that whole saga is
+    that nobody could see what the browser was doing.**
+  - Phase CT's own visual verification (2026-07-14) was **ad-hoc** and is therefore not a guard —
+    the same confusion `.agents/state.md` records for the fictitious `guard-css-1`.
+
+  A committed harness is the only thing that catches this class automatically. It would have caught
+  css-1 on day one.
+
+  **Design — ASSERTION-based, NOT screenshot-baseline.** This is the load-bearing decision.
+  Golden-image baselines rot, need a review story for every intentional change, and are noisy
+  (a master-vs-master control on 2026-07-14 showed ~1800 pixels differing from animation timing
+  alone). Instead **assert the properties that encode the bug class**, which are deterministic:
+  - **No themed surface computes to transparent when it is supposed to be painted.** For each of the
+    six theme blocks (`:root`, `.theme-cyberpunk`, `.theme-fantasy`, `.theme-horror`, `.theme-scifi`,
+    `body.holodeck-idle`) × the surfaces css-1 broke (`.app-header`, `.glass-card`, `.panel-section`,
+    `.narrative-panel`, `.log-player`, `.input-area`, `.quest-act-badge`, `.btn-primary`), assert
+    `background-color` (and `box-shadow`/`border-color` where applicable) is **not** `rgba(0,0,0,0)`
+    and **not** `none`. **This single assertion is exactly css-1's symptom** and is the harness's
+    whole reason to exist.
+  - Assert every `--theme-*` custom property **resolves to a colour a browser accepts** — i.e. a
+    surface consuming it computes a real value rather than falling back.
+  - Assert the theme actually **changes** between blocks (guards against a theme silently not
+    applying at all, which "not transparent" alone would miss).
+
+  **Lessons from the 2026-07-14 ad-hoc run that MUST be encoded, or the harness will lie:**
+  1. **The probe must not style itself with theme variables.** The first ad-hoc probe used
+     `background: hsl(var(--theme-bg, …))` — which after Phase CT becomes `hsl(hsl(…))`, invalid,
+     dropped — so **the harness reintroduced css-1 and then reported a 92% pixel difference that was
+     its own bug**. Probe scaffolding uses **literal colours only**.
+  2. **Freeze animations and transitions** (`*,*::before,*::after{animation:none!important;
+     transition:none!important}`) before measuring. Without it the noise floor is ~1800 px.
+  3. **`color-mix()` computes to `color(srgb …)` where `hsla()` computes to `rgba(…)`.** Any colour
+     comparison must normalize to 0–255 before comparing, or every correct value looks "different".
+
+  **Isolation / install / lockfile — the T2 r6 objection, answered.** T2's review rejected a browser
+  rig for lacking exactly this story:
+  - `playwright` as a **devDependency**, pinned, with `package-lock.json` updated. Browsers are NOT
+    in `node_modules`: `npx playwright install chromium` is a documented one-time setup step
+    (README + `.agents/repo-guidance.md`).
+  - **Chromium only.** Do not attempt a multi-engine matrix; it is not verifiable on a single dev
+    machine and would be a lie.
+  - **Hermetic**: the harness boots the server itself with `RPG_DB_PATH` pointed at a temp file (the
+    unit suite's existing convention — it must never touch the dev DB), picks a **free port** rather
+    than assuming 3000, and needs **no AI provider key** — it drives the theme classes directly
+    rather than creating a campaign (campaign creation calls the Setup agent).
+  - **Skips loudly, never fails silently**, when Chromium is not installed: print a clear "browser
+    harness SKIPPED — run `npx playwright install chromium`" and exit 0. A machine without the
+    browser must not be blocked, but must not be told it passed either.
+
+  **Entry point.** A **separate** command — `npm run test:browser` — NOT folded into `node test.js`,
+  which must stay dependency-light and hermetic. Because this repo has **no CI** (verification is
+  local-only), a separate command is only as good as the rule that invokes it: record in
+  `.agents/repo-guidance.md` (Verification) that **`npm run test:browser` is REQUIRED before merging
+  any change to `public/styles.css`, `public/index.html`, `public/app.js`, `public/theme-vars.js`, or
+  `map-render.js`**. State that honestly as a process guarantee, not a technical one.
+
+  **Success metrics.**
+  - `npm run test:browser` passes on master.
+  - **Guard proof (mandatory, and the whole point):** reintroduce css-1 — put
+    `background: rgba(var(--theme-panel), 0.7)` on `.glass-card` — and the harness must **FAIL**,
+    naming the surface and the theme. Revert; it passes. A harness that cannot detect css-1 is
+    worthless, since css-1 is why it exists.
+  - Second guard proof: delete a `--theme-*` definition from one theme block; the "theme actually
+    changes" assertion must fail.
+  - The unit suite (`node test.js`) is **unchanged and still hermetic** — no new dependency reaches
+    it.
+
+  **Files**: `package.json` (devDep + `test:browser` script), `package-lock.json`,
+  `test-browser.mjs` (new), `README.md` (setup step), `.agents/repo-guidance.md` (Verification rule).
+
+  **Non-goals**: screenshot baselines; a multi-engine matrix; testing gameplay flows; anything
+  requiring an AI key. This harness guards **one** thing — that themed surfaces actually paint.
+
 - **Model catalog in /admin (planned 2026-07-12, owner request; STATUS: APPROVED + QUEUED
   by the owner 2026-07-12 — combo-box shape approved; not yet started, no branch cut).**
   Problem: every model field in `/admin` is free text (`admin.html`: primary `#model`,
