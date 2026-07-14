@@ -11,22 +11,36 @@ to `docs/history/state-archive.md`.
   Unconditional — no exemption for small, obvious, urgent, or owner-approved
   changes, and a green suite is not a substitute. Docs-only changes are out of
   scope.
-- **TWO PHASES ARE QUEUED, BOTH PLANNED, NEITHER STARTED** (owner: "queue up both,
-  there's no deadline", 2026-07-14). Both are in plan.md; both need plan acceptance
-  before any code. Owner set no order.
-  - **Phase V — Grok TTS.** Grok won a controlled listening test and is added
-    *alongside* OpenAI (decisions.md, 2026-07-14). The blocker it solves: the voice
-    layer is structurally OpenAI-coupled, so merely registering a Grok provider fails
-    on every line (`server.js:735`/`:761` gate the voice on the OpenAI `TTS_VOICES`
-    set, so a Grok voice falls back to `'marin'`, which Grok then 404s). Grok's
-    verified capabilities are recorded in decisions.md — **26 voices, delivery tags
-    work, accents do not.** Do not re-derive them from vendor docs or by asking a
-    model; both were wrong. Feel phase → playtest gate.
-  - **Phase CT — theme colour format.** Store complete colours in `--theme-*` instead
-    of bare HSL component lists, deleting the css-1 defect class and the css-2 scanner
-    with it. Plan review r1 returned **17 findings and the central claim was false**;
-    revised at `e12aa7b`, r2 review in flight. Intended visual result is
-    pixel-identical.
+- **WORKFLOW (owner decision 2026-07-14, settled by a controlled experiment):
+  codex IMPLEMENTS, Claude PLANS and ADVERSARIALLY VERIFIES.** Both agents implemented
+  the same plan blind; codex's was more complete, faster, and equally correct, and was
+  adopted. The loop's independence is preserved by SWAPPING roles, never dropping them —
+  **codex cannot review what codex wrote.** Plan reviews now run two lenses: correctness,
+  **and a cold-implementer pass** ("could a context-free agent execute this?"), which
+  found what four correctness rounds missed. Full rationale: `.agents/decisions.md`.
+- **Phase CT is MERGED** (`77cba10`). `--theme-*` now holds **complete colours**, not bare
+  HSL component lists. The css-1 defect class is gone at the root and the css-2 scanner is
+  **deleted**. Verified: behavioural equivalence against an oracle from the original
+  writer; a 9-mutation battery, none vacuous; and **pixel-identical to the old master in
+  Chromium across all six themes**. Detail: `.agents/review/findings/ct-1.md`.
+  - **The theme-var contract is now: `--theme-*` holds a COMPLETE COLOUR.** Consume it as
+    `var(--theme-x)`, or `color-mix(in srgb, var(--theme-x) N%, transparent)` for
+    translucency. **Wrapping it in `hsl()`/`rgba()`/anything is invalid CSS and the browser
+    silently drops the declaration.** Components survive only *internally* (the model emits
+    them, `rpg-state.js` clamps them, the DB stores them) — `public/theme-vars.js` is the
+    one boundary that turns them into colours.
+- **QUEUED, PLANNED, NOT STARTED:**
+  - **Phase V — Grok TTS.** Grok won a controlled listening test and is added *alongside*
+    OpenAI (decisions.md). Its plan review returned **14 findings**: the design **did not
+    function for the host at all** (only for seat players), the voice assignment was not
+    collision-free, the injection defence was theatre (the mood is **spoken aloud**, so a
+    JSON payload scan could never prove seat-safety), and the admin premise was false.
+    Redesigned; **needs another plan review before codex implements.** Grok's verified
+    capabilities are in decisions.md — **26 voices, delivery tags work, accents do not.**
+    Do not re-derive them from vendor docs or by asking a model; both were wrong.
+  - **bh-1 — browser harness** (plan.md → Dev Tooling; owner go 2026-07-14). Plan review in
+    flight. Guards the ONE class this repo keeps shipping: declarations the browser silently
+    drops. Assertion-based, not screenshot-baseline. **It would have caught css-1 on day one.**
 - **css-2 is ABANDONED, and its branch must never be merged.** `fix/css-2-scanner-scope`
   @ `0229679` **crashes the suite** (a `RangeError` on an out-of-range character
   reference) and **rejects valid CSS**. Three review rounds defeated the scanner 1, then
@@ -113,18 +127,27 @@ to `docs/history/state-archive.md`.
 
 ## Next
 
-- **Phase CT plan review r2 is in flight** at `e12aa7b`. On acceptance, implement as ONE
-  atomic slice through the reviewloop. On reopen, revise and re-review.
-- **Phase V (Grok TTS) plan review has NOT been dispatched yet.** Dispatch it, accept it,
-  then implement. Owner set no order between V and CT; V is the one that improves the game,
-  CT only guards an already-fixed bug.
+- **bh-1 (browser harness): plan review in flight.** On acceptance, **codex implements**,
+  Claude verifies. Its mandatory guard proof: reintroduce css-1 and the harness must FAIL —
+  a harness that cannot detect css-1 is worthless, since css-1 is why it exists.
+- **Phase V (Grok TTS): re-review the redesigned plan, then codex implements.** It is the
+  one the owner actually cares about. Note the decision carves out an exception worth
+  weighing: V touches the **seat/auth boundary**, which is this repo's most-broken-before
+  area (the sv-* loop found six defects and four of the first fixes were themselves wrong),
+  so Claude implementing with codex reviewing may fit better than the default.
 - **map-1** is still REOPENED; its fix-ups (grapheme-safe truncation, collision-free
   clip ids, clamp the box to the canvas) still need an explicit go (or park). Do not
-  start map-1 without it. css-1 is merged.
+  start map-1 without it.
 - Optional, recorded so it is not lost: **accents come from dialect spelling in the
   narration text** ("Ye'll not be findin'…"), not from any TTS provider — none can do
   accents. That is an `rpg-prompts.js` slice, provider-agnostic and free. Not part of
   Phase V.
+- **Branch hygiene, needs an owner go (destructive):** `fix/css-2-scanner-scope` still
+  exists and must NEVER be merged (it crashes the suite). Phase CT has landed, so the plan
+  says it can now be deleted — but its three code commits are the only copy of the code that
+  `findings/css-2.md` cites by SHA. Deleting it makes those unreachable. Ask before deleting.
+  `docs/rescue-from-css-2`, `plan/ct-executable` and `fix/ct-1-codex` are all merged and safe
+  to delete.
 - Continue the rules-system decision queue — the next big feature, but the owner sets
   the pace and was housekeeping when D0 landed. D0 is DECIDED; **D1 (the die) is the
   next ask**. Present the queue in
