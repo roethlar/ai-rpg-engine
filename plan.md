@@ -951,9 +951,18 @@ one-finding-one-branch discipline, owner to set the order.
 
 ## Phase CT: Theme colour format — store colours, not loose components (promoted 2026-07-14, owner go)
 
-Not a feel phase: the intended visual result is **pixel-identical**. It is a correctness phase
-that removes a defect *class*, and it deletes ~400 lines of test code rather than adding any.
-No playtest gate; a visual no-regression check gates it instead (below).
+Not a feel phase: the change is **intended to be visually invisible**. It is a correctness phase that
+removes a defect *class*, and it deletes ~400 lines of test code rather than adding any. No playtest
+gate.
+
+> **"Pixel-identical" is an INTENT, not a gate** *(cold review: the word implied a rigour nothing in
+> this repo can deliver — there is no browser harness, no baseline screenshots, and no pass/fail
+> criterion, so a cold agent cannot establish pixel identity and would either fake the claim or
+> stall)*. The **actual gate** is: (a) the pinned 25-entry alpha table asserted in `node test.js`;
+> (b) the definition/writer grammar asserted in `node test.js`; (c) zero surviving
+> `hsl(var(--theme-`/`hsla(var(--theme-` in runtime sources; and (d) a **human sanity pass** —
+> every surface still paints, across the five themes and the holodeck idle. (d) is a smoke check, not
+> a proof, and is described as such. (a)–(c) are the proof, and they need no browser.
 
 ### Problem
 
@@ -995,7 +1004,7 @@ State the benefit correctly, because it is still large and it is the whole justi
   for `rgba()` around a value that is already a colour.
 
 So the migration converts a *trap* into an ordinary *typo*. The residual risk is a plain typo, and
-a plain typo is caught by a plain regex — see the guard in step 8. **The guard is a typo lint, not
+a plain typo is caught by a plain regex — see the guard in **step 9**. **The guard is a typo lint, not
 a proof, and it must never again be escalated into a parser.** css-2 established, over three
 rounds and 16 defeats, that a text scanner cannot police encoded CSS. It does not need to: an
 encoded offender is not an accident, and the threat model here is a developer slip, not a
@@ -1038,6 +1047,12 @@ not silent scope creep.
 **Do not drive any step from a COUNT.** Enumerate the sites and transform each one. The r1 review
 found the counts themselves were wrong (below); a count-driven sweep leaves survivors.
 
+> **STEP ORDER MATTERS — DELETE THE OLD SCANNER FIRST.** *(Cold review, ordering hazard.)* Steps 1–3
+> invalidate the existing css-1/css-2 scanner's production anchors (`test.js:1567-1580`), so if you
+> migrate the CSS **before** removing the scanner, **the suite goes red for entirely expected reasons**
+> and a cold implementer will reasonably think they have broken something and start "fixing" it.
+> Do step 9's deletion **first** in the working tree. The whole phase still lands as ONE commit.
+
 1. **`public/styles.css` — definitions: 48 total, of which 6 are `--theme-glow` (deleted in step 4),
    leaving 42 to convert.** *(r1 correction: the earlier draft said "48 become complete colours".)*
    Blocks: `:root` (:6), `.theme-cyberpunk` (:29), `.theme-fantasy` (:40), `.theme-horror` (:51),
@@ -1046,6 +1061,10 @@ found the counts themselves were wrong (below); a count-driven sweep leaves surv
    `--theme-panel: 220, 25%, 12%;` → `--theme-panel: hsl(220 25% 12%);`
 
 2. **`public/styles.css` — opaque consumers (132).** `hsl(var(--theme-x))` → `var(--theme-x)`.
+   *(Cold review asks for a checklist here. It is not needed, and this is the reason: unlike the
+   alpha rewrite — where a wrong percentage is silently valid — the opaque rewrite is **exhaustively
+   self-verifying**. The end-state assertion is "**zero** `hsl(var(--theme-` remain in the file", so
+   a missed site cannot hide. Sweep them, then assert zero. That IS the enumeration.)*
 
 3. **`public/styles.css` — translucent consumers: THE EXACT 25-ENTRY TABLE.** *(r2: the previous
    draft only promised this table and gave a compressed line list, so a wrong rewrite could be
@@ -1097,12 +1116,43 @@ found the counts themselves were wrong (below); a count-driven sweep leaves surv
    the deletion. The correction matters because that same alpha syntax is what a pre-baked fallback
    would need.)* Supersedes the standalone css-3 branch plan.
 
-5. **`public/app.js` — the theme WRITER.** `applyCampaignTheme` (:1582) writes component strings.
-   Wrap each at the boundary: `set('--theme-primary', primary)` →
-   `set('--theme-primary', \`hsl(${primary})\`)`. Cover **both** paths — the body-level `set` helper
-   (:1603-1618) **and** the legacy component-only `documentElement.style.setProperty` calls
-   (:1621-1631), including the derived panel/border values built from `bgParts`
-   (`${h}, ${s}%, ${l}%` → `hsl(${h} ${s}% ${l}%)`).
+5. **`public/app.js` — the theme WRITER. Extract a PURE, TESTABLE seam first.**
+
+   *(Cold-implementer review named this the single most risk-reducing addition, and it closes three
+   findings at once: the writer is otherwise untestable — `public/app.js` is a browser module with
+   top-level DOM/window dependencies and `package.json` has no DOM test library, so "unit-test the
+   writer's output" was unimplementable as written; and enumerating the properties in one place is
+   what stops the `text`/`text_dim` omission below.)*
+
+   **New module `public/theme-vars.js`** — pure functions, no DOM, importable by both `public/app.js`
+   and `test.js`:
+
+   ```js
+   export function toThemeColor(components)   // '220, 25%, 12%' -> 'hsl(220, 25%, 12%)'
+   export function derivePanelBorder(background)  // -> { '--theme-panel': …, '--theme-border': … }
+   export function fullThemeVars(colors)      // the body-level map (generated themes)
+   export function baseThemeVars(primary, secondary, background)  // the root-level map (legacy)
+   ```
+
+   `applyCampaignTheme` then just *applies* the returned map. `test.js` imports the same functions
+   and asserts their **actual output strings** against the grammar in step 9 — no DOM, no mock, no
+   AI credentials.
+
+   **⚠ `--theme-text` and `--theme-text-dim` MUST be converted** (`app.js:1608-1609`). *(This is the
+   cold review's "most likely way a diligent implementer still ships a broken surface". The earlier
+   draft's examples covered `primary` and the derived `panel`/`border` and silently omitted these
+   two. Convert the consumers to `var(--theme-text*)` while leaving the writer emitting bare
+   components, and every generated-theme text declaration becomes invalid — **blanking most of the
+   readable UI**.)*
+
+   The two paths, in full:
+   - **Full generated theme** (`:1603-1618`, body level, taken when `colors.text` is a string):
+     `--theme-primary`, `--theme-secondary`, `--theme-bg`, **`--theme-text`**, **`--theme-text-dim`**,
+     and the derived `--theme-panel` / `--theme-border` from `bgParts`. (`--theme-glow` is deleted.)
+   - **Legacy** (`:1621-1631`, `documentElement` level, taken when `colors.text` is absent):
+     `--theme-primary`, `--theme-secondary`, `--theme-bg`, and derived `--theme-panel` /
+     `--theme-border`. It does **not** set text vars at all — those come from the preset class or
+     `:root`. Do not "helpfully" add them; that would change behaviour.
 
 6. **`public/app.js` — the three LIVE CONSUMERS the first draft MISSED** *(r1; this was the plan's
    worst omission — it scoped app.js as "just the writer")*. These build inline styles and would
@@ -1280,8 +1330,40 @@ Leaving these in place instructs a future cold agent to restore the abandoned be
 
   All four must be struck or annotated as superseded **in the same slice**, not "later".
 
+### Execution contract (cold-implementer review — these were all unstated)
+
+- **Finding id / branch / base.** This phase lands as finding **`ct-1`** on branch
+  **`fix/ct-1-theme-colour-format`**, cut from **`master`**. Base = `master` at the time of cutting.
+  *(The cold review flagged that the plan's own pinned SHAs sat on `fix/css-2-scanner-scope` — the
+  branch this plan forbids merging. That is now resolved: all plan/decision/state commits were
+  rescued onto `master` (merge `88e6324`), and the poisoned branch keeps only its three code
+  commits. **Never base implementation on `fix/css-2-scanner-scope`.**)*
+- **One finding ↔ one branch ↔ one verdict** still holds, even though CT *closes* css-2 and css-3.
+  Those are closed as **records**, not as code branches: css-2 is abandoned (branch never merged,
+  deleted after CT lands) and css-3 is superseded (never branched). `ct-1` is the only branch.
+- **Close-out ordering** *(cold review: the previous text was circular — it asked for reviewer
+  verdicts and commit SHAs inside the same pre-review commit that produces them)*. Sequence:
+  (1) the atomic code commit on `fix/ct-1-theme-colour-format`; (2) reviewloop dispatch and verdict;
+  (3) a **separate** docs commit recording the verdict and closing out css-2/css-3/index. Do not
+  attempt to write a verdict you do not yet have.
+- **Prerequisites a cold agent will not otherwise know**: run the suite with
+  `AI_RETRY_BACKOFF_MS=10 node test.js`; run the app with `node server.js` (port 3000); the desktop
+  shell is `npm run desktop` after `cargo build` in `desktop/src-tauri`. **There is no browser test
+  harness** — do not plan any check that needs one.
+- **Theme fixtures WITHOUT AI credentials** *(cold review: campaign creation calls the Setup AI, so a
+  cold agent with no key cannot exercise the writer at all)*. Both writer paths are reachable purely
+  through `public/theme-vars.js` (step 5) — that is the point of extracting it. Pin two fixtures in
+  `test.js`:
+  - **full generated theme** — `colors` **with** a `text` slot → exercises the body-level map,
+    including `--theme-text` and `--theme-text-dim`;
+  - **legacy** — `colors` **without** `text` → exercises the root-level map, which sets no text vars.
+  Neither needs a browser, a server, or a provider key.
+- **README compatibility source.** Cite MDN's `color-mix()` browser-compatibility table as the
+  authority for the declared floors; do not assert floors from memory.
+
 ### Files to change
 
+- `public/theme-vars.js` — **NEW**: the pure, DOM-free theme-value seam (step 5)
 - `public/styles.css` — 42 definitions converted (+6 glow removed), 132 opaque consumers, 25
   translucent consumers
 - `public/app.js` — `applyCampaignTheme` writer (**both** paths); the **three inline-style
