@@ -2,6 +2,7 @@ import assert from 'assert';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
+import { fileURLToPath } from 'url';
 import { parseJsonSafe, validateTurnData, validateRequiredChecks, rollCheck, forceNoOpTurnState, applyCharacterUpdate, applyDiceConsequences, buildVoiceScript, TABLE_TALK_KINDS } from './rpg-state.js';
 import { AIClient, resolveAgentConfig, isTransientAiError } from './api-client.js';
 
@@ -1310,6 +1311,243 @@ async function testNpcAppearance() {
 // -------------------------------------------------------------
 // Test: agent-generated genre theming (Phase T1)
 // -------------------------------------------------------------
+/**
+ * css-1: the theme custom properties hold HSL *triples* ("220, 25%, 12%"), not
+ * rgb channels — see validateOutlineData's theme_colors above and the writer in
+ * public/app.js. A triple is only legal inside hsl()/hsla(). Substituted into
+ * rgb()/rgba() it yields `rgba(220, 25%, 12%, 0.7)`, which mixes a number with
+ * percentages — not valid legacy rgb syntax (CSS Color 4 §rgb-functions) — so the
+ * browser drops the WHOLE declaration at parse time and the surface silently
+ * renders unpainted.
+ *
+ * No-DOM scanner over the shipped stylesheet. It guards the defect *class*, not
+ * one literal spelling (r1 reopen: a custom-property alias sailed past a
+ * direct-only regex; r2 residual: nested `var(--x, var(--theme-…))` fallbacks
+ * also sail past a first-arg-only matcher). Comments are blanked before scanning
+ * so they cannot hide offenders or pad anti-vacuous checks. The anti-vacuous
+ * side is production anchors in live CSS, not a coarse match-count heuristic.
+ */
+function blankCssComments(css) {
+  // Keep newlines so line numbers still map to the original file.
+  return css.replace(/\/\*[\s\S]*?\*\//g, (block) => block.replace(/[^\n]/g, ' '));
+}
+
+/**
+ * Every custom-property name referenced by a `var(--name…)` in `fragment`.
+ * Names are matched by CSS delimiters (not an ASCII character class): after `--`,
+ * take characters until whitespace, comma, or `)` — so underscore, non-ASCII
+ * letters, etc. are included (r3/r4 reopen class).
+ */
+function extractCssVarNames(fragment) {
+  const names = [];
+  const re = /var\(\s*(--[^,\s)]+)/gi;
+  let m;
+  while ((m = re.exec(fragment)) !== null) names.push(m[1]);
+  return names;
+}
+
+/** Index of the matching `)` for `css[openIdx] === '('`, or -1. */
+function findMatchingParen(css, openIdx) {
+  let depth = 0;
+  for (let i = openIdx; i < css.length; i++) {
+    const ch = css[i];
+    if (ch === '(') depth++;
+    else if (ch === ')') {
+      depth--;
+      if (depth === 0) return i;
+    }
+  }
+  return -1;
+}
+
+/**
+ * Custom props whose value references other custom props via var(), including
+ * nested fallbacks (`var(--missing, var(--theme-panel))`). Each ref is an edge
+ * in the alias graph; a theme triple flowing through any fallback taints the name.
+ */
+function collectVarAliases(css) {
+  const aliases = new Map(); // --name -> [--ref, ...]
+  // Value ends at `;` or `{`/`}` (selector boundaries). Nested parens allowed.
+  // Name: `--` then until `:` / whitespace (delimiter-based, not ASCII-class).
+  const defRe = /(--[^:\s]+)\s*:([^;{}]+)/g;
+  let m;
+  while ((m = defRe.exec(css)) !== null) {
+    const name = m[1];
+    const refs = extractCssVarNames(m[2]);
+    if (refs.length === 0) continue;
+    if (!aliases.has(name)) aliases.set(name, []);
+    aliases.get(name).push(...refs);
+  }
+  return aliases;
+}
+
+function resolvesToThemeTriple(name, aliases, seen = new Set()) {
+  // --theme-* is the HSL-triple contract (written by app.js / :root defaults).
+  if (name.startsWith('--theme-')) return true;
+  if (seen.has(name)) return false;
+  seen.add(name);
+  const refs = aliases.get(name);
+  if (!refs) return false;
+  return refs.some((ref) => resolvesToThemeTriple(ref, aliases, seen));
+}
+
+/**
+ * Find rgb()/rgba() calls whose arguments reference any custom property that
+ * is, or transitively aliases (including via nested var() fallbacks), a
+ * --theme-* triple. `css` must already have comments blanked if the caller
+ * wants comment-immunity.
+ */
+function findInvalidThemeRgbConsumers(css, { pathLabel = 'stylesheet' } = {}) {
+  const aliases = collectVarAliases(css);
+  const invalid = [];
+  const startRe = /\b(rgba?)\(/gi;
+  let match;
+  while ((match = startRe.exec(css)) !== null) {
+    const fn = match[1];
+    const openIdx = match.index + match[0].length - 1;
+    const closeIdx = findMatchingParen(css, openIdx);
+    if (closeIdx < 0) continue;
+    const args = css.slice(openIdx + 1, closeIdx);
+    const refs = extractCssVarNames(args);
+    const themeRefs = [...new Set(refs.filter((r) => resolvesToThemeTriple(r, aliases)))];
+    if (themeRefs.length === 0) continue;
+    const line = css.slice(0, match.index).split('\n').length;
+    const detail = themeRefs.map((r) => (
+      r.startsWith('--theme-') ? r : `${r} (aliases a --theme-* triple)`
+    )).join(', ');
+    invalid.push(`${pathLabel}:${line} — ${fn}(… ${detail} …)`);
+  }
+  return invalid;
+}
+
+async function testThemeVarConsumers() {
+  console.log(' - Running theme-variable consumer tests (css-1)...');
+  const stylesPath = path.join(path.dirname(fileURLToPath(import.meta.url)), 'public', 'styles.css');
+  const raw = fs.readFileSync(stylesPath, 'utf8');
+  const css = blankCssComments(raw);
+
+  const invalid = findInvalidThemeRgbConsumers(css, { pathLabel: 'public/styles.css' });
+  assert.deepStrictEqual(
+    invalid, [],
+    'rgb()/rgba() cannot consume an HSL-triple theme var (directly or via custom-property ' +
+    'indirection): the declaration is invalid and the browser drops it, so the surface never ' +
+    'paints. Use hsl()/hsla(). Offenders:\n  ' +
+    invalid.join('\n  ')
+  );
+
+  // Anti-vacuous: prove we are reading the real themed stylesheet and that the
+  // defect's critical surfaces still use the valid form. Comments are blanked
+  // above, so commented-out matches cannot satisfy these. A coarse "> N matches"
+  // heuristic is deliberately not used — r1 showed 101 hits inside a comment
+  // (or any non-production padding) could satisfy one.
+  const anchors = [
+    {
+      label: '--theme-panel is defined as an HSL triple',
+      re: /--theme-panel\s*:\s*\d+\s*,\s*\d+%\s*,\s*\d+%\s*;/,
+    },
+    {
+      label: 'body background uses hsl(var(--theme-bg))',
+      re: /background-color\s*:\s*hsl\(\s*var\(\s*--theme-bg\s*\)\s*\)/,
+    },
+    {
+      label: 'header/panel fill uses hsla(var(--theme-panel), α)',
+      re: /background-color\s*:\s*hsla\(\s*var\(\s*--theme-panel\s*\)\s*,/,
+    },
+    {
+      label: 'primary accent uses hsla(var(--theme-primary), α)',
+      re: /\bhsla\(\s*var\(\s*--theme-primary\s*\)\s*,/,
+    },
+  ];
+  for (const anchor of anchors) {
+    assert.ok(
+      anchor.re.test(css),
+      `css-1 guard anti-vacuous anchor missing: ${anchor.label}. ` +
+      'Either public/styles.css moved/emptied or the valid form was removed from a critical surface.'
+    );
+  }
+
+  // Fixture probes: prior demonstrated bypasses must stay caught. If this
+  // scanner is weakened, these fail.
+  const probeOneHop = blankCssComments(
+    '.probe { --panel-alias: var(--theme-panel); background: rgba(var(--panel-alias), 0.7); }'
+  );
+  const probeOneHopHits = findInvalidThemeRgbConsumers(probeOneHop, { pathLabel: 'probe' });
+  assert.strictEqual(
+    probeOneHopHits.length, 1,
+    `css-1 guard must catch one-hop custom-property indirection; got: ${JSON.stringify(probeOneHopHits)}`
+  );
+  assert.ok(
+    probeOneHopHits[0].includes('--panel-alias') && probeOneHopHits[0].includes('aliases'),
+    `css-1 guard probe message should name the alias: ${probeOneHopHits[0]}`
+  );
+
+  const probeMultiHop = blankCssComments(
+    '.probe { --a: var(--theme-panel); --b: var(--a); background: rgba(var(--b), 0.5); }'
+  );
+  const probeMultiHopHits = findInvalidThemeRgbConsumers(probeMultiHop, { pathLabel: 'probe' });
+  assert.strictEqual(
+    probeMultiHopHits.length, 1,
+    `css-1 guard must catch multi-hop indirection; got: ${JSON.stringify(probeMultiHopHits)}`
+  );
+
+  // r2 residual (executed by codex before its session was content-filtered):
+  // nested var() fallbacks that still resolve to a theme triple.
+  const probeNestedFallbackDef = blankCssComments(
+    '.probe { --panel-alias: var(--css1-absent, var(--theme-panel)); background: rgba(var(--panel-alias), 0.7); }'
+  );
+  assert.strictEqual(
+    findInvalidThemeRgbConsumers(probeNestedFallbackDef, { pathLabel: 'probe' }).length, 1,
+    'css-1 guard must catch theme triples reached via nested var() fallbacks in a definition'
+  );
+
+  const probeNestedFallbackArg = blankCssComments(
+    '.probe { background: rgba(var(--css1-absent, var(--theme-panel)), 0.7); }'
+  );
+  assert.strictEqual(
+    findInvalidThemeRgbConsumers(probeNestedFallbackArg, { pathLabel: 'probe' }).length, 1,
+    'css-1 guard must catch theme triples nested in var() fallbacks inside rgba() args'
+  );
+
+  // r3 residual: underscore is a valid CSS custom-property character.
+  const probeUnderscoreName = blankCssComments(
+    '.probe { --panel_alias: var(--theme-panel); background: rgba(var(--panel_alias), 0.7); }'
+  );
+  assert.strictEqual(
+    findInvalidThemeRgbConsumers(probeUnderscoreName, { pathLabel: 'probe' }).length, 1,
+    'css-1 guard must catch custom-property names that use underscores'
+  );
+
+  // r4 residual: non-ASCII letters are valid in CSS custom-property names.
+  // Delimiter-based matching (not an ASCII class) is what closes this class.
+  const probeNonAsciiName = blankCssComments(
+    '.probe { --panél-alias: var(--theme-panel); background: rgba(var(--panél-alias), 0.7); }'
+  );
+  assert.strictEqual(
+    findInvalidThemeRgbConsumers(probeNonAsciiName, { pathLabel: 'probe' }).length, 1,
+    'css-1 guard must catch non-ASCII custom-property names'
+  );
+
+  // Comments must not create false positives (invalid form only in a comment).
+  const probeCommentOnly = blankCssComments(
+    '/* rgba(var(--theme-panel), 0.7) */ .ok { background: hsla(var(--theme-panel), 0.7); }'
+  );
+  assert.deepStrictEqual(
+    findInvalidThemeRgbConsumers(probeCommentOnly, { pathLabel: 'probe' }),
+    [],
+    'css-1 guard must ignore invalid forms that exist only inside CSS comments'
+  );
+
+  // Non-theme custom props used in rgba are out of this finding's scope.
+  const probeUnrelated = blankCssComments(
+    '.x { --rgb-channels: 255, 0, 0; background: rgba(var(--rgb-channels), 0.5); }'
+  );
+  assert.deepStrictEqual(
+    findInvalidThemeRgbConsumers(probeUnrelated, { pathLabel: 'probe' }),
+    [],
+    'css-1 guard must not flag rgba() over non-theme custom properties'
+  );
+}
+
 async function testThemeGeneration() {
   console.log(' - Running agent-generated theming tests...');
   const { validateOutlineData, THEME_FONT_OPTIONS } = await import('./rpg-state.js');
@@ -2008,6 +2246,7 @@ async function runAll() {
     await testSeatLifecycle();
     await testSeatErrorPayloads();
     await testSeatVisibility();
+    await testThemeVarConsumers();
     await testThemeGeneration();
     await testVoiceScript();
     await testTtsProviderSeam();
