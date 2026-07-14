@@ -1332,11 +1332,15 @@ function blankCssComments(css) {
   return css.replace(/\/\*[\s\S]*?\*\//g, (block) => block.replace(/[^\n]/g, ' '));
 }
 
-/** Every custom-property name referenced by a `var(--name…)` in `fragment`. */
+/**
+ * Every custom-property name referenced by a `var(--name…)` in `fragment`.
+ * Names are matched by CSS delimiters (not an ASCII character class): after `--`,
+ * take characters until whitespace, comma, or `)` — so underscore, non-ASCII
+ * letters, etc. are included (r3/r4 reopen class).
+ */
 function extractCssVarNames(fragment) {
   const names = [];
-  // Underscore is a valid CSS ident character (r3 reopen: --panel_alias slipped past).
-  const re = /var\(\s*(--[a-zA-Z0-9_-]+)/gi;
+  const re = /var\(\s*(--[^,\s)]+)/gi;
   let m;
   while ((m = re.exec(fragment)) !== null) names.push(m[1]);
   return names;
@@ -1364,7 +1368,8 @@ function findMatchingParen(css, openIdx) {
 function collectVarAliases(css) {
   const aliases = new Map(); // --name -> [--ref, ...]
   // Value ends at `;` or `{`/`}` (selector boundaries). Nested parens allowed.
-  const defRe = /(--[a-zA-Z0-9_-]+)\s*:([^;{}]+)/g;
+  // Name: `--` then until `:` / whitespace (delimiter-based, not ASCII-class).
+  const defRe = /(--[^:\s]+)\s*:([^;{}]+)/g;
   let m;
   while ((m = defRe.exec(css)) !== null) {
     const name = m[1];
@@ -1510,6 +1515,16 @@ async function testThemeVarConsumers() {
   assert.strictEqual(
     findInvalidThemeRgbConsumers(probeUnderscoreName, { pathLabel: 'probe' }).length, 1,
     'css-1 guard must catch custom-property names that use underscores'
+  );
+
+  // r4 residual: non-ASCII letters are valid in CSS custom-property names.
+  // Delimiter-based matching (not an ASCII class) is what closes this class.
+  const probeNonAsciiName = blankCssComments(
+    '.probe { --panél-alias: var(--theme-panel); background: rgba(var(--panél-alias), 0.7); }'
+  );
+  assert.strictEqual(
+    findInvalidThemeRgbConsumers(probeNonAsciiName, { pathLabel: 'probe' }).length, 1,
+    'css-1 guard must catch non-ASCII custom-property names'
   );
 
   // Comments must not create false positives (invalid form only in a comment).
