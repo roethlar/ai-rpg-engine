@@ -38,10 +38,10 @@ to `docs/history/state-archive.md`.
     Redesigned; **needs another plan review before codex implements.** Grok's verified
     capabilities are in decisions.md — **26 voices, delivery tags work, accents do not.**
     Do not re-derive them from vendor docs or by asking a model; both were wrong.
-- **bh-1 — the browser harness EXISTS. It is IMPLEMENTED, VERIFIED, and awaiting an owner-gated
-  merge.** Branch `fix/bh-1-browser-harness` @ `8037478` (codex implemented; Claude verified
-  adversarially — roles swapped, since codex cannot review what codex wrote). Plan accepted after
-  **seven review rounds**. **NOT merged, NOT pushed.** Full trail: `.agents/review/findings/bh-1.md`.
+- **bh-1 — the browser harness is MERGED** (`ea9ca9b`, 2026-07-14; branch deleted). codex
+  implemented; Claude verified adversarially — roles swapped, since codex cannot review what codex
+  wrote. Plan accepted after **seven review rounds**. Full trail:
+  `.agents/review/findings/bh-1.md`.
   - `npm run test:browser` on master: **186 var-bearing declarations, 49 distinct per theme context,
     294 assertions, 0 failures.** One-time setup per machine: `npx playwright install chromium`.
   - **Verification that matters:** 19/19 guard proofs re-run independently; **16 deliberate bypass
@@ -97,12 +97,11 @@ to `docs/history/state-archive.md`.
 - **Reviewer dispatches fail closed.** css-1 r2 was content-filtered with no schema
   envelope (residual still extracted by execution); earlier dispatches also died on
   capacity / no-return. Re-dispatch; never treat a missing envelope as an accept.
-- **The "no committed browser harness" problem is SOLVED — on a branch, pending merge.** For months
-  the only browser checks here were **ad hoc** (a scratchpad Playwright run verified Phase CT on
-  2026-07-14; before that, the fictitious `guard-css-1`, asserted 2026-07-11 and found never to have
-  existed). `fix/bh-1-browser-harness` makes it real, reproducible and committed. **Until that branch
-  merges, master still has none** — and the old caution still applies to older prose: treat every
-  "guard-*" you find as unverified until you locate the artifact.
+- **The "no committed browser harness" problem is SOLVED.** For months the only browser checks here
+  were **ad hoc** (a scratchpad Playwright run verified Phase CT; before that, the fictitious
+  `guard-css-1`, asserted 2026-07-11 and found never to have existed). bh-1 is now real, reproducible
+  and on master. The old caution still applies to **older prose**: treat every `guard-*` you find
+  cited in the review index as unverified until you locate the artifact.
 - **The rules system is the next big feature** (owner, 2026-07-12: "it's the next
   big feature, and a lot rides on it"), but it is NOT being designed yet — the
   owner is housekeeping first. **D0 is DECIDED** (2026-07-12, `.agents/decisions.md`):
@@ -149,16 +148,18 @@ to `docs/history/state-archive.md`.
 
 ## Next
 
-**THE IMMEDIATE NEXT ACTION: merge `fix/bh-1-browser-harness` — it needs an explicit owner go.**
-Implemented, adversarially verified, both suites green, tree clean (`8037478`). An accepted verdict is
-not merge authority (`.agents/playbooks/reviewloop.md`), so it sits until the owner says merge.
-Merging also turns on the `npm run test:browser` gate recorded in `.agents/repo-guidance.md`.
+**THE IMMEDIATE NEXT ACTION: Phase V (Grok TTS) — re-review the redesigned plan, then implement.**
+It is the one the owner actually cares about, and bh-1 (the housekeeping that was in front of it) is
+now merged. The plan was redesigned after its review returned 14 findings and has **not** been
+re-reviewed; dispatch that review before any code. Weigh the workflow carve-out: V touches the
+**seat/auth boundary**, this repo's most-broken-before area (the sv-* loop found six defects, and
+four of the first fixes were themselves wrong), so **Claude implementing with codex reviewing** may
+fit better than the default codex-implements.
 
-- **Then Phase V (Grok TTS): re-review the redesigned plan, then implement.** It is the one the
-  owner actually cares about. Weigh the workflow carve-out: V touches the **seat/auth boundary**,
-  this repo's most-broken-before area (the sv-* loop found six defects, and four of the first
-  fixes were themselves wrong), so **Claude implementing with codex reviewing** may fit better
-  than the default codex-implements.
+- **Carry the bh-1 lessons into it.** Both are now decisions (`.agents/decisions.md`): *do not reason
+  about CSS in this repo — execute it*; and *a guard proof must fail if its mechanism is removed*
+  ("could an implementation that OMITS this still pass this proof?"). The second is general — it
+  applies to Phase V's guards too, not just to CSS.
 - **map-1** is still REOPENED and PARKED; its fix-ups (grapheme-safe truncation, collision-free
   clip ids, clamp the box to the canvas) need an explicit go (or a park decision). Do not start
   it without one.
@@ -184,9 +185,10 @@ Merging also turns on the `npm run test:browser` gate recorded in `.agents/repo-
   there, expose the server, create the second character (party strip
   **+ Join**, host-only), mint its seat (key icon beside the chip), send that
   token to the other player.
-- Branch cleanup (2026-07-14): `fix/css-2-scanner-scope` **DELETED** (poison pill — see `## Now`),
-  along with `fix/ct-1-codex`, `plan/ct-executable`, `docs/rescue-from-css-2` (all merged) and
-  `fix/css-1-hsla-theme-vars`. **The only branches left are `master` and
+- Branch cleanup (2026-07-14): `fix/bh-1-browser-harness` deleted after merge (content verified
+  landed, not just ancestry). Earlier the same day: `fix/css-2-scanner-scope` **DELETED** (poison
+  pill — see `## Now`), along with `fix/ct-1-codex`, `plan/ct-executable`, `docs/rescue-from-css-2`
+  (all merged) and `fix/css-1-hsla-theme-vars`. **The only branches left are `master` and
   `fix/map-label-overflow`.** Earlier (2026-07-12): four merged fix branches +
   `plan/rules-system` deleted; (2026-07-11): six `fix/sv-*` deleted. Three accidental
   merge commits stay — history rewrite declined; do not re-propose it.
@@ -196,21 +198,19 @@ Merging also turns on the `npm run test:browser` gate recorded in `.agents/repo-
 - Nothing technical. Network exposure for the playtest is owner-handled
   infrastructure (owner, 2026-07-09), not a repo task.
 - Process, not technical: **map-1** fix-ups need an explicit go (or park).
-- Process, not technical: **bh-1** is built and verified but **needs an explicit go to merge**.
-  An accepted verdict is not merge authority.
 
 ## Verification
 
-- Automated: `AI_RETRY_BACKOFF_MS=10 node test.js` — green at `d2d5a0b`. Run it rather than
+- Automated: `AI_RETRY_BACKOFF_MS=10 node test.js` — green at `ea9ca9b`. Run it rather than
   trusting a group count written here. The suite is hermetic: `RPG_DB_PATH` redirects it to a
   temp DB, closed and removed on exit (before 2026-07-09 it opened the operator's real dev
-  database).
-- **Browser: `npm run test:browser`** — the bh-1 harness. **On the branch
-  `fix/bh-1-browser-harness`, not yet on master.** One-time setup per machine:
-  `npx playwright install chromium`; missing Chromium makes the command **exit non-zero**, never
-  skip. Once merged it is REQUIRED before merging any change to `public/styles.css` or
-  `public/theme-vars.js` (it does **not** cover `app.js` wiring or `map-render.js`). Until then,
-  master still has no browser guard — do not assume a cited `guard-*` exists until you find the file.
+  database). It is **unchanged by bh-1** — no browser dependency reaches it.
+- **Browser: `npm run test:browser`** (the bh-1 harness) — green at `ea9ca9b`. **REQUIRED before
+  merging any change to `public/styles.css` or `public/theme-vars.js`** (`.agents/repo-guidance.md`);
+  it does **not** cover `app.js` theme wiring or `map-render.js`. One-time setup per machine:
+  `npx playwright install chromium` — machine-local, so its absence here says nothing about
+  anywhere else. **Missing Chromium makes the command exit NON-ZERO, never skip:** a gate that
+  reports success while running no assertions is worse than no gate.
 - When a change ships with a test, prove the test guards it (AGENTS.md), and
   beware the vacuous guard — a test that re-implements the logic it checks
   cannot fail when the fix is reverted. This bit twice on 2026-07-09; the
@@ -223,6 +223,11 @@ Merging also turns on the `npm run test:browser` gate recorded in `.agents/repo-
   The seat boundary's predicates are already extracted for exactly this
   reason: `findLiveSeat`, `boundVoiceDirective`, `selectSpeakingCharacter`,
   `errorPayloadFor`.
+  **A FOURTH costume, found during bh-1 (now a decision in `.agents/decisions.md`):** a guard proof
+  that **a wrong implementation also passes**. Ask of every guard proof — *could an implementation
+  that OMITS the mechanism this exists to protect still pass it?* In bh-1 the answer was yes for
+  three mechanisms, and yes for the design's most load-bearing decision. Applies to any guard, not
+  just CSS ones.
 - Live: `node server.js`, then a seat smoke (mint seat → `/api/seat/session` →
   leak-scan the payload). Do it against a throwaway store —
   `RPG_DB_PATH=/tmp/x.db` — never the dev DB; release/revoke are destructive.
