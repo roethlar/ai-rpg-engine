@@ -212,7 +212,7 @@
 
         <!-- Journal Timeline content -->
         <div class="tab-content" id="tab-content-journal" style="display: none; flex-direction: column;">
-          <div class="journal-search-bar" style="margin-bottom: 12px; display: flex; gap: 8px; align-items: center; background: rgba(255,255,255,0.03); border: 1px solid hsl(var(--theme-border)); border-radius: 8px; padding: 4px 10px;">
+          <div class="journal-search-bar" style="margin-bottom: 12px; display: flex; gap: 8px; align-items: center; background: rgba(255,255,255,0.03); border: 1px solid var(--theme-border); border-radius: 8px; padding: 4px 10px;">
             <i class="fa-solid fa-magnifying-glass" style="opacity: 0.6; font-size: 11px;"></i>
             <input type="text" id="journal-search-input" placeholder="Search turns & memories..." style="flex: 1; border: none; background: transparent; color: #fff; font-size: 12px; outline: none; padding: 4px 0;">
           </div>
@@ -406,14 +406,14 @@
           </div>
 
           <!-- ACCESS TOKEN FIELD -->
-          <div class="form-group" id="group-access-token" style="margin-top: 16px; padding-top: 16px; border-top: 1px solid hsl(var(--theme-border));">
+          <div class="form-group" id="group-access-token" style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--theme-border);">
             <label for="input-access-token">Server Access Token</label>
             <input type="password" id="input-access-token" placeholder="Access secret, or the seat token your host gave you">
             <span class="form-tip">Hosts: the ACCESS_SECRET from the server's .env. Players joining a hosted table: paste the seat token your host sent you — it loads your character automatically.</span>
           </div>
 
           <!-- DIAGNOSTICS OPT-IN -->
-          <div class="form-group" style="margin-top: 16px; padding-top: 16px; border-top: 1px solid hsl(var(--theme-border));">
+          <div class="form-group" style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--theme-border);">
             <label class="checkbox-container" style="display: flex; align-items: center; gap: 10px; cursor: pointer; text-transform: none; font-size: 13px; font-weight: 600;">
               <input type="checkbox" id="input-enable-diagnostics" style="width: auto; cursor: pointer;">
               <span>Enable GM Diagnostics (Developer Mode)</span>

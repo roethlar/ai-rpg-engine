@@ -292,14 +292,12 @@ validation rig):**
   never change per scene (readability and layout stability).
 - PREREQUISITES: (1) finding `poll-1` (stale responses repaint an older
   campaign/scene) — T2's frontend work builds on its session-epoch
-  mechanism; (2) finding `dt-3` (landed die color override); (3) finding
-  `css-1` — `rgba(var(--theme-*), α)` with HSL-triple variables is invalid
-  CSS, so the header/glass/panel fills and several glows compute
-  UNPAINTED today (public/styles.css:99-100,126,174,202,262,307 among
-  others); every such use migrates to `hsla(var(--theme-*), α)`, verified
-  by computed-style checks under a non-default palette. Without css-1 the
-  scene palette would recolor text and borders but not the dominant panel
-  surfaces, silently gutting this phase's visible effect.
+  mechanism; (2) finding `dt-3` (landed die color override); (3) Phase CT's
+  complete-colour contract — `--theme-*` properties hold complete opaque
+  `hsl(...)` colours, opaque consumers use `var(--theme-*)`, and translucent
+  consumers use `color-mix(in srgb, var(--theme-*) N%, transparent)`. T2 must
+  preserve that contract when it adds scene palettes; wrapping a theme variable
+  in another colour function is invalid.
 - Anchor: the scene theme is LOCATION state, not a per-turn mood signal.
   `locations` gains `theme_json` (db.js ALTER TABLE migration, existing
   pattern; NULL for all pre-existing rows). Rationale: the theme changes
@@ -308,8 +306,8 @@ validation rig):**
   per-location generation, and a revisited place looks the same (the layout
   consistency rule applied to atmosphere).
 - Theme shape: `{primary, secondary, bg, text, text_dim}` — five HSL slots.
-  `bg` is included deliberately (t2-5): panel/border/glow derive from
-  bg+primary in `applyCampaignTheme` (public/app.js:1423-1450), so without a
+  `bg` is included deliberately (t2-5): panel/border derive from bg in the
+  pure theme-variable helpers consumed by `applyCampaignTheme`, so without a
   scene bg the dominant surfaces would keep the campaign baseline and a
   forest→nightclub move would only recolor accents. `bg` is dark-clamped on
   validation so text stays readable on every derived surface.
@@ -354,11 +352,10 @@ validation rig):**
   - repair by lightness stepping; reject to null on non-convergence; a
     FEASIBILITY fixture proves at least two adverse non-null themes
     validate end-to-end (guards against an unsatisfiable contract).
-  - The no-DOM scanner survives as a cheap drift guard inside `node
-    test.js`: it walks public/styles.css, public/index.html,
-    public/app.js, and map-render.js for `--theme-` usages and fails on
-    any site outside the enumerated flat-pair list — a future fancy
-    effect must consciously extend the list (and its checks) to ship.
+  - Phase CT deliberately retired the broad no-DOM consumer scanner. T2 must
+    guard the enumerated flat pairs through its validation fixtures rather than
+    restoring a source parser; CT's narrow complete-colour grammar, ordered
+    translucency table, and direct consumer-typo lint remain the format guards.
   Adverse fixtures: accent headings, Send button, level badge, map labels
   and features, completed-card text, near-white/near-black accents.
   Invalid or missing → null → baseline applies. Table talk cannot mutate
@@ -383,9 +380,9 @@ validation rig):**
   fork stays on baseline even with theme_json copied — seed it during fork
   creation.
 - Frontend: `applyCampaignTheme` gains a `sceneTheme` parameter — its slots
-  override the campaign baseline before the CSS variables are set
-  (public/app.js:940, 1414-1456); derived vars (panel/border/glow) recompute
-  from the merged palette exactly as today, so every themed surface follows
+  override the campaign baseline before the pure theme-variable map is applied;
+  derived vars (panel/border) recompute from the merged palette exactly as today,
+  so every themed surface follows
   with no per-surface work — for the dice theater this holds only once
   finding dt-3 lands (its landed state currently overrides the die color
   with fixed green/red), so dt-3 is a T2 prerequisite alongside poll-1. A

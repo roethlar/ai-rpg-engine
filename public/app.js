@@ -2,6 +2,8 @@
  * AETHERIA GM FRONTEND APPLICATION
  */
 
+import { baseThemeVars, fullThemeVars } from './theme-vars.js';
+
 // Application state
 let currentCampaignId = null;
 
@@ -1576,7 +1578,7 @@ const THEME_FONT_STACKS = {
   'Special Elite': "'Special Elite', serif"
 };
 const THEME_FONT_SLOT_DEFAULTS = { title: 'Outfit', body: 'Inter', dialogue: 'Playfair Display' };
-const THEME_VAR_NAMES = ['--theme-primary', '--theme-secondary', '--theme-bg', '--theme-panel', '--theme-border', '--theme-text', '--theme-text-dim', '--theme-glow'];
+const THEME_VAR_NAMES = ['--theme-primary', '--theme-secondary', '--theme-bg', '--theme-panel', '--theme-border', '--theme-text', '--theme-text-dim'];
 
 // Generate HSL styles and apply class theme
 function applyCampaignTheme(genre, colors, fonts) {
@@ -1584,10 +1586,6 @@ function applyCampaignTheme(genre, colors, fonts) {
   // A previously loaded full-theme campaign may have left body-level variable
   // overrides behind; clear them so this campaign starts from a clean slate.
   THEME_VAR_NAMES.forEach(name => document.body.style.removeProperty(name));
-
-  const primary = (typeof colors?.primary === 'string') ? colors.primary.trim() : '210, 100%, 50%';
-  const secondary = (typeof colors?.secondary === 'string') ? colors.secondary.trim() : '330, 100%, 50%';
-  const background = (typeof colors?.background === 'string') ? colors.background.trim() : '220, 30%, 8%';
 
   // Font pairing (Phase T1): generated at setup, validated server-side.
   // Preset classes never set fonts, so root-level values apply cleanly.
@@ -1601,34 +1599,19 @@ function applyCampaignTheme(genre, colors, fonts) {
   // level — where the preset classes define their variables — so it wins,
   // and skip the genre keyword matching entirely.
   if (typeof colors?.text === 'string') {
-    const set = (name, value) => document.body.style.setProperty(name, value);
-    set('--theme-primary', primary);
-    set('--theme-secondary', secondary);
-    set('--theme-bg', background);
-    set('--theme-text', colors.text.trim());
-    if (typeof colors.text_dim === 'string') set('--theme-text-dim', colors.text_dim.trim());
-    set('--theme-glow', `${primary}, 0.18`);
-    const bgParts = background.match(/\d+/g);
-    if (bgParts && bgParts.length >= 3) {
-      const l = Math.min(95, parseInt(bgParts[2]) + 4);
-      set('--theme-panel', `${bgParts[0]}, ${bgParts[1]}%, ${l}%`);
-      set('--theme-border', `${bgParts[0]}, ${bgParts[1]}%, ${l + 8}%`);
+    for (const [name, value] of Object.entries(fullThemeVars(colors))) {
+      document.body.style.setProperty(name, value);
     }
     document.body.classList.add('theme-default');
     return;
   }
 
-  document.documentElement.style.setProperty('--theme-primary', primary);
-  document.documentElement.style.setProperty('--theme-secondary', secondary);
-  document.documentElement.style.setProperty('--theme-bg', background);
-
-  const bgParts = background.match(/\d+/g);
-  if (bgParts && bgParts.length >= 3) {
-    const h = bgParts[0];
-    const s = bgParts[1];
-    const l = Math.min(95, parseInt(bgParts[2]) + 4);
-    document.documentElement.style.setProperty('--theme-panel', `${h}, ${s}%, ${l}%`);
-    document.documentElement.style.setProperty('--theme-border', `${h}, ${s}%, ${l + 8}%`);
+  for (const [name, value] of Object.entries(baseThemeVars(
+    colors?.primary,
+    colors?.secondary,
+    colors?.background
+  ))) {
+    document.documentElement.style.setProperty(name, value);
   }
 
   const genreLower = genre.toLowerCase();
@@ -1685,7 +1668,7 @@ function renderOutline(outline, activeAct = 1) {
 
     actCard.className = `outline-act-item ${isActive ? 'active' : ''} ${isCompleted ? 'completed' : ''}`;
     actCard.style.opacity = isCompleted ? '0.5' : isActive ? '1' : '0.6';
-    actCard.style.borderLeft = isActive ? '2px solid hsl(var(--theme-primary))' : 'none';
+    actCard.style.borderLeft = isActive ? '2px solid var(--theme-primary)' : 'none';
     actCard.style.paddingLeft = isActive ? '8px' : '0';
 
     const safeTitle = escapeHtml(act.title);
@@ -1710,7 +1693,7 @@ function renderOutline(outline, activeAct = 1) {
 function renderInventory(items) {
   inventoryContainer.innerHTML = '';
   if (!items || items.length === 0) {
-    inventoryContainer.innerHTML = `<div style="font-size: 12px; color: hsl(var(--theme-text-dim)); padding: 8px;">Inventory empty.</div>`;
+    inventoryContainer.innerHTML = `<div style="font-size: 12px; color: var(--theme-text-dim); padding: 8px;">Inventory empty.</div>`;
     return;
   }
 
@@ -1777,7 +1760,7 @@ function renderCodex(npcs) {
   codexContainer.innerHTML = '';
   
   if (!npcs || npcs.length === 0) {
-    codexContainer.innerHTML = `<div style="font-size: 12px; color: hsl(var(--theme-text-dim)); padding: 8px;">No character details recorded.</div>`;
+    codexContainer.innerHTML = `<div style="font-size: 12px; color: var(--theme-text-dim); padding: 8px;">No character details recorded.</div>`;
     return;
   }
 

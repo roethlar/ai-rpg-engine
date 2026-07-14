@@ -1441,11 +1441,12 @@ export function validateOutlineData(raw) {
     ? data.setting.trim()
     : 'A mysterious land.';
 
-  // Theme colors (Phase T1): normalized to bare HSL triples so the CSS
-  // hsl(var())/rgba(var()) composition never breaks; the background is
-  // clamped dark (the whole design system assumes it) and the generated
-  // text slots — present only when the Setup agent produced them, so
-  // pre-theming outlines keep their exact legacy shape — clamp readable.
+  // Theme colors (Phase T1): kept as normalized HSL components internally so
+  // lightness can be clamped before the frontend wraps them as complete CSS
+  // colors. The background is clamped dark (the whole design system assumes
+  // it), and the generated text slots — present only when the Setup agent
+  // produced them, so pre-theming outlines keep their exact legacy shape —
+  // clamp readable.
   const colors = data.theme_colors || {};
   validated.theme_colors = {
     primary: normalizeHslColor(colors.primary, '210, 100%, 50%'),
