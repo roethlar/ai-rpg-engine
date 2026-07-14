@@ -38,28 +38,45 @@ to `docs/history/state-archive.md`.
     Redesigned; **needs another plan review before codex implements.** Grok's verified
     capabilities are in decisions.md — **26 voices, delivery tags work, accents do not.**
     Do not re-derive them from vendor docs or by asking a model; both were wrong.
-  - **bh-1 — browser harness** (plan.md → Dev Tooling; owner go 2026-07-14). Plan review in
-    flight. Guards the ONE class this repo keeps shipping: declarations the browser silently
-    drops. Assertion-based, not screenshot-baseline. **It would have caught css-1 on day one.**
-- **css-2 is ABANDONED, and its branch must never be merged.** `fix/css-2-scanner-scope`
-  @ `0229679` **crashes the suite** (a `RangeError` on an out-of-range character
-  reference) and **rejects valid CSS**. Three review rounds defeated the scanner 1, then
-  5, then **16** times; reviewer and coder independently concluded a text scanner cannot
-  police encoded CSS and the approach was **not converging**. Phase CT is the agreed root
-  fix. Full record: `.agents/review/findings/css-2.md`. **If you are tempted to "just
-  harden the scanner", read that file first — that is the trap this cost a day to escape.**
-  css-3 (dead `--theme-glow`) is SUPERSEDED and folds into Phase CT.
+  - **bh-1 — browser harness** (plan.md → Dev Tooling; owner go 2026-07-14). Guards the ONE
+    class this repo keeps shipping: declarations the browser silently drops. Assertion-based,
+    not screenshot-baseline. **Plan review REOPENED — 9 findings, and the plan as written would
+    NOT work.** Must be revised before codex implements. The four that matter:
+    1. **The core assertion fails on master.** `.btn-primary` paints with a `linear-gradient`,
+       so its `background-color` is transparent *when healthy*. A blanket
+       "no themed surface is transparent" check goes red before catching any bug. The oracle
+       must be **property-aware and per-surface**.
+    2. **The surface matrix misses real css-1 sites, most of them STATEFUL**: `.stars-bg`,
+       `.choice-btn:hover`, `.action-form input:focus`, `.ability-tier`,
+       `.campaign-card:hover`, `.tab-btn.active`, `.roll-d20-icon`, the pulse keyframe.
+    3. **"Skip and exit 0" when Chromium is absent DEFEATS the gate** — the required command
+       reports success while the assertions never run. Must exit non-zero.
+    4. **Not hermetic:** `public/index.html` loads Google Fonts / cdnjs, so navigation depends
+       on DNS. Block all non-local requests or use a network-free probe document.
+    Also: non-transparent does not prove the *tested* declaration survived (a later cascade
+    rule can repaint the element and mask the failure — use isolated fixtures with expected
+    values); reading a `--theme-*` value cannot prove it is a **valid colour** (custom
+    properties accept arbitrary token streams — use a typed probe with a literal sentinel);
+    and driving theme classes directly bypasses `app.js`/`theme-vars.js` and never exercises
+    `map-render.js`, so the "required before merging these files" claim overstates coverage.
+- **css-2 is ABANDONED; its branch is DELETED and its commits are unreachable** (2026-07-14,
+  owner: "too dangerous to leave a poison pill"). It **crashed the suite** (`RangeError` on
+  `&#x110000;`) and **rejected valid CSS**. A reviewer defeated it **22 times across three
+  rounds**. Phase CT is the root fix that replaced it.
+  **Post-mortem, with the code preserved as un-appliable evidence:
+  `docs/history/css-2-abandoned-scanner.md`** (a fenced block in Markdown — `git apply`
+  rejects it, verified). Finding record: `.agents/review/findings/css-2.md`.
+  **If you are tempted to "just harden the scanner", read the post-mortem first — that is the
+  trap this cost a day to escape.** css-3 (dead `--theme-glow`) is SUPERSEDED, folded into CT.
 - **Reviewer dispatches: a filter-triggering finding poisons its own trail.** Three css-*
   dispatches were content-filtered by the reviewer's provider. Cause: the dispatch told
   codex to read the finding doc, and that doc had become a catalogue of encoded CSS
   payloads. **Fix, now standing practice:** carry a sanitized, spec-framed brief in the
   prompt; describe the *categories* to test rather than reproducing payloads; do not point
   the reviewer at the accumulated trail. The sanitized re-dispatch returned cleanly.
-- **IN FLIGHT:** map-1 is **REOPENED**. css-1 is **MERGED** to master at `41e1938`
-  (accepted r5; owner go 2026-07-14); its branch is **deleted** after content verify.
-  Full detail: `.agents/review/index.md` + `findings/{css-1,map-1}.md`.
-  - css-1 — **MERGED** (`41e1938`, tip was `09bb433`). Theme `rgba`→`hsla` + class-level
-    no-DOM guard on master. Local branch deleted (never on remotes).
+- **map-1 is REOPENED and PARKED — the only live review branch.** (css-1 merged at `41e1938`
+  and has since been superseded by Phase CT; its branch is gone.) Detail:
+  `.agents/review/index.md` + `findings/map-1.md`.
   - `fix/map-label-overflow` @ `b178222` — three real defects. (1) **The reported
     bug is only half fixed**: `validateLocationLayout` clamps `x` and `w`
     independently, so `{x:92, w:20}` is valid and the label still runs off the
@@ -73,14 +90,12 @@ to `docs/history/state-archive.md`.
 - **Reviewer dispatches fail closed.** css-1 r2 was content-filtered with no schema
   envelope (residual still extracted by execution); earlier dispatches also died on
   capacity / no-return. Re-dispatch; never treat a missing envelope as an accept.
-- **Recorded process defect, corrected 2026-07-13:** `.agents/review/index.md`
-  asserted from 2026-07-11 that a `guard-css-1` existed and proved the surfaces
-  transparent-on-master / painted-at-the-fix. **No such committed guard ever
-  existed** — it was an ad-hoc browser check, and the repo has **no browser
-  harness** (no Playwright in `package.json` or `node_modules`). The reviewer was
-  explicit that the new static scanner does not retroactively substantiate that
-  browser claim. Treat every "guard-*" named in older index prose as unverified
-  until a committed artifact is found.
+- **THERE IS STILL NO COMMITTED BROWSER HARNESS.** A Playwright plugin was enabled 2026-07-14
+  and used **ad hoc** to verify Phase CT (installed in a scratchpad; `package.json` is
+  untouched). That check is **not reproducible and is not a guard** — the same confusion that
+  produced the fictitious `guard-css-1` (asserted 2026-07-11, found never to have existed).
+  Treat every "guard-*" in older index prose as unverified until you find the artifact.
+  **bh-1 is the slice that would make this real.**
 - **The rules system is the next big feature** (owner, 2026-07-12: "it's the next
   big feature, and a lot rides on it"), but it is NOT being designed yet — the
   owner is housekeeping first. **D0 is DECIDED** (2026-07-12, `.agents/decisions.md`):
@@ -127,27 +142,22 @@ to `docs/history/state-archive.md`.
 
 ## Next
 
-- **bh-1 (browser harness): plan review in flight.** On acceptance, **codex implements**,
-  Claude verifies. Its mandatory guard proof: reintroduce css-1 and the harness must FAIL —
-  a harness that cannot detect css-1 is worthless, since css-1 is why it exists.
-- **Phase V (Grok TTS): re-review the redesigned plan, then codex implements.** It is the
-  one the owner actually cares about. Note the decision carves out an exception worth
-  weighing: V touches the **seat/auth boundary**, which is this repo's most-broken-before
-  area (the sv-* loop found six defects and four of the first fixes were themselves wrong),
-  so Claude implementing with codex reviewing may fit better than the default.
-- **map-1** is still REOPENED; its fix-ups (grapheme-safe truncation, collision-free
-  clip ids, clamp the box to the canvas) still need an explicit go (or park). Do not
-  start map-1 without it.
-- Optional, recorded so it is not lost: **accents come from dialect spelling in the
-  narration text** ("Ye'll not be findin'…"), not from any TTS provider — none can do
-  accents. That is an `rpg-prompts.js` slice, provider-agnostic and free. Not part of
-  Phase V.
-- **Branch hygiene, needs an owner go (destructive):** `fix/css-2-scanner-scope` still
-  exists and must NEVER be merged (it crashes the suite). Phase CT has landed, so the plan
-  says it can now be deleted — but its three code commits are the only copy of the code that
-  `findings/css-2.md` cites by SHA. Deleting it makes those unreachable. Ask before deleting.
-  `docs/rescue-from-css-2`, `plan/ct-executable` and `fix/ct-1-codex` are all merged and safe
-  to delete.
+**THE IMMEDIATE NEXT ACTION: revise the bh-1 plan against its 9 review findings** (listed under
+`## Now`), then re-dispatch the plan review. Do NOT let codex implement bh-1 until the plan is
+accepted — as written it would fail on master. The plan text is plan.md → Dev Tooling → "Browser
+harness — bh-1"; the review was pinned at `df9f3f4`.
+
+- **Then Phase V (Grok TTS): re-review the redesigned plan, then implement.** It is the one the
+  owner actually cares about. Weigh the workflow carve-out: V touches the **seat/auth boundary**,
+  this repo's most-broken-before area (the sv-* loop found six defects, and four of the first
+  fixes were themselves wrong), so **Claude implementing with codex reviewing** may fit better
+  than the default codex-implements.
+- **map-1** is still REOPENED and PARKED; its fix-ups (grapheme-safe truncation, collision-free
+  clip ids, clamp the box to the canvas) need an explicit go (or a park decision). Do not start
+  it without one.
+- Optional, recorded so it is not lost: **accents come from dialect spelling in the narration
+  text** ("Ye'll not be findin'…"), not from any TTS provider — none can do accents. That is an
+  `rpg-prompts.js` slice, provider-agnostic and free. Not part of Phase V.
 - Continue the rules-system decision queue — the next big feature, but the owner sets
   the pace and was housekeeping when D0 landed. D0 is DECIDED; **D1 (the die) is the
   next ask**. Present the queue in
@@ -167,9 +177,10 @@ to `docs/history/state-archive.md`.
   there, expose the server, create the second character (party strip
   **+ Join**, host-only), mint its seat (key icon beside the chip), send that
   token to the other player.
-- Branch cleanup (2026-07-14): `fix/css-1-hsla-theme-vars` deleted after content
-  verify on master (code identical; tip ancestor). Only live review branch left:
-  `fix/map-label-overflow`. Earlier (2026-07-12): four merged fix branches +
+- Branch cleanup (2026-07-14): `fix/css-2-scanner-scope` **DELETED** (poison pill — see `## Now`),
+  along with `fix/ct-1-codex`, `plan/ct-executable`, `docs/rescue-from-css-2` (all merged) and
+  `fix/css-1-hsla-theme-vars`. **The only branches left are `master` and
+  `fix/map-label-overflow`.** Earlier (2026-07-12): four merged fix branches +
   `plan/rules-system` deleted; (2026-07-11): six `fix/sv-*` deleted. Three accidental
   merge commits stay — history rewrite declined; do not re-propose it.
 
@@ -177,19 +188,21 @@ to `docs/history/state-archive.md`.
 
 - Nothing technical. Network exposure for the playtest is owner-handled
   infrastructure (owner, 2026-07-09), not a repo task.
-- Process, not technical: map-1 fix-ups still need an explicit go (or park).
+- Process, not technical: **map-1** fix-ups need an explicit go (or park).
+- Process, not technical: **bh-1** cannot be implemented until its plan is revised and
+  re-reviewed (9 findings; as written it fails on master).
 
 ## Verification
 
-- Automated: `AI_RETRY_BACKOFF_MS=10 node test.js` — green at merge `41e1938`. Run it
-  rather than trusting a group count written here. The suite is hermetic:
-  `RPG_DB_PATH` redirects it to a temp DB, closed and removed on exit (before
-  2026-07-09 it opened the operator's real dev database).
-- **There is NO browser harness.** No Playwright in `package.json` or `node_modules`.
-  Any `guard-*` named in older `.agents/review/index.md` prose as a browser check was
-  ad-hoc (run through a Playwright MCP plugin) and was never committed — do not assume
-  a cited guard exists as an artifact until you find the file. A committed reviewer
-  cannot reproduce an uncommitted guard, and the loop fails closed on that.
+- Automated: `AI_RETRY_BACKOFF_MS=10 node test.js` — green at `d2d5a0b`. Run it rather than
+  trusting a group count written here. The suite is hermetic: `RPG_DB_PATH` redirects it to a
+  temp DB, closed and removed on exit (before 2026-07-09 it opened the operator's real dev
+  database).
+- **There is still NO COMMITTED browser harness** — no Playwright in `package.json` or
+  `node_modules`. It was used **ad hoc** on 2026-07-14 (installed in a scratchpad) to verify
+  Phase CT; that check is not reproducible and **is not a guard**. Do not assume a cited
+  `guard-*` exists as an artifact until you find the file. A committed reviewer cannot reproduce
+  an uncommitted guard, and the loop fails closed on that. **bh-1 is the slice that fixes this.**
 - When a change ships with a test, prove the test guards it (AGENTS.md), and
   beware the vacuous guard — a test that re-implements the logic it checks
   cannot fail when the fix is reverted. This bit twice on 2026-07-09; the
