@@ -50,6 +50,19 @@ good each individual frame looks. Grok Imagine's reference-image (image-to-image
 considered as a substitute anchor mechanism and left unexplored rather than adopted, because
 it is a design change to the seam, not a drop-in provider.
 
+**Provider choice, settled by listening test (owner, 2026-07-14): GROK TTS WINS.** Owner wording:
+"grok tts wins. it's just that much better. when openai releases a 5o model I will revisit, but for
+now it's grok." Decided by ear on a controlled A/B — the same lines, the same GM instruction the
+engine actually sends (`server.js:742`), OpenAI's real configured path (`marin` /
+`gpt-4o-mini-tts`) against Grok — not from documentation or vendor claims.
+
+**Shape: Grok is ADDED ALONGSIDE OpenAI, not swapped in destructively** (owner, 2026-07-14). Grok
+becomes the provider of choice; OpenAI stays registered and selectable in `/admin`. The TTS seam
+was built for exactly this (`tts-providers.js:5`: "new providers … register here … and become
+selectable in /admin"). Reasons this is not a straight replacement: the owner intends to revisit
+if OpenAI ships a stronger model; OpenAI is the only provider that can do accents on demand; and a
+provider that disappoints in a real session must be revertible without a code change.
+
 **Grok TTS capabilities — VERIFIED BY EXPERIMENT against the live API, 2026-07-14.** Recorded
 because a handed-over plan document (`~/Dev/grok_api_updates.md`) got most of this wrong, and
 because Grok *itself*, asked about its own API, also got it wrong. Neither is evidence. The API is.
