@@ -2,11 +2,13 @@
 
 **Severity**: HIGH (process) — this repo has shipped the same defect class repeatedly (css-1) and
 then burned three review rounds and 22 reviewer defeats trying to catch it *statically* (css-2).
-Nothing automated can currently see what the browser does with a themed declaration.
-**Status**: **PLAN REVISED (2026-07-14), AWAITING RE-REVIEW.** No implementation. No branch cut.
-codex must not implement until the revised plan is reviewed and accepted.
-**Plan**: `plan.md` → Dev Tooling → "Browser harness — `bh-1`".
-**Owner go**: 2026-07-14 (the slice is approved; the *design* was not).
+Nothing automated could see what the browser does with a themed declaration.
+**Status**: **IMPLEMENTED and VERIFIED — awaiting an owner-gated merge.**
+**Branch**: `fix/bh-1-browser-harness` @ `3d34d37` (implementation, codex). Base: `master` @ `390c7fc`.
+**Plan**: `plan.md` → Dev Tooling → "Browser harness — `bh-1`" (accepted 2026-07-14 after r1–r7).
+**Owner go**: 2026-07-14 for the slice; 2026-07-14 for implementation ("Let codex implement").
+**Implemented by**: codex. **Adversarially verified by**: Claude (roles swapped — codex cannot review
+what codex wrote).
 **Reviews (all codex, adversarial, two lenses: correctness + cold-implementer):**
 
 | Round | Pinned at | Findings | Verdict |
@@ -275,6 +277,62 @@ G1, G1b, G3, G3b, G6, G6b, G6c, G7a, G7b and G5's mechanism are all **known to b
 scratchpad probes achieved every one of them, and G3b and G6b are confirmed to *discriminate* (they
 behave differently against a wrong implementation, which is the only thing that makes a guard proof
 worth writing).
+
+## Adversarial verification (Claude, 2026-07-14) — INDEPENDENT of codex's report
+
+codex reported all 26 proofs green. **That report was not treated as evidence.** Everything below was
+re-run from scratch against the branch.
+
+**Baseline reproduces exactly.** `npm run test:browser` → **186 var-bearing declarations, 49 distinct
+per theme context, 294 assertions, 0 failures, 0 unsupported cascades, 0 undefined-consumed vars, 0
+external requests.** These are the same numbers measured in the scratchpad probes *before codex ever
+saw the plan* — an independent corroboration, not an echo.
+
+**19 guard proofs re-executed independently** (inject → run → check exit code → revert → confirm
+green): **19/19 as specified.** G1, G1b, G3, G3b, G11, G6, G6d, G6c, G6e, G7a, G7b, G2, G2b, G5 all
+FAIL as required; G6b and G6f PASS as required; G4 and G10 exit non-zero.
+
+**The meta-test — does G11 actually discriminate?** The `unset` control is the design's most
+load-bearing decision, and r7 found that *nothing* proved it. So the **harness itself was sabotaged**:
+its control was changed to a bare unstyled element (the rejected design), and G11 re-run.
+**Result: the sabotage went UNDETECTED — the harness reported PASS.** G11 is therefore a real
+discriminator, not decoration. *(This is the standard `.agents/state.md` demands: "the reviewer found
+this by writing a bypass and watching the suite pass".)*
+
+**16 bypass attempts, 0 escapes.** Deliberate attempts to smuggle a dropped themed declaration past
+the harness — **every one caught**:
+
+| Caught | |
+|---|---|
+| inside a `@keyframes` | inside `@media` |
+| inside `@layer` | inside `@container` |
+| `@supports` nested inside `@media` | on a `::before` pseudo-element |
+| on a `:hover` pseudo-class | `box-shadow` |
+| `text-shadow` | `outline` (shorthand) |
+| `filter` / `drop-shadow` | with `!important` |
+| **double indirection (two hops)** | deeply nested selector |
+| **the OLD css-1 spelling — `hsl(var(--theme-panel))`** | `color-mix` with an invalid inner |
+
+`@layer`, `@container` and two-hop indirection are **not even in the guard-proof table** — the generic
+CSSOM recursion and the `var()`-not-`var(--theme-` collector cover them for free. The harness guards
+the **class**, not a spelling.
+
+**Fail-closed and hygiene:**
+- Missing Chromium → **exit 1** (not a skip). Unreachable stylesheet → **exit 1** (not a green run
+  with zero assertions).
+- **No process or file leaks on any path** — clean, failing, *and* the no-Chromium path (where
+  `browser` is `undefined`, the case r7 flagged). Verified with a real process count. *(The first
+  attempt at this check was itself **vacuous** — macOS `pgrep` has no `-c`, so both counts silently
+  fell back to 0 and the comparison compared 0 to 0. Caught and redone. The anti-pattern does not
+  respect who is looking for it.)*
+- The dev DB is **untouched** (mtime unchanged); the harness uses a temp `RPG_DB_PATH` and removes it
+  plus its `-wal`/`-shm` sidecars.
+- `node test.js` is **byte-identical to master**, mentions Playwright nowhere, and is green.
+
+**One thing that looked like a finding and was not:** an orphan `node server.js` process. It started
+**Jul 12**, has no `RPG_DB_PATH`, and is the owner's own dev server — it predates this work.
+*(`.agents/repo-guidance.md` → "Scope Before Falsifying": absence — or presence — in your scope is not
+a finding.)*
 
 ## The trap, restated
 

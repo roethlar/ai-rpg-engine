@@ -38,29 +38,34 @@ to `docs/history/state-archive.md`.
     Redesigned; **needs another plan review before codex implements.** Grok's verified
     capabilities are in decisions.md — **26 voices, delivery tags work, accents do not.**
     Do not re-derive them from vendor docs or by asking a model; both were wrong.
-  - **bh-1 — browser harness** (plan.md → Dev Tooling; owner go 2026-07-14). Guards the ONE
-    class this repo keeps shipping: declarations the browser silently drops. **The PLAN has been
-    through SEVEN adversarial review rounds (r1–r7: 9, 11, 10, 7, 4, 10, 9 findings), every finding is
-    closed, and it now sits at r8 awaiting the owner's steer** (`f874329`). Still **NOT IMPLEMENTED**,
-    no branch cut. Full trail and the disposition of every finding:
-    `.agents/review/findings/bh-1.md`.
-    - **The design is settled and VALIDATED.** The oracle has passed **five consecutive rounds**;
-      from r4 onward *not one* finding has been against it — they have all been about the *guard
-      proofs*. It was **executed against a real Chromium** before being written down: on master it
-      measures **186 var-bearing declarations, 294 assertions, 0 failures**, and each sabotage case is
-      confirmed caught in all six themes.
-    - **The design in one line:** the unit under test is the **declaration**, not the surface;
-      apply it to a probe, set the same property to **`unset`** on a control (that is IACVT's exact
-      semantics), and **if applying it changes nothing, the browser dropped it.**
-    - **THE LESSON THAT COST THE MOST, and that generalizes past bh-1: DO NOT REASON ABOUT CSS IN
-      THIS REPO — EXECUTE IT.** Three separate review rounds produced a careful, confident CSS claim
-      that a browser then refuted. The worst: r2's reviewer reasoned the design *would* catch css-1.
-      **It would not have** — a `var()` inside a **shorthand** makes its longhands serialize to the
-      empty string, and css-1 was a `background` shorthand, so the collector never saw it and would
-      have reported **green on the exact bug the harness exists to catch**.
-    - **The other durable lesson — the one question every guard proof must survive:** *could an
-      implementation that OMITS this mechanism still pass this proof?* It found real holes in three
-      consecutive rounds, including a "guard" testing a shape that is **harmless**.
+- **bh-1 — the browser harness EXISTS. It is IMPLEMENTED, VERIFIED, and awaiting an owner-gated
+  merge.** Branch `fix/bh-1-browser-harness` @ `8037478` (codex implemented; Claude verified
+  adversarially — roles swapped, since codex cannot review what codex wrote). Plan accepted after
+  **seven review rounds**. **NOT merged, NOT pushed.** Full trail: `.agents/review/findings/bh-1.md`.
+  - `npm run test:browser` on master: **186 var-bearing declarations, 49 distinct per theme context,
+    294 assertions, 0 failures.** One-time setup per machine: `npx playwright install chromium`.
+  - **Verification that matters:** 19/19 guard proofs re-run independently; **16 deliberate bypass
+    attempts, 0 escapes** (including `@layer`, `@container`, two-hop indirection, `!important`, and
+    the original css-1 spelling); missing Chromium and an unreachable stylesheet both **exit
+    non-zero**; no process or file leaks on any path. **And the harness itself was sabotaged** — its
+    `unset` control swapped for a bare one — which made it miss a bug, proving guard proof G11 is a
+    real discriminator rather than decoration.
+  - **The design in one line:** the unit under test is the **declaration**, not the surface; apply it
+    to a probe, set the same property to **`unset`** on a control (that is IACVT's exact semantics),
+    and **if applying it changes nothing, the browser dropped it.**
+  - **Merge gate it establishes** (`.agents/repo-guidance.md`): `npm run test:browser` is REQUIRED
+    before merging any change to `public/styles.css` or `public/theme-vars.js`. Deliberately narrow —
+    it does **not** cover `app.js` theme wiring or `map-render.js`, and says so.
+  - **THE LESSON THAT COST THE MOST, and that generalizes past bh-1: DO NOT REASON ABOUT CSS IN THIS
+    REPO — EXECUTE IT.** Three separate review rounds produced a careful, confident CSS claim that a
+    browser then refuted. The worst: r2's reviewer reasoned the design *would* catch css-1. **It would
+    not have** — a `var()` inside a **shorthand** makes its longhands serialize to the empty string,
+    and css-1 was a `background` shorthand, so the collector never saw it and would have reported
+    **green on the exact bug the harness exists to catch**. Recorded in `.agents/decisions.md`.
+  - **The other durable lesson — the one question every guard proof must survive:** *could an
+    implementation that OMITS this mechanism still pass this proof?* It found real holes in four
+    consecutive rounds, including a "guard" testing a shape that is **harmless**, and the discovery
+    that **nothing proved the `unset` control**. Also in `.agents/decisions.md`.
 - **css-2 is ABANDONED; its branch is DELETED and its commits are unreachable** (2026-07-14,
   owner: "too dangerous to leave a poison pill"). It **crashed the suite** (`RangeError` on
   `&#x110000;`) and **rejected valid CSS**. A reviewer defeated it **22 times across three
@@ -92,12 +97,12 @@ to `docs/history/state-archive.md`.
 - **Reviewer dispatches fail closed.** css-1 r2 was content-filtered with no schema
   envelope (residual still extracted by execution); earlier dispatches also died on
   capacity / no-return. Re-dispatch; never treat a missing envelope as an accept.
-- **THERE IS STILL NO COMMITTED BROWSER HARNESS.** A Playwright plugin was enabled 2026-07-14
-  and used **ad hoc** to verify Phase CT (installed in a scratchpad; `package.json` is
-  untouched). That check is **not reproducible and is not a guard** — the same confusion that
-  produced the fictitious `guard-css-1` (asserted 2026-07-11, found never to have existed).
-  Treat every "guard-*" in older index prose as unverified until you find the artifact.
-  **bh-1 is the slice that would make this real.**
+- **The "no committed browser harness" problem is SOLVED — on a branch, pending merge.** For months
+  the only browser checks here were **ad hoc** (a scratchpad Playwright run verified Phase CT on
+  2026-07-14; before that, the fictitious `guard-css-1`, asserted 2026-07-11 and found never to have
+  existed). `fix/bh-1-browser-harness` makes it real, reproducible and committed. **Until that branch
+  merges, master still has none** — and the old caution still applies to older prose: treat every
+  "guard-*" you find as unverified until you locate the artifact.
 - **The rules system is the next big feature** (owner, 2026-07-12: "it's the next
   big feature, and a lot rides on it"), but it is NOT being designed yet — the
   owner is housekeeping first. **D0 is DECIDED** (2026-07-12, `.agents/decisions.md`):
@@ -144,14 +149,10 @@ to `docs/history/state-archive.md`.
 
 ## Next
 
-**THE IMMEDIATE NEXT ACTION IS AN OWNER DECISION on bh-1: keep hardening the plan, or let codex
-implement it now?** Seven review rounds are done and every finding is closed (`f874329`). The design
-is validated and has passed five rounds running. **Since r4, every finding has been about the guard
-proofs, not the design** — each round asks "could a wrong implementation still pass this proof?" and
-each round finds another one. Those are real (r7 found that *nothing* proved the `unset` control, the
-design's most load-bearing decision), but it is a tightening loop a reviewer can always extend, and
-the returns are visibly diminishing. **The plan is implementable as it stands.** Do NOT start
-implementation without the steer.
+**THE IMMEDIATE NEXT ACTION: merge `fix/bh-1-browser-harness` — it needs an explicit owner go.**
+Implemented, adversarially verified, both suites green, tree clean (`8037478`). An accepted verdict is
+not merge authority (`.agents/playbooks/reviewloop.md`), so it sits until the owner says merge.
+Merging also turns on the `npm run test:browser` gate recorded in `.agents/repo-guidance.md`.
 
 - **Then Phase V (Grok TTS): re-review the redesigned plan, then implement.** It is the one the
   owner actually cares about. Weigh the workflow carve-out: V touches the **seat/auth boundary**,
@@ -195,8 +196,8 @@ implementation without the steer.
 - Nothing technical. Network exposure for the playtest is owner-handled
   infrastructure (owner, 2026-07-09), not a repo task.
 - Process, not technical: **map-1** fix-ups need an explicit go (or park).
-- Process, not technical: **bh-1** needs an owner steer — keep hardening the plan, or implement it?
-  Six review rounds are closed and the design is validated; see `## Next`.
+- Process, not technical: **bh-1** is built and verified but **needs an explicit go to merge**.
+  An accepted verdict is not merge authority.
 
 ## Verification
 
@@ -204,11 +205,12 @@ implementation without the steer.
   trusting a group count written here. The suite is hermetic: `RPG_DB_PATH` redirects it to a
   temp DB, closed and removed on exit (before 2026-07-09 it opened the operator's real dev
   database).
-- **There is still NO COMMITTED browser harness** — no Playwright in `package.json` or
-  `node_modules`. It was used **ad hoc** on 2026-07-14 (installed in a scratchpad) to verify
-  Phase CT; that check is not reproducible and **is not a guard**. Do not assume a cited
-  `guard-*` exists as an artifact until you find the file. A committed reviewer cannot reproduce
-  an uncommitted guard, and the loop fails closed on that. **bh-1 is the slice that fixes this.**
+- **Browser: `npm run test:browser`** — the bh-1 harness. **On the branch
+  `fix/bh-1-browser-harness`, not yet on master.** One-time setup per machine:
+  `npx playwright install chromium`; missing Chromium makes the command **exit non-zero**, never
+  skip. Once merged it is REQUIRED before merging any change to `public/styles.css` or
+  `public/theme-vars.js` (it does **not** cover `app.js` wiring or `map-render.js`). Until then,
+  master still has no browser guard — do not assume a cited `guard-*` exists until you find the file.
 - When a change ships with a test, prove the test guards it (AGENTS.md), and
   beware the vacuous guard — a test that re-implements the logic it checks
   cannot fail when the fix is reverted. This bit twice on 2026-07-09; the

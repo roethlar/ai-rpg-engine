@@ -44,6 +44,11 @@
 - Automated: `node test.js` (or `npm run test`) — the repo's unit test suite
   (evidence: package.json `scripts.test`; suite covered in test.js). It must
   pass before claiming completion of any code change.
+- Browser harness one-time setup: `npx playwright install chromium`.
+- **`npm run test:browser` is REQUIRED before merging any change to
+  `public/styles.css` or `public/theme-vars.js`.** This is a process guarantee:
+  the harness drives the six theme contexts directly and does not cover theme
+  wiring in `public/app.js` or `map-render.js`.
 - Verification is local-only: the repo has no CI workflows (evidence:
   discovery scan found no provider-executable CI paths, 2026-06-10; the
   `.agents/repo-map.json` that carried the notes was retired 2026-07-08 —

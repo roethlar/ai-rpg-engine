@@ -54,6 +54,13 @@ Clone or copy the directory and run:
 npm install
 ```
 
+The browser harness uses Chromium through Playwright. Install that browser once
+on each development machine:
+
+```bash
+npx playwright install chromium
+```
+
 ### 2. Configure AI Provider & Keys (server-owned)
 AI configuration belongs to the server operator — players never supply keys or
 model choices. Configure it either way:
