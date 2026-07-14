@@ -11,10 +11,9 @@ to `docs/history/state-archive.md`.
   Unconditional — no exemption for small, obvious, urgent, or owner-approved
   changes, and a green suite is not a substitute. Docs-only changes are out of
   scope.
-- **IN FLIGHT: both open branches were reviewed by codex on 2026-07-13 and BOTH
-  were REOPENED with real defects.** Verdict trails are committed; neither is
-  merged; master carries docs only. Fix-ups are the next code action, then
-  re-dispatch each. Full detail: `.agents/review/index.md` + `findings/{css-1,map-1}.md`.
+- **IN FLIGHT:** css-1 is **ACCEPTED** at r5 awaiting owner-gated merge; map-1 is
+  still **REOPENED**. Full detail: `.agents/review/index.md` +
+  `findings/{css-1,map-1}.md`.
   - `fix/css-1-hsla-theme-vars` @ `09bb433` — **ACCEPTED at r5** (codex,
     guard_confirmed true). Production fix graded correct at r1; guard rewritten
     through r5 (aliases, nested var() fallbacks, delimiter-based names, production
@@ -30,9 +29,9 @@ to `docs/history/state-archive.md`.
     the same fragment id, so one area's label resolves against the wrong clip and
     vanishes. Reviewer graded the guard itself REAL and the deliberately-scoped-out
     sibling defect (below) as acceptable.
-- **Reviewer dispatches fail closed and have failed twice.** css-1's 2026-07-11
-  dispatch never returned a verdict, and a 2026-07-13 dispatch died on a provider
-  capacity error. Neither became an accept. Expect this; re-dispatch.
+- **Reviewer dispatches fail closed.** css-1 r2 was content-filtered with no schema
+  envelope (residual still extracted by execution); earlier dispatches also died on
+  capacity / no-return. Re-dispatch; never treat a missing envelope as an accept.
 - **Recorded process defect, corrected 2026-07-13:** `.agents/review/index.md`
   asserted from 2026-07-11 that a `guard-css-1` existed and proved the surfaces
   transparent-on-master / painted-at-the-fix. **No such committed guard ever
