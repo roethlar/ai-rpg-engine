@@ -20,6 +20,47 @@ Supersedes:
 <Optional prior decision, doc, or rule.>
 -->
 
+### 2026-07-14 - Grok Imagine is out for NPC and location imagery; TTS is the provider priority
+
+Status: Active
+
+Decision:
+Grok Imagine will **not** be used for NPC or location images. It exposes no seed, and the
+image seam has carried an *identity anchor* since day one (owner direction, `image-providers.js:9-13`):
+callers record the returned seed and replay it so a given NPC or place stays visually
+consistent across renders. A provider that cannot hold that anchor cannot serve those
+subjects. Owner wording (2026-07-14): "if we can't keep the same image base for NPCs &
+locations then grok imagine is out for that."
+
+Maps were raised as a possible exception, on the reasoning that a map does not change once
+drawn. This is NOT decided and is not a licence to implement: maps today are **deliberately
+AI-free** — `map-render.js:3` renders a top-down SVG with "no AI in the render path", and the
+SVG inherits the campaign's CSS theme variables. Putting Grok Imagine behind maps would *add*
+AI to a path intentionally kept free of it, and would forfeit theme inheritance. Treat it as
+an open Future Topic requiring its own promotion, not as an approved slice.
+
+Instead, **TTS is the priority**: the owner found the OpenAI implementation unimpressive —
+"it sounded unnatural and had no variance for accents or mood" (2026-07-14).
+
+Reason:
+Visual identity persistence is a *feel* property, and feel is this repo's stated bar
+(`.agents/repo-guidance.md`: every change must improve fun and feel like a real GM). An
+image provider that silently re-rolls an NPC's face each turn degrades exactly that, however
+good each individual frame looks. Grok Imagine's reference-image (image-to-image) support was
+considered as a substitute anchor mechanism and left unexplored rather than adopted, because
+it is a design change to the seam, not a drop-in provider.
+
+Known blocker for any new TTS provider, recorded so it is not rediscovered: the voice layer is
+structurally OpenAI-coupled. `tts-providers.js:10` pins `TTS_VOICES` to OpenAI voice names and
+`validateVoiceProfile` coerces anything outside that set to `'marin'`; `NPC_VOICE_POOL` (:35)
+is all OpenAI voices and `assignNpcVoiceProfile` stamps `provider: 'openai'` and persists the
+voice into `npcs.voice_json`. A Grok provider would therefore receive an OpenAI voice id and
+xAI would reject it (its built-ins are ara/eve/leo/rex/sal). Making the voice layer
+provider-aware is required work for *any* new TTS vendor, and existing campaigns carry OpenAI
+voice ids in the DB, so back-compat is part of it. The seam anticipated this
+(`tts-providers.js:5`: "new providers (e.g. voice-cloning services for unique NPC voices)
+register here"), but the voice *pool* did not.
+
 ### 2026-07-12 - Rules D0: a fixed house chassis, with generated per-campaign flavor skins
 
 Status: Active
