@@ -20,6 +20,81 @@ Supersedes:
 <Optional prior decision, doc, or rule.>
 -->
 
+### 2026-07-14 - bh-1 browser harness: plan ACCEPTED after seven review rounds; codex implements
+
+Status: Active
+
+Decision:
+The bh-1 browser-harness plan (plan.md → Dev Tooling) is APPROVED for implementation. Owner
+2026-07-14, asked whether to keep hardening the plan or let codex implement it: **"Let codex
+implement."** codex implements from the plan; Claude adversarially verifies (the standing workflow —
+codex cannot review what codex wrote).
+
+The plan survived seven adversarial review rounds (r1–r7: 9, 11, 10, 7, 4, 10, 9 findings; all
+closed). The design has passed five consecutive rounds — since r4 not one finding has been against
+the oracle; all have been about whether the *guard proofs* discriminate a wrong implementation. That
+loop is real but extensible without bound, and the owner priced it: implement now, and let the
+implementation review — which has actual code to run the proofs against — catch the rest.
+
+Reason:
+The design is validated by EXECUTION, not argument. Every mechanism was run against a real Chromium
+and the real stylesheet before being written down: on master it measures 186 var-bearing
+declarations, 294 assertions, 0 failures, and each sabotage case is confirmed caught in all six
+theme contexts. That is stronger evidence than any further round of review reasoning could produce —
+and the remaining open questions ("could an implementation that omits this mechanism still pass this
+proof?") are answerable for real once code exists, rather than hypothetically.
+
+### 2026-07-14 - Do not reason about CSS in this repo. Execute it.
+
+Status: Active
+
+Decision:
+Any claim about CSS or CSSOM behaviour in this repo must be settled by running a browser, not by
+reasoning — including claims made by a code reviewer, and including claims that appear obviously
+correct. Where a plan or review asserts browser behaviour that has not been executed, it must say so
+explicitly and be treated as unverified.
+
+Reason:
+THREE separate bh-1 review rounds produced a careful, confident CSS claim that a real browser then
+refuted. The worst nearly shipped a harness that would have reported green on the exact bug it
+exists to catch:
+
+  A `var()` inside a SHORTHAND makes that shorthand's longhands "pending-substitution" — CSSOM still
+  enumerates them, but `getPropertyValue()` returns the EMPTY STRING for every one. css-1 was
+  `background: rgba(var(--theme-panel), 0.7)` — a `background` shorthand — so a collector that reads
+  declaration values by index sees NOTHING for it. Measured: such a collector finds 115 var-bearing
+  declarations where the correct one finds 186.
+
+The r2 reviewer reasoned explicitly that the design WOULD catch css-1. It would not have. A
+scratchpad browser probe found it in minutes. Two further rounds repeated the pattern (an
+`!important` prediction that Chromium refutes; a cascade-guard exemption that a browser showed to be
+a real false pass).
+
+This is the same root cause as the css-2 saga (`docs/history/css-2-abandoned-scanner.md`): nobody
+could see what the browser was doing. It is why bh-1 exists.
+
+### 2026-07-14 - A guard proof must fail if its mechanism is removed
+
+Status: Active
+
+Decision:
+Every guard proof must be checked against one question: **could an implementation that OMITS the
+mechanism this proof exists to protect still pass it?** If yes, the proof is decoration and must be
+replaced. This applies to the guard proofs themselves, not only to the code they guard.
+
+Reason:
+Applying this question to the bh-1 plan found real holes in FOUR consecutive review rounds:
+- Three load-bearing mechanisms (the cascade guard, generic rule recursion, the `@import` branch)
+  could be omitted entirely while every guard proof still passed.
+- The `unset` control — the single most load-bearing decision in the design — was proved by NOTHING:
+  all 19 proofs passed with the rejected bare control too.
+- One "guard" tested a shape that turned out to be HARMLESS, so a lenient implementation passed it
+  and still shipped a false pass.
+
+This generalizes the vacuous-guard anti-pattern already recorded in `.agents/playbooks/reviewloop.md`
+(a test that re-implements the logic it checks) to a second form: a test that passes against the
+wrong implementation. Both are guards that cannot fail.
+
 ### 2026-07-14 - Division of labour: codex IMPLEMENTS, Claude PLANS and ADVERSARIALLY VERIFIES
 
 Status: Active
