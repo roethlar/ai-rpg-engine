@@ -1400,6 +1400,26 @@ function testThemeColorContract() {
     'Theme translucency must match the independently pinned 25-entry ordered alpha table'
   );
 
+  // Consumer typo lint. Case-insensitive because CSS function names are (`RGBA(` is legal).
+  //
+  // ⚠ THIS LINT CATCHES THE DIRECT SPELLING AND NOTHING MORE — BY DESIGN. It does not catch
+  // aliasing through an intermediate custom property, styles composed in JavaScript, or encoded
+  // CSS. That residual risk is ACCEPTED, deliberately, and it is small precisely because the
+  // migration removed the TRAP: now that --theme-* holds a whole colour, there is no reason to
+  // wrap it in a colour function at all, so the direct spelling is the only slip anyone plausibly
+  // makes.
+  //
+  // DO NOT "HARDEN" THIS INTO A PARSER. A previous attempt (finding css-2) tried to police this
+  // class with a static scanner and was defeated by a reviewer 1, then 5, then 16 times across
+  // three rounds — HTML character references, RAWTEXT <style> semantics, CSS string tokenization,
+  // cross-file cascade aliases, CSS identifier escapes — until it crashed the suite on malformed
+  // markup AND rejected valid CSS. It had become a bad re-implementation of an HTML parser, a CSS
+  // tokenizer, and the cascade. Reviewer and coder independently concluded it was not converging;
+  // THIS PHASE is the agreed alternative. If a future round finds a way past this regex, the
+  // correct response is to shrug — an encoded offender is not an accident, and someone with commit
+  // access has better options than hiding a colour from a linter.
+  //
+  // Read .agents/review/findings/css-2.md before you touch this.
   const runtimeTargets = ['public/styles.css', 'public/index.html', 'public/app.js', 'map-render.js'];
   const wrappedThemeVar = /\b(?:rgba?|hsla?)\(\s*var\(\s*--theme-/gi;
   for (const target of runtimeTargets) {
@@ -1407,7 +1427,10 @@ function testThemeColorContract() {
     assert.strictEqual(
       wrappedThemeVar.test(source),
       false,
-      `${target} wraps a whole-colour --theme-* variable in a colour function`
+      `${target} wraps a whole-colour --theme-* variable in a colour function. A --theme-* var now ` +
+      'holds a COMPLETE COLOUR, so wrapping it in rgb()/rgba()/hsl()/hsla() is invalid CSS and the ' +
+      'browser silently drops the declaration (that was finding css-1). Use var(--theme-x), or ' +
+      'color-mix(in srgb, var(--theme-x) N%, transparent) for translucency.'
     );
     wrappedThemeVar.lastIndex = 0;
   }
