@@ -141,10 +141,37 @@ accepted, none disputed.
 | 9 | cold-impl | **Phase D's fixtures used bare identifiers** (`fullThemeVars({primary, secondary, …})`) — a `ReferenceError` if copied literally. | **FIXED.** Four fixtures now given as a literal, copy-paste code block. |
 | 10 | cold-impl | **Teardown omits awaiting exit and the SQLite WAL sidecars.** `db.js:88` enables WAL; `test.js:25` removes `-wal`/`-shm` for exactly this reason. | **FIXED.** Teardown now awaits child exit, then removes `<db>`, `<db>-wal`, `<db>-shm`. |
 
+## Disposition of the 7 r4 findings (pinned at `520424c`)
+
+r4's verdict on the core, again: *"sound on current master and concretely catches css-1."* Six
+findings accepted; **one refuted with evidence.**
+
+**The headline finding — and it is the sharpest process point of the whole exercise:**
+
+> **THREE LOAD-BEARING MECHANISMS HAD NO GUARD PROOF.** A cold implementation could omit the
+> unsupported-cascade guard, the grouping-rule recursion, *and* the `@import` branch **entirely** and
+> still pass every listed proof — because the main sheet's 184 units keep Phase E's floors satisfied
+> either way. That is the **vacuous-guard anti-pattern aimed at the guards themselves**. This repo has
+> now shipped that mistake three times in product code; r4 caught the fourth before it was written.
+
+| # | Lens | Finding (r4) | Disposition |
+|---|---|---|---|
+| 1 | correctness | **Step 2b (unsupported cascade) is unproved, and G3 can pass for the wrong reason.** No proof forces 2b to exist; and if G3's `--tmp` is placed in a *separate* rule, 2b fires and the run fails — so a cold agent ticks "G3 passed" **without ever proving the collector follows indirection**. | **VALID, both halves.** New **G6** proves 2b exists (inject a custom property outside a theme block → must stop with the unsupported-cascade diagnostic). **G3 is tightened**: `--tmp` goes in the **consumer's own rule**, the failure must be a **Phase B declaration failure** naming `.glass-card`/`background`, and the **stray list must stay EMPTY**. Confirmed: G3 fails as a Phase B failure with the stray list empty; G6 fires while Phase B stays at 0 — two distinct signals. |
+| 2 | correctness | **Nothing proves the collector recurses.** An implementation omitting the grouping-rule walk or the `@import` branch passes master and all of G1–G5. | **VALID.** New **G7a** (broken declaration nested in `@media`) and **G7b** (broken declaration inside an `@import`ed sheet). Both **confirmed caught in all six contexts**. G7b is the one that exercises `rule.styleSheet.cssRules`, which plain `.cssRules` recursion never reaches. |
+| 3 | correctness | **The route matches the loopback *hostname*, not the origin** — so a request to any *other* local port is continued and never recorded, while the plan claims hermeticity. | **VALID.** The handler now matches the **exact origin** (`url.startsWith(ORIGIN + '/')`), host **and** port. |
+| 4 | correctness | **`!important` is unhandled.** `cssText` serializes priority into the value; passing it to `setProperty()` will leave the declaration unset, so `owned` is empty and **valid CSS is rejected**. | **REFUTED — the predicted failure does not occur.** Measured in Chromium: `setProperty('background', 'rgba(var(--p), 0.7) !important')` **parses fine** and yields all nine `background` longhands. Kept as **hardening only** (strip the priority rather than rest on a browser quirk). Today `styles.css` has two `!important` declarations (`:1920-1921`) and **neither uses `var()`**. *This is the third round in which a reviewer's careful CSS reasoning was wrong — which is the entire argument for this harness.* |
+| 5 | cold-impl | G3's alias placement and required diagnostic unspecified. | **FIXED** — see #1. |
+| 6 | cold-impl | **`browser.close()` is missing from the failure-safe path.** A failing assertion — or a sabotage proof, which is *expected* to fail — leaves Chromium alive; the command can hang instead of returning non-zero, and orphan processes accumulate. | **VALID and FIXED.** `await browser.close()` moves into `finally`, ahead of the server kill and DB cleanup. |
+| 7 | cold-impl | Priority parsing left to the implementer. | **FIXED** — the strip is now specified (`/\s*!\s*important\s*$/i`), with its measured status recorded so it is not mistaken for a bug fix. |
+
+**Measured on master with every r5 mechanism in place:** 184 units, 47 distinct per context, 282
+assertions, **0 failures, 0 stray custom properties, 0 external requests attempted**. G1, G1b, G3, G6,
+G7a, G7b all confirmed caught.
+
 ## Guard proofs the implementation MUST produce
 
-Non-negotiable; the harness is worthless without them. G1, G1b, G3 and G5's mechanism are already
-**known to be achievable** — the scratchpad probes achieved them.
+Non-negotiable; the harness is worthless without them. G1, G1b, G3, G6, G7a, G7b and G5's mechanism
+are already **known to be achievable** — the scratchpad probes achieved every one of them.
 
 - **G1** — reintroduce css-1 (`background: rgba(var(--theme-panel), 0.7)` on `.glass-card`): Phase B
   must **FAIL**, naming selector, property and theme. Revert: passes.
@@ -158,11 +185,21 @@ Non-negotiable; the harness is worthless without them. G1, G1b, G3 and G5's mech
   implementation whose Phase D skipped the module import (or re-implemented it) would pass them all.
   Make `toThemeColor` in `theme-vars.js` return the bare component list — **revert Phase CT** — and
   **Phase D must FAIL**, reporting every `--theme-*` as NOT-A-COLOUR. Revert; it passes.
-- **G3 — anti-vacuity.** Break it through **custom-property indirection** (`--tmp: var(--theme-panel);`
-  then `background: rgba(var(--tmp), 0.7);`). Must **still fail**. The css-1 *scanner* guard passed
+- **G3 — anti-vacuity.** Break it through **custom-property indirection**, with **both declarations in
+  the SAME rule**: `.glass-card { --tmp: var(--theme-panel); background: rgba(var(--tmp), 0.7); }`.
+  It must fail as a **Phase B declaration failure** naming `.glass-card`/`background`, and the
+  **stray-custom-property list must stay EMPTY** — if it stops with "unsupported cascade" instead, G3
+  passed for the **wrong reason** and the core oracle is uncertified. The css-1 *scanner* guard passed
   its own guard proof and was still worthless because it matched only the **literal spelling** of the
   defect and indirection walked straight past it (`.agents/state.md`, Verification — "it bit a third
   time, in a new costume"). A guard must cover the **class**, not one spelling.
+- **G6 — proves the unsupported-cascade guard (step 2b) exists.** Inject
+  `.some-widget { --local-accent: hsl(10 50% 50%); }`; the harness must stop with the
+  unsupported-cascade diagnostic. Without this, an implementation can omit 2b and pass everything else.
+- **G7a — proves grouping-rule recursion.** A broken declaration nested in `@media` must be caught.
+- **G7b — proves the `@import` branch.** A broken declaration inside an `@import`ed sheet must be
+  caught. This is the only proof that exercises `rule.styleSheet.cssRules`; plain `.cssRules`
+  recursion never reaches it, and the main sheet's units keep Phase E green regardless.
 - **G4 — fail-closed.** Point the probe document at a non-existent stylesheet: the harness must
   **FAIL** (Phase E), not pass with zero assertions. Without Phase E, a stylesheet that fails to load
   yields zero declarations, zero assertions, and a **green run**.

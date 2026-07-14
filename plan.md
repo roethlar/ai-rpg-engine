@@ -772,12 +772,18 @@ Raised during planning but deliberately deferred. **Per project rule, nothing he
     master while catching css-1") but the plan **contradicted itself on cardinality**, left Playwright
     **route precedence** unresolved, and had four real soundness gaps (cascade context, `@import`,
     inherited `NODE_ENV`, and no proof that Phase D guards anything).
-  - **r4 (current) — every mechanism below was EXECUTED against real Chromium and the real
+  - **r4 (`520424c`) — REJECTED, 7 findings.** The oracle passed again ("sound on current master and
+    concretely catches css-1"); what remained were **unproved guards** — three mechanisms (the
+    unsupported-cascade guard, the grouping-rule recursion, the `@import` branch) that a cold
+    implementation could omit entirely and *still pass every guard proof* — plus a route that matched
+    the loopback host without its port, and a missing `browser.close()` on the failure path.
+  - **r5 (current) — every mechanism below was EXECUTED against real Chromium and the real
     `public/styles.css` before being written down.** Measured on master: **184 var-bearing
-    declarations, 47 distinct per theme context, 282 assertions, 0 failures**; sabotage cases
-    G1/G1b/G3 each caught in **all six** theme contexts; the `@import`, stray-custom-property and
-    bare-component probes all behave as specified. Do not restore an earlier design — the traps are
-    in "Rejected designs".
+    declarations, 47 distinct per theme context, 282 assertions, 0 failures, 0 stray custom
+    properties, 0 external requests**. Sabotage cases **G1, G1b, G3, G6, G7a, G7b** are each confirmed
+    caught; G3 is confirmed to fail *as a Phase B declaration failure* rather than via the
+    unsupported-cascade diagnostic. Do not restore an earlier design — the traps are in "Rejected
+    designs".
 
   **The single most important lesson, and the reason this plan is trustworthy now:** the r2 reviewer
   reasoned carefully about CSS semantics and got a load-bearing detail **wrong**, in the direction
@@ -861,6 +867,18 @@ Raised during planning but deliberately deferred. **Per project rule, nothing he
   each declaration's `name: value`. That text is normalized, comment-free and balanced before we see
   it, and the split never judges validity — it cannot reject anything. **Read
   `docs/history/css-2-abandoned-scanner.md` before touching this.**
+
+  **Strip a trailing `!important` from the split value.** `cssText` serializes priority into the
+  declaration text (`color: var(--c) !important`), so the splitter will hand it to you inside the
+  value. Priority is irrelevant here — the probe and control are inline styles with nothing competing,
+  and a declaration's *validity* does not depend on its priority — so drop it:
+  `value.replace(/\s*!\s*important\s*$/i, '')`.
+  **This is hardening, not a bug fix.** It was predicted that leaving `!important` in the value would
+  make `setProperty()` silently drop the declaration and cause false failures. **That is not what
+  Chromium does** — measured: `setProperty('background', 'rgba(var(--p), 0.7) !important')` parses
+  fine and yields all nine `background` longhands. Strip it anyway so the behaviour does not rest on a
+  browser quirk. (Today `styles.css` has exactly two `!important` declarations, `font-size` and
+  `padding` at `:1920-1921`, and **neither uses `var()`** — so this path is unexercised either way.)
 
   **Phases — implement in this order.**
 
@@ -1005,15 +1023,20 @@ Raised during planning but deliberately deferred. **Per project rule, nothing he
   the catch-all `continue()`s `/__bh1__` to Express, which 404s — **no probe document, and Phase E
   goes red on healthy master.** One handler has no precedence to get wrong:
   ```js
+  const ORIGIN = `http://127.0.0.1:${port}`;         // the EXACT origin, not just the hostname
+  const probeUrl = `${ORIGIN}/__bh1__`;
   const external = [];
   await page.route('**/*', route => {
     const url = route.request().url();
     if (url === probeUrl) return route.fulfill({ contentType: 'text/html', body: probeHtml });
-    if (new URL(url).hostname === '127.0.0.1') return route.continue();
+    if (url.startsWith(ORIGIN + '/')) return route.continue();
     external.push(url);              // Phase E asserts this stays EMPTY
     return route.abort();
   });
   ```
+  **Match the exact origin — host AND port.** A hostname-only check (`hostname === '127.0.0.1'`)
+  would silently let a request through to **any other loopback port**, i.e. to an unrelated local
+  service, without recording it: the run would claim hermeticity while depending on machine state.
 
   **Hermetic.** The harness **never loads `public/index.html`** — it pulls Google Fonts and cdnjs, so
   navigating to it would make the run depend on DNS. The handler above aborts every non-`127.0.0.1`
@@ -1043,10 +1066,15 @@ Raised during planning but deliberately deferred. **Per project rule, nothing he
        readiness poll that times out — on a perfectly healthy checkout.
   3. **Poll `GET http://127.0.0.1:<port>/styles.css` until it answers**, with a timeout. Do not sleep
      a fixed interval and do not parse the child's stdout.
-  4. **`finally` — on success *and* on failure:** kill the child, **await its exit**, then remove the
-     temp DB **and its WAL sidecars**. `db.js:88` runs `PRAGMA journal_mode = WAL`, so the on-disk set
-     is `<db>`, `<db>-wal`, `<db>-shm` — `test.js:25` already removes all three for exactly this
-     reason. Unlinking only the main file leaves litter (and can error on an open handle).
+  4. **`finally` — on success *and* on failure:** `await browser.close()`, then kill the child,
+     **await its exit**, then remove the temp DB **and its WAL sidecars**.
+     - **`browser.close()` belongs in `finally`, not on the success path.** A failing assertion (or a
+       sabotage proof, which is *expected* to fail) would otherwise leave Chromium alive:
+       `npm run test:browser` can then hang instead of returning its non-zero exit, and orphan browser
+       processes accumulate.
+     - `db.js:88` runs `PRAGMA journal_mode = WAL`, so the on-disk set is `<db>`, `<db>-wal`,
+       `<db>-shm` — `test.js:25` already removes all three for exactly this reason. Unlinking only the
+       main file leaves litter (and can error on an open handle).
 
   **Install / lockfile — the T2 r6 objection, answered.**
   - `playwright` as a **devDependency**, pinned, with `package-lock.json` updated.
@@ -1082,11 +1110,36 @@ Raised during planning but deliberately deferred. **Per project rule, nothing he
   - **G1b (the shorthand trap):** `border-color: rgba(var(--theme-border), 0.5)` on `.glass-card` must
     also **FAIL** — this is the shape that a naive collector renders invisible. **Confirmed: caught in
     all six contexts.**
-  - **G3 — anti-vacuity, and non-optional.** Break it through **custom-property indirection**:
-    `--tmp: var(--theme-panel);` then `background: rgba(var(--tmp), 0.7);`. Must **still fail**. The
-    css-1 *scanner* guard passed its own guard proof and was still worthless, because it matched only
-    the **literal spelling** of the defect. A guard must cover the **class**, not the one spelling you
-    thought of. **Confirmed: caught in all six contexts.**
+  - **G3 — anti-vacuity, and non-optional.** Break it through **custom-property indirection**. **Put
+    both declarations in the SAME rule** — `.glass-card { --tmp: var(--theme-panel); background:
+    rgba(var(--tmp), 0.7); }`:
+    - It must fail as a **Phase B declaration failure**, naming `.glass-card` and `background`.
+    - **The stray-custom-property list (step 2b) must stay EMPTY.** If the harness instead stops with
+      "unsupported cascade", **G3 has passed for the WRONG reason** — it proved only that 2b fires, not
+      that the collector follows the indirection, and the core oracle is left uncertified. **Placement
+      matters: put `--tmp` in the consumer's own rule, not in `:root` and not in a separate rule.**
+    - **Confirmed: caught in all six contexts, as a Phase B failure, with the stray list empty.**
+
+    The css-1 *scanner* guard passed its own guard proof and was still worthless, because it matched
+    only the **literal spelling** of the defect. A guard must cover the **class**, not the one spelling
+    you thought of.
+  - **G6 — the proof that step 2b's unsupported-cascade guard exists.** Nothing else forces it: an
+    implementation could omit 2b entirely and still pass G1–G5. So inject a custom property in a rule
+    that is neither a theme block nor a consumer — `.some-widget { --local-accent: hsl(10 50% 50%); }`
+    — and the harness must **stop with the unsupported-cascade diagnostic**, naming `.some-widget` and
+    `--local-accent`. Revert; it passes. **Confirmed: fires, and Phase B stays at 0 failures — so it is
+    a distinct signal from a declaration failure, which is what makes G3's disambiguation meaningful.**
+  - **G7 — the proof that the collector really recurses.** The generic `.cssRules` walk and the
+    separate `@import` branch are both load-bearing, and **neither is proved by G1–G6**: an
+    implementation that skipped either would still pass, because the main sheet's 184 units keep Phase
+    E's floors satisfied. Two injections, each of which must produce a **Phase B failure**:
+    - **G7a — nested in a grouping rule:**
+      `@media (min-width: 1px) { .nested-probe { background: rgba(var(--theme-panel), 0.7); } }`
+      **Confirmed: caught in all six contexts.**
+    - **G7b — inside an imported sheet:** `@import` a stylesheet containing
+      `.imported-probe { background: rgba(var(--theme-panel), 0.7); }`
+      **Confirmed: caught in all six contexts** — this is the one that proves the
+      `rule.styleSheet.cssRules` branch, which plain `.cssRules` recursion does **not** reach.
   - **G2 — Phase C, not Phase A.** Delete `--theme-primary` from `.theme-fantasy`; **Phase C** must
     fail (fantasy's primary now equals the default's). It does **not** make Phase A report UNDEFINED:
     `:root` still defines the var and custom properties **inherit**, so the probe sees a perfectly
@@ -1154,6 +1207,13 @@ Raised during planning but deliberately deferred. **Per project rule, nothing he
   - r3 warned that a custom property could be defined by a non-theme rule and defeat the isolated
     probe. **True in principle, and now guarded** (Phase B step 2b) — but **not a live defect**: all
     47 custom-property definitions in `styles.css` are inside the six theme blocks.
+  - r4 predicted that leaving a trailing `!important` in the split value would make `setProperty()`
+    **silently drop the declaration**, emptying `owned` and producing false failures on valid CSS.
+    **Chromium does not do that** — measured: `setProperty('background', 'rgba(var(--p), 0.7)
+    !important')` parses fine and yields all nine `background` longhands. The finding is kept as
+    **hardening** (strip the priority anyway; don't rest on a quirk), but its predicted failure is
+    **refuted**. This is the third round in which a reviewer's careful CSS reasoning was wrong —
+    which is the whole argument for this harness existing.
 
 - **Model catalog in /admin (planned 2026-07-12, owner request; STATUS: APPROVED + QUEUED
   by the owner 2026-07-12 — combo-box shape approved; not yet started, no branch cut).**
