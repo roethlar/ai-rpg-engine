@@ -1047,14 +1047,48 @@ found the counts themselves were wrong (below); a count-driven sweep leaves surv
 
 2. **`public/styles.css` — opaque consumers (132).** `hsl(var(--theme-x))` → `var(--theme-x)`.
 
-3. **`public/styles.css` — translucent consumers (25).** `hsla(var(--theme-x), α)` →
-   `color-mix(in srgb, var(--theme-x) <α×100>%, transparent)`. Map each alpha exactly
-   (`0.45` → `45%`). The r1 review independently verified **all 25** (`:99-100, 126, 174, 202, 206,
-   262, 307-308, 359, 381-385, 468-469, 496, 528, 552, 732, 876, 1075, 1389-1391, 1617`) compute
-   identical sRGB channels and alpha under `color-mix`, **with no semantic exception** for
-   gradients, `backdrop-filter` surfaces, borders, or box/text/drop shadows. This is only true while
-   the source colour is **opaque** — which step 8's guard enforces (an alpha-bearing source silently
-   halves: a 50%-alpha colour mixed at 45% renders at 22.5%).
+3. **`public/styles.css` — translucent consumers: THE EXACT 25-ENTRY TABLE.** *(r2: the previous
+   draft only promised this table and gave a compressed line list, so a wrong rewrite could be
+   checked against itself. Here it is, extracted from the file — this IS the checklist, and it is
+   pinned as test data in step 9.)*
+
+   `hsla(var(--X), α)` → `color-mix(in srgb, var(--X) <α×100>%, transparent)`
+
+   | line | variable | α | → |
+   |------|----------|------|-----|
+   | 99   | `--theme-primary`   | 0.05 | 5%  |
+   | 100  | `--theme-secondary` | 0.03 | 3%  |
+   | 126  | `--theme-panel`     | 0.7  | 70% |
+   | 174  | `--theme-panel`     | 0.45 | 45% |
+   | 202  | `--theme-primary`   | 0.3  | 30% |
+   | 206  | `--theme-primary`   | 0.5  | 50% |
+   | 262  | `--theme-panel`     | 0.35 | 35% |
+   | 307  | `--theme-primary`   | 0.15 | 15% |
+   | 308  | `--theme-primary`   | 0.3  | 30% |
+   | 359  | `--theme-panel`     | 0.2  | 20% |
+   | 381  | `--theme-primary`   | 0.1  | 10% |
+   | 382  | `--theme-primary`   | 0.25 | 25% |
+   | 385  | `--theme-primary`   | 0.05 | 5%  |
+   | 468  | `--theme-secondary` | 0.08 | 8%  |
+   | 469  | `--theme-secondary` | 0.3  | 30% |
+   | 496  | `--theme-panel`     | 0.8  | 80% |
+   | 528  | `--theme-primary`   | 0.08 | 8%  |
+   | 552  | `--theme-primary`   | 0.2  | 20% |
+   | 732  | `--theme-primary`   | 0.25 | 25% |
+   | 876  | `--theme-primary`   | 0.1  | 10% |
+   | 1075 | `--theme-primary`   | 0.6  | 60% |
+   | 1389 | `--theme-primary`   | 0.15 | 15% |
+   | 1389 | `--theme-secondary` | 0.15 | 15% |
+   | 1391 | `--theme-primary`   | 0.3  | 30% |
+   | 1617 | `--theme-primary`   | 0.6  | 60% |
+
+   (Line 1389 carries **two** — do not drive this from a line count either.)
+
+   The r1 review independently verified all 25 compute identical sRGB channels and alpha under
+   `color-mix`, **with no semantic exception** for gradients, `backdrop-filter` surfaces, borders, or
+   box/text/drop shadows. That holds only while the source colour is **opaque** — which step 9's
+   grammar enforces (an alpha-bearing source silently halves: a 50%-alpha colour mixed at 45%
+   renders at 22.5%).
 
 4. **`--theme-glow` is DELETED here** (6 definitions + the writer at `public/app.js:1610` + its
    `THEME_VAR_NAMES` entry at :1579). It is dead — defined and written, read nowhere (finding
@@ -1097,29 +1131,44 @@ found the counts themselves were wrong (below); a count-driven sweep leaves surv
 
    Replace it with **two small checks**. Neither is a parser, and neither may ever grow into one.
 
-   **(a) Definition grammar — an EXACT canonical form, not a starts-with whitelist.**
-   *(r1: the draft's "starts with `hsl(`/`rgb(`/`#`/`color(`" test is worthless — `hsl(220 25%)`,
-   `#12` and `color(nonsense)` all pass it, and, critically, so does an **alpha-bearing** colour,
-   which silently breaks every `color-mix` consumer: a 50%-alpha source mixed at 45% renders at
-   22.5%.)*
-   Every `--theme-*` definition in `public/styles.css` must match the ONE canonical opaque form the
-   migration emits — `/^hsl\(\d{1,3} \d{1,3}% \d{1,3}%\)$/` — with **no alpha component**. 42
-   definitions, one file. An out-of-grammar value fails loudly rather than rendering wrong.
-   `public/app.js` must likewise never write a bare component list: every `--theme-*` value it sets
-   is `hsl(...)`-wrapped.
+   **(a) Opaque-colour grammar — ONE grammar, applied to BOTH the stylesheet and the writer.**
+   *(r1: a "starts with `hsl(`/`rgb(`/`#`/`color(`" test is worthless — `hsl(220 25%)`, `#12` and
+   `color(nonsense)` all pass, and so does an **alpha-bearing** colour, which silently halves every
+   `color-mix` consumer.)*
+   *(**r2 — a real bug in the previous draft.** It specified a space-separated grammar,
+   `/^hsl\(\d{1,3} \d{1,3}% \d{1,3}%\)$/`. But `normalizeHslColor` (`rpg-state.js:109-118`) returns
+   **comma-separated** components — `"210, 100%, 50%"` — so the runtime writer emits
+   `hsl(210, 100%, 50%)`, which is **perfectly valid CSS that my own grammar would have REJECTED**.
+   The guard would have failed against the app's own generated themes.)*
+
+   The grammar therefore accepts **either separator**, and **no alpha**:
+   `/^hsl\(\s*\d{1,3}\s*(?:,\s*|\s+)\d{1,3}%\s*(?:,\s*|\s+)\d{1,3}%\s*\)$/`
+   - Applied to all **42** `--theme-*` definitions in `public/styles.css` (which use the canonical
+     space form).
+   - Applied to the **writer's output**: unit-test `applyCampaignTheme`'s produced value strings —
+     **both** paths (`app.js:1603-1618` and the legacy root writer `:1621-1631`) — against the same
+     grammar. Do not merely assert the code is `hsl(...)`-wrapped; assert the **string it actually
+     produces** matches. That is what would have caught this.
 
    **(b) Consumer typo lint — deliberately dumb, explicitly not a proof.**
-   A plain regex over the four app-owned runtime files (`public/styles.css`, `public/index.html`,
-   `public/app.js`, `map-render.js`) asserting no `rgb(`/`rgba(`/`hsl(`/`hsla(` **immediately wraps**
-   `var(--theme-…)`. After the migration every such form is invalid, so this is a clean signal with
-   no false positives.
+   A **case-insensitive** regex *(r2: CSS function names are case-insensitive; `RGBA(` is legal and
+   a lowercase-only lint misses it)* over the four app-owned runtime files (`public/styles.css`,
+   `public/index.html`, `public/app.js`, `map-render.js`) asserting that no
+   `rgb(`/`rgba(`/`hsl(`/`hsla(` **immediately wraps** `var(--theme-…)`. After the migration every
+   such form is invalid, so this is a clean signal with no false positives.
 
-   > **This lint catches typos. It does not, and is not meant to, catch encoded or obfuscated CSS.**
-   > css-2 spent three rounds and 16 defeats proving a text scanner cannot do that, and this plan
-   > exists precisely because that was the wrong fight. An encoded offender is not an accident. If a
-   > future round finds a way to slip something past this regex, the correct response is to **shrug**,
-   > not to add a tokenizer. Anyone tempted to "harden" this: read
-   > `.agents/review/findings/css-2.md` first.
+   > **SCOPE OF THIS LINT, STATED HONESTLY** *(r2)*. It catches the **direct spelling** and nothing
+   > more. It does **not** catch ordinary indirection — an intermediate custom property, or a style
+   > string composed in JavaScript — and it does not catch encoded CSS. **That residual risk is
+   > ACCEPTED, deliberately**, and it is small precisely because the migration removed the trap: with
+   > whole colours there is no reason to wrap a theme variable in a colour function at all, so the
+   > direct spelling is the only slip anyone plausibly makes.
+   >
+   > **Do not "harden" this into a parser.** css-2 spent three review rounds and 16 defeats proving a
+   > text scanner cannot police CSS, and this entire phase exists because that was the wrong fight.
+   > If a future round demonstrates a way past this regex, the correct response is to **shrug** — an
+   > encoded or aliased offender is not an accident. Anyone tempted otherwise: read
+   > `.agents/review/findings/css-2.md` before touching this.
 
 ### Success metrics
 
@@ -1129,14 +1178,24 @@ found the counts themselves were wrong (below); a count-driven sweep leaves surv
   `map-render.js`). *(r1: a repo-wide grep can never reach zero — tracked docs quote these forms as
   examples, e.g. this very plan and `.agents/review/findings/css-1.md:29`.)*
 - The scanner and its helpers are gone from `test.js` (net line count **down**).
-- **An exact 25-entry transformation table** for the translucent consumers is checked off
-  site-by-site (`old alpha → new %`), not spot-checked. *(r1: a mechanical 157-site rewrite is
-  exactly where a silent one-site error hides, and eyeballing will not find it.)*
-- **Computed-style comparison, not eyeballing.** Capture `getComputedStyle` values for the affected
-  properties on the affected selectors before and after, per theme, and diff them. The r1 review is
-  right that a purely visual pass would miss errors in gradients, hover/focus states, animation,
-  tabs, scene cards, and the die glow (`styles.css:99-100, 468-469, 528, 552, 732, 876, 1075,
-  1389-1391, 1617`) — several of which are *stateful* and never appear in a static screenshot.
+- **The 25-entry table above is PINNED AS TEST DATA and asserted in `node test.js`** — this is the
+  primary defence against a mis-mapped alpha, and it needs **no browser**.
+  *(r2 fixes two errors here. First, the previous draft called for a `getComputedStyle` diff — but
+  **this repo has NO browser harness** (`.agents/state.md`, and T2 r6→r7 explicitly declined to
+  build one), so that gate was unimplementable, exactly the trap T2's r5-3 finding named. Second,
+  even with a browser it would not work: correct `color-mix(in srgb, …)` results **serialize
+  differently** from legacy `hsla` inside gradients even when the resolved RGBA is identical, so
+  every correct rewrite would "differ" and the resulting blanket waivers would hide the one real
+  mis-map.)*
+  The check that actually catches the risk is a pure text assertion, in Node, with no rendering
+  involved: parse `public/styles.css`, extract every `color-mix(in srgb, var(--theme-*) N%,
+  transparent)`, and assert the resulting `(line, variable, N)` set equals the pinned table exactly
+  — same 25 entries, same variables, same percentages, no more and no fewer. A transposed or dropped
+  alpha fails loudly. **A rewrite cannot be checked against itself, because the table is the
+  independently-extracted expectation and it is written down above.**
+- Beyond that, the visual pass below is a *sanity* check, not the proof. Stateful surfaces
+  (hover/focus, animation, tabs, scene cards, the die glow at `styles.css:1075`) are covered by the
+  table, since a `color-mix` percentage is correct or it is not regardless of when it renders.
 - **Visual check across all five themes** (`.theme-cyberpunk`, `.theme-fantasy`, `.theme-horror`,
   `.theme-scifi`, `:root`) plus `body.holodeck-idle`, covering the surfaces css-1 broke **and** the
   six newly-scoped consumers (`app.js:1688/1713/1780`, `index.html:215/409/416`).
@@ -1154,11 +1213,18 @@ found the counts themselves were wrong (below); a count-driven sweep leaves surv
   `desktop/src-tauri/src/main.rs:59-61` shows WebKitGTK is Linux-specific — the macOS shell is
   WKWebView. An unsupported engine discards **all 25** declarations, including the entire midpoint
   filter at `styles.css:1075`.)*
-  Therefore: **declare supported engine minimums and test that matrix.** `color-mix` shipped in
-  Chrome/Edge 111, Safari/WebKit 16.2, Firefox 113, WebKitGTK 2.38 — all 2023. The web path is
-  canonical (plan.md Dev Tooling), so the minimum is a product statement, not an implementation
-  detail. Record it in `README.md`. Verify on: a current Chromium, a current Firefox, **and** the
-  Tauri shell on the machine implementing.
+  Therefore: **declare supported engine minimums, grounded in authoritative compatibility data, and
+  be honest that local runs are smoke tests rather than a matrix.** *(r2: "test that matrix" was a
+  bluff — running a current Chromium, a current Firefox and whichever Tauri port happens to be on
+  the implementing machine exercises **none** of the declared floors, and exercises only one of
+  WKWebView / WebKitGTK. Do not claim coverage that is not being produced.)*
+  `color-mix()` baseline support: **Chrome/Edge 111** (Mar 2023), **Firefox 113** (May 2023),
+  **Safari/WebKit 16.2** (Dec **2022**), **WebKitGTK 2.38** (Sep **2022**). *(r2 correction: the
+  previous draft said "all 2023" — false for the two WebKit floors.)* Cite the compatibility source
+  in `README.md` rather than implying the floors were tested here.
+  The web path is canonical (plan.md Dev Tooling), so the minimum is a **product statement**: record
+  it in `README.md`. Then run smoke checks — and label them as such — on a current Chromium, a
+  current Firefox, and the Tauri shell of the implementing machine.
 - **If a target engine fails, the pre-baked fallback is a SEPARATE, SEPARATELY-REVIEWED SLICE — not
   a sentence in this plan** *(r1)*. It is not "more variables": it is **18 distinct
   primary/secondary/panel alpha levels × 6 theme blocks ≈ 108 definitions**, plus writes on **both**
@@ -1176,10 +1242,15 @@ Leaving these in place instructs a future cold agent to restore the abandoned be
   composition never breaks." That is **false for `rgba` today** (it *is* the css-1 bug, written down
   as a guarantee) and wholly obsolete after this phase. Rewrite it to state the real reason
   components are kept: **clamping**.
-- **plan.md Phase T2** — its approved text still requires the no-DOM consumer scanner to survive
-  (`~:357`) and still describes derived `--theme-glow` recomputation (`~:385-389`). CT deletes both.
-  Supersede those clauses explicitly, or a cold T2 implementer will faithfully rebuild what this
-  phase just removed.
+- **plan.md Phase T2 — THREE clauses, not two** *(r2 found the one that matters most)*:
+  1. **`plan.md:296-300` — the dangerous one.** T2's approved text instructs that "every such use
+     **migrates to `hsla(var(--theme-*), α)`**". After CT that form is **invalid**
+     (`hsla(hsl(…), α)`) and drops the very panel surfaces T2 depends on. A cold T2 implementer
+     following the approved plan would reintroduce css-1 wholesale. **Supersede explicitly.**
+  2. `~:357` — still requires the no-DOM consumer scanner to survive. CT deletes it.
+  3. `~:385-389` — still describes derived `--theme-glow` recomputation. CT deletes that variable.
+
+  All three must be struck or annotated as superseded **in the same slice**, not "later".
 
 ### Files to change
 
