@@ -4,11 +4,10 @@
 glows silently render without their intended fills/effects on EVERY theme, today. Scene-dynamic
 theming (T2) would visibly no-op on the dominant surfaces, which is why this is also a T2
 prerequisite.
-**Status**: REOPENED (r3, 2026-07-14) — production fix confirmed correct; guard still
-misses custom-property names that use underscores. Fix-up pending.
+**Status**: REOPENED (r4, 2026-07-14) — custom-property name matcher still ASCII-only; non-ASCII name residual. Fix-up pending.
+
 **Branch**: `fix/css-1-hsla-theme-vars`
-**Commit**: `32af1ba` (fix) + `d4d18bd` (guard v1) + `76502b2` (guard class) + `bbbeda2`
-(nested var() fallbacks)
+**Commit**: `32af1ba` (fix) + `d4d18bd` + `76502b2` + `bbbeda2` + `5ab50ef` (underscore names)
 
 ## Evidence
 `public/app.js:1446-1450` stores `--theme-panel` (and friends) as **HSL triples** like
@@ -202,3 +201,23 @@ at `bbbeda2`.
 **Coder's assessment: I accept the verdict.** Underscore is a real CSS ident character;
 excluding it is another spelling-only hole. Fix: allow `_` in the custom-property name
 pattern, add a fixture probe, re-dispatch.
+
+### r4 — codex, 2026-07-14T05:40Z — verdict: **REOPENED**
+
+- **Reviewer**: codex-cli 0.144.3, `--sandbox workspace-write`, enforced output schema
+- **Reviewed head SHA**: `5ab50efdfb06bc8927af90bc05f196478f939a7f`
+- **Base SHA**: `a58fc58ce4f13e5fcb126464f28f58c63f26aee3`
+- **`guard_confirmed`**: **true** — green at head; base styles RED; probes a–d RED.
+
+**Comments:**
+
+1. `test.js:1339` / `test.js:1367` — custom-property regex remains ASCII-only. Appending
+   `.probe { --panél-alias: var(--theme-panel); background: rgba(var(--panél-alias), 0.7); }`
+   left the suite **green**. `--panél-alias` is a valid CSS custom-property name; substitution
+   still feeds the HSL triple into `rgba()`.
+
+**Coder's assessment: I accept the verdict as a class hole, not as an invitation to keep
+adding characters.** The durable fix is to stop matching "ASCII identifier chars" and instead
+match a custom-property name as CSS delimits it (`--` then until `,` / whitespace / `)` /
+other value delimiters). That closes underscore, non-ASCII letters, and the next spelling
+in one change.
