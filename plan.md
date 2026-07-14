@@ -784,12 +784,17 @@ Raised during planning but deliberately deferred. **Per project rule, nothing he
     fourth time. Every finding was a **guard proof that a wrong implementation would also pass**, plus
     one more unmodelled custom-property source (**runtime-injected** vars — `app.js` really does set
     them). The guard-proof suite was rebuilt around a single question; see "Success metrics".
-  - **r7 (current) — every mechanism below was EXECUTED against real Chromium and the real
-    `public/styles.css` before being written down.** Measured on master: **184 var-bearing
-    declarations, 47 distinct per theme context, 282 assertions, 0 failures, 0 unsupported cascades,
+  - **r7 (`fea0237`) — REJECTED, 9 findings.** Again **none against the oracle** (five rounds clean).
+    The two that mattered: **no proof discriminated the `unset` control** from the rejected bare
+    control — the single most load-bearing decision in the design, and every existing proof passed
+    with either — and the **`transition`/`animation` exclusion was itself a false-pass class**.
+  - **r8 (current) — every mechanism below was EXECUTED against real Chromium and the real
+    `public/styles.css` before being written down.** Measured on master: **186 var-bearing
+    declarations, 49 distinct per theme context, 294 assertions, 0 failures, 0 unsupported cascades,
     0 undefined-consumed vars, 0 external requests**. Sabotage cases **G1, G1b, G3, G3b, G6, G6b, G6c,
-    G7a, G7b** are each confirmed to behave as specified. Do not restore an earlier design — the traps
-    are in "Rejected designs".
+    G6d, G6e, G6f, G7a, G7b, G11** are each confirmed to behave as specified — including that a
+    bare-control implementation **passes every other proof and fails G11**. Do not restore an earlier
+    design — the traps are in "Rejected designs".
 
   **The single most important lesson, and the reason this plan is trustworthy now:** the r2 reviewer
   reasoned carefully about CSS semantics and got a load-bearing detail **wrong**, in the direction
@@ -809,7 +814,7 @@ Raised during planning but deliberately deferred. **Per project rule, nothing he
   collector that iterates `rule.style` by index and keeps declarations whose *value* contains
   `var(--theme-` **collects nothing for it**, never probes it, and **reports green while the bug is
   present**. Measured: such a collector sees **115** var-bearing declarations where the correct one
-  sees **184**. Everything it misses is a shorthand — i.e. exactly the shape css-1 had.
+  sees **186**. Everything it misses is a shorthand — i.e. exactly the shape css-1 had.
 
   This is the same failure as the css-1 *scanner* guard (which matched only one literal spelling), in
   a new costume. **The collector below is the fix; keep its shape.**
@@ -864,7 +869,7 @@ Raised during planning but deliberately deferred. **Per project rule, nothing he
   imported sheet is silently skipped, and Phase E's floor is still met by the main sheet, so the run
   stays green. So: `if (rule.cssRules) walk(rule.cssRules); else if (rule.styleSheet?.cssRules)
   walk(rule.styleSheet.cssRules);`. **Verified** — importing the sheet a second time doubled the unit
-  count from 184 to 368. (There is no `@import` in `styles.css` today; this closes it before it opens.)
+  count from 186 to 372. (There is no `@import` in `styles.css` today; this closes it before it opens.)
 
   **This is NOT css-2.** css-2 wrote its own CSS parser and used **that** as the *oracle* — it
   rejected valid CSS and crashed the suite. Here the **browser** parses and the **browser** is the
@@ -912,8 +917,29 @@ Raised during planning but deliberately deferred. **Per project rule, nothing he
     1. **Collect.** Walk the CSSOM generically. For each rule, split `rule.style.cssText` into
        declarations. Keep the rule's **custom-property declarations** (`--x: …`) as *context*. For
        every **non-custom** declaration whose value contains `var(`, record a **unit**:
-       `{selector, name, value, owned, customs}` where `owned` = the longhands the browser says that
-       declaration sets (scratch-element method, above).
+       `{ruleId, selector, name, value, owned, customs}` where `owned` = the longhands the browser says
+       that declaration sets (scratch-element method, above).
+
+       **THREE DATA-MODEL DETAILS THAT GUARDS 2b/2c DEPEND ON. Get these wrong and the guards certify
+       a broken sheet:**
+       - **`ruleId` is a unique counter — increment it per rule as you walk. Rule identity is NOT the
+         selector string.** Two *separate* rule blocks can share a selector:
+         ```css
+         .widget { --shared: 10px; width: var(--shared); }
+         .widget { background-color: var(--shared, red); }   /* a DIFFERENT rule */
+         ```
+         A selector-string comparison says "same rule", exempts the cascade, and **reports green while
+         the real element drops `background-color`**. A `ruleId` comparison catches it. *(Confirmed.)*
+       - **Consumers are extracted from EVERY declaration — including custom-property ones — and from
+         EVERY `var()` occurrence** (a global regex, not the first match). `.widget { --alias:
+         var(--runtime-colour, red); background-color: var(--alias); }` hides its undefined var
+         **inside a custom-property declaration**; an implementation that scans only the Phase B unit
+         values sees just `var(--alias)`, which *is* defined, and step 2c stays silent. *(Confirmed:
+         Phase B alone is green on that shape.)*
+       - **Strip quoted strings before hunting for `var()`.** `content: "var(--not-a-variable)"` is a
+         literal string, not a consumption. Without stripping, step 2c reports it as an undefined
+         runtime var and **rejects valid CSS**. *(Confirmed: with stripping, it is correctly ignored.)*
+
        **The label is `rule.selectorText || rule.keyText`.** A `CSSKeyframeRule` has **no
        `selectorText`** — it exposes `keyText` (`0%`, `50%`, …). The themed keyframe `pulse-glow`
        (`styles.css:1068-1070`) is collected, so a naive `rule.selectorText` yields `undefined` in its
@@ -927,7 +953,7 @@ Raised during planning but deliberately deferred. **Per project rule, nothing he
        - **FAIL** if *no* property in `owned` differs between them. Report the **theme, selector,
          property and value**.
        - Dedupe by `(context, name, value, customs)` — identical declarations share a fate. **Measured:
-         184 units collapse to 47 distinct per context, ×6 contexts = 282 assertions.**
+         186 units collapse to 49 distinct per context, ×6 contexts = 294 assertions.**
     2b. **FAIL-CLOSED GUARD — a custom property whose cascade the probe cannot model.** The probe
        reproduces exactly two sources of custom properties: the **six theme blocks** (via
        `body.className`, which the probe inherits) and the **rule under test's own** `--x:`
@@ -982,7 +1008,7 @@ Raised during planning but deliberately deferred. **Per project rule, nothing he
        whose *valid* computed value happens to equal what `unset` computes is indistinguishable from a
        dropped one (e.g. `:root { --fx: none } .item { filter: var(--fx) }` — valid, but `filter`
        computes to `none` either way). The differential cannot tell these apart, so such a declaration
-       is a **false failure**. **There are ZERO of them on master (0 failures across 282 assertions).**
+       is a **false failure**. **There are ZERO of them on master (0 failures across 294 assertions).**
        Do not build machinery for a case that does not exist. Instead: every Phase B failure is a hard
        failure, and the only escape is an explicit **allowlist** entry
        `{selector, property, value, reason}` — **which must ship empty** and requires a written
@@ -995,16 +1021,24 @@ Raised during planning but deliberately deferred. **Per project rule, nothing he
        inherited property at its initial value so no such coincidence exists. **Custom properties are
        not affected by `all`** — verified: `--theme-primary` still reads `hsl(210 100% 55%)` through
        the wrapper — so the theme context still flows into the probes.
-    4. **Exclude `transition*` and `animation*`, and LOG what was excluded.** A dropped transition
-       cannot leave a surface unpainted, so they are outside the bug class. Measured: 2 exclusions on
-       master (`body :: transition`, `.stars-bg :: transition`). **Do not silently cap coverage —
-       print the exclusions.**
+    4. **EXCLUDE NOTHING. There is no property allowlist and no exclusion list.** Earlier drafts
+       excluded `transition*`/`animation*`; **that exclusion is deleted**, and deleting it is a
+       strict improvement:
+       - It only ever existed to dodge the `!important` freeze (below), which is gone. **Measured with
+         the exclusion removed: 186 units, 294 assertions, still 0 failures** — the two `transition`
+         declarations pass cleanly. It was dead weight.
+       - It was also a **real false-pass class**. "A dropped transition cannot leave a surface
+         unpainted" is true; **"a dropped animation cannot" is false.** A rule that reveals an element
+         via an animation (`opacity: 0` + `animation-name: var(--x)` + `fill-mode: forwards`) leaves
+         it **invisible** if `animation-name` is dropped — and the harness would have *logged it as
+         excluded and exited green*. Excluding a property category to make a false failure go away is
+         how you build a guard with a hole in it.
     5. **Do NOT add a global `animation: none !important` freeze.** The r1 plan required one, carried
        over from the *screenshot* experiment where it was correct. Here it is actively harmful: an
        `!important` freeze overrides the very `transition`/`animation` declarations under test and
-       manufactures false failures. This harness never screenshots and never observes a running
-       animation — keyframe declarations are probed as **plain declarations**, which is also why the
-       r1 worry about pausing a pulse keyframe is moot.
+       manufactures false failures — which is what drove the bogus exclusion above. This harness never
+       screenshots and never observes a running animation; keyframe declarations are probed as **plain
+       declarations**, which is also why the r1 worry about pausing a pulse keyframe is moot.
 
   - **Phase C — the theme actually changes.** From the colours Phase A recorded, assert
     `--theme-primary` and `--theme-bg` are **distinct across all six contexts**. Guards a theme class
@@ -1040,12 +1074,12 @@ Raised during planning but deliberately deferred. **Per project rule, nothing he
     - **no external request was attempted** (see the route handler below) — the abort list must be
       empty. Aborting a request is not the same as asserting nobody made one.
     - the collected **unit count ≥ 150** and **assertions ≥ 250**.
-      **Measured on master: 184 units → 47 distinct per theme context → 47 × 6 = 282 assertions.**
+      **Measured on master: 186 units → 49 distinct per theme context → 49 × 6 = 294 assertions.**
       The units figure counts **raw var-bearing declarations**; the assertions figure counts
       **post-dedupe** probes. Both floors above are checked against the numbers above and both pass.
-      *(An earlier draft of this plan cited "18 distinct `(property, value)` pairs". **That number was
-      wrong** — it came from the broken pre-shorthand collector. Ignore it; the real figure is 47 per
-      context.)*
+      *(An earlier draft cited "18 distinct `(property, value)` pairs". **That number was wrong** — it
+      came from the broken pre-shorthand collector. A later draft said 47/282; that was before the bogus
+      `transition`/`animation` exclusion was deleted. The current, measured figure is **49 per context**.)*
     Without Phase E, a stylesheet that fails to load yields zero declarations, zero assertions, and a
     **green run** — the vacuous pass this repo has shipped three times.
 
@@ -1106,7 +1140,7 @@ Raised during planning but deliberately deferred. **Per project rule, nothing he
      clears inline longhands *and* inline custom properties in one step. Reusing an element without a
      full reset leaks a previous unit's `--tmp` or a previous shorthand's longhands into the next, and
      results become **order-dependent** — a class of flake that would not reproduce the measured
-     282/0 run.
+     294/0 run.
 
   **Server boot — concrete, because `server.js` gives no help.** `server.js:24` reads
   `PORT = process.env.PORT || 3000` and `app.listen()` fires only **after** async DB init
@@ -1134,6 +1168,12 @@ Raised during planning but deliberately deferred. **Per project rule, nothing he
        'exit')`: if the child **already exited** (a failed DB init at `server.js:1073`, or a lost
        port race), that event has **already fired** and the `await` **hangs forever**. The command then
        never returns its non-zero result — it just stops.
+     - **Guard every resource independently, and never let one cleanup failure suppress the rest**
+       (`if (browser) await browser.close().catch(() => {})`, then the child, then the files). The
+       natural boot order is server-first, so when Chromium is **missing** — G10's case — `browser` is
+       still `undefined`: an unconditional `browser.close()` **throws inside `finally`**, and the
+       server child and the SQLite files are never cleaned up. G10 would still see a non-zero exit and
+       "pass" while leaking an orphan server.
      - `db.js:88` runs `PRAGMA journal_mode = WAL`, so the on-disk set is `<db>`, `<db>-wal`,
        `<db>-shm` — `test.js:25` already removes all three for exactly this reason. Unlinking only the
        main file leaves litter (and can error on an open handle).
@@ -1165,8 +1205,8 @@ Raised during planning but deliberately deferred. **Per project rule, nothing he
 
   **Success metrics.**
 
-  `npm run test:browser` passes on master — **measured: 184 units, 47 distinct per context, 282
-  assertions, 0 failures, 0 unsupported cascades, 0 external requests.**
+  `npm run test:browser` passes on master — **measured: 186 units, 49 distinct per context, 294
+  assertions, 0 failures, 0 unsupported cascades, 0 undefined-consumed vars, 0 external requests.**
 
   **THE GUARD-PROOF SUITE, AND THE ONE QUESTION IT MUST SURVIVE.** Every proof below exists to make one
   mechanism non-optional. For each, the test is:
@@ -1184,15 +1224,22 @@ Raised during planning but deliberately deferred. **Per project rule, nothing he
   | **G1b** | the **shorthand** shape a naive collector renders invisible | `border-color: rgba(var(--theme-border), 0.5)` on `.glass-card` | Phase B **FAILS**. ✔ *confirmed* |
   | **G3** | the collector follows **indirection** | `.glass-card { --tmp: var(--theme-panel); background: rgba(var(--tmp), 0.7); }` — **same rule** | Phase B **FAILS** naming `.glass-card`/`background`, **and the unsupported-cascade list stays EMPTY**. If it stops with "unsupported cascade" instead, G3 passed for the **wrong reason**. ✔ *confirmed* |
   | **G3b** | same-rule customs are **APPLIED**, not merely collected | `.g3b { --bad: 10px; background-color: var(--bad, red); }` | Phase B **FAILS**. **This is the discriminator**: an implementation that collects `customs` for the diagnostic but never applies them to probe/control sees `--bad` as undefined, takes the `red` fallback, and reports **GREEN**. ✔ *confirmed: fails when customs are applied, green when they are not* |
+  | **G11** | **the `unset` control** — the single most load-bearing decision, and **nothing else proves it** | `.g11 { --bad: banana; box-sizing: var(--bad); }` | Phase B **FAILS**. **This is the only proof that discriminates the specified `unset` control from the REJECTED bare control** — every other proof's invalid `background`/`border-color` computes to transparent on *both*, so a bare-control implementation passes all of them. Here the dropped `box-sizing` computes `content-box`, while a bare control gets `border-box` from `* { box-sizing: border-box }` (`styles.css:69-73`) — so the bare control sees a difference and calls the dropped declaration "survived". ✔ *confirmed: `unset` control catches it; bare control reports **green*** |
   | **G6** | step 2b exists **and is strict** | `.some-widget { --shared: 10px; width: var(--shared); }` + `.some-widget:hover { background-color: var(--shared, red); }` | **STOP** with the unsupported-cascade diagnostic, naming `--shared`. ✔ *confirmed* |
+  | **G6d** | step 2b keys on **rule identity**, not selector text | **two separate blocks, same selector**: `.widget { --shared: 10px; width: var(--shared); }` + `.widget { background-color: var(--shared, red); }` | **STOP**. A selector-string implementation calls these "the same rule", exempts the cascade, and reports **green**. ✔ *confirmed: `ruleId` comparison fires* |
   | **G6b** | step 2b is **not over-strict** | `.some-widget { --local-accent: hsl(10 50% 50%); }` (unconsumed) | **PASSES.** An unconsumed custom property is **harmless** — nothing reads it, so nothing can go IACVT. A guard that rejects it would fail valid CSS. *(An earlier draft used this shape as a **failure** proof. It was wrong: a lenient guard fires on it, passes, and still ships the false pass.)* ✔ *confirmed* |
   | **G6c** | step 2c exists — the **runtime-supplied** var | `.widget { background-color: var(--runtime-colour, red); }` (never defined in the sheet) | **STOP**. Phase B alone reports **GREEN** here — the probe takes the `red` fallback while the real element would drop the declaration. ✔ *confirmed: Phase B green, guard fires* |
+  | **G6e** | step 2c scans **custom-property declarations too**, and **every** `var()` | `.widget { --alias: var(--runtime-colour, red); background-color: var(--alias); }` | **STOP**, naming `--runtime-colour`. An implementation that scans only the Phase B unit values sees just `var(--alias)` — which *is* defined — and stays silent. ✔ *confirmed* |
+  | **G6f** | step 2c does **not** rejectvalid CSS: quoted strings are not consumers | `.q::after { content: "var(--not-a-variable)"; }` | **PASSES.** Without stripping quoted strings first, 2c reports a phantom undefined var and rejects valid CSS. ✔ *confirmed* |
   | **G7a** | **generic** grouping-rule recursion | `@supports (display: flex) { .supports-probe { background: rgba(var(--theme-panel), 0.7); } }` | Phase B **FAILS**. **Use `@supports`, NOT `@media`** — `@media` is exactly what the rejected `CSSMediaRule`/`CSSKeyframesRule` allowlist already handled, so an `@media` proof does **not** discriminate the generic walk. ✔ *confirmed: `CSSSupportsRule` reached and caught* |
   | **G7b** | the **`@import`** branch (`rule.styleSheet.cssRules`) | `@import url("data:text/css,.imported-probe%20%7Bbackground%3Argba(var(--theme-panel)%2C0.7)%7D");` — **at the very TOP of `styles.css`** | Phase B **FAILS**. CSS **ignores an `@import` that follows a style rule**, so a proof placed at the bottom silently does nothing and "passes". ✔ *confirmed* |
   | **G2** | Phase C — theme distinctness | delete `--theme-primary` from `.theme-fantasy`; **repeat for `--theme-bg`** | **Phase C FAILS.** It does **NOT** make Phase A report UNDEFINED — `:root` still defines it and custom properties **inherit**. *(r1 asserted the opposite; it was wrong.)* **Both vars must be exercised**, or an implementation that only checks `primary` passes. |
+  | **G2d** | Phase C compares **pairwise**, not just against `:root` | make `.theme-scifi` duplicate `.theme-horror`'s `--theme-primary` and `--theme-bg` | **Phase C FAILS.** G2 alone is passed by a weaker implementation that only checks "every named theme differs from the default" — both themes still differ from `:root`, so two identical contexts sail through. |
   | **G2b** | Phase A — the **not-a-colour** path | `--theme-bg: banana` in a theme block | Phase A reports **DEFINED BUT NOT A COLOUR**. ✔ *confirmed* |
   | **G2c** | Phase A — the **undefined** path | delete `--theme-primary` from **`:root`** | Phase A reports **UNDEFINED**. |
   | **G5** | Phase D is **not vacuous** | make `toThemeColor` return the bare component list (**revert Phase CT**) | **Phase D FAILS**, every `--theme-*` reported NOT-A-COLOUR. Without this, an implementation that skipped or re-implemented the module import passes everything else. ✔ *mechanism confirmed* |
+  | **G5b** | Phase D runs **all four** fixtures | break **only** the defaults path — make `baseThemeVars` emit a bare component list **when its arguments are `undefined`** | **Phase D FAILS.** G5 breaks `toThemeColor` *globally*, so an implementation running only fixture 1 still passes it. This one fails only if fixture 4 actually runs. *(`test.js` asserts `baseThemeVars` with explicit arguments, so the defaults path is otherwise unguarded.)* |
+  | **G12** | the inherited-environment override | run the harness with `NODE_ENV=production` and **no** `ACCESS_SECRET` in the shell | **PASSES** (green, as on any normal run). An implementation that forwards `NODE_ENV` unchanged spawns a child that `process.exit(1)`s at `server.js:1043`, and the readiness poll times out — on a perfectly healthy checkout. |
   | **G4** | Phase E — **reachability** | point the probe document at a non-existent stylesheet | **FAILS**, rather than passing with zero assertions. |
   | **G8** | Phase E — the **unit floor** | replace `styles.css` with a small but **valid** sheet | Reachability passes (so G4 is satisfied) but the **unit floor still fails**. |
   | **G8b** | Phase E — the **assertion floor** | a sheet with **≥150 duplicate** var-bearing declarations (few distinct) | The unit floor passes but the **assertion floor fails**. Without this, an implementation can drop the post-dedupe floor and still pass G8. |
@@ -1223,7 +1270,7 @@ Raised during planning but deliberately deferred. **Per project rule, nothing he
      real themed sites, most of them stateful. A curated list drifts the moment someone adds a rule.
   3. **Collecting only declarations whose value contains `var(--theme-`.** Misses (a) every
      **shorthand** (their longhands serialize to `""`) — including css-1's own `background` — and
-     (b) every **indirection** through an intermediate custom property. Measured: sees 115 of 184.
+     (b) every **indirection** through an intermediate custom property. Measured: sees 115 of 186.
   4. **A bare unstyled control.** Wrong in both directions; see decision (2).
   5. **Prefix-trimming or a hardcoded shorthand→longhand map.** Fails on `border-color`,
      `border-radius`, and a `background` whose `background-clip` is separately overridden — all
@@ -1248,8 +1295,8 @@ Raised during planning but deliberately deferred. **Per project rule, nothing he
     `:root`. G2 is now a **Phase C** proof, with G2b/G2c added to exercise Phase A's other two paths.
   - r3 cited "only 18 distinct `(property, value)` pairs" against Phase E's floor. **That figure was
     from this plan's own earlier draft and was wrong** — it was produced by the broken
-    pre-shorthand collector. The measured figure is **47 distinct declarations per theme context**,
-    hence 282 assertions. The contradiction was real; the number was not.
+    pre-shorthand collector. The measured figure is **49 distinct declarations per theme context**,
+    hence 294 assertions. The contradiction was real; the number was not.
   - r3 warned that a custom property could be defined by a non-theme rule and defeat the isolated
     probe. **True in principle, and now guarded** (Phase B step 2b) — but **not a live defect**: all
     47 custom-property definitions in `styles.css` are inside the six theme blocks.

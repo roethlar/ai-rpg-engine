@@ -17,10 +17,34 @@ codex must not implement until the revised plan is reviewed and accepted.
 | r4 | `520424c` | 7 | `reopened` — three load-bearing mechanisms had **no guard proof** |
 | r5 | `371520b` | 4 | `reopened` — the cascade guard permitted a **real false pass** |
 | r6 | `ba5cda5` | 10 | `reopened` — **none against the oracle**; all guard-proof discrimination |
-| **r7** | *current* | *pending* | — |
+| r7 | `fea0237` | 9 | `reopened` — **none against the oracle**; no proof discriminated the `unset` control |
+| **r8** | *current* | *pending* | — |
 
-**The oracle has now passed four consecutive rounds.** From r4 onward, every single finding has been
+**The oracle has now passed five consecutive rounds.** From r4 onward, every single finding has been
 about the *guard proofs* rather than the design.
+
+### r7's two that mattered
+
+1. **Nothing proved the `unset` control.** It is the single most load-bearing decision in the design
+   (r3 introduced it to fix a real unsoundness) — and **every one of the 19 proofs passed with either
+   control**, because an invalid `background`/`border-color` computes to transparent on both. New
+   **G11** (`.g11 { --bad: banana; box-sizing: var(--bad); }`) is the discriminator: the dropped
+   declaration computes `content-box`, while a *bare* control picks up `border-box` from
+   `* { box-sizing: border-box }` and therefore calls the dropped declaration "survived".
+   **Confirmed: `unset` control catches it; bare control reports green.**
+2. **The `transition`/`animation` exclusion was itself a false-pass class.** "A dropped transition
+   cannot leave a surface unpainted" is true; **"a dropped animation cannot" is false** — an element
+   revealed by an animation stays invisible if `animation-name` is dropped, and the harness would have
+   *logged it as excluded and exited green*. **The exclusion is deleted outright.** It only ever
+   existed to dodge the `!important` freeze, which is long gone: **measured without it, master is 186
+   units / 294 assertions / still 0 failures.** Deleting it is a strict improvement — more coverage,
+   less code, one fewer hole.
+
+The rest were data-model gaps the guards depend on: **rule identity** must be a counter, not the
+selector string (two separate blocks can share a selector — a string comparison exempts the cascade
+and reports green); the **consumer scan** must cover custom-property declarations and *every* `var()`
+occurrence (an undefined var can hide inside `--alias: var(--runtime-colour, red)`); and it must
+**strip quoted strings** first, or `content: "var(--fake)"` gets rejected as valid CSS. All confirmed.
 
 > **The headline: r2's reviewer reasoned that the design WOULD catch css-1. It would not have.**
 > A real Chromium found the defect in minutes. Three separate rounds have since produced a confident,
