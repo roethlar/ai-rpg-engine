@@ -780,12 +780,16 @@ Raised during planning but deliberately deferred. **Per project rule, nothing he
   - **r5 (`371520b`) — REJECTED, 4 findings.** The oracle passed a third time, but the
     unsupported-cascade guard was **too lenient and permitted a real false pass** (see Phase B step
     2b), and Phase E's own assertions had no proofs.
-  - **r6 (current) — every mechanism below was EXECUTED against real Chromium and the real
+  - **r6 (`ba5cda5`) — REJECTED, 10 findings** — but **not one against the oracle**, which passed a
+    fourth time. Every finding was a **guard proof that a wrong implementation would also pass**, plus
+    one more unmodelled custom-property source (**runtime-injected** vars — `app.js` really does set
+    them). The guard-proof suite was rebuilt around a single question; see "Success metrics".
+  - **r7 (current) — every mechanism below was EXECUTED against real Chromium and the real
     `public/styles.css` before being written down.** Measured on master: **184 var-bearing
     declarations, 47 distinct per theme context, 282 assertions, 0 failures, 0 unsupported cascades,
-    0 external requests**. Sabotage cases **G1, G1b, G3, G6, G7a, G7b** are each confirmed caught; G3
-    is confirmed to fail *as a Phase B declaration failure* rather than via the unsupported-cascade
-    diagnostic. Do not restore an earlier design — the traps are in "Rejected designs".
+    0 undefined-consumed vars, 0 external requests**. Sabotage cases **G1, G1b, G3, G3b, G6, G6b, G6c,
+    G7a, G7b** are each confirmed to behave as specified. Do not restore an earlier design — the traps
+    are in "Rejected designs".
 
   **The single most important lesson, and the reason this plan is trustworthy now:** the r2 reviewer
   reasoned carefully about CSS semantics and got a load-bearing detail **wrong**, in the direction
@@ -910,6 +914,10 @@ Raised during planning but deliberately deferred. **Per project rule, nothing he
        every **non-custom** declaration whose value contains `var(`, record a **unit**:
        `{selector, name, value, owned, customs}` where `owned` = the longhands the browser says that
        declaration sets (scratch-element method, above).
+       **The label is `rule.selectorText || rule.keyText`.** A `CSSKeyframeRule` has **no
+       `selectorText`** — it exposes `keyText` (`0%`, `50%`, …). The themed keyframe `pulse-glow`
+       (`styles.css:1068-1070`) is collected, so a naive `rule.selectorText` yields `undefined` in its
+       diagnostic — or throws, if the reporter assumes a string.
     2. **Probe.** For each unit × each of the six theme contexts:
        - probe and control are two sibling `<div>`s inside a wrapper carrying **`all: initial`**
          (see below).
@@ -954,7 +962,23 @@ Raised during planning but deliberately deferred. **Per project rule, nothing he
 
        **Measured: master has 47 custom-property definitions and ALL of them are inside the six theme
        blocks, so this guard is green today** — and it converts a silent unsoundness into a loud stop.
-    2c. **Known limitation, with a fail-closed cure — the initial-value coincidence.** A declaration
+    2c. **FAIL-CLOSED GUARD — a custom property consumed in the sheet but never DEFINED in it.** The
+       cascade guard above covers definitions the sheet *makes*. This one covers the definitions it
+       *doesn't*: a value supplied at **runtime** (`app.js:1602-1604` really does inject custom
+       properties inline). The probe never runs `app.js`, so it cannot model those — and the failure is
+       **silent and green**, because of `var()` fallbacks:
+       ```css
+       .widget { background-color: var(--runtime-colour, red); }   /* runtime sets --runtime-colour: 10px */
+       ```
+       The probe sees no definition, takes the fallback `red`, differs from `unset`, and reports
+       **GREEN**. The real element substitutes `10px` and drops `background-color` as IACVT.
+       **Confirmed in Chromium: Phase B green, real element broken.**
+       So: **FAIL if any `var(--x)` consumed anywhere in the sheet has no `--x` definition in the
+       sheet** (theme block or same rule). Message: "unsupported: `<selector>` consumes `<--prop>`,
+       which the stylesheet never defines — it must come from runtime, and the probe cannot model that."
+       **Measured: master consumes ZERO custom properties it does not also define, so this guard is
+       green today.** *(Verified: injecting the `.widget` rule above fires it.)*
+    2d. **Known limitation, with a fail-closed cure — the initial-value coincidence.** A declaration
        whose *valid* computed value happens to equal what `unset` computes is indistinguishable from a
        dropped one (e.g. `:root { --fx: none } .item { filter: var(--fx) }` — valid, but `filter`
        computes to `none` either way). The differential cannot tell these apart, so such a declaration
@@ -1105,6 +1129,11 @@ Raised during planning but deliberately deferred. **Per project rule, nothing he
        sabotage proof, which is *expected* to fail) would otherwise leave Chromium alive:
        `npm run test:browser` can then hang instead of returning its non-zero exit, and orphan browser
        processes accumulate.
+     - **Register the exit promise AT SPAWN TIME** — `const exited = once(child, 'exit')` immediately
+       after `spawn` — and `await exited` in `finally`. Do **not** write `child.kill(); await once(child,
+       'exit')`: if the child **already exited** (a failed DB init at `server.js:1073`, or a lost
+       port race), that event has **already fired** and the `await` **hangs forever**. The command then
+       never returns its non-zero result — it just stops.
      - `db.js:88` runs `PRAGMA journal_mode = WAL`, so the on-disk set is `<db>`, `<db>-wal`,
        `<db>-shm` — `test.js:25` already removes all three for exactly this reason. Unlinking only the
        main file leaves litter (and can error on an open handle).
@@ -1135,86 +1164,48 @@ Raised during planning but deliberately deferred. **Per project rule, nothing he
   - This is a **process** guarantee, not a technical one. Say so.
 
   **Success metrics.**
-  - `npm run test:browser` passes on master (**measured: 184 units, 282 assertions, 0 failures**).
-  - **G1 (mandatory — the whole point):** reintroduce css-1 — `background: rgba(var(--theme-panel),
-    0.7)` on `.glass-card` — and Phase B must **FAIL**, naming selector, property and theme. Revert;
-    it passes. **Confirmed in the r3 probe: caught in all six contexts.** A harness that cannot detect
-    css-1 is worthless, since css-1 is why it exists.
-  - **G1b (the shorthand trap):** `border-color: rgba(var(--theme-border), 0.5)` on `.glass-card` must
-    also **FAIL** — this is the shape that a naive collector renders invisible. **Confirmed: caught in
-    all six contexts.**
-  - **G3 — anti-vacuity, and non-optional.** Break it through **custom-property indirection**. **Put
-    both declarations in the SAME rule** — `.glass-card { --tmp: var(--theme-panel); background:
-    rgba(var(--tmp), 0.7); }`:
-    - It must fail as a **Phase B declaration failure**, naming `.glass-card` and `background`.
-    - **The stray-custom-property list (step 2b) must stay EMPTY.** If the harness instead stops with
-      "unsupported cascade", **G3 has passed for the WRONG reason** — it proved only that 2b fires, not
-      that the collector follows the indirection, and the core oracle is left uncertified. **Placement
-      matters: put `--tmp` in the consumer's own rule, not in `:root` and not in a separate rule.**
-    - **Confirmed: caught in all six contexts, as a Phase B failure, with the stray list empty.**
 
-    The css-1 *scanner* guard passed its own guard proof and was still worthless, because it matched
-    only the **literal spelling** of the defect. A guard must cover the **class**, not the one spelling
-    you thought of.
-  - **G6 — the proof that step 2b's unsupported-cascade guard exists AND is the strict version.**
-    Nothing else forces it: an implementation could omit 2b entirely and still pass G1–G5. Inject
-    **exactly this** — it is the shape that produces a real false pass, and the *only* shape that
-    proves the guard is strict enough:
-    ```css
-    .some-widget       { --shared: 10px; width: var(--shared); }
-    .some-widget:hover { background-color: var(--shared, red); }
-    ```
-    The harness must **stop with the unsupported-cascade diagnostic**, naming `--shared`. Revert; it
-    passes.
-    **Do NOT use an unconsumed custom property (`.some-widget { --local-accent: … }`) for this proof.**
-    Measured: that shape is **harmless** — nothing reads it, so nothing can go IACVT — and a guard that
-    fires on it while staying silent on the shape above is the *lenient* guard, which **passes G6 and
-    still ships the false pass.** An earlier draft of this plan made exactly that mistake.
-  - **G7 — the proof that the collector really recurses.** The generic `.cssRules` walk and the
-    separate `@import` branch are both load-bearing, and **neither is proved by G1–G6**: an
-    implementation that skipped either would still pass, because the main sheet's 184 units keep Phase
-    E's floors satisfied. Two injections, each of which must produce a **Phase B failure**:
-    - **G7a — nested in a grouping rule:**
-      `@media (min-width: 1px) { .nested-probe { background: rgba(var(--theme-panel), 0.7); } }`
-      **Confirmed: caught in all six contexts.**
-    - **G7b — inside an imported sheet.** This is the only proof that exercises
-      `rule.styleSheet.cssRules`, which plain `.cssRules` recursion does **not** reach. Use a `data:`
-      URL so no file has to be created, served, or cleaned up — **and put it at the very TOP of
-      `styles.css`, above every other rule**, because CSS ignores an `@import` that follows a style
-      rule (a proof placed at the bottom silently does nothing and "passes"):
-      ```css
-      @import url("data:text/css,.imported-probe%20%7Bbackground%3Argba(var(--theme-panel)%2C0.7)%7D");
-      ```
-      **Confirmed: caught in all six contexts.**
-  - **G8 — the proof that Phase E's cardinality floors exist.** G4 only proves the *reachability*
-    check; an implementation could drop the floors entirely and still pass it. So **replace
-    `styles.css` with a small but perfectly valid stylesheet** (two or three themed rules). The
-    stylesheet loads and CSSOM is readable, so G4's check is satisfied — but the harness must still
-    **FAIL on the unit floor** (< 150 units). Revert; it passes.
-  - **G9 — the proof that the external-request assertion exists.** Nothing else creates an external
-    request, so the assertion could be omitted and every other proof would still pass. Add an external
-    subresource to the probe document (e.g. a `<link rel="stylesheet" href="https://example.com/x.css">`).
-    The harness must **FAIL**, reporting the aborted URL. Revert; it passes.
-  - **G2 — Phase C, not Phase A.** Delete `--theme-primary` from `.theme-fantasy`; **Phase C** must
-    fail (fantasy's primary now equals the default's). It does **not** make Phase A report UNDEFINED:
-    `:root` still defines the var and custom properties **inherit**, so the probe sees a perfectly
-    valid colour. *(r1 asserted the opposite; it was wrong.)*
-  - **G2b — Phase A's not-a-colour path:** set `--theme-bg: banana` in a theme block; Phase A must
-    report **DEFINED BUT NOT A COLOUR**.
-  - **G2c — Phase A's undefined path:** delete `--theme-primary` from **`:root`**; Phase A must report
-    **UNDEFINED** for the default context.
-  - **G5 — the proof that Phase D guards anything.** Every other proof here mutates `styles.css` or the
-    stylesheet URL, so **an implementation whose Phase D silently skipped the module import, or
-    re-implemented it, would pass all of them.** So mutate the module itself: in `theme-vars.js`, make
-    `toThemeColor` return the bare component list (`return components.trim()`) instead of
-    `hsl(<components>)` — i.e. **revert Phase CT**. **Phase D must FAIL**, reporting every `--theme-*`
-    it produced as **DEFINED BUT NOT A COLOUR**. Revert; it passes. *(Confirmed achievable: a bare
-    component list `220, 25%, 12%` fed to Phase A's discriminator comes back
-    `DEFINED-BUT-NOT-A-COLOUR`, while `hsl(220 25% 12%)` comes back `VALID`.)* This is the exact
-    regression Phase CT fixed, and Phase D is the only thing standing between it and a silent return.
-  - **G4 — fail-closed:** point the probe document at a non-existent stylesheet; the harness must
-    **FAIL** (Phase E), not pass with zero assertions.
-  - The unit suite (`node test.js`) is **unchanged and still hermetic** — no new dependency reaches it.
+  `npm run test:browser` passes on master — **measured: 184 units, 47 distinct per context, 282
+  assertions, 0 failures, 0 unsupported cascades, 0 external requests.**
+
+  **THE GUARD-PROOF SUITE, AND THE ONE QUESTION IT MUST SURVIVE.** Every proof below exists to make one
+  mechanism non-optional. For each, the test is:
+
+  > **Could an implementation that OMITS this mechanism still pass this proof?**
+
+  If yes, the proof is decoration. That question found real holes in **three consecutive review rounds**
+  — including a "guard" that tested a shape which turns out to be **harmless**, and proofs a wrong
+  implementation passes trivially. Do not add a mechanism without a proof that discriminates it, and do
+  not weaken a proof below.
+
+  | # | Proves | Injection | Required outcome |
+  |---|---|---|---|
+  | **G1** | **the whole point** — css-1 is caught | `background: rgba(var(--theme-panel), 0.7)` on `.glass-card` | Phase B **FAILS**, naming selector, property, theme. ✔ *confirmed, all 6 contexts* |
+  | **G1b** | the **shorthand** shape a naive collector renders invisible | `border-color: rgba(var(--theme-border), 0.5)` on `.glass-card` | Phase B **FAILS**. ✔ *confirmed* |
+  | **G3** | the collector follows **indirection** | `.glass-card { --tmp: var(--theme-panel); background: rgba(var(--tmp), 0.7); }` — **same rule** | Phase B **FAILS** naming `.glass-card`/`background`, **and the unsupported-cascade list stays EMPTY**. If it stops with "unsupported cascade" instead, G3 passed for the **wrong reason**. ✔ *confirmed* |
+  | **G3b** | same-rule customs are **APPLIED**, not merely collected | `.g3b { --bad: 10px; background-color: var(--bad, red); }` | Phase B **FAILS**. **This is the discriminator**: an implementation that collects `customs` for the diagnostic but never applies them to probe/control sees `--bad` as undefined, takes the `red` fallback, and reports **GREEN**. ✔ *confirmed: fails when customs are applied, green when they are not* |
+  | **G6** | step 2b exists **and is strict** | `.some-widget { --shared: 10px; width: var(--shared); }` + `.some-widget:hover { background-color: var(--shared, red); }` | **STOP** with the unsupported-cascade diagnostic, naming `--shared`. ✔ *confirmed* |
+  | **G6b** | step 2b is **not over-strict** | `.some-widget { --local-accent: hsl(10 50% 50%); }` (unconsumed) | **PASSES.** An unconsumed custom property is **harmless** — nothing reads it, so nothing can go IACVT. A guard that rejects it would fail valid CSS. *(An earlier draft used this shape as a **failure** proof. It was wrong: a lenient guard fires on it, passes, and still ships the false pass.)* ✔ *confirmed* |
+  | **G6c** | step 2c exists — the **runtime-supplied** var | `.widget { background-color: var(--runtime-colour, red); }` (never defined in the sheet) | **STOP**. Phase B alone reports **GREEN** here — the probe takes the `red` fallback while the real element would drop the declaration. ✔ *confirmed: Phase B green, guard fires* |
+  | **G7a** | **generic** grouping-rule recursion | `@supports (display: flex) { .supports-probe { background: rgba(var(--theme-panel), 0.7); } }` | Phase B **FAILS**. **Use `@supports`, NOT `@media`** — `@media` is exactly what the rejected `CSSMediaRule`/`CSSKeyframesRule` allowlist already handled, so an `@media` proof does **not** discriminate the generic walk. ✔ *confirmed: `CSSSupportsRule` reached and caught* |
+  | **G7b** | the **`@import`** branch (`rule.styleSheet.cssRules`) | `@import url("data:text/css,.imported-probe%20%7Bbackground%3Argba(var(--theme-panel)%2C0.7)%7D");` — **at the very TOP of `styles.css`** | Phase B **FAILS**. CSS **ignores an `@import` that follows a style rule**, so a proof placed at the bottom silently does nothing and "passes". ✔ *confirmed* |
+  | **G2** | Phase C — theme distinctness | delete `--theme-primary` from `.theme-fantasy`; **repeat for `--theme-bg`** | **Phase C FAILS.** It does **NOT** make Phase A report UNDEFINED — `:root` still defines it and custom properties **inherit**. *(r1 asserted the opposite; it was wrong.)* **Both vars must be exercised**, or an implementation that only checks `primary` passes. |
+  | **G2b** | Phase A — the **not-a-colour** path | `--theme-bg: banana` in a theme block | Phase A reports **DEFINED BUT NOT A COLOUR**. ✔ *confirmed* |
+  | **G2c** | Phase A — the **undefined** path | delete `--theme-primary` from **`:root`** | Phase A reports **UNDEFINED**. |
+  | **G5** | Phase D is **not vacuous** | make `toThemeColor` return the bare component list (**revert Phase CT**) | **Phase D FAILS**, every `--theme-*` reported NOT-A-COLOUR. Without this, an implementation that skipped or re-implemented the module import passes everything else. ✔ *mechanism confirmed* |
+  | **G4** | Phase E — **reachability** | point the probe document at a non-existent stylesheet | **FAILS**, rather than passing with zero assertions. |
+  | **G8** | Phase E — the **unit floor** | replace `styles.css` with a small but **valid** sheet | Reachability passes (so G4 is satisfied) but the **unit floor still fails**. |
+  | **G8b** | Phase E — the **assertion floor** | a sheet with **≥150 duplicate** var-bearing declarations (few distinct) | The unit floor passes but the **assertion floor fails**. Without this, an implementation can drop the post-dedupe floor and still pass G8. |
+  | **G9** | Phase E — the **external-request** assertion | `<link rel="stylesheet" href="https://example.com/x.css">` in the probe document | **FAILS**, naming the aborted URL. |
+  | **G9b** | the route matches the **exact origin**, not the hostname | a subresource at `http://127.0.0.1:<other-port>/x.css` | **FAILS**, naming it. A hostname-only implementation passes G9 (it aborts `example.com`) but **silently continues** this one. |
+  | **G10** | missing Chromium **exits NON-ZERO** | run with `PLAYWRIGHT_BROWSERS_PATH` pointed at an empty directory | The command exits **non-zero**. An implementation that catches the launch failure and exits 0 passes every other proof **on a machine that has Chromium** — and then reports a green merge gate on a clean machine having run **zero** assertions. That is r1's failure mode, resurrected. |
+
+  Every proof: **revert the injection, and the suite must pass again.**
+
+  The unit suite (`node test.js`) is **unchanged and still hermetic** — no new dependency reaches it.
+
+  *(On **G5**: `toThemeColor` returning the bare component list is exactly the Phase CT regression.
+  Phase D is the only thing standing between it and a silent return, which is why G5 is not optional.)*
 
   **Files**: `package.json` (devDep + `test:browser` script), `package-lock.json`, `test-browser.mjs`
   (new), `README.md` (setup step), `.agents/repo-guidance.md` (Verification rule).

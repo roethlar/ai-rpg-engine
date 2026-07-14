@@ -7,13 +7,26 @@ Nothing automated can currently see what the browser does with a themed declarat
 codex must not implement until the revised plan is reviewed and accepted.
 **Plan**: `plan.md` → Dev Tooling → "Browser harness — `bh-1`".
 **Owner go**: 2026-07-14 (the slice is approved; the *design* was not).
-**Review r1** (codex): pinned at `df9f3f4` — **9 findings, verdict: as written it would NOT work.**
-**Review r2** (codex): pinned at `74d464d` — **11 findings, verdict `reopened`.**
-**Revision r3**: `plan.md` rewritten against both rounds **plus a scratchpad browser probe** that
-executed every mechanism before it was written down (see "What the browser said" below).
+**Reviews (all codex, adversarial, two lenses: correctness + cold-implementer):**
+
+| Round | Pinned at | Findings | Verdict |
+|---|---|---|---|
+| r1 | `df9f3f4` | 9 | **as written it would NOT work** — the core assertion went red on healthy master |
+| r2 | `74d464d` | 11 | `reopened` — the collector was broken |
+| r3 | `a014cb7` | 10 | `reopened` — a cardinality self-contradiction + 4 soundness gaps |
+| r4 | `520424c` | 7 | `reopened` — three load-bearing mechanisms had **no guard proof** |
+| r5 | `371520b` | 4 | `reopened` — the cascade guard permitted a **real false pass** |
+| r6 | `ba5cda5` | 10 | `reopened` — **none against the oracle**; all guard-proof discrimination |
+| **r7** | *current* | *pending* | — |
+
+**The oracle has now passed four consecutive rounds.** From r4 onward, every single finding has been
+about the *guard proofs* rather than the design.
 
 > **The headline: r2's reviewer reasoned that the design WOULD catch css-1. It would not have.**
-> A real Chromium found the defect in minutes. **Do not reason about CSS in this repo — execute it.**
+> A real Chromium found the defect in minutes. Three separate rounds have since produced a confident,
+> careful CSS claim that execution then refuted. **Do not reason about CSS in this repo — execute it.**
+> Every mechanism and every guard proof in the current plan was run against a real browser before it
+> was written down.
 
 ## Why the harness exists
 
@@ -206,49 +219,38 @@ harmless — so a **lenient** guard could fire on it, pass G6, and still ship th
 r5's counterexample itself, the only shape that proves the guard is strict enough. *A guard proof that
 a wrong implementation also passes is not a guard proof.*
 
+## Disposition of the 10 r6 findings (pinned at `ba5cda5`)
+
+**Not one finding was against the oracle** — it passed a fourth time. Every finding was a **guard proof
+that a wrong implementation would also pass**, plus one more unmodelled source of custom properties.
+All accepted; all verified in Chromium.
+
+**The lens that produced them (and that r4, r5 and r6 have now each used to find real holes):**
+
+> **Could an implementation that OMITS this mechanism still pass this proof?**
+
+| # | Finding (r6) | Disposition |
+|---|---|---|
+| 1 | **Runtime-injected custom properties are unmodelled** — `app.js:1602-1604` really does set them inline. `.widget { background-color: var(--runtime-colour, red) }` with runtime supplying `10px`: the probe takes the `red` fallback, differs from `unset`, reports **GREEN**; the real element drops the declaration. | **VALID — same false-pass shape as r5's, via a different route.** New **step 2c**: FAIL if any `var(--x)` consumed in the sheet has **no definition in the sheet**. **Measured: master consumes zero custom properties it does not also define**, so it is green today. Proof: **G6c**. |
+| 2 | **G3 does not prove that same-rule customs are APPLIED**, only collected. An implementation that gathers `customs` for the diagnostic but never applies them to probe/control **still passes G3** — and then false-passes `.widget { --tmp: 10px; background-color: var(--tmp, red) }`. | **VALID and sharp.** New **G3b**: `.g3b { --bad: 10px; background-color: var(--bad, red); }` must **FAIL**. **Confirmed to discriminate**: it fails when customs are applied and reports **green** when they are not. |
+| 3 | **G7a proves `@media`, not generic recursion** — `@media` is precisely what the *rejected* `CSSMediaRule`/`CSSKeyframesRule` allowlist already handled. The old hard-coded walker passes G7a. | **VALID.** G7a now uses **`@supports`**. Confirmed: `CSSSupportsRule` is reached and the broken declaration caught. |
+| 4 | **The missing-Chromium non-zero exit has no proof.** An implementation that catches the launch failure and exits 0 passes everything **on a machine that has Chromium** — then reports a green merge gate on a clean machine having run zero assertions. **That is r1's failure mode, resurrected.** | **VALID.** New **G10**: run with `PLAYWRIGHT_BROWSERS_PATH` at an empty directory; the command must exit non-zero. |
+| 5 | **G8 proves only the unit floor**, not the post-dedupe assertion floor. | **VALID.** New **G8b**: a sheet with ≥150 *duplicate* var-bearing declarations passes the unit floor but must fail the assertion floor. |
+| 6 | **G9 does not prove the exact-origin branch.** A hostname-only implementation aborts `example.com` (passing G9) but silently continues `http://127.0.0.1:<other-port>/x.css`. | **VALID.** New **G9b**. |
+| 7 | **G6 does not prove the harmless-unconsumed branch.** An **over-strict** guard that rejects zero-consumer definitions passes master, G3 and G6 — then rejects valid CSS like `.widget { --local-accent: red }`. | **VALID.** New **G6b**: an unconsumed outside custom property must **PASS**. *(This is the shape my own earlier G6 wrongly used as a **failure** proof.)* |
+| 8 | **G2 proves only `--theme-primary`**, leaving Phase C's `--theme-bg` assertion unproved. | **VALID.** G2 now exercises **both** vars. |
+| 9 | **Teardown can hang.** `child.kill(); await once(child, 'exit')` **hangs forever** if the child already exited (failed DB init, lost port race) — the event already fired. The command then never returns its non-zero result. | **VALID.** Register the exit promise **at spawn time**. |
+| 10 | **Keyframe declarations have `keyText`, not `selectorText`** — a naive reporter yields `undefined` (or throws) on the themed `pulse-glow` keyframe. | **VALID.** Label is `rule.selectorText \|\| rule.keyText`. |
+
 ## Guard proofs the implementation MUST produce
 
-Non-negotiable; the harness is worthless without them. G1, G1b, G3, G6, G7a, G7b and G5's mechanism
-are already **known to be achievable** — the scratchpad probes achieved every one of them.
+**The suite now lives in `plan.md` → Success metrics**, as a table of 18 proofs (G1…G10), each with the
+mechanism it makes non-optional. It is not duplicated here — `plan.md` owns that enumeration.
 
-- **G1** — reintroduce css-1 (`background: rgba(var(--theme-panel), 0.7)` on `.glass-card`): Phase B
-  must **FAIL**, naming selector, property and theme. Revert: passes.
-- **G1b** — `border-color: rgba(var(--theme-border), 0.5)` on `.glass-card` must also **FAIL**. This is
-  the **shorthand shape** a naive collector renders invisible.
-- **G2** — delete `--theme-primary` from `.theme-fantasy`: **Phase C** must fail (distinctness
-  collapses). It does **NOT** make Phase A report UNDEFINED — custom properties inherit from `:root`.
-- **G2b** — `--theme-bg: banana` in a theme block: Phase A must report **DEFINED BUT NOT A COLOUR**.
-- **G2c** — delete `--theme-primary` from **`:root`**: Phase A must report **UNDEFINED**.
-- **G5 — the proof that Phase D guards anything.** Every other proof mutates `styles.css`, so an
-  implementation whose Phase D skipped the module import (or re-implemented it) would pass them all.
-  Make `toThemeColor` in `theme-vars.js` return the bare component list — **revert Phase CT** — and
-  **Phase D must FAIL**, reporting every `--theme-*` as NOT-A-COLOUR. Revert; it passes.
-- **G3 — anti-vacuity.** Break it through **custom-property indirection**, with **both declarations in
-  the SAME rule**: `.glass-card { --tmp: var(--theme-panel); background: rgba(var(--tmp), 0.7); }`.
-  It must fail as a **Phase B declaration failure** naming `.glass-card`/`background`, and the
-  **stray-custom-property list must stay EMPTY** — if it stops with "unsupported cascade" instead, G3
-  passed for the **wrong reason** and the core oracle is uncertified. The css-1 *scanner* guard passed
-  its own guard proof and was still worthless because it matched only the **literal spelling** of the
-  defect and indirection walked straight past it (`.agents/state.md`, Verification — "it bit a third
-  time, in a new costume"). A guard must cover the **class**, not one spelling.
-- **G6 — proves the unsupported-cascade guard (step 2b) exists AND is strict.** Inject the
-  cross-rule shape (`.some-widget { --shared: 10px; width: var(--shared) }` +
-  `.some-widget:hover { background-color: var(--shared, red) }`); the harness must stop with the
-  unsupported-cascade diagnostic. **Do not use an unconsumed custom property** — that shape is
-  harmless, and a lenient guard passes it while still shipping the false pass.
-- **G7a — proves grouping-rule recursion.** A broken declaration nested in `@media` must be caught.
-- **G7b — proves the `@import` branch.** A broken declaration inside an `@import`ed sheet must be
-  caught (use a `data:` URL, **at the top of the sheet** — CSS ignores an `@import` after a style
-  rule). This is the only proof that exercises `rule.styleSheet.cssRules`; plain `.cssRules`
-  recursion never reaches it, and the main sheet's units keep Phase E green regardless.
-- **G4 — fail-closed (reachability).** Point the probe document at a non-existent stylesheet: the
-  harness must **FAIL** (Phase E), not pass with zero assertions.
-- **G8 — fail-closed (cardinality floors).** Replace `styles.css` with a small but **valid** sheet:
-  reachability passes, so G4 is satisfied, but the **unit floor must still fail**. Without this an
-  implementation can drop the floors entirely and pass every other proof.
-- **G9 — fail-closed (external requests).** Add an external subresource to the probe document; the
-  harness must **FAIL**, naming the aborted URL. Nothing else creates an external request, so the
-  assertion could otherwise be silently omitted.
+G1, G1b, G3, G3b, G6, G6b, G6c, G7a, G7b and G5's mechanism are all **known to be achievable** — the
+scratchpad probes achieved every one of them, and G3b and G6b are confirmed to *discriminate* (they
+behave differently against a wrong implementation, which is the only thing that makes a guard proof
+worth writing).
 
 ## The trap, restated
 
