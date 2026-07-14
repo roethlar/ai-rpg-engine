@@ -1335,7 +1335,8 @@ function blankCssComments(css) {
 /** Every custom-property name referenced by a `var(--name…)` in `fragment`. */
 function extractCssVarNames(fragment) {
   const names = [];
-  const re = /var\(\s*(--[a-zA-Z0-9-]+)/gi;
+  // Underscore is a valid CSS ident character (r3 reopen: --panel_alias slipped past).
+  const re = /var\(\s*(--[a-zA-Z0-9_-]+)/gi;
   let m;
   while ((m = re.exec(fragment)) !== null) names.push(m[1]);
   return names;
@@ -1363,7 +1364,7 @@ function findMatchingParen(css, openIdx) {
 function collectVarAliases(css) {
   const aliases = new Map(); // --name -> [--ref, ...]
   // Value ends at `;` or `{`/`}` (selector boundaries). Nested parens allowed.
-  const defRe = /(--[a-zA-Z0-9-]+)\s*:([^;{}]+)/g;
+  const defRe = /(--[a-zA-Z0-9_-]+)\s*:([^;{}]+)/g;
   let m;
   while ((m = defRe.exec(css)) !== null) {
     const name = m[1];
@@ -1500,6 +1501,15 @@ async function testThemeVarConsumers() {
   assert.strictEqual(
     findInvalidThemeRgbConsumers(probeNestedFallbackArg, { pathLabel: 'probe' }).length, 1,
     'css-1 guard must catch theme triples nested in var() fallbacks inside rgba() args'
+  );
+
+  // r3 residual: underscore is a valid CSS custom-property character.
+  const probeUnderscoreName = blankCssComments(
+    '.probe { --panel_alias: var(--theme-panel); background: rgba(var(--panel_alias), 0.7); }'
+  );
+  assert.strictEqual(
+    findInvalidThemeRgbConsumers(probeUnderscoreName, { pathLabel: 'probe' }).length, 1,
+    'css-1 guard must catch custom-property names that use underscores'
   );
 
   // Comments must not create false positives (invalid form only in a comment).
