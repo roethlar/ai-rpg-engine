@@ -847,58 +847,171 @@ Existing campaigns already persist OpenAI voice names in `npcs.voice_json` and
 
 ### Design
 
+> **r1 plan review returned 14 findings and they were right; this Design section is a REDESIGN, not
+> a patch.** The original scheme (a) **did not function for the host at all** — only for seat
+> players; (b) used a hash-mod voice assignment that is **not collision-free**, contradicting its own
+> "NPCs sound distinct" metric; (c) rested on a **false premise** about the admin UI; (d) had a key
+> scheme that could **send the xAI key to OpenAI**; and (e) had an injection defence that was
+> theatre. Each is addressed below and marked.
+
 1. **Per-provider voice registries** (`tts-providers.js`). Replace the single `TTS_VOICES` /
-   `NPC_VOICE_POOL` with a registry keyed by provider:
-   `{ openai: { voices, defaultVoice: 'marin', npcPool }, grok: { voices, defaultVoice, npcPool } }`.
-   **Pin Grok's 26 voice ids as a literal list** (verified 2026-07-14) rather than fetching
-   `GET /v1/tts/voices` at validation time — a network call inside the validation path is a new
-   failure mode on every turn. (The endpoint is noted for a future `/admin` voice catalog, which is
-   the same shape as the queued model catalog; not this phase.)
-   Keep `TTS_VOICES` exported as the OpenAI set for back-compat with existing importers
-   (`server.js:15`), or update the importers — do not leave two sources of truth.
+   `NPC_VOICE_POOL` with a registry keyed by provider. **Pin Grok's voice ids as a literal, ORDERED
+   list** — a network call inside the validation path would be a new failure mode on every turn.
+
+   *(r1: the plan **required** a pinned 26-id registry and then **never recorded the ids**, so a cold
+   implementer would have had to repeat live discovery or guess from sources already known wrong.
+   Here they are — enumerated live from `GET /v1/tts/voices`, 2026-07-14. **The order is the
+   contract**: NPC voice assignment indexes into it, so reordering this list silently reassigns every
+   NPC's voice.)*
+
+   ```
+   GROK_VOICES (26) — male (19):
+     altair, atlas, castor, cosmo, helios, helix, kepler, leo, lumen, lux, naksh,
+     orion, perseus, rex, rigel, sal, sirius, zagan, zenith
+   GROK_VOICES — female (7):
+     ara, carina, celeste, eve, iris, luna, ursa
+   ```
+   - **GM/narrator voice (reserved, excluded from the NPC pool):** `leo`.
+   - **`GROK_NPC_POOL` = the remaining 25**, in the order above (male list minus `leo`, then female).
+   - OpenAI keeps its existing 13-voice set, `marin` narrator, 12-voice NPC pool.
 
 2. **Provider-aware validation.** `validateVoiceProfile(raw, provider)` validates `voice` against
    *that provider's* set and defaults to *that provider's* default. It must not silently coerce a
-   valid Grok voice to `'marin'`.
+   valid Grok voice to `'marin'`. Keep one source of truth — update `server.js:15`'s import rather
+   than leaving a stale exported `TTS_VOICES`.
 
 3. **Provider-portable NPC voices, with NO database migration.** `assignNpcVoiceProfile(npc, index)`
-   is already deterministic by index. Add a stable `voiceSeed` (integer) to the profile and resolve
-   the *name* at synthesis time from the **active** provider's pool:
-   `voice = pool[seed % pool.length]`. Back-compat: when a stored profile has no `voiceSeed`
-   (every existing row), derive the seed from a stable hash of the NPC name, so existing NPCs keep
-   a fixed voice without a migration. The stored `voice` string becomes a hint for its own
-   provider, never a cross-provider constraint. Result: switching provider re-derives every voice
-   deterministically instead of 404ing, and voices stay sticky per NPC.
+   is already deterministic by index. Store that **creation index** as `voiceSeed` on the profile and
+   resolve the voice *name* at synthesis time from the **active** provider's pool:
+   `voice = pool[voiceSeed % pool.length]`.
 
-4. **Delivery: `instructions` → inline tags.** Grok's steering channel is a leading tag on the text.
-   - Add a bounded `mood` field to the voice profile: a short habitual-delivery descriptor
-     (e.g. `warm, booming`). This is the owner's "bartender is usually happy" — it is the NPC's
-     *baseline*, stored once at NPC creation, sticky like the voice.
-   - Source it from the model at NPC creation: `rpg-prompts.js` already asks for `personality` and
-     `quirks`; add a short `voice_mood`. Validate in `rpg-state.js` alongside the other NPC fields.
-     Where absent (existing NPCs), omit the tag — degrade to tone only, never invent one.
-   - At synthesis, Grok's text becomes `[<mood>, <tone>] <text>` (either part optional; no tag at
-     all when both are absent). The per-line `tone` the engine already emits on `narration_lines`
-     supplies the moment-to-moment variance; `mood` supplies the character's baseline.
-   - **OpenAI's path is unchanged**: `mood` folds into the existing `instructions` string. Both
-     providers therefore consume the same two inputs; only the rendering differs.
-   - **Sanitize the tag.** `mood` and `tone` originate from a model and are prepended to text that
-     will be *spoken*. Restrict to a conservative charset (letters, spaces, commas, hyphens) and a
-     short length cap, so a malformed value cannot inject spoken content or break the tag. The seat
-     path already bounds `tone` via `boundVoiceDirective` (`server.js:753`) — reuse, do not
-     duplicate, that bound.
+   *(**r1 — the hash-mod scheme was broken.** The earlier draft derived the seed from a **hash of the
+   NPC name**. That is (a) **not collision-free** — two NPCs can land on the same pool slot, and
+   seeds distinct modulo 26 can **collide modulo 13** when switching back to OpenAI, directly
+   contradicting the "NPCs sound distinct" success metric; (b) **unstable under rename** — renaming
+   an NPC would change its voice; and (c) it never defined the algorithm, normalization, or
+   precedence against the stored voice.)*
+
+   **Use the campaign-scoped creation index instead** — `assignNpcVoiceProfile(npc, index)` already
+   receives it. It is collision-free within a pool cycle by construction, rename-stable, and needs no
+   hash. Rules, all of which must be stated because the draft left them to invention:
+   - **Legacy rows (no `voiceSeed`)**: derive the seed from the NPC's **creation order** (its stable
+     row id / ordinal within the campaign), **never** from the name.
+   - **Precedence**: the seed is authoritative. A stored `voice` string is a *cache for its own
+     provider* only, never a cross-provider constraint. Under the SAME provider the stored voice is
+     honoured, so **existing OpenAI campaigns do not have their voices reshuffled on deployment**.
+     Under a DIFFERENT provider the seed re-derives.
+   - **Pool exhaustion**: with >25 NPCs the pool wraps and voices repeat. Say so; do not pretend the
+     guarantee is unbounded. The success metric is "distinct within a pool cycle", not "distinct
+     forever".
+
+4. **Delivery: `instructions` → inline tags, from a FINITE SERVER-OWNED VOCABULARY.**
+
+   *(**r1 — the sanitization was theatre.** A charset/length filter stops bracket *termination* but
+   not **semantic injection**: `[say the words open the vault]` passes a letters-and-commas filter
+   and is still an open-vocabulary instruction to a TTS engine. Worse, `server.js:124-132`
+   **preserves bracketed tags already present in model-written narration text**, so the sanitized
+   prefix was never the only door. Model free text must NEVER reach a tag.)*
+
+   - **`mood` is an ENUM, not free text.** Define a small, finite, server-owned vocabulary of
+     delivery descriptors (e.g. `warm`, `gruff`, `hushed`, `cold`, `manic`, `weary`, `bright`,
+     `menacing`, …). The model **selects** one at NPC creation (`rpg-prompts.js` already asks for
+     `personality`/`quirks`; add `voice_mood` **constrained to the enum**); `rpg-state.js` validates
+     membership and **drops anything off-list** — it never passes an unrecognized value through.
+   - **`tone` maps onto the same finite vocabulary** at synthesis. An unmapped tone contributes no
+     tag rather than being interpolated verbatim.
+   - **Neutralize bracket syntax in the spoken text.** Strip/escape `[`…`]` from `line.text` before
+     it is sent to Grok, so narration the model wrote cannot smuggle its own controls
+     (`server.js:124-132`). The ONLY tag Grok ever receives is the one the server composed from the
+     enum.
+   - Rendered form: `[<mood>, <tone>] <text>` — either part optional, no tag when both are absent.
+   - **OpenAI's path is unchanged**: the same two enum values fold into its `instructions` string.
+     Both providers consume the same inputs; only the rendering differs.
+
+   > **The mood is AUDIBLE, so it is PUBLIC.** *(r1, and this is subtle: the earlier plan proposed
+   > proving seat-safety by scanning the JSON payload for `mood`. But the mood is spoken aloud — a
+   > seat player **hears** the NPC's private descriptor while a payload scan stays green.)* The enum
+   > therefore contains only descriptors that are safe to disclose to any player. Nothing derived
+   > from private NPC personality text may ever enter a tag.
 
 5. **`server.js` — remove the OpenAI-shaped gates.** `:735` and `:761` must validate against the
    *active provider's* voice set, not `TTS_VOICES`. This is the change that actually unblocks Grok.
 
-6. **Key resolution.** `getServerAiConfig().voiceApiKey` must resolve per provider: for `grok`, use
-   `XAI_API_KEY || GROK_API_KEY`, matching the text path (`api-client.js:299`) rather than inventing
-   a new convention. `voiceModel` is meaningless for Grok (no model parameter) and must be ignored
-   for it, not sent.
+6. **THE HOST PATH — the design's biggest hole** *(r1)*.
 
-7. **`/admin`.** The voice-provider control is driven by `listTtsProviders()`, so Grok appears once
-   registered; confirm the model field is hidden or ignored for Grok, and that the voice list
-   offered reflects the selected provider's 26 (or 13) names.
+   *(As drafted, **none of this reached the host**. `public/app.js:1524-1534` sends the host only a
+   `voice` name plus a client-composed OpenAI `instructions` string; `server.js:730` receives **no
+   seed and no campaign identity**. So NPC moods, provider-remapping, and seeded voices would work
+   for a *seat* player and **silently collapse to defaults for the host** — the primary play path.
+   `public/app.js` was not even in the files-to-change list.)*
+
+   **Resolve the voice profile SERVER-SIDE for BOTH host and seat.** The seat path already does
+   exactly this (`server.js:749-767`) precisely so NPC personality never leaves the server. Extend it
+   to the host:
+   - The client sends `{ text, speaker, tone }` for **both** modes. It stops composing
+     `instructions` and stops choosing NPC voices.
+   - The server resolves `speaker` → the campaign's NPC profile → `voiceSeed` → the active provider's
+     voice + enum mood. Host requests must therefore carry **campaign identity** (available from the
+     authenticated session; the seat path already has `req.auth.campaignId`).
+   - The player's own narrator preference (voice + direction) still applies to **narrator** lines —
+     that stays a player setting, as today.
+   - Net effect: one resolution path, one place where provider-awareness lives, and the host stops
+     being second-class. It also *deletes* client-side logic rather than adding any.
+
+7. **The NARRATOR must have a portable identity** *(r1)*.
+
+   *(Campaign creation never populates `campaigns.narrator_voice_json` (`rpg-engine.js:1261-1264`);
+   narrator lines fall through to a browser default (`rpg-state.js:774-790`) which is a **hardcoded
+   OpenAI name** (`public/app.js:23-29`). So "one voice for the GM" is not guaranteed at all — across
+   browsers or providers the narrator is not sticky, and it can even select an NPC-pool voice.)*
+   Assign a narrator profile **at campaign creation**, provider-aware, using the **reserved** GM voice
+   (`leo` for Grok, `marin` for OpenAI) which is **excluded from the NPC pool**. Existing campaigns
+   with no narrator profile resolve to the reserved voice for the active provider.
+
+8. **Key resolution — per provider, and it CANNOT be done as previously written** *(r1)*.
+
+   *(`server-config.js:85-87` resolves a single generic stored `voiceApiKey` and falls back only to
+   `OPENAI_API_KEY`. **One slot cannot hold two vendors**: switching providers can send the xAI key to
+   OpenAI or vice versa — the exact key-leak class already fixed once for the Grok text path.
+   `server-config.js` was omitted from the files list.)*
+   Store and resolve the voice key **per provider** (`voiceApiKey.openai`, `voiceApiKey.grok`), with
+   env fallback `XAI_API_KEY || GROK_API_KEY` for Grok (matching `api-client.js:299`) and
+   `OPENAI_API_KEY` for OpenAI, and mask each independently in `/admin`. A key must never be sent to a
+   host it was not issued for. `voiceModel` is meaningless for Grok and must be **omitted from the
+   request**, not sent.
+
+9. **The Grok request contract, pinned** *(r1: unpinned, and `server.js:777` labels every response
+   `audio/mpeg` regardless)*: `POST https://api.x.ai/v1/tts` with `voice_id`, **`language: 'en'`
+   (REQUIRED — omitting it is a 400)**, `output_format: { codec: 'mp3' }`, `speed`, and **no `model`
+   and no `instructions` field**. Assert the response is actually MP3 rather than trusting the
+   Content-Type the server stamps on it.
+
+10. **The voice-selector UI — the plan's premise was FALSE** *(r1)*.
+
+    *(The draft said "the voice control is driven by `listTtsProviders()`, so Grok appears once
+    registered". It is not, and it would not. `admin/admin.html:135-145` **hardcodes OpenAI** and has
+    no voice list at all, and the narrator voice selector the player actually uses is a **hardcoded
+    list of OpenAI names** in `public/index.html:379-393`. Browser code **cannot call
+    `listTtsProviders()`** — it is server-side. Without new plumbing, Grok's 26 voices could never be
+    offered, a saved `marin` would linger as a stale invalid value, and the voice preview would keep
+    sending a free-text direction the provider does not accept.)*
+
+    Add a small **catalog endpoint** — `GET /api/voices` returning the **active provider's** voice
+    ids (and the reserved narrator voice) from the server-side registry. Populate the narrator
+    selector in `public/index.html` / `public/app.js` from it instead of the hardcoded list. On a
+    provider switch, a stored voice that is not in the new provider's set falls back to the reserved
+    narrator voice rather than being sent and 404ing. Mirror the same list in `/admin`, and hide the
+    model field for Grok (it has none).
+
+11. **Fork and import must carry the new fields** *(r1 — both silently drop them today)*:
+    - `rpg-state.js:1037` — the campaign-import `bundleVoice` whitelist keeps only
+      `provider`/`voice`/`instructions`, so an exported campaign would **lose `voiceSeed` and
+      `mood`** on import, breaking the portability this design claims. Add both to the whitelist and
+      to the round-trip test.
+    - `rpg-engine.js:2634` — **fork creates fresh profiles** via `assignNpcVoiceProfile` instead of
+      copying `voice_json`, so a forked campaign loses every NPC's mood and may reassign its voice.
+      Copy the stored profile on fork.
+    - Both files were **absent from the files-to-change list**.
 
 8. **`language` is REQUIRED by the xAI endpoint.** Default `'en'`. A missing `language` is a 400.
 
@@ -963,11 +1076,20 @@ line**. Do not retry into a rate limit. Surface a single non-blocking notice, no
   `api.x.ai/v1/tts` (the suite already pins provider endpoints — `test.js:814` pins OpenAI's) and an
   assertion that **the xAI key is never sent to `api.openai.com` and vice versa** (the key-leak
   class already fixed once for the Grok text path).
-- **Seat boundary re-tested.** `.agents/state.md` requires this whenever a field is added to a seat
-  payload or an error path — this phase adds `mood` to a voice profile. Mint a seat, drive a turn,
-  leak-scan the payload: NPC `instructions`/`mood` must never reach a seat (they embed NPC
-  personality; `server.js:745-748` resolves them server-side precisely so that text never leaves
-  the server).
+- **NON-VACUOUS ROUTE TESTS** *(r1: the proposed endpoint/key tests would not have guarded the actual
+  blocker — a unit-correct `synthesizeGrok` can happily coexist with a route at `server.js:735/761`
+  that still substitutes `'marin'`, and every unit test would pass while every line 404s)*. Test the
+  **route**, for **host and seat**: a Grok narrator voice survives; a seeded NPC resolves to its Grok
+  pool voice; a legacy OpenAI-profile NPC switched to Grok and **back** keeps a stable voice; an
+  invalid voice is rejected/defaulted rather than forwarded.
+- **Seat boundary re-tested — AND THE AUDIO BOUNDARY, NOT JUST THE PAYLOAD** *(r1, and this is the
+  subtle one)*. `.agents/state.md` requires a seat re-test whenever a field enters a seat payload.
+  But scanning the JSON for `mood` proves only that it was not *serialized* — **the mood is spoken
+  aloud**, so an unconstrained descriptor reaches the seat player's ears while the payload scan stays
+  green. Two requirements: (a) `mood` comes only from the **public server-owned enum**, never from
+  private NPC personality text; (b) the seat test exercises the **`/api/audio/narrate` boundary**,
+  asserting the text sent upstream carries no private NPC direction — not merely that
+  `scopeVoiceLinesForSeat` omitted a field.
 - **Playtest gate (feel).** A real session with voice on. The GM sounds distinct from the NPCs; NPCs
   sound distinct from each other and are *sticky* across turns; a character's habitual mood is
   audible; per-line tone visibly varies delivery (the whisper/tense/joy distinction the owner
@@ -978,14 +1100,29 @@ line**. Do not retry into a rate limit. Surface a single non-blocking notice, no
 
 ### Files to change
 
-- `tts-providers.js` — per-provider registries; `validateVoiceProfile(raw, provider)`; `voiceSeed`;
-  `synthesizeGrok`; tag rendering + sanitization; register `grok`
-- `server.js` — `:735`/`:761` provider-aware voice gates; per-provider key resolution; pass
-  `mood`/`tone` through
-- `rpg-prompts.js` — NPC `voice_mood`
-- `rpg-state.js` — validate `voice_mood`
-- `admin/` — voice provider/voice-list wiring
-- `test.js` — provider registry tests, endpoint pin, key-isolation, seat-leak guard
+*(r1: the original list omitted `public/app.js`, `server-config.js`, `rpg-engine.js`, and
+`public/index.html` — four files without which the design does not function at all.)*
+
+- `tts-providers.js` — per-provider registries (incl. the pinned ordered Grok 26); `voiceSeed`;
+  `validateVoiceProfile(raw, provider)`; the mood **enum**; `synthesizeGrok`; tag rendering; register
+  `grok`
+- `server.js` — the `:735`/`:761` provider-aware voice gates; **server-side profile resolution for
+  the HOST** as well as the seat; bracket-neutralisation of spoken text (`:124-132`); the raised
+  rate limit; `GET /api/voices`
+- `server-config.js` — **per-provider** voice key storage/resolution/masking (`:85-87` today resolves
+  one generic key and falls back to `OPENAI_API_KEY`)
+- `public/app.js` — send `{speaker, tone}` for the host too; stop composing NPC `instructions`
+  client-side; **batch consecutive same-speaker lines**; skip-and-continue on failure; populate the
+  voice selector from `/api/voices`
+- `public/index.html` — the narrator voice selector (`:379-393`) is a hardcoded OpenAI list
+- `rpg-engine.js` — assign a **narrator profile at campaign creation**; **copy `voice_json` on fork**
+  (`:2634`)
+- `rpg-prompts.js` — NPC `voice_mood`, constrained to the enum
+- `rpg-state.js` — validate `voice_mood` against the enum (drop off-list values); add `voiceSeed` +
+  `mood` to the import whitelist (`:1037`)
+- `admin/` — voice provider selection, per-provider key fields, provider-aware voice list
+- `test.js` — provider registries, endpoint pin, key isolation, **non-vacuous host+seat route tests**,
+  the audio-boundary seat guard, fork/import round-trip
 - `.agents/decisions.md`, `plan.md` — already recorded
 
 ### Process
