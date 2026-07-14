@@ -847,58 +847,171 @@ Existing campaigns already persist OpenAI voice names in `npcs.voice_json` and
 
 ### Design
 
+> **r1 plan review returned 14 findings and they were right; this Design section is a REDESIGN, not
+> a patch.** The original scheme (a) **did not function for the host at all** — only for seat
+> players; (b) used a hash-mod voice assignment that is **not collision-free**, contradicting its own
+> "NPCs sound distinct" metric; (c) rested on a **false premise** about the admin UI; (d) had a key
+> scheme that could **send the xAI key to OpenAI**; and (e) had an injection defence that was
+> theatre. Each is addressed below and marked.
+
 1. **Per-provider voice registries** (`tts-providers.js`). Replace the single `TTS_VOICES` /
-   `NPC_VOICE_POOL` with a registry keyed by provider:
-   `{ openai: { voices, defaultVoice: 'marin', npcPool }, grok: { voices, defaultVoice, npcPool } }`.
-   **Pin Grok's 26 voice ids as a literal list** (verified 2026-07-14) rather than fetching
-   `GET /v1/tts/voices` at validation time — a network call inside the validation path is a new
-   failure mode on every turn. (The endpoint is noted for a future `/admin` voice catalog, which is
-   the same shape as the queued model catalog; not this phase.)
-   Keep `TTS_VOICES` exported as the OpenAI set for back-compat with existing importers
-   (`server.js:15`), or update the importers — do not leave two sources of truth.
+   `NPC_VOICE_POOL` with a registry keyed by provider. **Pin Grok's voice ids as a literal, ORDERED
+   list** — a network call inside the validation path would be a new failure mode on every turn.
+
+   *(r1: the plan **required** a pinned 26-id registry and then **never recorded the ids**, so a cold
+   implementer would have had to repeat live discovery or guess from sources already known wrong.
+   Here they are — enumerated live from `GET /v1/tts/voices`, 2026-07-14. **The order is the
+   contract**: NPC voice assignment indexes into it, so reordering this list silently reassigns every
+   NPC's voice.)*
+
+   ```
+   GROK_VOICES (26) — male (19):
+     altair, atlas, castor, cosmo, helios, helix, kepler, leo, lumen, lux, naksh,
+     orion, perseus, rex, rigel, sal, sirius, zagan, zenith
+   GROK_VOICES — female (7):
+     ara, carina, celeste, eve, iris, luna, ursa
+   ```
+   - **GM/narrator voice (reserved, excluded from the NPC pool):** `leo`.
+   - **`GROK_NPC_POOL` = the remaining 25**, in the order above (male list minus `leo`, then female).
+   - OpenAI keeps its existing 13-voice set, `marin` narrator, 12-voice NPC pool.
 
 2. **Provider-aware validation.** `validateVoiceProfile(raw, provider)` validates `voice` against
    *that provider's* set and defaults to *that provider's* default. It must not silently coerce a
-   valid Grok voice to `'marin'`.
+   valid Grok voice to `'marin'`. Keep one source of truth — update `server.js:15`'s import rather
+   than leaving a stale exported `TTS_VOICES`.
 
 3. **Provider-portable NPC voices, with NO database migration.** `assignNpcVoiceProfile(npc, index)`
-   is already deterministic by index. Add a stable `voiceSeed` (integer) to the profile and resolve
-   the *name* at synthesis time from the **active** provider's pool:
-   `voice = pool[seed % pool.length]`. Back-compat: when a stored profile has no `voiceSeed`
-   (every existing row), derive the seed from a stable hash of the NPC name, so existing NPCs keep
-   a fixed voice without a migration. The stored `voice` string becomes a hint for its own
-   provider, never a cross-provider constraint. Result: switching provider re-derives every voice
-   deterministically instead of 404ing, and voices stay sticky per NPC.
+   is already deterministic by index. Store that **creation index** as `voiceSeed` on the profile and
+   resolve the voice *name* at synthesis time from the **active** provider's pool:
+   `voice = pool[voiceSeed % pool.length]`.
 
-4. **Delivery: `instructions` → inline tags.** Grok's steering channel is a leading tag on the text.
-   - Add a bounded `mood` field to the voice profile: a short habitual-delivery descriptor
-     (e.g. `warm, booming`). This is the owner's "bartender is usually happy" — it is the NPC's
-     *baseline*, stored once at NPC creation, sticky like the voice.
-   - Source it from the model at NPC creation: `rpg-prompts.js` already asks for `personality` and
-     `quirks`; add a short `voice_mood`. Validate in `rpg-state.js` alongside the other NPC fields.
-     Where absent (existing NPCs), omit the tag — degrade to tone only, never invent one.
-   - At synthesis, Grok's text becomes `[<mood>, <tone>] <text>` (either part optional; no tag at
-     all when both are absent). The per-line `tone` the engine already emits on `narration_lines`
-     supplies the moment-to-moment variance; `mood` supplies the character's baseline.
-   - **OpenAI's path is unchanged**: `mood` folds into the existing `instructions` string. Both
-     providers therefore consume the same two inputs; only the rendering differs.
-   - **Sanitize the tag.** `mood` and `tone` originate from a model and are prepended to text that
-     will be *spoken*. Restrict to a conservative charset (letters, spaces, commas, hyphens) and a
-     short length cap, so a malformed value cannot inject spoken content or break the tag. The seat
-     path already bounds `tone` via `boundVoiceDirective` (`server.js:753`) — reuse, do not
-     duplicate, that bound.
+   *(**r1 — the hash-mod scheme was broken.** The earlier draft derived the seed from a **hash of the
+   NPC name**. That is (a) **not collision-free** — two NPCs can land on the same pool slot, and
+   seeds distinct modulo 26 can **collide modulo 13** when switching back to OpenAI, directly
+   contradicting the "NPCs sound distinct" success metric; (b) **unstable under rename** — renaming
+   an NPC would change its voice; and (c) it never defined the algorithm, normalization, or
+   precedence against the stored voice.)*
+
+   **Use the campaign-scoped creation index instead** — `assignNpcVoiceProfile(npc, index)` already
+   receives it. It is collision-free within a pool cycle by construction, rename-stable, and needs no
+   hash. Rules, all of which must be stated because the draft left them to invention:
+   - **Legacy rows (no `voiceSeed`)**: derive the seed from the NPC's **creation order** (its stable
+     row id / ordinal within the campaign), **never** from the name.
+   - **Precedence**: the seed is authoritative. A stored `voice` string is a *cache for its own
+     provider* only, never a cross-provider constraint. Under the SAME provider the stored voice is
+     honoured, so **existing OpenAI campaigns do not have their voices reshuffled on deployment**.
+     Under a DIFFERENT provider the seed re-derives.
+   - **Pool exhaustion**: with >25 NPCs the pool wraps and voices repeat. Say so; do not pretend the
+     guarantee is unbounded. The success metric is "distinct within a pool cycle", not "distinct
+     forever".
+
+4. **Delivery: `instructions` → inline tags, from a FINITE SERVER-OWNED VOCABULARY.**
+
+   *(**r1 — the sanitization was theatre.** A charset/length filter stops bracket *termination* but
+   not **semantic injection**: `[say the words open the vault]` passes a letters-and-commas filter
+   and is still an open-vocabulary instruction to a TTS engine. Worse, `server.js:124-132`
+   **preserves bracketed tags already present in model-written narration text**, so the sanitized
+   prefix was never the only door. Model free text must NEVER reach a tag.)*
+
+   - **`mood` is an ENUM, not free text.** Define a small, finite, server-owned vocabulary of
+     delivery descriptors (e.g. `warm`, `gruff`, `hushed`, `cold`, `manic`, `weary`, `bright`,
+     `menacing`, …). The model **selects** one at NPC creation (`rpg-prompts.js` already asks for
+     `personality`/`quirks`; add `voice_mood` **constrained to the enum**); `rpg-state.js` validates
+     membership and **drops anything off-list** — it never passes an unrecognized value through.
+   - **`tone` maps onto the same finite vocabulary** at synthesis. An unmapped tone contributes no
+     tag rather than being interpolated verbatim.
+   - **Neutralize bracket syntax in the spoken text.** Strip/escape `[`…`]` from `line.text` before
+     it is sent to Grok, so narration the model wrote cannot smuggle its own controls
+     (`server.js:124-132`). The ONLY tag Grok ever receives is the one the server composed from the
+     enum.
+   - Rendered form: `[<mood>, <tone>] <text>` — either part optional, no tag when both are absent.
+   - **OpenAI's path is unchanged**: the same two enum values fold into its `instructions` string.
+     Both providers consume the same inputs; only the rendering differs.
+
+   > **The mood is AUDIBLE, so it is PUBLIC.** *(r1, and this is subtle: the earlier plan proposed
+   > proving seat-safety by scanning the JSON payload for `mood`. But the mood is spoken aloud — a
+   > seat player **hears** the NPC's private descriptor while a payload scan stays green.)* The enum
+   > therefore contains only descriptors that are safe to disclose to any player. Nothing derived
+   > from private NPC personality text may ever enter a tag.
 
 5. **`server.js` — remove the OpenAI-shaped gates.** `:735` and `:761` must validate against the
    *active provider's* voice set, not `TTS_VOICES`. This is the change that actually unblocks Grok.
 
-6. **Key resolution.** `getServerAiConfig().voiceApiKey` must resolve per provider: for `grok`, use
-   `XAI_API_KEY || GROK_API_KEY`, matching the text path (`api-client.js:299`) rather than inventing
-   a new convention. `voiceModel` is meaningless for Grok (no model parameter) and must be ignored
-   for it, not sent.
+6. **THE HOST PATH — the design's biggest hole** *(r1)*.
 
-7. **`/admin`.** The voice-provider control is driven by `listTtsProviders()`, so Grok appears once
-   registered; confirm the model field is hidden or ignored for Grok, and that the voice list
-   offered reflects the selected provider's 26 (or 13) names.
+   *(As drafted, **none of this reached the host**. `public/app.js:1524-1534` sends the host only a
+   `voice` name plus a client-composed OpenAI `instructions` string; `server.js:730` receives **no
+   seed and no campaign identity**. So NPC moods, provider-remapping, and seeded voices would work
+   for a *seat* player and **silently collapse to defaults for the host** — the primary play path.
+   `public/app.js` was not even in the files-to-change list.)*
+
+   **Resolve the voice profile SERVER-SIDE for BOTH host and seat.** The seat path already does
+   exactly this (`server.js:749-767`) precisely so NPC personality never leaves the server. Extend it
+   to the host:
+   - The client sends `{ text, speaker, tone }` for **both** modes. It stops composing
+     `instructions` and stops choosing NPC voices.
+   - The server resolves `speaker` → the campaign's NPC profile → `voiceSeed` → the active provider's
+     voice + enum mood. Host requests must therefore carry **campaign identity** (available from the
+     authenticated session; the seat path already has `req.auth.campaignId`).
+   - The player's own narrator preference (voice + direction) still applies to **narrator** lines —
+     that stays a player setting, as today.
+   - Net effect: one resolution path, one place where provider-awareness lives, and the host stops
+     being second-class. It also *deletes* client-side logic rather than adding any.
+
+7. **The NARRATOR must have a portable identity** *(r1)*.
+
+   *(Campaign creation never populates `campaigns.narrator_voice_json` (`rpg-engine.js:1261-1264`);
+   narrator lines fall through to a browser default (`rpg-state.js:774-790`) which is a **hardcoded
+   OpenAI name** (`public/app.js:23-29`). So "one voice for the GM" is not guaranteed at all — across
+   browsers or providers the narrator is not sticky, and it can even select an NPC-pool voice.)*
+   Assign a narrator profile **at campaign creation**, provider-aware, using the **reserved** GM voice
+   (`leo` for Grok, `marin` for OpenAI) which is **excluded from the NPC pool**. Existing campaigns
+   with no narrator profile resolve to the reserved voice for the active provider.
+
+8. **Key resolution — per provider, and it CANNOT be done as previously written** *(r1)*.
+
+   *(`server-config.js:85-87` resolves a single generic stored `voiceApiKey` and falls back only to
+   `OPENAI_API_KEY`. **One slot cannot hold two vendors**: switching providers can send the xAI key to
+   OpenAI or vice versa — the exact key-leak class already fixed once for the Grok text path.
+   `server-config.js` was omitted from the files list.)*
+   Store and resolve the voice key **per provider** (`voiceApiKey.openai`, `voiceApiKey.grok`), with
+   env fallback `XAI_API_KEY || GROK_API_KEY` for Grok (matching `api-client.js:299`) and
+   `OPENAI_API_KEY` for OpenAI, and mask each independently in `/admin`. A key must never be sent to a
+   host it was not issued for. `voiceModel` is meaningless for Grok and must be **omitted from the
+   request**, not sent.
+
+9. **The Grok request contract, pinned** *(r1: unpinned, and `server.js:777` labels every response
+   `audio/mpeg` regardless)*: `POST https://api.x.ai/v1/tts` with `voice_id`, **`language: 'en'`
+   (REQUIRED — omitting it is a 400)**, `output_format: { codec: 'mp3' }`, `speed`, and **no `model`
+   and no `instructions` field**. Assert the response is actually MP3 rather than trusting the
+   Content-Type the server stamps on it.
+
+10. **The voice-selector UI — the plan's premise was FALSE** *(r1)*.
+
+    *(The draft said "the voice control is driven by `listTtsProviders()`, so Grok appears once
+    registered". It is not, and it would not. `admin/admin.html:135-145` **hardcodes OpenAI** and has
+    no voice list at all, and the narrator voice selector the player actually uses is a **hardcoded
+    list of OpenAI names** in `public/index.html:379-393`. Browser code **cannot call
+    `listTtsProviders()`** — it is server-side. Without new plumbing, Grok's 26 voices could never be
+    offered, a saved `marin` would linger as a stale invalid value, and the voice preview would keep
+    sending a free-text direction the provider does not accept.)*
+
+    Add a small **catalog endpoint** — `GET /api/voices` returning the **active provider's** voice
+    ids (and the reserved narrator voice) from the server-side registry. Populate the narrator
+    selector in `public/index.html` / `public/app.js` from it instead of the hardcoded list. On a
+    provider switch, a stored voice that is not in the new provider's set falls back to the reserved
+    narrator voice rather than being sent and 404ing. Mirror the same list in `/admin`, and hide the
+    model field for Grok (it has none).
+
+11. **Fork and import must carry the new fields** *(r1 — both silently drop them today)*:
+    - `rpg-state.js:1037` — the campaign-import `bundleVoice` whitelist keeps only
+      `provider`/`voice`/`instructions`, so an exported campaign would **lose `voiceSeed` and
+      `mood`** on import, breaking the portability this design claims. Add both to the whitelist and
+      to the round-trip test.
+    - `rpg-engine.js:2634` — **fork creates fresh profiles** via `assignNpcVoiceProfile` instead of
+      copying `voice_json`, so a forked campaign loses every NPC's mood and may reassign its voice.
+      Copy the stored profile on fork.
+    - Both files were **absent from the files-to-change list**.
 
 8. **`language` is REQUIRED by the xAI endpoint.** Default `'en'`. A missing `language` is a 400.
 
@@ -909,17 +1022,74 @@ in the narration text itself** ("Ye'll not be findin' the old road tonight"), wh
 `rpg-prompts.js` concern, costs nothing, and works on *any* TTS provider including the current one.
 Recorded here so it is not lost; it is a **separate, optional slice**, not part of this phase.
 
+### Batch consecutive same-speaker lines into ONE request (owner, 2026-07-14)
+
+**Why this is here.** The plan review found that `/api/audio/narrate` allows 20 requests/minute
+(`server.js:728`) while a turn can carry up to 40 voice lines (`rpg-state.js:292` caps at 40), and
+that the first failure aborts every remaining line (`public/app.js:1541-1548` throws out of the
+loop). The first draft's answer was a failure policy — a band-aid. The owner asked the better
+question: **"why does 40 lines need to be 40 requests?"** It does not.
+
+Today `public/app.js:1519-1548` is a serial loop issuing **one POST per line**. Two reasons, only
+one of which still holds:
+1. **Each line may use a different voice** (narrator vs a given NPC). Real, and it survives.
+2. **Audio begins after the first line** instead of waiting for the whole turn to synthesize. A
+   genuine latency win; keep it.
+
+Neither forces one request *per line*. **Coalesce consecutive lines that share a speaker into a
+single request.** A turn is a handful of speaker *runs*, not 40 alternations.
+
+**Grok's inline tags are what make this possible, and OpenAI's design is what prevented it.**
+OpenAI steers via the `instructions` **request field**, so merging four lines flattens them to one
+delivery and loses per-line tone. Grok steers **inside the text**, so a merged run keeps per-line
+delivery:
+
+```
+[tense] The door gives way. [pause] [whispers] Something far below stops moving to listen.
+```
+
+One request, one voice, per-line delivery preserved. This is the capability verified on 2026-07-14
+paying for itself. Grok's text limit is 15,000 characters — far beyond any turn.
+
+**Consequences, including the one that cuts against it:**
+- A 40-line turn becomes roughly 5–8 requests, so the rate limit stops being a live hazard. Raise
+  the cap anyway to match a real turn — it was plainly never sized against one — but the batching,
+  not the cap, is the fix.
+- **Failure granularity becomes COARSER**: a failed request now loses a whole *run*, not one line.
+  The owner's failure policy (below) therefore applies per **run**. State this plainly; do not sell
+  the batching as free.
+- **Batching applies to the Grok path only.** OpenAI keeps one request per line, because its
+  per-request `instructions` cannot carry per-line tone. Do not "unify" the two paths by degrading
+  OpenAI's steering.
+- Time-to-first-audio is bounded by the first *run* rather than the first *line*. Runs are short at
+  the start of a scene; accept it, and measure it in the playtest rather than assuming.
+
+**Failure policy (owner, 2026-07-14): skip and keep going.** A failed run is dropped and narration
+continues with the next one — "a GM who stumbles on a word keeps talking." This replaces the current
+behaviour, where the first failure throws out of the loop and **silently kills every remaining
+line**. Do not retry into a rate limit. Surface a single non-blocking notice, not one per failure
+(`voiceErrorShown` at `app.js:1549-1555` already debounces this).
+
 ### Success metrics
 
 - `AI_RETRY_BACKOFF_MS=10 node test.js` green, including a **provider endpoint pin** for
   `api.x.ai/v1/tts` (the suite already pins provider endpoints — `test.js:814` pins OpenAI's) and an
   assertion that **the xAI key is never sent to `api.openai.com` and vice versa** (the key-leak
   class already fixed once for the Grok text path).
-- **Seat boundary re-tested.** `.agents/state.md` requires this whenever a field is added to a seat
-  payload or an error path — this phase adds `mood` to a voice profile. Mint a seat, drive a turn,
-  leak-scan the payload: NPC `instructions`/`mood` must never reach a seat (they embed NPC
-  personality; `server.js:745-748` resolves them server-side precisely so that text never leaves
-  the server).
+- **NON-VACUOUS ROUTE TESTS** *(r1: the proposed endpoint/key tests would not have guarded the actual
+  blocker — a unit-correct `synthesizeGrok` can happily coexist with a route at `server.js:735/761`
+  that still substitutes `'marin'`, and every unit test would pass while every line 404s)*. Test the
+  **route**, for **host and seat**: a Grok narrator voice survives; a seeded NPC resolves to its Grok
+  pool voice; a legacy OpenAI-profile NPC switched to Grok and **back** keeps a stable voice; an
+  invalid voice is rejected/defaulted rather than forwarded.
+- **Seat boundary re-tested — AND THE AUDIO BOUNDARY, NOT JUST THE PAYLOAD** *(r1, and this is the
+  subtle one)*. `.agents/state.md` requires a seat re-test whenever a field enters a seat payload.
+  But scanning the JSON for `mood` proves only that it was not *serialized* — **the mood is spoken
+  aloud**, so an unconstrained descriptor reaches the seat player's ears while the payload scan stays
+  green. Two requirements: (a) `mood` comes only from the **public server-owned enum**, never from
+  private NPC personality text; (b) the seat test exercises the **`/api/audio/narrate` boundary**,
+  asserting the text sent upstream carries no private NPC direction — not merely that
+  `scopeVoiceLinesForSeat` omitted a field.
 - **Playtest gate (feel).** A real session with voice on. The GM sounds distinct from the NPCs; NPCs
   sound distinct from each other and are *sticky* across turns; a character's habitual mood is
   audible; per-line tone visibly varies delivery (the whisper/tense/joy distinction the owner
@@ -930,14 +1100,29 @@ Recorded here so it is not lost; it is a **separate, optional slice**, not part 
 
 ### Files to change
 
-- `tts-providers.js` — per-provider registries; `validateVoiceProfile(raw, provider)`; `voiceSeed`;
-  `synthesizeGrok`; tag rendering + sanitization; register `grok`
-- `server.js` — `:735`/`:761` provider-aware voice gates; per-provider key resolution; pass
-  `mood`/`tone` through
-- `rpg-prompts.js` — NPC `voice_mood`
-- `rpg-state.js` — validate `voice_mood`
-- `admin/` — voice provider/voice-list wiring
-- `test.js` — provider registry tests, endpoint pin, key-isolation, seat-leak guard
+*(r1: the original list omitted `public/app.js`, `server-config.js`, `rpg-engine.js`, and
+`public/index.html` — four files without which the design does not function at all.)*
+
+- `tts-providers.js` — per-provider registries (incl. the pinned ordered Grok 26); `voiceSeed`;
+  `validateVoiceProfile(raw, provider)`; the mood **enum**; `synthesizeGrok`; tag rendering; register
+  `grok`
+- `server.js` — the `:735`/`:761` provider-aware voice gates; **server-side profile resolution for
+  the HOST** as well as the seat; bracket-neutralisation of spoken text (`:124-132`); the raised
+  rate limit; `GET /api/voices`
+- `server-config.js` — **per-provider** voice key storage/resolution/masking (`:85-87` today resolves
+  one generic key and falls back to `OPENAI_API_KEY`)
+- `public/app.js` — send `{speaker, tone}` for the host too; stop composing NPC `instructions`
+  client-side; **batch consecutive same-speaker lines**; skip-and-continue on failure; populate the
+  voice selector from `/api/voices`
+- `public/index.html` — the narrator voice selector (`:379-393`) is a hardcoded OpenAI list
+- `rpg-engine.js` — assign a **narrator profile at campaign creation**; **copy `voice_json` on fork**
+  (`:2634`)
+- `rpg-prompts.js` — NPC `voice_mood`, constrained to the enum
+- `rpg-state.js` — validate `voice_mood` against the enum (drop off-list values); add `voiceSeed` +
+  `mood` to the import whitelist (`:1037`)
+- `admin/` — voice provider selection, per-provider key fields, provider-aware voice list
+- `test.js` — provider registries, endpoint pin, key isolation, **non-vacuous host+seat route tests**,
+  the audio-boundary seat guard, fork/import round-trip
 - `.agents/decisions.md`, `plan.md` — already recorded
 
 ### Process
@@ -951,9 +1136,18 @@ one-finding-one-branch discipline, owner to set the order.
 
 ## Phase CT: Theme colour format — store colours, not loose components (promoted 2026-07-14, owner go)
 
-Not a feel phase: the intended visual result is **pixel-identical**. It is a correctness phase
-that removes a defect *class*, and it deletes ~400 lines of test code rather than adding any.
-No playtest gate; a visual no-regression check gates it instead (below).
+Not a feel phase: the change is **intended to be visually invisible**. It is a correctness phase that
+removes a defect *class*, and it deletes ~400 lines of test code rather than adding any. No playtest
+gate.
+
+> **"Pixel-identical" is an INTENT, not a gate** *(cold review: the word implied a rigour nothing in
+> this repo can deliver — there is no browser harness, no baseline screenshots, and no pass/fail
+> criterion, so a cold agent cannot establish pixel identity and would either fake the claim or
+> stall)*. The **actual gate** is: (a) the pinned 25-entry alpha table asserted in `node test.js`;
+> (b) the definition/writer grammar asserted in `node test.js`; (c) zero surviving
+> `hsl(var(--theme-`/`hsla(var(--theme-` in runtime sources; and (d) a **human sanity pass** —
+> every surface still paints, across the five themes and the holodeck idle. (d) is a smoke check, not
+> a proof, and is described as such. (a)–(c) are the proof, and they need no browser.
 
 ### Problem
 
@@ -995,7 +1189,7 @@ State the benefit correctly, because it is still large and it is the whole justi
   for `rgba()` around a value that is already a colour.
 
 So the migration converts a *trap* into an ordinary *typo*. The residual risk is a plain typo, and
-a plain typo is caught by a plain regex — see the guard in step 8. **The guard is a typo lint, not
+a plain typo is caught by a plain regex — see the guard in **step 9**. **The guard is a typo lint, not
 a proof, and it must never again be escalated into a parser.** css-2 established, over three
 rounds and 16 defeats, that a text scanner cannot police encoded CSS. It does not need to: an
 encoded offender is not an accident, and the threat model here is a developer slip, not a
@@ -1038,6 +1232,12 @@ not silent scope creep.
 **Do not drive any step from a COUNT.** Enumerate the sites and transform each one. The r1 review
 found the counts themselves were wrong (below); a count-driven sweep leaves survivors.
 
+> **STEP ORDER MATTERS — DELETE THE OLD SCANNER FIRST.** *(Cold review, ordering hazard.)* Steps 1–3
+> invalidate the existing css-1/css-2 scanner's production anchors (`test.js:1567-1580`), so if you
+> migrate the CSS **before** removing the scanner, **the suite goes red for entirely expected reasons**
+> and a cold implementer will reasonably think they have broken something and start "fixing" it.
+> Do step 9's deletion **first** in the working tree. The whole phase still lands as ONE commit.
+
 1. **`public/styles.css` — definitions: 48 total, of which 6 are `--theme-glow` (deleted in step 4),
    leaving 42 to convert.** *(r1 correction: the earlier draft said "48 become complete colours".)*
    Blocks: `:root` (:6), `.theme-cyberpunk` (:29), `.theme-fantasy` (:40), `.theme-horror` (:51),
@@ -1046,6 +1246,10 @@ found the counts themselves were wrong (below); a count-driven sweep leaves surv
    `--theme-panel: 220, 25%, 12%;` → `--theme-panel: hsl(220 25% 12%);`
 
 2. **`public/styles.css` — opaque consumers (132).** `hsl(var(--theme-x))` → `var(--theme-x)`.
+   *(Cold review asks for a checklist here. It is not needed, and this is the reason: unlike the
+   alpha rewrite — where a wrong percentage is silently valid — the opaque rewrite is **exhaustively
+   self-verifying**. The end-state assertion is "**zero** `hsl(var(--theme-` remain in the file", so
+   a missed site cannot hide. Sweep them, then assert zero. That IS the enumeration.)*
 
 3. **`public/styles.css` — translucent consumers: THE EXACT 25-ENTRY TABLE.** *(r2: the previous
    draft only promised this table and gave a compressed line list, so a wrong rewrite could be
@@ -1097,12 +1301,43 @@ found the counts themselves were wrong (below); a count-driven sweep leaves surv
    the deletion. The correction matters because that same alpha syntax is what a pre-baked fallback
    would need.)* Supersedes the standalone css-3 branch plan.
 
-5. **`public/app.js` — the theme WRITER.** `applyCampaignTheme` (:1582) writes component strings.
-   Wrap each at the boundary: `set('--theme-primary', primary)` →
-   `set('--theme-primary', \`hsl(${primary})\`)`. Cover **both** paths — the body-level `set` helper
-   (:1603-1618) **and** the legacy component-only `documentElement.style.setProperty` calls
-   (:1621-1631), including the derived panel/border values built from `bgParts`
-   (`${h}, ${s}%, ${l}%` → `hsl(${h} ${s}% ${l}%)`).
+5. **`public/app.js` — the theme WRITER. Extract a PURE, TESTABLE seam first.**
+
+   *(Cold-implementer review named this the single most risk-reducing addition, and it closes three
+   findings at once: the writer is otherwise untestable — `public/app.js` is a browser module with
+   top-level DOM/window dependencies and `package.json` has no DOM test library, so "unit-test the
+   writer's output" was unimplementable as written; and enumerating the properties in one place is
+   what stops the `text`/`text_dim` omission below.)*
+
+   **New module `public/theme-vars.js`** — pure functions, no DOM, importable by both `public/app.js`
+   and `test.js`:
+
+   ```js
+   export function toThemeColor(components)   // '220, 25%, 12%' -> 'hsl(220, 25%, 12%)'
+   export function derivePanelBorder(background)  // -> { '--theme-panel': …, '--theme-border': … }
+   export function fullThemeVars(colors)      // the body-level map (generated themes)
+   export function baseThemeVars(primary, secondary, background)  // the root-level map (legacy)
+   ```
+
+   `applyCampaignTheme` then just *applies* the returned map. `test.js` imports the same functions
+   and asserts their **actual output strings** against the grammar in step 9 — no DOM, no mock, no
+   AI credentials.
+
+   **⚠ `--theme-text` and `--theme-text-dim` MUST be converted** (`app.js:1608-1609`). *(This is the
+   cold review's "most likely way a diligent implementer still ships a broken surface". The earlier
+   draft's examples covered `primary` and the derived `panel`/`border` and silently omitted these
+   two. Convert the consumers to `var(--theme-text*)` while leaving the writer emitting bare
+   components, and every generated-theme text declaration becomes invalid — **blanking most of the
+   readable UI**.)*
+
+   The two paths, in full:
+   - **Full generated theme** (`:1603-1618`, body level, taken when `colors.text` is a string):
+     `--theme-primary`, `--theme-secondary`, `--theme-bg`, **`--theme-text`**, **`--theme-text-dim`**,
+     and the derived `--theme-panel` / `--theme-border` from `bgParts`. (`--theme-glow` is deleted.)
+   - **Legacy** (`:1621-1631`, `documentElement` level, taken when `colors.text` is absent):
+     `--theme-primary`, `--theme-secondary`, `--theme-bg`, and derived `--theme-panel` /
+     `--theme-border`. It does **not** set text vars at all — those come from the preset class or
+     `:root`. Do not "helpfully" add them; that would change behaviour.
 
 6. **`public/app.js` — the three LIVE CONSUMERS the first draft MISSED** *(r1; this was the plan's
    worst omission — it scoped app.js as "just the writer")*. These build inline styles and would
@@ -1123,11 +1358,21 @@ found the counts themselves were wrong (below); a count-driven sweep leaves surv
    fallback must itself become a complete colour. (The SVG is injected via `innerHTML`, so it
    inherits the document's custom properties.)
 
-9. **`test.js` — DELETE the scanner.** Remove `testThemeVarConsumers` and every helper it owns
-   (`blankCssComments`, `blankHtmlComments`, `mapOutsideRawText`, `decodeHtmlEntities`,
-   `prepareHtml`, `HTML_NAMED_ENTITIES`, `extractCssVarNames`, `findMatchingParen`,
-   `collectVarAliases`, `mergeAliasMaps`, `resolvesToThemeTriple`, `findInvalidThemeRgbConsumers`,
-   `themeConsumerTargets`) plus its `runAll` registration.
+9. **`test.js` — DELETE the scanner.**
+
+   > **⚠ The deletion list below is for the CSS-1 SCANNER, which is what exists on the base.**
+   > *(Cold review r2: the previous list named `blankHtmlComments`, `mapOutsideRawText`,
+   > `decodeHtmlEntities`, `prepareHtml`, `HTML_NAMED_ENTITIES`, `mergeAliasMaps` and
+   > `themeConsumerTargets` — **none of which exist on the base**. They were added on
+   > `fix/css-2-scanner-scope`, which is **abandoned and must never be checked out**. A cold
+   > implementer would have gone hunting for them and could have wandered onto the forbidden branch
+   > to find them. If a symbol below is missing, you are on the wrong base — STOP, do not go looking
+   > for it on another branch.)*
+
+   Remove `testThemeVarConsumers` (`test.js:1423`) and the six helpers it owns — `blankCssComments`,
+   `extractCssVarNames`, `findMatchingParen`, `collectVarAliases`, `resolvesToThemeTriple`,
+   `findInvalidThemeRgbConsumers` — plus its `runAll` registration and the now-unused `fs`/`path`/
+   `fileURLToPath` imports if nothing else needs them.
 
    Replace it with **two small checks**. Neither is a parser, and neither may ever grow into one.
 
@@ -1206,9 +1451,21 @@ found the counts themselves were wrong (below); a count-driven sweep leaves surv
   > a **CORRECT** migration.)* The table's line numbers are **pre-migration**. Deleting the six
   > `--theme-glow` definitions (`:18, :37, :48, :59, :70, :1198`) **shifts every entry below them** —
   > the first 21 by five lines, the last four by six. A correct rewrite would go red unless someone
-  > left blank lines behind to preserve numbering, which is absurd. **Key by stable identity
-  > instead**: the `(selector, property, variable, percentage)` tuple, or ordered occurrence. The
-  > line numbers in the table are a **human navigation aid only — never the assertion key.**
+  > left blank lines behind to preserve numbering, which is absurd. The line numbers in the table are
+  > a **human navigation aid only — never the assertion key.**
+  >
+  > **THE IDENTITY SCHEME IS MANDATORY AND SINGULAR: ORDERED OCCURRENCE.** *(Cold review r2: offering
+  > "tuple **or** ordered occurrence" was an invitation to invent. Worse, the tuple reading is
+  > **unimplementable from this plan** — the table carries no selectors or properties, so a tuple
+  > implementation would have to re-derive its "independent" expectation **from the stylesheet it is
+  > checking**, which is precisely the self-check the plan forbids.)*
+  >
+  > Scan `public/styles.css` **top to bottom**, collect every
+  > `color-mix(in srgb, var(--theme-X) N%, transparent)` **in source order**, and assert the resulting
+  > list of `(variable, percentage)` pairs **equals the 25-row table above, in that exact order**.
+  > Order is stable under the glow deletion (deleting definitions does not reorder consumers), it
+  > needs no selector data, and a transposition, omission, or duplication all fail. Note row 22/23
+  > (both at old line 1389) — two entries, adjacent, in that order.
 
   **A rewrite cannot be checked against itself, because the table is the
   independently-extracted expectation and it is written down above.**
@@ -1238,12 +1495,24 @@ found the counts themselves were wrong (below); a count-driven sweep leaves surv
   the implementing machine exercises **none** of the declared floors, and exercises only one of
   WKWebView / WebKitGTK. Do not claim coverage that is not being produced.)*
   `color-mix()` baseline support: **Chrome/Edge 111** (Mar 2023), **Firefox 113** (May 2023),
-  **Safari/WebKit 16.2** (Dec **2022**), **WebKitGTK 2.38** (Sep **2022**). *(r2 correction: the
-  previous draft said "all 2023" — false for the two WebKit floors.)* Cite the compatibility source
-  in `README.md` rather than implying the floors were tested here.
-  The web path is canonical (plan.md Dev Tooling), so the minimum is a **product statement**: record
-  it in `README.md`. Then run smoke checks — and label them as such — on a current Chromium, a
-  current Firefox, and the Tauri shell of the implementing machine.
+  **Safari/WebKit 16.2** (Dec **2022**). *(r2 correction: the earlier draft said "all 2023" — false
+  for the WebKit floor.)* Cite **MDN's `color-mix()` browser-compatibility table** in `README.md` for
+  those three.
+
+  > **DO NOT cite MDN for a WebKitGTK version floor** *(cold review r2: MDN publishes no WebKitGTK
+  > row, so the previously-required citation was impossible to satisfy)*. State the Tauri/Linux
+  > position honestly instead: the shell renders in WebKitGTK, `color-mix` shipped in WebKit well
+  > before the versions any current WebKitGTK ships, and **the shell is verified by running it**, not
+  > by citation. If it renders correctly in the shell on the implementing machine, record that as the
+  > observation it is.
+
+  > **THE BROWSER MATRIX IS NOT A GATE — IT IS A SMOKE CHECK, AND IT MAY BE REPORTED UNRUN.**
+  > *(Cold review r2: `package.json` has no browser dependency or smoke script, and the implementing
+  > machine may have no Chromium or Firefox at all. Installing browsers is an unexplained external
+  > mutation, and demanding it as a gate leaves a cold agent stuck or lying.)* Run whichever engines
+  > are actually present — on this machine that is **Safari/WebKit and the Tauri shell** — and
+  > **explicitly record which engines were NOT exercised**. Per AGENTS.md, "state clearly that it was
+  > not run" is an acceptable outcome; a fabricated matrix is not.
 - **If a target engine fails, the pre-baked fallback is a SEPARATE, SEPARATELY-REVIEWED SLICE — not
   a sentence in this plan** *(r1)*. It is not "more variables": it is **18 distinct
   primary/secondary/panel alpha levels × 6 theme blocks ≈ 108 definitions**, plus writes on **both**
@@ -1280,8 +1549,78 @@ Leaving these in place instructs a future cold agent to restore the abandoned be
 
   All four must be struck or annotated as superseded **in the same slice**, not "later".
 
+### Execution contract (cold-implementer review — these were all unstated)
+
+- **Finding id / branch / base — WITH AN ANCESTRY PRECHECK.** This phase lands as finding **`ct-1`**
+  on branch **`fix/ct-1-theme-colour-format`**, cut from **`master`**.
+
+  > **⚠ BEFORE BRANCHING, VERIFY THE PLAN YOU ARE READING IS ON YOUR BASE.**
+  > *(Cold review r2 caught this happening for the second time: plan revisions were committed to a
+  > working branch and NOT to `master`, so "cut from master" would have handed the implementer a
+  > **stale plan** — without the `theme-vars.js` seam and without the `text`/`text_dim` warning —
+  > and the likeliest shipped failure would have been blank generated-theme text.)*
+  >
+  > Run this and require it to pass:
+  > ```
+  > git merge-base --is-ancestor <this-plan-commit> master   # must exit 0
+  > ```
+  > If it does not, the plan on `master` is **older than the one you are reading**. STOP. The plan
+  > must be merged to `master` first. Never implement from a plan that is not on your base.
+  *(The cold review flagged that the plan's own pinned SHAs sat on `fix/css-2-scanner-scope` — the
+  branch this plan forbids merging. That is now resolved: all plan/decision/state commits were
+  rescued onto `master` (merge `88e6324`), and the poisoned branch keeps only its three code
+  commits. **Never base implementation on `fix/css-2-scanner-scope`.**)*
+- **One finding ↔ one branch ↔ one verdict** still holds, even though CT *closes* css-2 and css-3.
+  Those are closed as **records**, not as code branches: css-2 is abandoned (branch never merged,
+  deleted after CT lands) and css-3 is superseded (never branched). `ct-1` is the only branch.
+- **Close-out ordering** *(cold review: the previous text was circular — it asked for reviewer
+  verdicts and commit SHAs inside the same pre-review commit that produces them)*. Sequence:
+  (1) the atomic code commit on `fix/ct-1-theme-colour-format`; (2) reviewloop dispatch and verdict;
+  (3) a **separate** docs commit recording the verdict and closing out css-2/css-3/index. Do not
+  attempt to write a verdict you do not yet have.
+- **Prerequisites a cold agent will not otherwise know**: run the suite with
+  `AI_RETRY_BACKOFF_MS=10 node test.js`; run the app with `node server.js` (port 3000); the desktop
+  shell is `npm run desktop` after `cargo build` in `desktop/src-tauri`. **There is no browser test
+  harness** — do not plan any check that needs one.
+- **Theme fixtures WITHOUT AI credentials, WITH EXACT EXPECTED MAPS** *(cold review: campaign creation
+  calls the Setup AI, so a cold agent with no key cannot exercise the writer at all)*. Both writer
+  paths are reachable purely through `public/theme-vars.js` (step 5) — that is the point of extracting
+  it.
+
+  > **The fixtures must pin the EXACT expected map, not just "matches the grammar."**
+  > *(Cold review r2: "each emitted string matches the HSL grammar" lets a **wrong but valid** mapping
+  > pass — e.g. deriving border lightness from `background + 8` instead of the current `panel + 8`
+  > (= `background + 12`), or **swapping `text` and `text_dim`**. Every one of those emits a
+  > grammatical `hsl(...)` and would sail through.)*
+  >
+  > Pin, for each fixture, the exact **input `colors` object** and the exact **output map** — full key
+  > set and every value — transcribed from the CURRENT behaviour at `public/app.js:1603-1618` and
+  > `:1621-1631`:
+  > - derived panel lightness = `min(95, bgL + 4)`; derived border lightness = **`panelL + 8`**
+  >   (i.e. `bgL + 12`), hue/sat inherited from the background;
+  > - the full-theme map includes `--theme-text` and `--theme-text-dim`; the legacy map contains
+  >   **neither**.
+  >
+  > - **full generated theme** — `colors` **with** a `text` slot → the body-level map.
+  > - **legacy** — `colors` **without** `text` → the root-level map.
+  >
+  > Neither needs a browser, a server, or a provider key.
+
+- **The pure functions do NOT prove the WIRING** *(cold review r2, and this is an honest limit —
+  state it rather than paper over it)*. `applyCampaignTheme` cannot be imported in Node
+  (`public/app.js:54` has top-level DOM access; `package.json` has no DOM library), so no Node test
+  can prove the browser writer *calls* the right helper, or that it applies the full-theme map to
+  `document.body` and the legacy map to `documentElement`. That wiring can be broken while every Node
+  gate stays green. Mitigate by keeping `applyCampaignTheme` a **thin applicator** — it computes
+  nothing; it takes the map from `theme-vars.js` and sets it — so the only untested surface is a
+  loop over `Object.entries(map)`. **The human smoke pass is what covers it**, and it is the *only*
+  thing that covers it. Say so.
+- **README compatibility source.** Cite MDN's `color-mix()` browser-compatibility table as the
+  authority for the declared floors; do not assert floors from memory.
+
 ### Files to change
 
+- `public/theme-vars.js` — **NEW**: the pure, DOM-free theme-value seam (step 5)
 - `public/styles.css` — 42 definitions converted (+6 glow removed), 132 opaque consumers, 25
   translucent consumers
 - `public/app.js` — `applyCampaignTheme` writer (**both** paths); the **three inline-style
