@@ -12,7 +12,7 @@ caught by that rule and are unmerged pending review.
 | ID | Severity | Impact (one line) | Status | Branch |
 |----|----------|-------------------|--------|--------|
 | map-1 | MEDIUM | Situation-panel area labels overrun their box: adjacent labels collide and the rightmost is clipped by the canvas edge | `[~]` REOPENED at r1 — 3 real defects (surrogate split, clip-id collision, canvas overflow still open); fix-ups pending | `fix/map-label-overflow` @ `b178222` |
-| css-1 | MEDIUM | Pre-existing: `rgba(var(--theme-*), α)` over HSL-triple vars is invalid CSS — header/glass/panel fills compute unpainted on every theme | `[~]` REOPENED at r1 — **the FIX is confirmed correct**; the new guard is incomplete (reviewer demonstrated a bypass via custom-property indirection). Guard fix-ups pending. | `fix/css-1-hsla-theme-vars` @ `d4d18bd` |
+| css-1 | MEDIUM | Pre-existing: `rgba(var(--theme-*), α)` over HSL-triple vars is invalid CSS — header/glass/panel fills compute unpainted on every theme | `[~]` REOPENED at r3 — guard_confirmed true; residual: custom-property regex excludes `_` (underscore alias probe stays green). Fix-up pending. | `fix/css-1-hsla-theme-vars` @ `bbbeda2` |
 
 **css-1 r1 verdict** (codex 0.144.1, `guard_confirmed: true`): REOPENED — but the split matters.
 The reviewer **independently verified the premise** (the theme vars really are HSL triples) and
