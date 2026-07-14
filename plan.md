@@ -761,70 +761,203 @@ Raised during planning but deliberately deferred. **Per project rule, nothing he
   A committed harness is the only thing that catches this class automatically. It would have caught
   css-1 on day one.
 
-  **Design — ASSERTION-based, NOT screenshot-baseline.** This is the load-bearing decision.
-  Golden-image baselines rot, need a review story for every intentional change, and are noisy
-  (a master-vs-master control on 2026-07-14 showed ~1800 pixels differing from animation timing
-  alone). Instead **assert the properties that encode the bug class**, which are deterministic:
-  - **No themed surface computes to transparent when it is supposed to be painted.** For each of the
-    six theme blocks (`:root`, `.theme-cyberpunk`, `.theme-fantasy`, `.theme-horror`, `.theme-scifi`,
-    `body.holodeck-idle`) × the surfaces css-1 broke (`.app-header`, `.glass-card`, `.panel-section`,
-    `.narrative-panel`, `.log-player`, `.input-area`, `.quest-act-badge`, `.btn-primary`), assert
-    `background-color` (and `box-shadow`/`border-color` where applicable) is **not** `rgba(0,0,0,0)`
-    and **not** `none`. **This single assertion is exactly css-1's symptom** and is the harness's
-    whole reason to exist.
-  - Assert every `--theme-*` custom property **resolves to a colour a browser accepts** — i.e. a
-    surface consuming it computes a real value rather than falling back.
-  - Assert the theme actually **changes** between blocks (guards against a theme silently not
-    applying at all, which "not transparent" alone would miss).
+  **REVISION HISTORY. This plan was rewritten on 2026-07-14 after its first plan review returned
+  9 findings and the verdict "as written, this would NOT work" — the original core assertion went
+  red on healthy master. Do not restore the earlier design; the specific traps it fell into are
+  recorded under "Rejected designs" below.**
+
+  ---
+
+  **Design — a DIFFERENTIAL, EXPRESSION-LEVEL oracle in a real browser.**
+
+  Three load-bearing decisions, in order of importance.
+
+  **(1) The unit under test is the DECLARATION, not the surface.** The bug class is *"a declaration
+  that references a `--theme-*` var is silently dropped."* css-1 was `rgba(var(--theme-panel), 0.7)`
+  — the **value expression** is what the browser rejects. The selector is irrelevant: two rules using
+  the same expression shape fail or succeed together. So the harness enumerates **declarations**, not
+  surfaces, and tests each expression directly. This is what makes the harness exhaustive, and it is
+  why the original hand-curated surface matrix (which the review showed was missing at least eight
+  real sites) is gone.
+
+  **(2) The oracle is DIFFERENTIAL, never a hardcoded expected value.** For each declaration, style a
+  **probe** element with it and leave an identical **control** sibling unstyled, in the same theme
+  context. Then:
+
+  > **If applying the declaration changes NOTHING in the probe's computed style, the browser dropped
+  > it.** That is the entire test.
+
+  This works because a `var()` declaration that fails is *invalid at computed-value time* (IACVT): the
+  property silently reverts to its inherited or initial value — i.e. exactly the control's value. The
+  oracle makes **no assumption about which property should be non-transparent**, which is what killed
+  the original design (see Rejected designs #1). It handles `background-color`, `background-image`
+  gradients, `box-shadow`, `border-color`, `color`, `filter`/`drop-shadow` and shorthands uniformly,
+  and it never rots when a designer changes `45%` to `50%`.
+
+  **(3) The declaration list is derived from the browser's OWN parse (CSSOM), not from a hand-written
+  matrix and not from a custom parser.** Walk `document.styleSheets` for `styles.css`, recursing into
+  `CSSMediaRule` and `CSSKeyframesRule`, and collect every declaration whose value contains
+  `var(--theme-`. This is **self-maintaining**: a themed rule added tomorrow is tested tomorrow, with
+  no matrix to update and no way to "forget" a surface. It is emphatically **not** css-2 — css-2 wrote
+  its own CSS parser and used it as the *oracle* (and it crashed the suite and rejected valid CSS).
+  Here the browser parses, and the browser is the oracle; the enumeration only decides *what to probe*.
+  **Read `docs/history/css-2-abandoned-scanner.md` before touching this.**
+
+  **Phases — implement in this order.**
+
+  - **Phase A — every `--theme-*` var resolves to a colour the browser accepts.** Reading a custom
+    property's *text* proves nothing: custom properties accept arbitrary token streams, so
+    `--theme-bg: banana` reads back happily. Use a **typed sentinel probe** on an **inherited**
+    property (`color`), with the parent set to a literal sentinel `rgb(1, 2, 3)`. For each of the six
+    theme contexts × each of the seven `--theme-*` names, read two probes:
+    | probe | computed | verdict |
+    |---|---|---|
+    | `color: var(--theme-X, rgb(4, 5, 6))` | `rgb(4, 5, 6)` | var is **UNDEFINED** |
+    | `color: var(--theme-X)` | `rgb(1, 2, 3)` (the inherited sentinel) | var is **DEFINED BUT NOT A COLOUR** |
+    | `color: var(--theme-X)` | anything else | **valid colour** — record it |
+    Assert every var in every context lands in the third row. The two sentinels must be colours no
+    theme uses.
+
+  - **Phase B — the expression battery (the heart of the harness).** For each distinct
+    `(property, value)` pair collected via CSSOM (dedupe — many rules share an expression) × each of
+    the six theme contexts: apply it to the probe and diff the **full computed style** against the
+    control. **Require at least one property to differ.** Zero differences ⇒ dropped ⇒ **FAIL**,
+    reporting the theme, the property, the value, and **every source selector that uses that
+    expression** (keep the selector list during enumeration purely so failures are actionable).
+    - **Self-check, mandatory:** *before* applying the declaration, assert probe and control compute
+      **identically**. If they do not, the scaffolding is broken and every result is meaningless —
+      fail immediately. This is what stops the harness from passing vacuously.
+    - **Both probe and control inherit the sentinel `color: rgb(1, 2, 3)` from their parent.** This
+      matters: `border-color`'s initial value is `currentcolor`, so a dropped `border-color` computes
+      to the sentinel on *both* elements and correctly registers as "no difference".
+
+  - **Phase C — the theme actually changes.** Using the colours Phase A recorded, assert
+    `--theme-primary` and `--theme-bg` are **distinct across all six contexts**. Guards a theme class
+    silently not applying at all — which Phase B alone would not catch, since a stuck theme still
+    paints *something*.
+
+  - **Phase D — the `theme-vars.js` boundary.** `public/theme-vars.js` is the one place that turns
+    model-emitted HSL components into colours (`.agents/state.md`, the theme-var contract), so it is
+    the other half of the class. Import the **real module** into the page from the running server
+    (`import('http://127.0.0.1:<port>/theme-vars.js')`), call `fullThemeVars` and `baseThemeVars` on
+    representative inputs, apply each returned `--theme-*` as an inline custom property, and re-run
+    **Phase A's validity probe** against them. Proves the JS→CSS boundary emits colours the browser
+    accepts. (Do **not** re-implement the function's logic in the harness — that is the vacuous-guard
+    anti-pattern `.agents/state.md` records; call the real module.)
+
+  - **Phase E — fail closed.** Assert the harness actually *did* something: `styles.css` must be
+    reachable through CSSOM, and the collected declaration count must be **≥ 100** (evidence: 149
+    themed declarations on master at `36c4167`). Without this, a stylesheet that fails to load yields
+    zero declarations, zero assertions, and a **green run** — the exact vacuous pass this repo has
+    been bitten by three times.
+
+  **Hermetic by construction.** The harness never loads `public/index.html` — that page pulls Google
+  Fonts and cdnjs, so navigating to it makes the run depend on DNS (a review finding). Instead the
+  probe document is built with Playwright's `setContent()` and links **only** the real stylesheet by
+  absolute URL (`http://127.0.0.1:<port>/styles.css`). Belt and braces: `page.route()` **aborts every
+  request whose host is not `127.0.0.1`**, so a future stray external URL fails loudly instead of
+  silently phoning home. No test-only route is added to `server.js` and no fixture file is added to
+  `public/`.
+
+  **Server boot.** The harness boots the server itself: `RPG_DB_PATH` at a temp file (the unit suite's
+  convention — it must **never** touch the dev DB), a **free port** chosen at runtime rather than
+  assuming 3000, and **no AI provider key needed** — nothing here creates a campaign. Tear the server
+  down and remove the temp DB on exit, including on failure.
 
   **Lessons from the 2026-07-14 ad-hoc run that MUST be encoded, or the harness will lie:**
-  1. **The probe must not style itself with theme variables.** The first ad-hoc probe used
-     `background: hsl(var(--theme-bg, …))` — which after Phase CT becomes `hsl(hsl(…))`, invalid,
-     dropped — so **the harness reintroduced css-1 and then reported a 92% pixel difference that was
-     its own bug**. Probe scaffolding uses **literal colours only**.
-  2. **Freeze animations and transitions** (`*,*::before,*::after{animation:none!important;
-     transition:none!important}`) before measuring. Without it the noise floor is ~1800 px.
+  1. **Probe scaffolding uses LITERAL colours only.** The first ad-hoc probe styled *itself* with
+     `background: hsl(var(--theme-bg, …))` — which after Phase CT is `hsl(hsl(…))`, invalid, dropped —
+     so **the harness reintroduced css-1 and then reported a 92% pixel difference that was its own
+     bug**. Every sentinel and every scaffold colour in this harness is a literal.
+  2. **Freeze animations and transitions** (`*, *::before, *::after { animation: none !important;
+     transition: none !important; }`) before measuring, or transitions in flight make computed values
+     non-deterministic. Note this harness never needs to *observe* an animation: keyframe declarations
+     are probed as plain declarations (Phase B), which is why the review's worry about the pulse
+     keyframe does not require pausing anything.
   3. **`color-mix()` computes to `color(srgb …)` where `hsla()` computes to `rgba(…)`.** Any colour
-     comparison must normalize to 0–255 before comparing, or every correct value looks "different".
+     *comparison* must normalize to 0–255 first. (Phase B's diff is equality-only, so this bites
+     mainly in Phase C's distinctness check and in failure messages.)
 
-  **Isolation / install / lockfile — the T2 r6 objection, answered.** T2's review rejected a browser
-  rig for lacking exactly this story:
-  - `playwright` as a **devDependency**, pinned, with `package-lock.json` updated. Browsers are NOT
-    in `node_modules`: `npx playwright install chromium` is a documented one-time setup step
-    (README + `.agents/repo-guidance.md`).
-  - **Chromium only.** Do not attempt a multi-engine matrix; it is not verifiable on a single dev
-    machine and would be a lie.
-  - **Hermetic**: the harness boots the server itself with `RPG_DB_PATH` pointed at a temp file (the
-    unit suite's existing convention — it must never touch the dev DB), picks a **free port** rather
-    than assuming 3000, and needs **no AI provider key** — it drives the theme classes directly
-    rather than creating a campaign (campaign creation calls the Setup agent).
-  - **Skips loudly, never fails silently**, when Chromium is not installed: print a clear "browser
-    harness SKIPPED — run `npx playwright install chromium`" and exit 0. A machine without the
-    browser must not be blocked, but must not be told it passed either.
+  **Install / lockfile — the T2 r6 objection, answered.**
+  - `playwright` as a **devDependency**, pinned, with `package-lock.json` updated.
+  - Browsers are **not** vendored: `npx playwright install chromium` is a one-time documented setup
+    step (README + `.agents/repo-guidance.md`).
+  - **Chromium only.** No multi-engine matrix — it is not verifiable on one dev machine and claiming
+    it would be a lie.
+  - **When Chromium is missing the harness EXITS NON-ZERO** (print: `browser harness CANNOT RUN — run
+    \`npx playwright install chromium\``). **It must not exit 0.** The original plan said "skip and
+    exit 0", which the review correctly called out as defeating the entire gate: the required command
+    would report success while no assertion ever ran. A machine without the browser is a machine that
+    **cannot** verify this class, and it must say so.
 
-  **Entry point.** A **separate** command — `npm run test:browser` — NOT folded into `node test.js`,
-  which must stay dependency-light and hermetic. Because this repo has **no CI** (verification is
-  local-only), a separate command is only as good as the rule that invokes it: record in
-  `.agents/repo-guidance.md` (Verification) that **`npm run test:browser` is REQUIRED before merging
-  any change to `public/styles.css`, `public/index.html`, `public/app.js`, `public/theme-vars.js`, or
-  `map-render.js`**. State that honestly as a process guarantee, not a technical one.
+  **Entry point and the honest coverage claim.** A **separate** command — `npm run test:browser`, NOT
+  folded into `node test.js`, which stays dependency-light and hermetic. This repo has **no CI**, so
+  the command is only as good as the rule that invokes it. Record in `.agents/repo-guidance.md`
+  (Verification): **`npm run test:browser` is REQUIRED before merging any change to
+  `public/styles.css` or `public/theme-vars.js`.**
+  - **That list is deliberately shorter than the original plan's.** The review found the old list
+    (which included `public/index.html`, `public/app.js` and `map-render.js`) **overstated coverage**:
+    the harness drives theme contexts directly, so it never exercises `app.js`'s theme wiring and
+    never touches `map-render.js` at all. Guarding two files honestly beats claiming five.
+  - **Known gap, stated rather than papered over:** `app.js` decides *which* theme class and which
+    inline vars get applied. Phase D covers the value-producing half of that path (`theme-vars.js`);
+    the wiring half is **not** covered by this harness. Do not write a merge rule that implies it is.
+  - This is a **process** guarantee, not a technical one. Say so.
 
   **Success metrics.**
   - `npm run test:browser` passes on master.
-  - **Guard proof (mandatory, and the whole point):** reintroduce css-1 — put
-    `background: rgba(var(--theme-panel), 0.7)` on `.glass-card` — and the harness must **FAIL**,
-    naming the surface and the theme. Revert; it passes. A harness that cannot detect css-1 is
+  - **Guard proof G1 (mandatory — this is the whole point):** reintroduce css-1 — put
+    `background: rgba(var(--theme-panel), 0.7)` on `.glass-card` — and Phase B must **FAIL**, naming
+    the selector, the property and the theme. Revert; it passes. A harness that cannot detect css-1 is
     worthless, since css-1 is why it exists.
-  - Second guard proof: delete a `--theme-*` definition from one theme block; the "theme actually
-    changes" assertion must fail.
-  - The unit suite (`node test.js`) is **unchanged and still hermetic** — no new dependency reaches
-    it.
+  - **G2:** delete `--theme-primary` from `.theme-fantasy`; Phase A must fail it as **UNDEFINED**.
+  - **G3 — anti-vacuity, and non-optional.** The css-1 *scanner* guard passed its own guard proof and
+    was still worthless, because it matched only the **literal spelling** of the defect and custom-
+    property indirection walked straight past it (`.agents/state.md`, Verification — "it bit a third
+    time, in a new costume"). So break it **through indirection**: add `--tmp: var(--theme-panel);`
+    and then `background: rgba(var(--tmp), 0.7);`. The harness must **still fail**. A guard must cover
+    the **class**, not the one spelling you thought of. *(The differential oracle should pass this for
+    free — it never pattern-matches the value. If it does not, the design is wrong, not the test.)*
+  - **G4 — fail-closed proof:** point the probe document at a non-existent stylesheet URL. The harness
+    must **FAIL** (Phase E), not pass with zero assertions.
+  - The unit suite (`node test.js`) is **unchanged and still hermetic** — no new dependency reaches it.
 
-  **Files**: `package.json` (devDep + `test:browser` script), `package-lock.json`,
-  `test-browser.mjs` (new), `README.md` (setup step), `.agents/repo-guidance.md` (Verification rule).
+  **Files**: `package.json` (devDep + `test:browser` script), `package-lock.json`, `test-browser.mjs`
+  (new), `README.md` (setup step), `.agents/repo-guidance.md` (Verification rule).
 
   **Non-goals**: screenshot baselines; a multi-engine matrix; testing gameplay flows; anything
-  requiring an AI key. This harness guards **one** thing — that themed surfaces actually paint.
+  requiring an AI key; `app.js` theme wiring; `map-render.js`. This harness guards **one** thing —
+  that themed declarations survive the browser's parser and actually paint.
+
+  **Rejected designs — do not re-propose these; each was tried or reviewed and failed.**
+  1. **"No themed surface computes to transparent."** The original core assertion. It **goes red on
+     healthy master**: `.btn-primary` paints with a `linear-gradient`, so its `background-color` is
+     *legitimately* `rgba(0, 0, 0, 0)`. Likewise `.stars-bg` themes `background-image` (two
+     radial-gradients), not `background-color`. Any blanket per-surface property assumption has this
+     failure mode; the differential oracle exists precisely to avoid needing one.
+  2. **A hand-curated surface matrix.** The original listed eight surfaces and the review found at
+     least eight more real themed sites it missed — most of them **stateful** (`.choice-btn:hover`,
+     `.action-form input:focus`, `.tab-btn.active`, `.campaign-card:hover`, `.ability-tier`,
+     `.roll-d20-icon`, `.stars-bg`) — plus a themed **keyframe**. A curated list drifts the moment
+     someone adds a rule. CSSOM enumeration replaces it.
+  3. **Asserting "not transparent" against the live app page.** Cannot prove *the tested declaration*
+     survived: a later cascade rule can repaint the element and mask the failure. Isolated probes fix
+     this.
+  4. **Reading `--theme-*` values back as text.** Cannot prove they are valid colours — custom
+     properties accept arbitrary token streams. Phase A's typed sentinel probe fixes this.
+  5. **A static CSS scanner.** See css-2: three review rounds, 22 reviewer defeats, a suite crash, and
+     valid CSS rejected. `docs/history/css-2-abandoned-scanner.md`. **The entire reason bh-1 exists is
+     that this approach does not work.**
+
+  **Two review findings that the evidence CORRECTS** (checked against `styles.css` at `36c4167`; noted
+  so the next reviewer does not re-raise them):
+  - The review cited "the pulse keyframe" among missed css-1 sites. `@keyframes d20-pulse` — the one
+    `.roll-d20-icon` actually runs — contains **no theme vars at all** (only `transform`). The themed
+    keyframe is **`@keyframes pulse-glow`** (a `drop-shadow` `color-mix` on `--theme-primary`). Both
+    are enumerated automatically by CSSOM, so the finding is *closed*, but by a different route than
+    it assumed.
+  - `.roll-d20-icon`'s themed properties are `color` and `text-shadow`; it has **no background**. A
+    background-oriented oracle would have tested the wrong property on it — finding 1 again.
 
 - **Model catalog in /admin (planned 2026-07-12, owner request; STATUS: APPROVED + QUEUED
   by the owner 2026-07-12 — combo-box shape approved; not yet started, no branch cut).**
