@@ -1320,38 +1320,150 @@ async function testNpcAppearance() {
  * browser drops the WHOLE declaration at parse time and the surface silently
  * renders unpainted.
  *
- * This is a no-DOM scanner over the shipped stylesheet: it asserts the *form* is
- * absent, which is the defect. It cannot assert the rendered pixels (the repo has
- * no browser harness), but the form mismatch is the bug — the parse-drop follows
- * from it. The scanner also catches any FUTURE rgba(var(--theme-*)) added by hand.
+ * No-DOM scanner over the shipped stylesheet. It guards the defect *class*, not
+ * one literal spelling (r1 reopen: a custom-property alias sailed past a
+ * direct-only regex). Comments are blanked before scanning so they cannot hide
+ * offenders or pad anti-vacuous checks. The anti-vacuous side is production
+ * anchors in live CSS, not a coarse match-count heuristic.
  */
+function blankCssComments(css) {
+  // Keep newlines so line numbers still map to the original file.
+  return css.replace(/\/\*[\s\S]*?\*\//g, (block) => block.replace(/[^\n]/g, ' '));
+}
+
+/** Custom props defined as `var(--other)` (optional fallback ignored). */
+function collectVarAliases(css) {
+  const aliases = new Map(); // --name -> [--ref, ...]
+  const defRe = /(--[a-zA-Z0-9-]+)\s*:\s*var\(\s*(--[a-zA-Z0-9-]+)/g;
+  let m;
+  while ((m = defRe.exec(css)) !== null) {
+    const name = m[1];
+    const ref = m[2];
+    if (!aliases.has(name)) aliases.set(name, []);
+    aliases.get(name).push(ref);
+  }
+  return aliases;
+}
+
+function resolvesToThemeTriple(name, aliases, seen = new Set()) {
+  // --theme-* is the HSL-triple contract (written by app.js / :root defaults).
+  if (name.startsWith('--theme-')) return true;
+  if (seen.has(name)) return false;
+  seen.add(name);
+  const refs = aliases.get(name);
+  if (!refs) return false;
+  return refs.some((ref) => resolvesToThemeTriple(ref, aliases, seen));
+}
+
+/**
+ * Find rgb()/rgba() consumers of any custom property that is, or transitively
+ * aliases, a --theme-* triple. `css` must already have comments blanked if the
+ * caller wants comment-immunity.
+ */
+function findInvalidThemeRgbConsumers(css, { pathLabel = 'stylesheet' } = {}) {
+  const aliases = collectVarAliases(css);
+  const invalid = [];
+  const rgbConsumer = /\b(rgba?)\(\s*var\(\s*(--[a-zA-Z0-9-]+)/gi;
+  let match;
+  while ((match = rgbConsumer.exec(css)) !== null) {
+    const fn = match[1];
+    const varName = match[2];
+    if (!resolvesToThemeTriple(varName, aliases)) continue;
+    const line = css.slice(0, match.index).split('\n').length;
+    const via = varName.startsWith('--theme-') ? '' : ' (aliases a --theme-* triple)';
+    invalid.push(`${pathLabel}:${line} — ${fn}(var(${varName}), …)${via}`);
+  }
+  return invalid;
+}
+
 async function testThemeVarConsumers() {
   console.log(' - Running theme-variable consumer tests (css-1)...');
   const stylesPath = path.join(path.dirname(fileURLToPath(import.meta.url)), 'public', 'styles.css');
-  const css = fs.readFileSync(stylesPath, 'utf8');
+  const raw = fs.readFileSync(stylesPath, 'utf8');
+  const css = blankCssComments(raw);
 
-  const invalid = [];
-  const rgbConsumer = /\b(rgba?)\(\s*var\(\s*(--theme-[a-z0-9-]+)/gi;
-  let match;
-  while ((match = rgbConsumer.exec(css)) !== null) {
-    const line = css.slice(0, match.index).split('\n').length;
-    invalid.push(`public/styles.css:${line} — ${match[1]}(var(${match[2]}), …)`);
-  }
+  const invalid = findInvalidThemeRgbConsumers(css, { pathLabel: 'public/styles.css' });
   assert.deepStrictEqual(
     invalid, [],
-    'rgb()/rgba() cannot consume an HSL-triple theme var: the declaration is invalid and the ' +
-    'browser drops it, so the surface never paints. Use hsl()/hsla(). Offenders:\n  ' +
+    'rgb()/rgba() cannot consume an HSL-triple theme var (directly or via custom-property ' +
+    'indirection): the declaration is invalid and the browser drops it, so the surface never ' +
+    'paints. Use hsl()/hsla(). Offenders:\n  ' +
     invalid.join('\n  ')
   );
 
-  // Anti-vacuous: the assertion above is trivially satisfiable by an empty or
-  // renamed stylesheet. Prove the file really is the themed stylesheet and really
-  // does consume the theme vars — through the VALID form.
-  const validConsumers = (css.match(/\bhsla?\(\s*var\(\s*--theme-/gi) || []).length;
+  // Anti-vacuous: prove we are reading the real themed stylesheet and that the
+  // defect's critical surfaces still use the valid form. Comments are blanked
+  // above, so commented-out matches cannot satisfy these. A coarse "> N matches"
+  // heuristic is deliberately not used — r1 showed 101 hits inside a comment
+  // (or any non-production padding) could satisfy one.
+  const anchors = [
+    {
+      label: '--theme-panel is defined as an HSL triple',
+      re: /--theme-panel\s*:\s*\d+\s*,\s*\d+%\s*,\s*\d+%\s*;/,
+    },
+    {
+      label: 'body background uses hsl(var(--theme-bg))',
+      re: /background-color\s*:\s*hsl\(\s*var\(\s*--theme-bg\s*\)\s*\)/,
+    },
+    {
+      label: 'header/panel fill uses hsla(var(--theme-panel), α)',
+      re: /background-color\s*:\s*hsla\(\s*var\(\s*--theme-panel\s*\)\s*,/,
+    },
+    {
+      label: 'primary accent uses hsla(var(--theme-primary), α)',
+      re: /\bhsla\(\s*var\(\s*--theme-primary\s*\)\s*,/,
+    },
+  ];
+  for (const anchor of anchors) {
+    assert.ok(
+      anchor.re.test(css),
+      `css-1 guard anti-vacuous anchor missing: ${anchor.label}. ` +
+      'Either public/styles.css moved/emptied or the valid form was removed from a critical surface.'
+    );
+  }
+
+  // Fixture: the r1 demonstrated bypass (and multi-hop) must be detected.
+  // If this scanner is weakened back to direct-only matching, these fail.
+  const probeOneHop = blankCssComments(
+    '.probe { --panel-alias: var(--theme-panel); background: rgba(var(--panel-alias), 0.7); }'
+  );
+  const probeOneHopHits = findInvalidThemeRgbConsumers(probeOneHop, { pathLabel: 'probe' });
+  assert.strictEqual(
+    probeOneHopHits.length, 1,
+    `css-1 guard must catch one-hop custom-property indirection; got: ${JSON.stringify(probeOneHopHits)}`
+  );
   assert.ok(
-    validConsumers > 100,
-    `Expected public/styles.css to consume --theme-* widely via hsl()/hsla(); found only ${validConsumers}. ` +
-    'Either the stylesheet moved or this guard is no longer reading it.'
+    probeOneHopHits[0].includes('--panel-alias') && probeOneHopHits[0].includes('aliases'),
+    `css-1 guard probe message should name the alias: ${probeOneHopHits[0]}`
+  );
+
+  const probeMultiHop = blankCssComments(
+    '.probe { --a: var(--theme-panel); --b: var(--a); background: rgba(var(--b), 0.5); }'
+  );
+  const probeMultiHopHits = findInvalidThemeRgbConsumers(probeMultiHop, { pathLabel: 'probe' });
+  assert.strictEqual(
+    probeMultiHopHits.length, 1,
+    `css-1 guard must catch multi-hop indirection; got: ${JSON.stringify(probeMultiHopHits)}`
+  );
+
+  // Comments must not create false positives (invalid form only in a comment).
+  const probeCommentOnly = blankCssComments(
+    '/* rgba(var(--theme-panel), 0.7) */ .ok { background: hsla(var(--theme-panel), 0.7); }'
+  );
+  assert.deepStrictEqual(
+    findInvalidThemeRgbConsumers(probeCommentOnly, { pathLabel: 'probe' }),
+    [],
+    'css-1 guard must ignore invalid forms that exist only inside CSS comments'
+  );
+
+  // Non-theme custom props used in rgba are out of this finding's scope.
+  const probeUnrelated = blankCssComments(
+    '.x { --rgb-channels: 255, 0, 0; background: rgba(var(--rgb-channels), 0.5); }'
+  );
+  assert.deepStrictEqual(
+    findInvalidThemeRgbConsumers(probeUnrelated, { pathLabel: 'probe' }),
+    [],
+    'css-1 guard must not flag rgba() over non-theme custom properties'
   );
 }
 
