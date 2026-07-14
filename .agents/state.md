@@ -40,13 +40,15 @@ to `docs/history/state-archive.md`.
     Do not re-derive them from vendor docs or by asking a model; both were wrong.
   - **bh-1 — browser harness** (plan.md → Dev Tooling; owner go 2026-07-14). Guards the ONE
     class this repo keeps shipping: declarations the browser silently drops. **The PLAN has been
-    through SIX adversarial review rounds (r1–r6: 9, 11, 10, 7, 4, 10 findings) and is now at r7,
-    awaiting the owner's steer.** Still **NOT IMPLEMENTED**, no branch cut. Full trail and the
-    disposition of every finding: `.agents/review/findings/bh-1.md`.
-    - **The design is settled and VALIDATED.** The oracle has passed **four consecutive rounds**;
-      from r4 onward *not one* finding has been against it. It was **executed against a real
-      Chromium** before being written down: on master it measures **184 var-bearing declarations,
-      282 assertions, 0 failures**, and each sabotage case is confirmed caught in all six themes.
+    through SEVEN adversarial review rounds (r1–r7: 9, 11, 10, 7, 4, 10, 9 findings), every finding is
+    closed, and it now sits at r8 awaiting the owner's steer** (`f874329`). Still **NOT IMPLEMENTED**,
+    no branch cut. Full trail and the disposition of every finding:
+    `.agents/review/findings/bh-1.md`.
+    - **The design is settled and VALIDATED.** The oracle has passed **five consecutive rounds**;
+      from r4 onward *not one* finding has been against it — they have all been about the *guard
+      proofs*. It was **executed against a real Chromium** before being written down: on master it
+      measures **186 var-bearing declarations, 294 assertions, 0 failures**, and each sabotage case is
+      confirmed caught in all six themes.
     - **The design in one line:** the unit under test is the **declaration**, not the surface;
       apply it to a probe, set the same property to **`unset`** on a control (that is IACVT's exact
       semantics), and **if applying it changes nothing, the browser dropped it.**
@@ -143,10 +145,13 @@ to `docs/history/state-archive.md`.
 ## Next
 
 **THE IMMEDIATE NEXT ACTION IS AN OWNER DECISION on bh-1: keep hardening the plan, or let codex
-implement it now?** Six review rounds are done and every finding is closed (`e01efe0`). The design is
-validated and has passed four rounds running; the last two rounds found only *guard proofs that a
-wrong implementation could also pass* — real, but a tightening loop that a reviewer can always extend.
-The plan is implementable as it stands. Do NOT start implementation without that steer.
+implement it now?** Seven review rounds are done and every finding is closed (`f874329`). The design
+is validated and has passed five rounds running. **Since r4, every finding has been about the guard
+proofs, not the design** — each round asks "could a wrong implementation still pass this proof?" and
+each round finds another one. Those are real (r7 found that *nothing* proved the `unset` control, the
+design's most load-bearing decision), but it is a tightening loop a reviewer can always extend, and
+the returns are visibly diminishing. **The plan is implementable as it stands.** Do NOT start
+implementation without the steer.
 
 - **Then Phase V (Grok TTS): re-review the redesigned plan, then implement.** It is the one the
   owner actually cares about. Weigh the workflow carve-out: V touches the **seat/auth boundary**,
