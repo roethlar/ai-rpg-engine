@@ -39,26 +39,26 @@ to `docs/history/state-archive.md`.
     capabilities are in decisions.md — **26 voices, delivery tags work, accents do not.**
     Do not re-derive them from vendor docs or by asking a model; both were wrong.
   - **bh-1 — browser harness** (plan.md → Dev Tooling; owner go 2026-07-14). Guards the ONE
-    class this repo keeps shipping: declarations the browser silently drops. Assertion-based,
-    not screenshot-baseline. **Plan review REOPENED — 9 findings, and the plan as written would
-    NOT work.** Must be revised before codex implements. The four that matter:
-    1. **The core assertion fails on master.** `.btn-primary` paints with a `linear-gradient`,
-       so its `background-color` is transparent *when healthy*. A blanket
-       "no themed surface is transparent" check goes red before catching any bug. The oracle
-       must be **property-aware and per-surface**.
-    2. **The surface matrix misses real css-1 sites, most of them STATEFUL**: `.stars-bg`,
-       `.choice-btn:hover`, `.action-form input:focus`, `.ability-tier`,
-       `.campaign-card:hover`, `.tab-btn.active`, `.roll-d20-icon`, the pulse keyframe.
-    3. **"Skip and exit 0" when Chromium is absent DEFEATS the gate** — the required command
-       reports success while the assertions never run. Must exit non-zero.
-    4. **Not hermetic:** `public/index.html` loads Google Fonts / cdnjs, so navigation depends
-       on DNS. Block all non-local requests or use a network-free probe document.
-    Also: non-transparent does not prove the *tested* declaration survived (a later cascade
-    rule can repaint the element and mask the failure — use isolated fixtures with expected
-    values); reading a `--theme-*` value cannot prove it is a **valid colour** (custom
-    properties accept arbitrary token streams — use a typed probe with a literal sentinel);
-    and driving theme classes directly bypasses `app.js`/`theme-vars.js` and never exercises
-    `map-render.js`, so the "required before merging these files" claim overstates coverage.
+    class this repo keeps shipping: declarations the browser silently drops. **The PLAN has been
+    through SIX adversarial review rounds (r1–r6: 9, 11, 10, 7, 4, 10 findings) and is now at r7,
+    awaiting the owner's steer.** Still **NOT IMPLEMENTED**, no branch cut. Full trail and the
+    disposition of every finding: `.agents/review/findings/bh-1.md`.
+    - **The design is settled and VALIDATED.** The oracle has passed **four consecutive rounds**;
+      from r4 onward *not one* finding has been against it. It was **executed against a real
+      Chromium** before being written down: on master it measures **184 var-bearing declarations,
+      282 assertions, 0 failures**, and each sabotage case is confirmed caught in all six themes.
+    - **The design in one line:** the unit under test is the **declaration**, not the surface;
+      apply it to a probe, set the same property to **`unset`** on a control (that is IACVT's exact
+      semantics), and **if applying it changes nothing, the browser dropped it.**
+    - **THE LESSON THAT COST THE MOST, and that generalizes past bh-1: DO NOT REASON ABOUT CSS IN
+      THIS REPO — EXECUTE IT.** Three separate review rounds produced a careful, confident CSS claim
+      that a browser then refuted. The worst: r2's reviewer reasoned the design *would* catch css-1.
+      **It would not have** — a `var()` inside a **shorthand** makes its longhands serialize to the
+      empty string, and css-1 was a `background` shorthand, so the collector never saw it and would
+      have reported **green on the exact bug the harness exists to catch**.
+    - **The other durable lesson — the one question every guard proof must survive:** *could an
+      implementation that OMITS this mechanism still pass this proof?* It found real holes in three
+      consecutive rounds, including a "guard" testing a shape that is **harmless**.
 - **css-2 is ABANDONED; its branch is DELETED and its commits are unreachable** (2026-07-14,
   owner: "too dangerous to leave a poison pill"). It **crashed the suite** (`RangeError` on
   `&#x110000;`) and **rejected valid CSS**. A reviewer defeated it **22 times across three
@@ -142,10 +142,11 @@ to `docs/history/state-archive.md`.
 
 ## Next
 
-**THE IMMEDIATE NEXT ACTION: revise the bh-1 plan against its 9 review findings** (listed under
-`## Now`), then re-dispatch the plan review. Do NOT let codex implement bh-1 until the plan is
-accepted — as written it would fail on master. The plan text is plan.md → Dev Tooling → "Browser
-harness — bh-1"; the review was pinned at `df9f3f4`.
+**THE IMMEDIATE NEXT ACTION IS AN OWNER DECISION on bh-1: keep hardening the plan, or let codex
+implement it now?** Six review rounds are done and every finding is closed (`e01efe0`). The design is
+validated and has passed four rounds running; the last two rounds found only *guard proofs that a
+wrong implementation could also pass* — real, but a tightening loop that a reviewer can always extend.
+The plan is implementable as it stands. Do NOT start implementation without that steer.
 
 - **Then Phase V (Grok TTS): re-review the redesigned plan, then implement.** It is the one the
   owner actually cares about. Weigh the workflow carve-out: V touches the **seat/auth boundary**,
@@ -189,8 +190,8 @@ harness — bh-1"; the review was pinned at `df9f3f4`.
 - Nothing technical. Network exposure for the playtest is owner-handled
   infrastructure (owner, 2026-07-09), not a repo task.
 - Process, not technical: **map-1** fix-ups need an explicit go (or park).
-- Process, not technical: **bh-1** cannot be implemented until its plan is revised and
-  re-reviewed (9 findings; as written it fails on master).
+- Process, not technical: **bh-1** needs an owner steer — keep hardening the plan, or implement it?
+  Six review rounds are closed and the design is validated; see `## Next`.
 
 ## Verification
 
