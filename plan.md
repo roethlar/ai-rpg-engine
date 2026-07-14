@@ -1358,11 +1358,21 @@ found the counts themselves were wrong (below); a count-driven sweep leaves surv
    fallback must itself become a complete colour. (The SVG is injected via `innerHTML`, so it
    inherits the document's custom properties.)
 
-9. **`test.js` — DELETE the scanner.** Remove `testThemeVarConsumers` and every helper it owns
-   (`blankCssComments`, `blankHtmlComments`, `mapOutsideRawText`, `decodeHtmlEntities`,
-   `prepareHtml`, `HTML_NAMED_ENTITIES`, `extractCssVarNames`, `findMatchingParen`,
-   `collectVarAliases`, `mergeAliasMaps`, `resolvesToThemeTriple`, `findInvalidThemeRgbConsumers`,
-   `themeConsumerTargets`) plus its `runAll` registration.
+9. **`test.js` — DELETE the scanner.**
+
+   > **⚠ The deletion list below is for the CSS-1 SCANNER, which is what exists on the base.**
+   > *(Cold review r2: the previous list named `blankHtmlComments`, `mapOutsideRawText`,
+   > `decodeHtmlEntities`, `prepareHtml`, `HTML_NAMED_ENTITIES`, `mergeAliasMaps` and
+   > `themeConsumerTargets` — **none of which exist on the base**. They were added on
+   > `fix/css-2-scanner-scope`, which is **abandoned and must never be checked out**. A cold
+   > implementer would have gone hunting for them and could have wandered onto the forbidden branch
+   > to find them. If a symbol below is missing, you are on the wrong base — STOP, do not go looking
+   > for it on another branch.)*
+
+   Remove `testThemeVarConsumers` (`test.js:1423`) and the six helpers it owns — `blankCssComments`,
+   `extractCssVarNames`, `findMatchingParen`, `collectVarAliases`, `resolvesToThemeTriple`,
+   `findInvalidThemeRgbConsumers` — plus its `runAll` registration and the now-unused `fs`/`path`/
+   `fileURLToPath` imports if nothing else needs them.
 
    Replace it with **two small checks**. Neither is a parser, and neither may ever grow into one.
 
@@ -1441,9 +1451,21 @@ found the counts themselves were wrong (below); a count-driven sweep leaves surv
   > a **CORRECT** migration.)* The table's line numbers are **pre-migration**. Deleting the six
   > `--theme-glow` definitions (`:18, :37, :48, :59, :70, :1198`) **shifts every entry below them** —
   > the first 21 by five lines, the last four by six. A correct rewrite would go red unless someone
-  > left blank lines behind to preserve numbering, which is absurd. **Key by stable identity
-  > instead**: the `(selector, property, variable, percentage)` tuple, or ordered occurrence. The
-  > line numbers in the table are a **human navigation aid only — never the assertion key.**
+  > left blank lines behind to preserve numbering, which is absurd. The line numbers in the table are
+  > a **human navigation aid only — never the assertion key.**
+  >
+  > **THE IDENTITY SCHEME IS MANDATORY AND SINGULAR: ORDERED OCCURRENCE.** *(Cold review r2: offering
+  > "tuple **or** ordered occurrence" was an invitation to invent. Worse, the tuple reading is
+  > **unimplementable from this plan** — the table carries no selectors or properties, so a tuple
+  > implementation would have to re-derive its "independent" expectation **from the stylesheet it is
+  > checking**, which is precisely the self-check the plan forbids.)*
+  >
+  > Scan `public/styles.css` **top to bottom**, collect every
+  > `color-mix(in srgb, var(--theme-X) N%, transparent)` **in source order**, and assert the resulting
+  > list of `(variable, percentage)` pairs **equals the 25-row table above, in that exact order**.
+  > Order is stable under the glow deletion (deleting definitions does not reorder consumers), it
+  > needs no selector data, and a transposition, omission, or duplication all fail. Note row 22/23
+  > (both at old line 1389) — two entries, adjacent, in that order.
 
   **A rewrite cannot be checked against itself, because the table is the
   independently-extracted expectation and it is written down above.**
@@ -1473,12 +1495,24 @@ found the counts themselves were wrong (below); a count-driven sweep leaves surv
   the implementing machine exercises **none** of the declared floors, and exercises only one of
   WKWebView / WebKitGTK. Do not claim coverage that is not being produced.)*
   `color-mix()` baseline support: **Chrome/Edge 111** (Mar 2023), **Firefox 113** (May 2023),
-  **Safari/WebKit 16.2** (Dec **2022**), **WebKitGTK 2.38** (Sep **2022**). *(r2 correction: the
-  previous draft said "all 2023" — false for the two WebKit floors.)* Cite the compatibility source
-  in `README.md` rather than implying the floors were tested here.
-  The web path is canonical (plan.md Dev Tooling), so the minimum is a **product statement**: record
-  it in `README.md`. Then run smoke checks — and label them as such — on a current Chromium, a
-  current Firefox, and the Tauri shell of the implementing machine.
+  **Safari/WebKit 16.2** (Dec **2022**). *(r2 correction: the earlier draft said "all 2023" — false
+  for the WebKit floor.)* Cite **MDN's `color-mix()` browser-compatibility table** in `README.md` for
+  those three.
+
+  > **DO NOT cite MDN for a WebKitGTK version floor** *(cold review r2: MDN publishes no WebKitGTK
+  > row, so the previously-required citation was impossible to satisfy)*. State the Tauri/Linux
+  > position honestly instead: the shell renders in WebKitGTK, `color-mix` shipped in WebKit well
+  > before the versions any current WebKitGTK ships, and **the shell is verified by running it**, not
+  > by citation. If it renders correctly in the shell on the implementing machine, record that as the
+  > observation it is.
+
+  > **THE BROWSER MATRIX IS NOT A GATE — IT IS A SMOKE CHECK, AND IT MAY BE REPORTED UNRUN.**
+  > *(Cold review r2: `package.json` has no browser dependency or smoke script, and the implementing
+  > machine may have no Chromium or Firefox at all. Installing browsers is an unexplained external
+  > mutation, and demanding it as a gate leaves a cold agent stuck or lying.)* Run whichever engines
+  > are actually present — on this machine that is **Safari/WebKit and the Tauri shell** — and
+  > **explicitly record which engines were NOT exercised**. Per AGENTS.md, "state clearly that it was
+  > not run" is an acceptable outcome; a fabricated matrix is not.
 - **If a target engine fails, the pre-baked fallback is a SEPARATE, SEPARATELY-REVIEWED SLICE — not
   a sentence in this plan** *(r1)*. It is not "more variables": it is **18 distinct
   primary/secondary/panel alpha levels × 6 theme blocks ≈ 108 definitions**, plus writes on **both**
@@ -1517,8 +1551,21 @@ Leaving these in place instructs a future cold agent to restore the abandoned be
 
 ### Execution contract (cold-implementer review — these were all unstated)
 
-- **Finding id / branch / base.** This phase lands as finding **`ct-1`** on branch
-  **`fix/ct-1-theme-colour-format`**, cut from **`master`**. Base = `master` at the time of cutting.
+- **Finding id / branch / base — WITH AN ANCESTRY PRECHECK.** This phase lands as finding **`ct-1`**
+  on branch **`fix/ct-1-theme-colour-format`**, cut from **`master`**.
+
+  > **⚠ BEFORE BRANCHING, VERIFY THE PLAN YOU ARE READING IS ON YOUR BASE.**
+  > *(Cold review r2 caught this happening for the second time: plan revisions were committed to a
+  > working branch and NOT to `master`, so "cut from master" would have handed the implementer a
+  > **stale plan** — without the `theme-vars.js` seam and without the `text`/`text_dim` warning —
+  > and the likeliest shipped failure would have been blank generated-theme text.)*
+  >
+  > Run this and require it to pass:
+  > ```
+  > git merge-base --is-ancestor <this-plan-commit> master   # must exit 0
+  > ```
+  > If it does not, the plan on `master` is **older than the one you are reading**. STOP. The plan
+  > must be merged to `master` first. Never implement from a plan that is not on your base.
   *(The cold review flagged that the plan's own pinned SHAs sat on `fix/css-2-scanner-scope` — the
   branch this plan forbids merging. That is now resolved: all plan/decision/state commits were
   rescued onto `master` (merge `88e6324`), and the poisoned branch keeps only its three code
@@ -1535,14 +1582,39 @@ Leaving these in place instructs a future cold agent to restore the abandoned be
   `AI_RETRY_BACKOFF_MS=10 node test.js`; run the app with `node server.js` (port 3000); the desktop
   shell is `npm run desktop` after `cargo build` in `desktop/src-tauri`. **There is no browser test
   harness** — do not plan any check that needs one.
-- **Theme fixtures WITHOUT AI credentials** *(cold review: campaign creation calls the Setup AI, so a
-  cold agent with no key cannot exercise the writer at all)*. Both writer paths are reachable purely
-  through `public/theme-vars.js` (step 5) — that is the point of extracting it. Pin two fixtures in
-  `test.js`:
-  - **full generated theme** — `colors` **with** a `text` slot → exercises the body-level map,
-    including `--theme-text` and `--theme-text-dim`;
-  - **legacy** — `colors` **without** `text` → exercises the root-level map, which sets no text vars.
-  Neither needs a browser, a server, or a provider key.
+- **Theme fixtures WITHOUT AI credentials, WITH EXACT EXPECTED MAPS** *(cold review: campaign creation
+  calls the Setup AI, so a cold agent with no key cannot exercise the writer at all)*. Both writer
+  paths are reachable purely through `public/theme-vars.js` (step 5) — that is the point of extracting
+  it.
+
+  > **The fixtures must pin the EXACT expected map, not just "matches the grammar."**
+  > *(Cold review r2: "each emitted string matches the HSL grammar" lets a **wrong but valid** mapping
+  > pass — e.g. deriving border lightness from `background + 8` instead of the current `panel + 8`
+  > (= `background + 12`), or **swapping `text` and `text_dim`**. Every one of those emits a
+  > grammatical `hsl(...)` and would sail through.)*
+  >
+  > Pin, for each fixture, the exact **input `colors` object** and the exact **output map** — full key
+  > set and every value — transcribed from the CURRENT behaviour at `public/app.js:1603-1618` and
+  > `:1621-1631`:
+  > - derived panel lightness = `min(95, bgL + 4)`; derived border lightness = **`panelL + 8`**
+  >   (i.e. `bgL + 12`), hue/sat inherited from the background;
+  > - the full-theme map includes `--theme-text` and `--theme-text-dim`; the legacy map contains
+  >   **neither**.
+  >
+  > - **full generated theme** — `colors` **with** a `text` slot → the body-level map.
+  > - **legacy** — `colors` **without** `text` → the root-level map.
+  >
+  > Neither needs a browser, a server, or a provider key.
+
+- **The pure functions do NOT prove the WIRING** *(cold review r2, and this is an honest limit —
+  state it rather than paper over it)*. `applyCampaignTheme` cannot be imported in Node
+  (`public/app.js:54` has top-level DOM access; `package.json` has no DOM library), so no Node test
+  can prove the browser writer *calls* the right helper, or that it applies the full-theme map to
+  `document.body` and the legacy map to `documentElement`. That wiring can be broken while every Node
+  gate stays green. Mitigate by keeping `applyCampaignTheme` a **thin applicator** — it computes
+  nothing; it takes the map from `theme-vars.js` and sets it — so the only untested surface is a
+  loop over `Object.entries(map)`. **The human smoke pass is what covers it**, and it is the *only*
+  thing that covers it. Say so.
 - **README compatibility source.** Cite MDN's `color-mix()` browser-compatibility table as the
   authority for the declared floors; do not assert floors from memory.
 
