@@ -53,12 +53,14 @@ to `docs/history/state-archive.md`.
   endpoint provenance, a bounded response-body timeout, and the admin-authenticated catalog route.
   Fable independently confirmed the red/green timeout guard and found no remaining material issue.
   `.agents/review/findings/am-2.md` owns the verdict trail.
-- **`am-3` is pending re-review after its legacy clear-semantics fix.** Commit `93a91e8`
+- **`am-3` is accepted and awaiting the owner's merge go.** Commit `93a91e8`
   atomically activates the v2 admin settings wire and replaces repeated forms with compact provider
   connections, reusable configured models, and five primary/fallback Council assignments. Fable's
   first review found that clearing stored keys can reject or declassify migrated legacy entries;
   fix-up `6e05325` preserves the marker and environment precedence while clearing the secret, with
-  server persistence and mutation proof. `.agents/review/findings/am-3.md` owns the full trail.
+  server persistence and mutation proof. Fable accepted review head `5c2aeb5` after independently
+  reproducing the old failure and rerunning both suites green. `.agents/review/findings/am-3.md`
+  owns the full trail.
 - **The remote two-human multiplayer playtest remains pending.** App-side seat work is landed;
   connectivity is owner-handled and out of repo scope. The playtest is the scheduled close for open
   multiplayer feel gates. Seat isolation must be re-tested whenever a field crosses a seat payload,
@@ -71,8 +73,8 @@ to `docs/history/state-archive.md`.
 
 ## Next
 
-**THE IMMEDIATE NEXT ACTION: rerun the exact `--model claude-fable-5` reviewloop for the am-3 fix-up.**
-Leave the accepted branch unmerged until the owner gives a separate merge go.
+**THE IMMEDIATE NEXT ACTION: obtain the owner's go to merge accepted `am-3`.** Do not merge or push
+without that separate outward-facing authorization.
 
 - Phase V's owner playtest remains the pending feel gate after this explicitly selected repo work.
   Configure either OpenAI or Grok voice in `/admin`, enable Voice Narration, and play a real scene

@@ -3,7 +3,7 @@
 **Severity**: HIGH — the legacy form repeats provider/model/key tuples, cannot safely express shared
 credentials with per-model overrides, and cannot assign reusable primary/fallback models per Council
 role.
-**Status**: In progress (reopened by independent review)
+**Status**: Verified (awaiting owner-gated merge)
 **Branch**: `feat/am-3-admin-model-registry-ui`
 **Implementation commit**: `93a91e8c1d2e8e957b6dbf9391490c416338957b`
 **Fix-up commit**: `6e05325` (legacy-safe all-key clear)
@@ -117,3 +117,31 @@ editing tests. `node test.js` failed at `test.js:1174` with “Assigned entries 
 restored byte-identical production code, reran green, and proved the worktree clean. The pristine
 unit and browser suites were green, no live provider path was called, and the reviewer found no
 other material issue in the pinned diff.
+
+### Attempt 2 — accepted after legacy-clear fix-up (Claude Code 2.1.210 / Claude Fable 5)
+
+- **Timestamp**: 2026-07-15T21:41:54Z
+- **reviewed_sha**: `5c2aeb58af94ae05cdadc1c624130041778592de` · **base_sha**:
+  `414ccb75ea37173b79c228b16792d35ca1d44361` · **guard_confirmed**: `true`
+- **verdict**: `accepted`
+
+Fable confirmed both reopen comments are closed. Partial and complete migrated custom-key rows now
+send an explicit null while retaining custom provenance; the server authorizes only that
+secret-to-empty delta against a matching stored legacy marker and unchanged key source. Empty custom
+secrets remain invalid for normal entries, forged markers remain rejected, and any provider, model,
+or key-source edit still declassifies the row. Normal custom-entry clear behavior remains the
+provider-mode transition.
+
+The reviewer verified that cleared partial rows continue through role model/key environment
+precedence, complete rows continue through `ROLE_API_KEY`, all provider/entry/voice/image secrets
+persist empty, and the save/load round-trip retains assignments and markers. It reran the pristine
+unit and browser suites green and reassessed the whole v2 cutover/UI diff without finding another
+material issue.
+
+For independent guard proof, Fable changed only the production `preserveLegacyCustom` decision to
+false. The committed regression test failed with the original
+`modelEntries[3] requires provider and model` error; it restored byte-identical code, reran both
+suites green, and proved the detached worktree clean. No live or billable provider path was called.
+
+**Status → Verified.** The branch is ready for the owner-gated merge. Acceptance does not authorize
+merge, push, or history rewrite.
