@@ -1431,6 +1431,12 @@ Existing campaigns already persist OpenAI voice names in `npcs.voice_json` and
 > All five are admitted. The r4 corrections below govern; the conflicting acceptance is not a license
 > to code.
 
+> **r4 plan review: ACCEPTED.** Claude Code 2.1.209 / `claude-opus-4-8` independently re-derived all
+> five r3 findings, verified each closed, then reviewed the complete Phase V plan with zero new
+> findings and `cold_implementer_executable: true` at pinned head `43879bd`. Durable verdict:
+> `.agents/review/findings/phase-v-plan-r4-claude-review.json`. The wording cleanups recorded with
+> this acceptance do not change the reviewed behavior.
+
 1. **Per-provider voice registries** (`tts-providers.js`). Replace the single `TTS_VOICES` /
    `NPC_VOICE_POOL` with a registry keyed by provider. **Pin Grok's voice ids as a literal, ORDERED
    list** — a network call inside the validation path would be a new failure mode on every turn.
@@ -1510,9 +1516,9 @@ Existing campaigns already persist OpenAI voice names in `npcs.voice_json` and
      server adds after this cleanup.
    - Rendered form: `[<mood>, <tone>] <text>` — omit `neutral` parts and omit the tag when both are
      neutral. Only the server composes it.
-   - **OpenAI keeps its provider-native steering field**: the same two enum values fold into a
-     server-composed `instructions` string. Both providers consume the same canonical enum inputs;
-     only the rendering differs. Player free text is gone for both.
+   - **OpenAI keeps its provider-native steering field**: compose `Mood: <mood>. Tone: <tone>.`,
+     omitting either neutral clause and using an empty string when both are neutral. Both providers
+     consume the same canonical enum inputs; only the rendering differs. Player free text is gone.
 
    > **The mood is AUDIBLE, so it is PUBLIC.** *(r1, and this is subtle: the earlier plan proposed
    > proving seat-safety by scanning the JSON payload for `mood`. But the mood is spoken aloud — a
@@ -1534,7 +1540,8 @@ Existing campaigns already persist OpenAI voice names in `npcs.voice_json` and
    **Resolve the voice profile SERVER-SIDE for BOTH host and seat.** The seat path already does
    exactly this (`server.js:749-767`) precisely so NPC personality never leaves the server. Extend it
    to the host with this pinned request shape:
-   - Campaign narration sends `{ campaignId, speaker, segments: [{ text, tone }] }`. For a seat,
+   - Campaign narration sends
+     `{ campaignId, speaker, segments: [{ text, tone }], expectedProvider? }`. For a seat,
      `req.auth.campaignId` is authoritative and a body `campaignId` is ignored. For a host,
      authentication carries only `{ kind: 'host' }`, so `campaignId` is required, parsed as a
      positive integer, and verified by loading the campaign. The earlier "available from the
@@ -1570,8 +1577,9 @@ Existing campaigns already persist OpenAI voice names in `npcs.voice_json` and
 
    The player settings UI retains **Enable Voice Narration** only. Delete the player voice selector
    and free-text Voice Direction, stop persisting `voiceName` / `voiceInstructions`, and drop stale
-   saved values during normalization. Preview uses the campaign narrator when a campaign is active,
-   otherwise the active provider's reserved narrator. There is no player-specific accent path.
+   saved values during normalization. Preview always uses the explicit preview shape and the active
+   provider's reserved narrator; it never loads a campaign profile, even when a campaign is active.
+   There is no player-specific accent path.
 
 8. **Key resolution — per provider, and it CANNOT be done as previously written** *(r1)*.
 
@@ -1614,8 +1622,11 @@ Existing campaigns already persist OpenAI voice names in `npcs.voice_json` and
     malformed payload the client uses the fail-closed value `1` for that turn. Batched requests carry
     the capability response's provider as `expectedProvider`; one-segment requests may omit it. If
     the active provider no longer matches, the route returns 409 `VOICE_PROVIDER_CHANGED` before
-    synthesis. The client re-fetches once and rebuilds the unplayed queue; if that fetch fails it
-    rebuilds as one segment per request. This structural recovery is not a provider retry. The route
+    synthesis. On the first 409 in a turn, the client re-fetches once and rebuilds the unplayed queue;
+    if that fetch fails it rebuilds as one segment per request. Any later 409 in the same turn skips
+    another fetch and rebuilds all unplayed segments as singleton requests without
+    `expectedProvider`, bounding recovery even under repeated provider flips. This structural
+    recovery is not a provider retry. The route
     also enforces the active provider's maximum and returns 400 without synthesis when
     `segments.length > maxSegmentsPerRequest`; it never flattens an oversized OpenAI request.
 
@@ -1715,8 +1726,8 @@ concurrent and recently completed canonical requests:
   Successful MP3 buffers enter a 10-minute, access-ordered cache capped at 64 entries **and** 64 MiB;
   evict oldest entries until both bounds hold. Failures are never cached, and the in-flight entry is
   removed in `finally` so a failed synthesis can be attempted later.
-- Campaign id is part of the key even when text matches, preventing cross-campaign reuse. Preview
-  without an active campaign uses a distinct `preview` scope.
+- Campaign id is part of the key even when text matches, preventing cross-campaign reuse. Every
+  explicit preview request uses a distinct `preview` scope.
 - The 60/minute synthesis-miss limiter is applied **after** cache lookup; cached host/seat playback
   does not consume it. The separate 240/minute route cap still bounds abusive cache hits.
 
@@ -1745,8 +1756,9 @@ This is an in-memory cost/coordination cache, not durable game state. Restarting
 - **Capabilities fail closed:** error, timeout, and malformed response reduce the client to one
   segment per request. In a Grok→OpenAI race, a batched request carrying stale `expectedProvider`
   receives 409 with zero provider calls; the client re-fetches/rebuilds once, and a failed re-fetch
-  rebuilds the remaining queue as singletons. The server separately returns 400 with zero provider
-  calls when the request exceeds the matching provider's maximum.
+  rebuilds the remaining queue as singletons. A second provider mismatch in the same turn also
+  rebuilds as singletons without another fetch, so repeated flips cannot loop. The server separately
+  returns 400 with zero provider calls when the request exceeds the matching provider's maximum.
 - **Bracket oracle:** the pinned hostile fixture becomes exactly
   `The guard says now. A stray remains.` before server enum tags are added; asserting only "no
   brackets" is insufficient because an implementation that speaks the hostile interior would pass.
@@ -1816,6 +1828,10 @@ independent Claude or Grok harness adversarially reviews; codex cannot review it
 The phase lands as four owner-gated reviewloop slices. Do not stack the next slice on an unmerged
 branch: each branch starts from updated `master`, carries one observable failure claim, proves its
 guard red→green, receives a pinned external verdict, then stops for the owner's merge go.
+
+Until v-3 lands, v-1 and v-2 must keep the existing `/api/audio/narrate` request/response contract
+and the current OpenAI route operational. Provider-aware route replacement and the minimum client
+cutover happen together in v-3; neither earlier slice may strand master between contracts.
 
 1. `v-1` — provider registry, Grok request contract, per-provider key/config compatibility and admin
    storage. Observable failure: Grok cannot synthesize and a flat key can cross providers today.

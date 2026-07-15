@@ -43,8 +43,9 @@ to `docs/history/state-archive.md`.
     r3 plan pinned request/cache/migration/guard contracts, but its independent reviews split:
     Claude accepted while a manual Grok pass REOPENED five material gaps. All five were admitted;
     r4 now pins preview identity, v3 client compatibility, bracket deletion, capabilities fallback,
-    and numeric seed validation, and **needs independent acceptance before codex implements.**
-    Grok's verified
+    and numeric seed validation. **r4 is ACCEPTED** (`43879bd`, Claude Code 2.1.209 / Opus 4.8):
+    all five r3 findings independently verified closed, zero new findings, cold-implementer
+    executable. Implementation starts with owner-gated reviewloop slice v-1. Grok's verified
     capabilities are in decisions.md — **26 voices, delivery tags work, accents do not.**
     Do not re-derive them from vendor docs or by asking a model; both were wrong.
 - **bh-1 — the browser harness is MERGED** (`ea9ca9b`, 2026-07-14; branch deleted). codex
@@ -157,13 +158,13 @@ to `docs/history/state-archive.md`.
 
 ## Next
 
-**THE IMMEDIATE NEXT ACTION: Phase V (Grok TTS) — independently review the r4 plan, then implement.**
+**THE IMMEDIATE NEXT ACTION: Phase V (Grok TTS) — implement and review v-1.**
 It is the one the owner actually cares about, and bh-1 (the housekeeping that was in front of it) is
 now merged. The r2 cold-implementer pass reopened the first redesign; r3 then split its reviewers —
-Claude accepted, while manual Grok correctly reopened five gaps now closed in r4. The r4 correction
-has **not** been independently accepted; dispatch that review before any code. When code starts,
-codex implements one owner-gated slice at a time and Claude or Grok reviews each pinned result, as
-the owner directed 2026-07-14.
+Claude accepted, while manual Grok correctly reopened five gaps now closed in r4. Claude then
+independently accepted r4 at pinned head `43879bd` with all five closures verified and no new
+finding. Codex now implements one owner-gated slice at a time and Claude or Grok reviews each pinned
+result, as the owner directed 2026-07-14.
 
 - **Carry the bh-1 lessons into it.** Both are now decisions (`.agents/decisions.md`): *do not reason
   about CSS in this repo — execute it*; and *a guard proof must fail if its mechanism is removed*
