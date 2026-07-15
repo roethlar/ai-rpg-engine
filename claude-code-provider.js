@@ -194,6 +194,86 @@ export function parseClaudeCodeAuthStatus(stdout, exitCode = 0) {
   };
 }
 
+export function parseClaudeCodeStatus(stdout, exitCode = 0) {
+  let data;
+  try {
+    data = JSON.parse(stdout);
+  } catch (error) {
+    data = {};
+  }
+  const authMethod = safeStatusField(data.authMethod);
+  return {
+    loggedIn: exitCode === 0 && data.loggedIn === true && authMethod === 'claude.ai',
+    authMethod,
+    subscriptionType: safeStatusField(data.subscriptionType)
+  };
+}
+
+function parseClaudeCodeVersion(stdout, exitCode = 0) {
+  if (exitCode !== 0 || typeof stdout !== 'string') return '';
+  const match = stdout.trim().match(/^([0-9]+(?:\.[0-9]+){1,3})(?:\s|$)/);
+  return match ? match[1] : '';
+}
+
+/** Safe, usage-free install/login/plan status for the admin catalog route. */
+export async function getClaudeCodeStatus({
+  env = process.env,
+  runner = runClaudeCodeProcess,
+  timeoutMs = 10_000
+} = {}) {
+  const unavailable = {
+    installed: false,
+    loggedIn: false,
+    authMethod: '',
+    subscriptionType: '',
+    version: ''
+  };
+  let executable;
+  try {
+    executable = resolveClaudeCodeExecutable(env);
+  } catch (error) {
+    return unavailable;
+  }
+
+  const childEnv = sanitizeClaudeCodeEnv(env);
+  const deadline = Date.now() + timeoutMs;
+  let cwd;
+  let installed = false;
+  let version = '';
+  try {
+    cwd = await mkdtemp(path.join(os.tmpdir(), 'aetheria-claude-code-status-'));
+    const run = async args => boundedRunnerResult(await runner({
+      executable,
+      args,
+      stdin: '',
+      env: childEnv,
+      cwd,
+      shell: false,
+      timeoutMs: Math.max(1, deadline - Date.now()),
+      maxOutputBytes: MAX_OUTPUT_BYTES
+    }));
+
+    const versionResult = await run(['--version']);
+    version = parseClaudeCodeVersion(versionResult.stdout, versionResult.exitCode);
+    if (!version) return unavailable;
+    installed = true;
+    const authResult = await run(['auth', 'status', '--json']);
+    return {
+      installed,
+      ...parseClaudeCodeStatus(authResult.stdout, authResult.exitCode),
+      version
+    };
+  } catch (error) {
+    return {
+      ...unavailable,
+      installed,
+      version
+    };
+  } finally {
+    if (cwd) await rm(cwd, { recursive: true, force: true }).catch(() => {});
+  }
+}
+
 export function parseClaudeCodeGeneration(stdout, exitCode = 0) {
   let data;
   try {
