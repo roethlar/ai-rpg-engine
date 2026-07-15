@@ -29,7 +29,7 @@ to `docs/history/state-archive.md`.
     silently drops the declaration.** Components survive only *internally* (the model emits
     them, `rpg-state.js` clamps them, the DB stores them) — `public/theme-vars.js` is the
     one boundary that turns them into colours.
-- **ACTIVE IMPLEMENTATION QUEUE:**
+- **PHASE V CODE COMPLETE — OWNER PLAYTEST PENDING:**
   - **Phase V — Grok TTS.** Grok won a controlled listening test and is added *alongside*
     OpenAI (decisions.md). Its plan review returned **14 findings**: the design **did not
     function for the host at all** (only for seat players), the voice assignment was not
@@ -45,7 +45,7 @@ to `docs/history/state-archive.md`.
     r4 now pins preview identity, v3 client compatibility, bracket deletion, capabilities fallback,
     and numeric seed validation. **r4 is ACCEPTED** (`43879bd`, Claude Code 2.1.209 / Opus 4.8):
     all five r3 findings independently verified closed, zero new findings, cold-implementer
-    executable. Implementation starts with owner-gated reviewloop slice v-1. Grok's verified
+    executable. All four reviewloop slices are now merged and post-merge green. Grok's verified
     capabilities are in decisions.md — **26 voices, delivery tags work, accents do not.**
     Do not re-derive them from vendor docs or by asking a model; both were wrong.
   - **v-1 MERGED** (`7d55b77`, 2026-07-15): provider registry/request contract,
@@ -63,9 +63,11 @@ to `docs/history/state-archive.md`.
     synthesis cache. Claude accepted pinned head `9d23b3f` after independent base and mutation
     proofs; the full suite passed again after merge. Review trail: `.agents/review/index.md` +
     `findings/v-3.md`.
-  - **v-4 ACTIVE** on `fix/v-4-browser-voice-queue`: production browser queue helper,
+  - **v-4 MERGED** (`54c08d1`, 2026-07-15): production browser queue helper,
     provider-aware batching/race recovery, skip-and-continue playback, canonical control cleanup,
-    and README. Review trail: `.agents/review/index.md` + `findings/v-4.md`.
+    and README. Claude accepted pinned head `ce86e53` after independent base and three mutation
+    proofs; the full suite passed again after merge. Review trail: `.agents/review/index.md` +
+    `findings/v-4.md`.
 - **bh-1 — the browser harness is MERGED** (`ea9ca9b`, 2026-07-14; branch deleted). codex
   implemented; Claude verified adversarially — roles swapped, since codex cannot review what codex
   wrote. Plan accepted after **seven review rounds**. Full trail:
@@ -176,11 +178,12 @@ to `docs/history/state-archive.md`.
 
 ## Next
 
-**THE IMMEDIATE NEXT ACTION: Phase V (Grok TTS) — implement and review v-4.**
-v-1 through v-3 are merged and post-merge green. v-4 owns the production browser queue helper,
-provider-aware adjacent-speaker batching, provider-race fallback, skip-and-continue playback,
-player voice/direction control removal, fallback text bounding, and README updates. Start from the
-updated `master`; this is the final planned Phase V code slice before the owner playtest gate.
+**THE IMMEDIATE NEXT ACTION: Phase V owner playtest.** All four code slices are merged, independently
+accepted, mutation-proven, and post-merge green. Configure either OpenAI or Grok voice in `/admin`,
+enable Voice Narration, and play a real scene with narrator plus multiple NPC lines. Confirm the GM
+and NPC identities are distinct/sticky, moods and per-line tones are audible, Skip works, and a host
+and seat hear the same campaign-canonical delivery. Phase V remains open until the owner says the
+voice experience is better in play.
 
 - **Carry the bh-1 lessons into it.** Both are now decisions (`.agents/decisions.md`): *do not reason
   about CSS in this repo — execute it*; and *a guard proof must fail if its mechanism is removed*
@@ -211,11 +214,10 @@ updated `master`; this is the final planned Phase V code slice before the owner 
   there, expose the server, create the second character (party strip
   **+ Join**, host-only), mint its seat (key icon beside the chip), send that
   token to the other player.
-- Branch cleanup (2026-07-14): `fix/bh-1-browser-harness` deleted after merge (content verified
+- Branch cleanup history (2026-07-14): `fix/bh-1-browser-harness` deleted after merge (content verified
   landed, not just ancestry). Earlier the same day: `fix/css-2-scanner-scope` **DELETED** (poison
   pill — see `## Now`), along with `fix/ct-1-codex`, `plan/ct-executable`, `docs/rescue-from-css-2`
-  (all merged) and `fix/css-1-hsla-theme-vars`. **The only branches left are `master` and
-  `fix/map-label-overflow`.** Earlier (2026-07-12): four merged fix branches +
+  (all merged) and `fix/css-1-hsla-theme-vars`. Earlier (2026-07-12): four merged fix branches +
   `plan/rules-system` deleted; (2026-07-11): six `fix/sv-*` deleted. Three accidental
   merge commits stay — history rewrite declined; do not re-propose it.
 
@@ -223,11 +225,13 @@ updated `master`; this is the final planned Phase V code slice before the owner 
 
 - Nothing technical. Network exposure for the playtest is owner-handled
   infrastructure (owner, 2026-07-09), not a repo task.
+- Phase V's code gates are closed; its feel verdict requires the owner's real-session voice
+  playtest described under `## Next`.
 - Process, not technical: **map-1** fix-ups need an explicit go (or park).
 
 ## Verification
 
-- Automated: `AI_RETRY_BACKOFF_MS=10 node test.js` — green at `ea9ca9b`. Run it rather than
+- Automated: `AI_RETRY_BACKOFF_MS=10 node test.js` — green at `54c08d1`. Run it rather than
   trusting a group count written here. The suite is hermetic: `RPG_DB_PATH` redirects it to a
   temp DB, closed and removed on exit (before 2026-07-09 it opened the operator's real dev
   database). It is **unchanged by bh-1** — no browser dependency reaches it.
