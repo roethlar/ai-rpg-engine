@@ -1082,6 +1082,7 @@ async function testBrowserVoiceQueue() {
     async () => { throw new Error('capabilities timeout'); },
     async () => ({ provider: 'grok', maxSegmentsPerRequest: '40' }),
     async () => ({ provider: 'unknown', maxSegmentsPerRequest: 40 }),
+    async () => ({ provider: 'grok', maxSegmentsPerRequest: 41 }),
     async () => ({ provider: 'openai', maxSegmentsPerRequest: 40 })
   ]) {
     const singletonCalls = [];

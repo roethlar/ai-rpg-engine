@@ -77,7 +77,9 @@ function normalizeCapabilities(value) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return DEFAULT_CAPABILITIES;
   const provider = typeof value.provider === 'string' ? value.provider.trim() : '';
   if (!VOICE_PROVIDERS.has(provider)) return DEFAULT_CAPABILITIES;
-  if (!Number.isInteger(value.maxSegmentsPerRequest) || value.maxSegmentsPerRequest < 1) {
+  if (!Number.isInteger(value.maxSegmentsPerRequest)
+    || value.maxSegmentsPerRequest < 1
+    || value.maxSegmentsPerRequest > MAX_SEGMENTS_PER_REQUEST) {
     return DEFAULT_CAPABILITIES;
   }
   if (provider === 'openai' && value.maxSegmentsPerRequest !== 1) return DEFAULT_CAPABILITIES;
