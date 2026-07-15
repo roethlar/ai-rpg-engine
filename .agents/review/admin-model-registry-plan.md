@@ -2,8 +2,8 @@
 
 **Status**: Base registry **Accepted** at r8 / `5f0261375f9b97f464f54ee406d5bafca7f3ea8d`;
 `am-1` remains authorized and unchanged. The owner-added `claude-code` provider extension is
-pending a pinned Claude Fable 5 acceptance before `am-cc` or later slices begin. Per the later
-2026-07-15 owner decision, Grok is no longer dispatched.
+**Accepted** at r11 / `0f36f0f920e2e26a0783840e49ad8144f797dec5`. Per the later 2026-07-15
+owner decision, Grok is no longer dispatched.
 **Plan location**: `plan.md` → Dev Tooling → `am-*`
 **Owner direction**: `.agents/decisions.md` (2026-07-15 admin AI configuration decision)
 
@@ -453,3 +453,19 @@ provider model. The guard now constructs through `AIClient`, inspects the fake c
 both the primary/environment-only and backup-client constructors; reverting the constructor case
 must inject `gpt-4o-mini` and turn the guard red. Claude Fable 5 must review the complete new SHA;
 the r10 verdict does not carry forward.
+
+### Round 11 — `claude-code` extension pinned `0f36f0f920e2e26a0783840e49ad8144f797dec5`
+
+Base: `cd00785fc214025db634f5118d9e17667a39dffe`. Accepted `am-1` substrate:
+`a4372df788cb85c30a92bf9adc82cfc533f0c78e`.
+
+#### Claude Code 2.1.210 / Claude Fable 5 (high effort)
+
+Timestamp: 2026-07-15T18:08:53Z. Dispatch used the exact `--model claude-fable-5` argument. The
+structured verdict was valid and SHA-matched. `evidence_checked: true`;
+`cold_implementer_executable: true`; verdict: **accepted**; comments: none.
+
+Convergence is reached for the `claude-code` extension. The accepted technical plan preserves the
+existing `AIClient` and Council pipeline while adding the isolated, subscription-authenticated
+Claude Code transport and its no-key/manual-model admin behavior. The plan branch and accepted
+`am-1` branch remain subject to their owner-gated merges before `am-cc` implementation begins.

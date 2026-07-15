@@ -1315,8 +1315,8 @@ Raised during planning but deliberately deferred. **Per project rule, nothing he
     which is the whole argument for this harness existing.
 
 - **Admin model registry + Council assignments — `am-*` (BASE ACCEPTED r8 2026-07-15 at
-  `5f0261375f9b97f464f54ee406d5bafca7f3ea8d`; `claude-code` provider Claude review pending;
-  accepted `am-1` scope is unchanged).**
+  `5f0261375f9b97f464f54ee406d5bafca7f3ea8d`; `claude-code` extension ACCEPTED r11
+  2026-07-15 at `0f36f0f920e2e26a0783840e49ad8144f797dec5`; accepted `am-1` scope is unchanged).**
 
   **Problem.** `/admin` currently repeats a full provider/model/key form seven times: primary,
   fallback, and the five Council roles. Credentials, reusable model choices, and role assignment are

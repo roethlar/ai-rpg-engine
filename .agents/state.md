@@ -36,10 +36,10 @@ to `docs/history/state-archive.md`.
   with optional custom key overrides and live editable catalogs, then primary + fallback assignment
   per Council role. The `am-*` r8 plan in plan.md is accepted by Claude and Grok at
   `5f0261375f9b97f464f54ee406d5bafca7f3ea8d`; `am-1` is unchanged. A first-class, no-key
-  `claude-code` provider using the server process's logged-in plan is now being added as a plan
-  extension; model ids remain manually editable because the installed CLI has no documented
-  machine-readable account catalog. The extension requires a new pinned Claude Fable 5 plan
-  acceptance before its code slice starts.
+  `claude-code` provider using the server process's logged-in plan is covered by the accepted r11
+  extension at `0f36f0f920e2e26a0783840e49ad8144f797dec5`; model ids remain manually editable
+  because the installed CLI has no documented machine-readable account catalog. Claude Fable 5
+  accepted the pinned extension with evidence checked and no comments.
 - **The remote two-human multiplayer playtest remains pending.** App-side seat work is landed;
   connectivity is owner-handled and out of repo scope. The playtest is the scheduled close for open
   multiplayer feel gates. Seat isolation must be re-tested whenever a field crosses a seat payload,
@@ -52,11 +52,9 @@ to `docs/history/state-archive.md`.
 
 ## Next
 
-**THE IMMEDIATE NEXT ACTION: converge the `claude-code` provider plan extension with Claude Fable
-5.** After convergence,
-the already accepted `am-1` branch still requires its owner-gated merge before `am-cc` can start from
-updated `master`. The remaining ordered reviewloop slices are `am-cc`, `am-2`, and `am-3`, each
-accepted and owner-merged before the next.
+**THE IMMEDIATE NEXT ACTION: obtain the owner-gated merges of the accepted admin plan and `am-1`
+branches.** Then start `am-cc` from updated `master`. The remaining ordered reviewloop slices are
+`am-cc`, `am-2`, and `am-3`, each accepted and owner-merged before the next.
 
 - Phase V's owner playtest remains the pending feel gate after this explicitly selected repo work.
   Configure either OpenAI or Grok voice in `/admin`, enable Voice Narration, and play a real scene
