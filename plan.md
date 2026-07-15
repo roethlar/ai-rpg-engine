@@ -1314,8 +1314,9 @@ Raised during planning but deliberately deferred. **Per project rule, nothing he
     **refuted**. This is the third round in which a reviewer's careful CSS reasoning was wrong —
     which is the whole argument for this harness existing.
 
-- **Admin model registry + Council assignments — `am-*` (REVISED r8 2026-07-15; owner-approved
-  direction, dual plan re-review pending; no implementation branch).**
+- **Admin model registry + Council assignments — `am-*` (ACCEPTED r8 2026-07-15 at
+  `5f0261375f9b97f464f54ee406d5bafca7f3ea8d`; owner-approved direction; implementation may begin
+  with `am-1`).**
 
   **Problem.** `/admin` currently repeats a full provider/model/key form seven times: primary,
   fallback, and the five Council roles. Credentials, reusable model choices, and role assignment are

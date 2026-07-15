@@ -3,12 +3,13 @@
 Workflow: see `.agents/playbooks/reviewloop.md`.
 Per-finding detail: see `.agents/review/findings/<id>.md`.
 
-## Active admin model-registry plan loop (started 2026-07-15)
+## Accepted admin model-registry plan loop (2026-07-15)
 
 Owner-approved replacement for the incoherent repeated `/admin` provider/model/key forms and the
 superseded catalog-only plan. The draft defines shared provider credentials, reusable configured
-models with custom-key overrides, and per-role primary/fallback assignment. No implementation is
-authorized until Claude and Grok both accept the same pinned plan SHA. Review trail:
+models with custom-key overrides, and per-role primary/fallback assignment. Implementation was
+gated until Claude and Grok accepted the same pinned plan SHA. Both accepted r8 at
+`5f0261375f9b97f464f54ee406d5bafca7f3ea8d`; implementation starts at `am-1`. Review trail:
 `.agents/review/admin-model-registry-plan.md`.
 
 ## Closed Phase V implementation loop (2026-07-15; owner playtest still gates the phase)

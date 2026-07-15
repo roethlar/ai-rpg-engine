@@ -33,8 +33,8 @@ to `docs/history/state-archive.md`.
 - **The old `/admin` catalog-only plan is superseded by the admin model registry redesign.** Owner
   direction 2026-07-15: compact provider connections with shared keys, reusable configured models
   with optional custom key overrides and live editable catalogs, then primary + fallback assignment
-  per Council role. The `am-*` plan in plan.md is in dual independent review; no code starts until
-  Claude and Grok accept the same pinned plan SHA.
+  per Council role. The `am-*` r8 plan in plan.md is accepted by Claude and Grok at
+  `5f0261375f9b97f464f54ee406d5bafca7f3ea8d`; implementation starts with `am-1` under the reviewloop.
 - **The remote two-human multiplayer playtest remains pending.** App-side seat work is landed;
   connectivity is owner-handled and out of repo scope. The playtest is the scheduled close for open
   multiplayer feel gates. Seat isolation must be re-tested whenever a field crosses a seat payload,
@@ -47,10 +47,9 @@ to `docs/history/state-archive.md`.
 
 ## Next
 
-**THE IMMEDIATE NEXT ACTION: converge the `am-*` admin model-registry plan, then implement it.**
-Dispatch the pinned draft independently to Claude and Grok, revise until both accept the same SHA,
-then build the three reviewloop slices in plan.md (`am-1` config/runtime, `am-2` live catalogs,
-`am-3` compact UI), one accepted and owner-merged before the next starts.
+**THE IMMEDIATE NEXT ACTION: implement and review `am-1`.** Build the three reviewloop slices in
+plan.md (`am-1` config/runtime, `am-2` live catalogs, `am-3` compact UI), one accepted and
+owner-merged before the next starts from updated `master`.
 
 - Phase V's owner playtest remains the pending feel gate after this explicitly selected repo work.
   Configure either OpenAI or Grok voice in `/admin`, enable Voice Narration, and play a real scene

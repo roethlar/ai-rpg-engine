@@ -1,7 +1,7 @@
 # Admin model registry plan review
 
-**Status**: Round 7 finding incorporated; revised plan awaiting dual round 8; no implementation
-authorized.
+**Status**: **Accepted** at r8 / `5f0261375f9b97f464f54ee406d5bafca7f3ea8d`; implementation
+authorized in the ordered `am-1` → `am-2` → `am-3` reviewloop slices.
 **Plan location**: `plan.md` → Dev Tooling → `am-*`
 **Owner direction**: `.agents/decisions.md` (2026-07-15 admin AI configuration decision)
 
