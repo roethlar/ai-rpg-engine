@@ -35,9 +35,10 @@ to `docs/history/state-archive.md`.
   with optional custom key overrides and live editable catalogs, then primary + fallback assignment
   per Council role. The `am-*` r8 plan in plan.md is accepted by Claude and Grok at
   `5f0261375f9b97f464f54ee406d5bafca7f3ea8d`; implementation starts with `am-1` under the reviewloop.
-- **`am-1` is implemented on `feat/am-1-config-runtime` and pending independent review.** It adds
-  canonical v2 projection/validation/save seams and Council runtime resolution while leaving the v1
-  admin HTTP wire active. `.agents/review/findings/am-1.md` owns the scope, guard proof, and verdict.
+- **`am-1` is accepted on `feat/am-1-config-runtime` at review head `80c2143`; owner merge is
+  pending.** It adds canonical v2 projection/validation/save seams and Council runtime resolution
+  while leaving the v1 admin HTTP wire active. `.agents/review/findings/am-1.md` owns the scope,
+  guard proof, and verdict.
 - **The remote two-human multiplayer playtest remains pending.** App-side seat work is landed;
   connectivity is owner-handled and out of repo scope. The playtest is the scheduled close for open
   multiplayer feel gates. Seat isolation must be re-tested whenever a field crosses a seat payload,
@@ -50,9 +51,9 @@ to `docs/history/state-archive.md`.
 
 ## Next
 
-**THE IMMEDIATE NEXT ACTION: independently review `am-1`.** If accepted, leave it for the
-owner-gated merge; only after it is merged may `am-2` start from updated `master`. The remaining
-ordered slices are `am-2` live catalogs and `am-3` compact UI.
+**THE IMMEDIATE NEXT ACTION: owner-gated merge of accepted `am-1`.** Only after it is merged may
+`am-2` start from updated `master`. The remaining ordered slices are `am-2` live catalogs and
+`am-3` compact UI.
 
 - Phase V's owner playtest remains the pending feel gate after this explicitly selected repo work.
   Configure either OpenAI or Grok voice in `/admin`, enable Voice Narration, and play a real scene

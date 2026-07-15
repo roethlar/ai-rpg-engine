@@ -16,7 +16,7 @@ gated until Claude and Grok accepted the same pinned plan SHA. Both accepted r8 
 
 | ID | Severity | Impact (one line) | Status | Branch |
 |----|----------|-------------------|--------|--------|
-| am-1 | HIGH | Repeated tuples cannot safely migrate to shared providers and per-role fallbacks | `[~]` pending review | `feat/am-1-config-runtime` |
+| am-1 | HIGH | Repeated tuples cannot safely migrate to shared providers and per-role fallbacks | `[x]` accepted; awaiting owner merge | `feat/am-1-config-runtime` |
 
 ## Closed Phase V implementation loop (2026-07-15; owner playtest still gates the phase)
 
