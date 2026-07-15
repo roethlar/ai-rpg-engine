@@ -3,7 +3,7 @@
 **Severity**: HIGH — the legacy form repeats provider/model/key tuples, cannot safely express shared
 credentials with per-model overrides, and cannot assign reusable primary/fallback models per Council
 role.
-**Status**: In progress (pending independent review)
+**Status**: In progress (reopened by independent review)
 **Branch**: `feat/am-3-admin-model-registry-ui`
 **Implementation commit**: `93a91e8c1d2e8e957b6dbf9391490c416338957b`
 
@@ -81,4 +81,29 @@ None.
 
 ## Reviewer comments
 
-Pending exact `--model claude-fable-5` independent review.
+### Attempt 1 — reopened on legacy clear semantics (Claude Code 2.1.210 / Claude Fable 5)
+
+- **Timestamp**: 2026-07-15T21:21:47Z
+- **reviewed_sha**: `1363fb1eb564aef44c4d38d4f8485f3f9b6e7097` · **base_sha**:
+  `414ccb75ea37173b79c228b16792d35ca1d44361` · **guard_confirmed**: `true`
+- **verdict**: `reopened`
+
+Fable reproduced one MEDIUM compatibility failure with a related LOW semantic regression. For a
+migrated legacy entry that has a stored custom key but a blank provider or model,
+`buildRegistryPayload({ clearKeys: true })` changes `keySource` to `provider`.
+`prepareAdminAiConfigV2Save` then strips `legacyDefault` because a runtime field changed and rejects
+the now-incomplete normal entry, so the atomic clear returns HTTP 400 and clears no provider,
+override, voice, or image key. Sending a null custom key instead also fails validation, leaving no
+valid client payload for this supported legacy shape.
+
+For complete legacy tuples, the same key-source change silently strips `legacyDefault`, so a clear
+can remove the contracted role/fallback environment-key precedence even though the operator changed
+credentials only. The reviewer requires a production-side clear representation that removes stored
+keys while preserving legacy tuple identity and precedence, plus a server round-trip guard rather
+than the existing client-payload-only assertion.
+
+The independent guard proof removed the assigned-usage protection in `removeModelEntry` without
+editing tests. `node test.js` failed at `test.js:1174` with “Assigned entries are not removed”; Fable
+restored byte-identical production code, reran green, and proved the worktree clean. The pristine
+unit and browser suites were green, no live provider path was called, and the reviewer found no
+other material issue in the pinned diff.
