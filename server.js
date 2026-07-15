@@ -11,8 +11,12 @@ import {
   loadAdminAiConfig,
   saveAdminAiConfig,
   maskAiConfig,
-  AdminConfigValidationError
+  AdminConfigValidationError,
+  AI_PROVIDERS,
+  projectAdminAiConfigV2
 } from './server-config.js';
+import { resolveAiEndpointPolicy } from './api-client.js';
+import { listModels, ModelCatalogError } from './model-catalog.js';
 import { looksLikeSeatToken, hashSeatToken, mintSeatToken, findLiveSeat } from './seat-auth.js';
 import { scopeStateForSeat, scopeJournalForSeat } from './rpg-state.js';
 import { errorPayloadFor, apiErrorHandler } from './server-errors.js';
@@ -32,6 +36,78 @@ const TRUST_PROXY = process.env.TRUST_PROXY;
 
 export function adminSettingsErrorStatus(error) {
   return error instanceof AdminConfigValidationError ? 400 : 500;
+}
+
+const CATALOG_FIELD_LENGTH = 400;
+const CATALOG_ENTRY_ID_LENGTH = 80;
+
+function catalogField(value, name, maxLength = CATALOG_FIELD_LENGTH) {
+  if (value === undefined || value === null || value === '') return '';
+  if (typeof value !== 'string') {
+    throw new ModelCatalogError(`${name} must be a string.`, {
+      status: 400,
+      code: 'CATALOG_REQUEST_INVALID'
+    });
+  }
+  const clean = value.trim();
+  if (clean.length > maxLength) {
+    throw new ModelCatalogError(`${name} is too long.`, {
+      status: 400,
+      code: 'CATALOG_REQUEST_INVALID'
+    });
+  }
+  return clean;
+}
+
+function providerEnvironmentKey(provider, env) {
+  switch (provider) {
+    case 'gemini': return env.GEMINI_API_KEY || '';
+    case 'openai': return env.OPENAI_API_KEY || '';
+    case 'claude': return env.ANTHROPIC_API_KEY || '';
+    case 'grok': return env.XAI_API_KEY || env.GROK_API_KEY || '';
+    default: return '';
+  }
+}
+
+export function resolveModelCatalogRequest(body, storedRaw, env = process.env) {
+  const request = body && typeof body === 'object' && !Array.isArray(body) ? body : {};
+  const provider = catalogField(request.provider, 'provider', 40);
+  if (!AI_PROVIDERS.includes(provider)) {
+    throw new ModelCatalogError('Unsupported model provider.', {
+      status: 400,
+      code: 'CATALOG_PROVIDER_INVALID'
+    });
+  }
+
+  const stored = projectAdminAiConfigV2(storedRaw);
+  const modelEntryId = catalogField(request.modelEntryId, 'modelEntryId', CATALOG_ENTRY_ID_LENGTH);
+  let entry = null;
+  if (modelEntryId) {
+    entry = stored.modelEntries.find(candidate => candidate.id === modelEntryId) || null;
+    if (!entry || entry.provider !== provider) {
+      throw new ModelCatalogError('modelEntryId does not belong to the requested provider.', {
+        status: 400,
+        code: 'CATALOG_ENTRY_MISMATCH'
+      });
+    }
+  }
+
+  if (provider === 'claude-code') {
+    return { provider, apiKey: '', baseUrl: '', ollamaUrl: '' };
+  }
+
+  const requestKey = catalogField(request.apiKey, 'apiKey');
+  const entryKey = entry?.keySource === 'custom' ? entry.apiKey : '';
+  const providerKey = stored.providers[provider]?.apiKey || '';
+  const apiKey = requestKey || entryKey || providerKey || providerEnvironmentKey(provider, env);
+  const endpoints = resolveAiEndpointPolicy({
+    requestBaseUrl: catalogField(request.baseUrl, 'baseUrl'),
+    storedBaseUrl: stored.providers.custom.baseUrl,
+    requestOllamaUrl: catalogField(request.ollamaUrl, 'ollamaUrl'),
+    storedOllamaUrl: stored.providers.ollama.ollamaUrl,
+    env
+  });
+  return { provider, apiKey, ...endpoints };
 }
 
 if (TRUST_PROXY) {
@@ -309,6 +385,24 @@ app.get('/api/admin/settings', async (req, res) => {
 
 app.get('/api/admin/voice-catalog', (req, res) => {
   res.json({ providers: getAdminVoiceCatalog() });
+});
+
+app.post('/api/admin/models/catalog', async (req, res) => {
+  try {
+    const options = resolveModelCatalogRequest(req.body, await loadAdminAiConfig(), process.env);
+    const result = await listModels(options.provider, {
+      ...options,
+      fetchImpl: app.locals.modelCatalogFetch || globalThis.fetch,
+      claudeCodeStatusImpl: app.locals.claudeCodeStatusImpl,
+      env: process.env
+    });
+    res.json(result);
+  } catch (error) {
+    if (error instanceof ModelCatalogError) {
+      return res.status(error.status).json({ error: error.message });
+    }
+    res.status(500).json({ error: 'Could not list models.' });
+  }
 });
 
 app.post('/api/admin/settings', async (req, res) => {

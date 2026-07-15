@@ -59,7 +59,7 @@ function isPrivateIp(ip) {
 /**
  * Validates request URLs to block SSRF (Server-Side Request Forgery) attacks (synchronous literal check).
  */
-function validateUrlForSsrfSync(urlString, allowedLocalUrl) {
+export function validateUrlForSsrfSync(urlString, allowedLocalUrl) {
   if (!urlString) return;
   try {
     const url = new URL(urlString);
@@ -102,7 +102,7 @@ function validateUrlForSsrfSync(urlString, allowedLocalUrl) {
 /**
  * Validates request URLs to block SSRF attacks asynchronously by resolving hostnames.
  */
-async function validateUrlForSsrfAsync(urlString, allowedLocalUrl) {
+export async function validateUrlForSsrfAsync(urlString, allowedLocalUrl) {
   validateUrlForSsrfSync(urlString, allowedLocalUrl);
   if (!urlString) return;
 
@@ -192,6 +192,32 @@ const RETRY_BACKOFF_MS = Number(process.env.AI_RETRY_BACKOFF_MS || 1000);
 
 function delay(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function endpointValue(value) {
+  return typeof value === 'string' && value.trim() ? value.trim() : '';
+}
+
+/**
+ * Shared endpoint provenance policy for AIClient and admin model discovery.
+ * Production discards request/stored endpoints before any URL derivation or
+ * SSRF work; environment pins and Ollama's localhost default remain active.
+ */
+export function resolveAiEndpointPolicy({
+  requestBaseUrl,
+  storedBaseUrl,
+  requestOllamaUrl,
+  storedOllamaUrl,
+  env = process.env
+} = {}) {
+  const production = env.NODE_ENV === 'production';
+  return {
+    baseUrl: (production ? '' : (endpointValue(requestBaseUrl) || endpointValue(storedBaseUrl)))
+      || endpointValue(env.CUSTOM_ENDPOINT_URL),
+    ollamaUrl: (production ? '' : (endpointValue(requestOllamaUrl) || endpointValue(storedOllamaUrl)))
+      || endpointValue(env.OLLAMA_URL)
+      || 'http://localhost:11434'
+  };
 }
 
 function normalizeFallbackConfig(config = {}) {
@@ -401,9 +427,11 @@ export class AIClient {
     this.claudeCodeRunner = config.claudeCodeRunner;
     this.claudeCodeEnv = config.claudeCodeEnv;
     
-    const isProduction = process.env.NODE_ENV === 'production';
-    const rawBaseUrl = (isProduction ? null : config.baseUrl) || process.env.CUSTOM_ENDPOINT_URL || '';
-    const rawOllamaUrl = (isProduction ? null : config.ollamaUrl) || process.env.OLLAMA_URL || 'http://localhost:11434';
+    const { baseUrl: rawBaseUrl, ollamaUrl: rawOllamaUrl } = resolveAiEndpointPolicy({
+      requestBaseUrl: config.baseUrl,
+      requestOllamaUrl: config.ollamaUrl,
+      env: process.env
+    });
 
     // Run SSRF verification checks on endpoints
     validateUrlForSsrfSync(rawBaseUrl, process.env.CUSTOM_ENDPOINT_URL);

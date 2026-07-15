@@ -1380,6 +1380,459 @@ async function testClaudeCodeProvider() {
 }
 
 // -------------------------------------------------------------
+// Test: am-2 live model catalogs, endpoint policy, and admin boundary
+// -------------------------------------------------------------
+async function testModelCatalogs() {
+  console.log(' - Running provider model catalog tests...');
+  const {
+    ModelCatalogError,
+    deriveCustomModelsUrl,
+    listModels,
+    parseClaudeModels,
+    parseGeminiModels,
+    parseGrokModels,
+    parseOllamaModels,
+    parseOpenAiModels
+  } = await import('./model-catalog.js');
+  const { getClaudeCodeStatus } = await import('./claude-code-provider.js');
+  const {
+    projectAdminAiConfigV2,
+    validateAdminAiConfigV2,
+    loadAdminAiConfig
+  } = await import('./server-config.js');
+
+  assert.deepStrictEqual(parseGeminiModels({ models: [
+    { name: 'models/zeta', supportedGenerationMethods: ['generateContent'] },
+    { name: 'models/embed-only', supportedGenerationMethods: ['embedContent'] },
+    { name: 'models/alpha', supportedGenerationMethods: ['generateContent'] },
+    { name: 'models/alpha', supportedGenerationMethods: ['generateContent'] }
+  ] }), ['alpha', 'zeta']);
+  assert.deepStrictEqual(parseOpenAiModels({ data: [
+    { id: 'text-model' }, { id: 'image-looking-name' }, { id: 'text-model' }
+  ] }), ['image-looking-name', 'text-model'], 'OpenAI ids are not filtered by guessed name patterns');
+  assert.deepStrictEqual(parseClaudeModels({ data: [{ id: 'claude-z' }, { id: 'claude-a' }] }),
+    ['claude-a', 'claude-z']);
+  assert.deepStrictEqual(parseGrokModels({ models: [
+    { id: 'grok-z', aliases: ['grok-latest', 'grok-z'], output_modalities: ['text'] },
+    { id: 'grok-image', aliases: ['grok-image-latest'], output_modalities: ['image'] },
+    { id: 'grok-a', aliases: [], output_modalities: ['text'] }
+  ] }), ['grok-a', 'grok-latest', 'grok-z'], 'Grok returns language ids plus advertised aliases only');
+  assert.deepStrictEqual(parseOllamaModels({ models: [{ name: 'z-local' }, { name: 'a-local' }] }),
+    ['a-local', 'z-local']);
+  for (const malformed of [
+    () => parseGeminiModels({ models: [{ name: 'models/x' }] }),
+    () => parseOpenAiModels({ data: null }),
+    () => parseClaudeModels({ data: [{ id: 3 }] }),
+    () => parseGrokModels({ models: [{ id: 'x', aliases: 'latest', output_modalities: ['text'] }] }),
+    () => parseOllamaModels({ models: [{}] })
+  ]) assert.throws(malformed, 'Malformed success fixtures fail closed');
+
+  assert.strictEqual(
+    deriveCustomModelsUrl('https://openrouter.ai/api/v1/chat/completions/?ignored=secret'),
+    'https://openrouter.ai/api/v1/models'
+  );
+  assert.throws(() => deriveCustomModelsUrl('https://openrouter.ai/api/v1'), ModelCatalogError);
+
+  const catalogCalls = [];
+  const response = data => ({ ok: true, status: 200, json: async () => data });
+  const fetchFixture = data => async (url, options) => {
+    catalogCalls.push({ url: String(url), headers: { ...options.headers } });
+    return response(data);
+  };
+
+  let listed = await listModels('gemini', {
+    apiKey: 'gemini secret & value',
+    fetchImpl: fetchFixture({ models: [{ name: 'models/gemini-live', supportedGenerationMethods: ['generateContent'] }] })
+  });
+  assert.deepStrictEqual(listed, { models: ['gemini-live'], manualEntry: true });
+  const geminiUrl = new URL(catalogCalls.at(-1).url);
+  assert.strictEqual(geminiUrl.origin + geminiUrl.pathname,
+    'https://generativelanguage.googleapis.com/v1beta/models');
+  assert.strictEqual(geminiUrl.searchParams.get('pageSize'), '1000');
+  assert.strictEqual(geminiUrl.searchParams.get('key'), 'gemini secret & value');
+
+  listed = await listModels('openai', {
+    apiKey: 'openai-key',
+    fetchImpl: fetchFixture({ data: [{ id: 'openai-live' }] })
+  });
+  assert.deepStrictEqual(listed.models, ['openai-live']);
+  assert.strictEqual(catalogCalls.at(-1).url, 'https://api.openai.com/v1/models');
+  assert.strictEqual(catalogCalls.at(-1).headers.Authorization, 'Bearer openai-key');
+
+  listed = await listModels('claude', {
+    apiKey: 'claude-key',
+    fetchImpl: fetchFixture({ data: [{ id: 'claude-live' }] })
+  });
+  assert.deepStrictEqual(listed.models, ['claude-live']);
+  assert.strictEqual(catalogCalls.at(-1).url, 'https://api.anthropic.com/v1/models?limit=1000');
+  assert.strictEqual(catalogCalls.at(-1).headers['x-api-key'], 'claude-key');
+  assert.strictEqual(catalogCalls.at(-1).headers['anthropic-version'], '2023-06-01');
+
+  listed = await listModels('grok', {
+    apiKey: 'grok-key',
+    fetchImpl: fetchFixture({ models: [{
+      id: 'grok-live', aliases: ['grok-live-latest'], output_modalities: ['text']
+    }] })
+  });
+  assert.deepStrictEqual(listed.models, ['grok-live', 'grok-live-latest']);
+  assert.strictEqual(catalogCalls.at(-1).url, 'https://api.x.ai/v1/language-models');
+  assert.strictEqual(catalogCalls.at(-1).headers.Authorization, 'Bearer grok-key');
+
+  listed = await listModels('ollama', {
+    ollamaUrl: 'http://localhost:11434',
+    env: {},
+    fetchImpl: fetchFixture({ models: [{ name: 'local-live' }] })
+  });
+  assert.deepStrictEqual(listed.models, ['local-live']);
+  assert.strictEqual(catalogCalls.at(-1).url, 'http://localhost:11434/api/tags');
+
+  listed = await listModels('custom', {
+    apiKey: 'custom-key',
+    baseUrl: 'https://api.openai.com/custom/v1/chat/completions/',
+    env: {},
+    fetchImpl: fetchFixture({ data: [{ id: 'custom-live' }] })
+  });
+  assert.deepStrictEqual(listed.models, ['custom-live']);
+  assert.strictEqual(catalogCalls.at(-1).url, 'https://api.openai.com/custom/v1/models');
+  assert.strictEqual(catalogCalls.at(-1).headers.Authorization, 'Bearer custom-key');
+
+  const privateMarker = 'PRIVATE_CATALOG_BODY_AND_KEY';
+  await assert.rejects(listModels('openai', {
+    apiKey: privateMarker,
+    fetchImpl: async () => ({
+      ok: false,
+      status: 401,
+      text: async () => privateMarker,
+      json: async () => { throw new Error(privateMarker); }
+    })
+  }), error => error.status === 502 && error.message === 'Could not list openai models (401).'
+    && !error.message.includes(privateMarker));
+  await assert.rejects(listModels('openai', {
+    apiKey: privateMarker,
+    fetchImpl: async () => { throw new Error(privateMarker); }
+  }), error => error.code === 'CATALOG_NETWORK' && !error.message.includes(privateMarker));
+  await assert.rejects(listModels('openai', {
+    apiKey: privateMarker,
+    fetchImpl: fetchFixture({ malformed: true })
+  }), error => error.code === 'CATALOG_INVALID_RESPONSE' && !error.message.includes(privateMarker));
+  await assert.rejects(listModels('openai', {
+    apiKey: privateMarker,
+    timeoutMs: 5,
+    fetchImpl: async (url, { signal }) => new Promise((resolve, reject) => {
+      signal.addEventListener('abort', () => {
+        const error = new Error(privateMarker);
+        error.name = 'AbortError';
+        reject(error);
+      });
+    })
+  }), error => error.code === 'CATALOG_TIMEOUT' && error.status === 504
+    && !error.message.includes(privateMarker));
+  await assert.rejects(listModels('openai', {
+    apiKey: privateMarker,
+    timeoutMs: 10,
+    fetchImpl: async () => ({
+      ok: true,
+      status: 200,
+      json: async () => {
+        await new Promise(resolve => setTimeout(resolve, 75));
+        return { data: [{ id: privateMarker }] };
+      }
+    })
+  }), error => error.code === 'CATALOG_TIMEOUT' && error.status === 504
+    && !error.message.includes(privateMarker));
+  let blockedFetches = 0;
+  await assert.rejects(listModels('custom', {
+    baseUrl: 'https://api.openai.com/not-a-chat-url',
+    fetchImpl: async () => { blockedFetches += 1; }
+  }), error => error.status === 400 && !error.message.includes('api.openai.com'));
+  await assert.rejects(listModels('ollama', {
+    ollamaUrl: 'http://127.0.0.1:19999',
+    env: {},
+    fetchImpl: async () => { blockedFetches += 1; }
+  }), error => error.code === 'CATALOG_ENDPOINT_BLOCKED' && !error.message.includes('127.0.0.1'));
+  assert.strictEqual(blockedFetches, 0, 'Invalid/blocked endpoints never fetch');
+
+  let statusImplCalls = 0;
+  const codeCatalog = await listModels('claude-code', {
+    apiKey: privateMarker,
+    baseUrl: `https://${privateMarker}.invalid`,
+    fetchImpl: async () => { throw new Error('Claude Code catalog must not fetch'); },
+    claudeCodeStatusImpl: async () => {
+      statusImplCalls += 1;
+      return {
+        installed: true,
+        loggedIn: true,
+        authMethod: 'claude.ai',
+        subscriptionType: 'max',
+        version: '2.1.210',
+        email: 'PRIVATE_EMAIL',
+        organization: 'PRIVATE_ORG',
+        executable: '/PRIVATE/PATH',
+        raw: 'PRIVATE_RAW'
+      };
+    }
+  });
+  assert.deepStrictEqual(codeCatalog, {
+    models: [],
+    manualEntry: true,
+    status: {
+      installed: true,
+      loggedIn: true,
+      authMethod: 'claude.ai',
+      subscriptionType: 'max',
+      version: '2.1.210'
+    }
+  });
+  assert.strictEqual(statusImplCalls, 1);
+  assert.strictEqual(JSON.stringify(codeCatalog).includes('PRIVATE_'), false);
+
+  const statusCalls = [];
+  let statusCwd = '';
+  const safeStatus = await getClaudeCodeStatus({
+    env: {
+      CLAUDE_CODE_PATH: path.resolve(os.tmpdir(), 'fake-status-claude'),
+      ANTHROPIC_API_KEY: privateMarker,
+      CLAUDE_CODE_OAUTH_TOKEN: 'subscription-token'
+    },
+    runner: async spec => {
+      statusCalls.push({ ...spec, args: [...spec.args], env: { ...spec.env } });
+      statusCwd = spec.cwd;
+      if (spec.args[0] === '--version') {
+        return { exitCode: 0, stdout: '2.1.210 (Claude Code)\n', stderr: '' };
+      }
+      return {
+        exitCode: 0,
+        stdout: JSON.stringify({
+          loggedIn: true, authMethod: 'claude.ai', subscriptionType: 'max',
+          email: 'PRIVATE_EMAIL', organization: 'PRIVATE_ORG'
+        }),
+        stderr: ''
+      };
+    }
+  });
+  assert.deepStrictEqual(safeStatus, {
+    installed: true, loggedIn: true, authMethod: 'claude.ai', subscriptionType: 'max', version: '2.1.210'
+  });
+  assert.deepStrictEqual(statusCalls.map(call => call.args), [['--version'], ['auth', 'status', '--json']]);
+  assert.strictEqual(statusCalls.every(call => call.timeoutMs <= 10000), true, 'Status commands share the 10-second catalog deadline');
+  assert.strictEqual(statusCalls[0].env.ANTHROPIC_API_KEY, undefined);
+  assert.strictEqual(statusCalls[0].env.CLAUDE_CODE_OAUTH_TOKEN, 'subscription-token');
+  assert.strictEqual(fs.existsSync(statusCwd), false, 'Status workspace is removed');
+  const unavailableStatus = await getClaudeCodeStatus({
+    env: { CLAUDE_CODE_PATH: path.resolve(os.tmpdir(), 'missing-status-claude') },
+    runner: async () => { throw new Error(privateMarker); }
+  });
+  assert.deepStrictEqual(unavailableStatus, {
+    installed: false, loggedIn: false, authMethod: '', subscriptionType: '', version: ''
+  }, 'Missing/failed CLI status is safe and non-throwing');
+  let apiAuthStep = 0;
+  const apiAuthStatus = await getClaudeCodeStatus({
+    env: { CLAUDE_CODE_PATH: path.resolve(os.tmpdir(), 'api-auth-status-claude') },
+    runner: async () => apiAuthStep++ === 0
+      ? { exitCode: 0, stdout: '2.1.210 (Claude Code)', stderr: '' }
+      : {
+          exitCode: 0,
+          stdout: JSON.stringify({ loggedIn: true, authMethod: 'apiKey', email: 'PRIVATE_EMAIL' }),
+          stderr: ''
+        }
+  });
+  assert.deepStrictEqual(apiAuthStatus, {
+    installed: true, loggedIn: false, authMethod: 'apiKey', subscriptionType: '', version: '2.1.210'
+  }, 'API authentication is reported but never treated as subscription login');
+
+  const { app } = await import('./server.js');
+  const db = await import('./db.js');
+  const http = await import('http');
+  const previousStored = await loadAdminAiConfig();
+  const previousAdmin = process.env.ADMIN_SECRET;
+  const previousAccess = process.env.ACCESS_SECRET;
+  const previousOpenAi = process.env.OPENAI_API_KEY;
+  const previousNodeEnv = process.env.NODE_ENV;
+  const previousCustomEndpoint = process.env.CUSTOM_ENDPOINT_URL;
+  const previousOllamaEndpoint = process.env.OLLAMA_URL;
+  let server;
+  const routeFetches = [];
+  const blank = projectAdminAiConfigV2(null);
+  const storedConfig = validateAdminAiConfigV2({
+    ...blank,
+    providers: {
+      ...blank.providers,
+      openai: { apiKey: 'provider-stored-key' },
+      custom: { apiKey: 'custom-stored-key', baseUrl: 'https://api.openai.com/stored/v1/chat/completions' },
+      ollama: { ollamaUrl: 'https://api.openai.com/stored-ollama' }
+    },
+    modelEntries: [
+      {
+        id: 'openai_override', label: 'OpenAI override', provider: 'openai', model: 'entry-model',
+        keySource: 'custom', apiKey: 'entry-override-key', legacyDefault: false
+      },
+      {
+        id: 'claude_entry', label: 'Claude entry', provider: 'claude', model: 'claude-model',
+        keySource: 'provider', apiKey: '', legacyDefault: false
+      }
+    ]
+  });
+  const writeStored = config => db.run(
+    `INSERT INTO server_settings (key, value, updated_at) VALUES ('ai_config', ?, CURRENT_TIMESTAMP)
+     ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP`,
+    [JSON.stringify(config)]
+  );
+
+  try {
+    process.env.ADMIN_SECRET = 'catalog-admin';
+    process.env.ACCESS_SECRET = 'catalog-host';
+    process.env.OPENAI_API_KEY = 'environment-openai-key';
+    delete process.env.CUSTOM_ENDPOINT_URL;
+    delete process.env.OLLAMA_URL;
+    process.env.NODE_ENV = 'test';
+    await writeStored(storedConfig);
+    app.locals.modelCatalogFetch = async (url, options) => {
+      const call = { url: String(url), headers: { ...options.headers } };
+      routeFetches.push(call);
+      if (call.url.endsWith('/api/tags')) return response({ models: [{ name: 'route-local' }] });
+      return response({ data: [{ id: 'route-model' }] });
+    };
+    app.locals.claudeCodeStatusImpl = async () => ({
+      installed: true,
+      loggedIn: true,
+      authMethod: 'claude.ai',
+      subscriptionType: 'max',
+      version: '2.1.210',
+      email: 'PRIVATE_ROUTE_EMAIL',
+      raw: privateMarker
+    });
+
+    server = await new Promise(resolve => {
+      const listener = app.listen(0, '127.0.0.1', () => resolve(listener));
+    });
+    const port = server.address().port;
+    const request = (body, token = 'catalog-admin') => new Promise((resolve, reject) => {
+      const payload = Buffer.from(JSON.stringify(body));
+      const req = http.request({
+        host: '127.0.0.1',
+        port,
+        path: '/api/admin/models/catalog',
+        method: 'POST',
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          'Content-Type': 'application/json',
+          'Content-Length': payload.length
+        }
+      }, response => {
+        const chunks = [];
+        response.on('data', chunk => chunks.push(chunk));
+        response.on('end', () => resolve({
+          status: response.statusCode,
+          json: JSON.parse(Buffer.concat(chunks).toString('utf8'))
+        }));
+      });
+      req.on('error', reject);
+      req.end(payload);
+    });
+
+    assert.strictEqual((await request({ provider: 'openai' }, null)).status, 401,
+      'Catalog requires the admin credential');
+    assert.strictEqual((await request({ provider: 'openai' }, 'catalog-host')).status, 401,
+      'Game host credentials cannot reach admin catalogs');
+
+    let result = await request({
+      provider: 'openai', modelEntryId: 'openai_override', apiKey: 'unsaved-request-key'
+    });
+    assert.strictEqual(result.status, 200);
+    assert.strictEqual(routeFetches.at(-1).headers.Authorization, 'Bearer unsaved-request-key');
+    assert.strictEqual(JSON.stringify(result.json).includes('request-key'), false, 'Route never returns credentials');
+
+    result = await request({ provider: 'openai', modelEntryId: 'openai_override' });
+    assert.strictEqual(result.status, 200);
+    assert.strictEqual(routeFetches.at(-1).headers.Authorization, 'Bearer entry-override-key');
+
+    result = await request({ provider: 'openai' });
+    assert.strictEqual(result.status, 200);
+    assert.strictEqual(routeFetches.at(-1).headers.Authorization, 'Bearer provider-stored-key');
+
+    await writeStored({
+      ...storedConfig,
+      providers: { ...storedConfig.providers, openai: { apiKey: '' } }
+    });
+    result = await request({ provider: 'openai' });
+    assert.strictEqual(result.status, 200);
+    assert.strictEqual(routeFetches.at(-1).headers.Authorization, 'Bearer environment-openai-key');
+
+    const beforeSpoof = routeFetches.length;
+    result = await request({ provider: 'openai', modelEntryId: 'claude_entry' });
+    assert.strictEqual(result.status, 400);
+    assert.strictEqual(routeFetches.length, beforeSpoof, 'Cross-provider entry-id spoofing never fetches');
+
+    await writeStored(storedConfig);
+    result = await request({
+      provider: 'custom',
+      baseUrl: 'https://api.openai.com/unsaved/v1/chat/completions',
+      apiKey: 'custom-unsaved-key'
+    });
+    assert.strictEqual(result.status, 200);
+    assert.strictEqual(routeFetches.at(-1).url, 'https://api.openai.com/unsaved/v1/models');
+    assert.strictEqual(routeFetches.at(-1).headers.Authorization, 'Bearer custom-unsaved-key');
+    result = await request({ provider: 'custom' });
+    assert.strictEqual(result.status, 200);
+    assert.strictEqual(routeFetches.at(-1).url, 'https://api.openai.com/stored/v1/models');
+    assert.strictEqual(routeFetches.at(-1).headers.Authorization, 'Bearer custom-stored-key');
+
+    const beforeCodeStatus = routeFetches.length;
+    result = await request({
+      provider: 'claude-code', apiKey: privateMarker, baseUrl: `https://${privateMarker}.invalid`
+    });
+    assert.strictEqual(result.status, 200);
+    assert.deepStrictEqual(result.json, codeCatalog);
+    assert.strictEqual(routeFetches.length, beforeCodeStatus, 'Claude Code refresh performs no model/network call');
+    assert.strictEqual(JSON.stringify(result.json).includes('PRIVATE_'), false);
+
+    process.env.NODE_ENV = 'production';
+    delete process.env.CUSTOM_ENDPOINT_URL;
+    const beforeDiscarded = routeFetches.length;
+    result = await request({
+      provider: 'custom', baseUrl: 'https://api.openai.com/request/v1/chat/completions'
+    });
+    assert.strictEqual(result.status, 400);
+    assert.strictEqual(routeFetches.length, beforeDiscarded,
+      'Production discards request and stored custom endpoints before derivation/fetch');
+
+    process.env.CUSTOM_ENDPOINT_URL = 'https://api.openai.com/env/v1/chat/completions';
+    result = await request({
+      provider: 'custom', baseUrl: 'https://api.openai.com/request/v1/chat/completions'
+    });
+    assert.strictEqual(result.status, 200);
+    assert.strictEqual(routeFetches.at(-1).url, 'https://api.openai.com/env/v1/models',
+      'Only the env-pinned custom URL survives production policy');
+
+    delete process.env.OLLAMA_URL;
+    const runtimeOllama = new AIClient({ provider: 'ollama', ollamaUrl: 'https://api.openai.com/request-ollama' });
+    result = await request({ provider: 'ollama', ollamaUrl: 'https://api.openai.com/request-ollama' });
+    assert.strictEqual(result.status, 200);
+    assert.strictEqual(routeFetches.at(-1).url, 'http://localhost:11434/api/tags');
+    assert.strictEqual(runtimeOllama.ollamaUrl, 'http://localhost:11434',
+      'Catalog and AIClient share the same production Ollama default');
+  } finally {
+    delete app.locals.modelCatalogFetch;
+    delete app.locals.claudeCodeStatusImpl;
+    if (server) await new Promise(resolve => server.close(resolve));
+    if (previousStored) await writeStored(previousStored);
+    else await db.run(`DELETE FROM server_settings WHERE key = 'ai_config'`);
+    if (previousAdmin === undefined) delete process.env.ADMIN_SECRET;
+    else process.env.ADMIN_SECRET = previousAdmin;
+    if (previousAccess === undefined) delete process.env.ACCESS_SECRET;
+    else process.env.ACCESS_SECRET = previousAccess;
+    if (previousOpenAi === undefined) delete process.env.OPENAI_API_KEY;
+    else process.env.OPENAI_API_KEY = previousOpenAi;
+    if (previousNodeEnv === undefined) delete process.env.NODE_ENV;
+    else process.env.NODE_ENV = previousNodeEnv;
+    if (previousCustomEndpoint === undefined) delete process.env.CUSTOM_ENDPOINT_URL;
+    else process.env.CUSTOM_ENDPOINT_URL = previousCustomEndpoint;
+    if (previousOllamaEndpoint === undefined) delete process.env.OLLAMA_URL;
+    else process.env.OLLAMA_URL = previousOllamaEndpoint;
+  }
+}
+
+// -------------------------------------------------------------
 // Test: provider endpoint pinning — baseUrl must never redirect keyed providers
 // -------------------------------------------------------------
 async function testProviderEndpointPin() {
@@ -3537,6 +3990,7 @@ async function runAll() {
     await testThemeGeneration();
     await testVoiceScript();
     await testPortableVoicePersistence();
+    await testModelCatalogs();
     await testCanonicalVoiceRoute();
     await testTtsProviderSeam();
     await testTtsCache();

@@ -44,10 +44,15 @@ to `docs/history/state-archive.md`.
   It adds canonical v2 projection/validation/save seams and Council runtime resolution
   while leaving the v1 admin HTTP wire active. `.agents/review/findings/am-1.md` owns the scope,
   guard proof, and verdict.
-- **`am-cc` is accepted at review head `4e42aaf`; owner merge is pending.** Implementation commit
-  `abbf956` adds the isolated, subscription-authenticated Claude Code adapter and routes it through
-  the existing AIClient/Council pipeline. Claude Fable independently confirmed the red/green guard
+- **`am-cc` is accepted and merged into `master` at `1a62848`.** Implementation commit `abbf956`
+  adds the isolated, subscription-authenticated Claude Code adapter and routes it through the
+  existing AIClient/Council pipeline. Claude Fable independently confirmed the red/green guard
   proof. `.agents/review/findings/am-cc.md` owns the verdict trail.
+- **`am-2` is accepted at direct-route Claude Fable review head `678db31`; owner merge is pending.**
+  Implementation commits `619b838` and `0578115` add live provider model catalogs, safe Claude Code
+  account status, shared production endpoint provenance, a bounded response-body timeout, and the
+  admin-authenticated catalog route. Fable independently confirmed the red/green timeout guard and
+  found no remaining material issue. `.agents/review/findings/am-2.md` owns the verdict trail.
 - **The remote two-human multiplayer playtest remains pending.** App-side seat work is landed;
   connectivity is owner-handled and out of repo scope. The playtest is the scheduled close for open
   multiplayer feel gates. Seat isolation must be re-tested whenever a field crosses a seat payload,
@@ -60,9 +65,9 @@ to `docs/history/state-archive.md`.
 
 ## Next
 
-**THE IMMEDIATE NEXT ACTION: obtain the owner-gated merge of accepted `am-cc`.** Only after it is
-merged may `am-2` start from updated `master`. The remaining ordered slices are `am-2` live catalogs
-and safe Claude Code status, then `am-3` compact UI; each is accepted and owner-merged before the next.
+**THE IMMEDIATE NEXT ACTION: obtain the owner-gated merge of accepted `am-2`.** Only after it is
+merged may `am-3` start from updated `master`; `am-3` owns the compact UI and v2 settings HTTP
+cutover.
 
 - Phase V's owner playtest remains the pending feel gate after this explicitly selected repo work.
   Configure either OpenAI or Grok voice in `/admin`, enable Voice Narration, and play a real scene
@@ -86,8 +91,8 @@ and safe Claude Code status, then `am-3` compact UI; each is accepted and owner-
 
 ## Verification
 
-- Automated: `AI_RETRY_BACKOFF_MS=10 node test.js` — green on code at `ca55b55`, re-run during the
-  2026-07-15 drift pass.
+- Automated: `node test.js` — green on timeout fix `0578115` and independently green at accepted
+  review head `678db31` on 2026-07-15.
 - Browser: `npm run test:browser` — green on code at `ca55b55`, re-run during the same drift pass.
   **Required before
   merging any change to `public/styles.css` or `public/theme-vars.js`** (`.agents/repo-guidance.md`);
