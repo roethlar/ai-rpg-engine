@@ -10,7 +10,7 @@
 - Core principle (evidence: plan.md): every change must improve *fun* and
   *feel* like a real GM. Avoid feature creep. Prioritize quality of
   interaction over new mechanics.
-- The Council DM pipeline is the supported path for player turns
+- The Council GM pipeline is the supported path for player turns
   (Interaction, Continuity, Referee, Continuity final check, Narration).
   Single-model paths are deprecated (decision 2026-06-05 in
   `.agents/decisions.md`).
@@ -22,10 +22,11 @@
   promoted into a concrete phase with planned entries, success metrics, and
   files to change.
 - Phase review gate (plan.md): after completing a phase's implementation
-  work, run a full play session (ideally Council DM + strong or local model),
+  work, run a full play session (ideally Council GM + strong or local model),
   gather feedback, and confirm the changes demonstrably improve the playing
-  experience before treating the phase as complete or advancing. No code is
-  merged/landed until it passes this gate.
+  experience before treating the phase as complete or advancing. Review-accepted
+  implementation slices may land before that feel verdict only when a more specific
+  owner-approved phase plan explicitly orders it; Phase V is the governing precedent.
 - Durable decisions behind these rules are recorded in `.agents/decisions.md`
   (phased development with promotion gates, 2026-06-05; Council pipeline
   canonical, 2026-06-05; and later game-contract decisions).
@@ -50,12 +51,25 @@
   the harness drives the six theme contexts directly and does not cover theme
   wiring in `public/app.js` or `map-render.js`.
 - Verification is local-only: the repo has no CI workflows (evidence:
-  discovery scan found no provider-executable CI paths, 2026-06-10; the
+  discovery scan found no provider-executable CI paths as of `ca55b55`,
+  re-verified 2026-07-15; the
   `.agents/repo-map.json` that carried the notes was retired 2026-07-08 —
   this section is the canonical home).
 - Manual/playtest: for Phase work and user-visible GM behavior changes, run
   full play sessions and confirm improvement per the review gate above, or
   state clearly that a playtest was not run.
+
+## Runtime Contracts
+
+- Theme custom properties named `--theme-*` hold complete CSS colours. Consume them directly as
+  `var(--theme-x)`, or use `color-mix(in srgb, var(--theme-x) N%, transparent)` for translucency.
+  Wrapping a theme variable in `hsl()`, `rgb()`, or `rgba()` is invalid and the browser silently
+  drops the declaration. `public/theme-vars.js` is the boundary that converts internal HSL
+  components into complete colours.
+- Seat isolation is a boundary to re-test, not a finished category. Whenever a field is added to a
+  seat payload, seat-reachable audio, or an error path, re-run the relevant leak/route guards and a
+  throwaway-store smoke. `.agents/review/index.md` owns the finding history; do not duplicate its
+  counts here.
 
 ## Scope Before Falsifying (learned 2026-07-09, twice)
 
@@ -84,11 +98,9 @@ recorded facts still hold.
 
 ## Remotes & Sync
 
-- Two remotes: `origin` = `http://q.internal:3000/michael/ai-rpg-engine` (LAN
-  gitea) and `github` = `https://github.com/roethlar/ai-rpg-engine.git`
-  (public — added by the owner 2026-07-03; the owner also pushes it
-  directly). The repo being public means tracked files must never contain
-  secrets (tracked files verified clean 2026-07-03; .env and data/ are
-  gitignored).
+- The conventional remote roles are `origin` = the private canonical Gitea and `github` = the public
+  mirror. Remote URLs are clone-local configuration; inspect `git remote -v` rather than recording a
+  hostname here. Because the mirror is public, tracked files must never contain secrets; `.env` and
+  `data/` are gitignored.
 - Push policy lives in `.agents/push-policy.md` and applies to both remotes:
   a push go means pushing master to both unless the owner says otherwise.

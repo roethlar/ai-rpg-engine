@@ -1,9 +1,9 @@
 # sv-1: Released character's seat token takes over the sole remaining character
 
 **Severity**: HIGH — a stale seat credential crosses the per-user authorization boundary S2 exists to enforce, and mutates another player's canonical character state.
-**Status**: Verified
-**Branch**: `fix/sv-1-revoke-seat-on-release`
-**Commit**: `b5d3a81`
+**Status**: MERGED and verified; final merge `bf892b1` on master.
+**Branch**: deleted (was `fix/sv-1-revoke-seat-on-release`)
+**Commit**: `8c7deb6` (accepted branch tip; merge `bf892b1`)
 
 ## Evidence
 - `server.js:192-206` — `authenticate` resolves any seat whose `revoked_at IS NULL`; it never checks that the bound character is still an active party member.

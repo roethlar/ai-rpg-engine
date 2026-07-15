@@ -1,6 +1,6 @@
 # Aetheria GM - AI Persistent RPG Engine
 
-Aetheria GM is an AI-backed, single-player role-playing game (RPG) engine. By defining any genre or setting, the AI Game Master (GM) procedurally designs a coherent 2-4 hour questline divided into three structured acts. As you play, the GM logs your progress, tracks your stats/level/inventory, and generates beautiful vector SVG illustrations representing the locations, characters, and monsters you discover.
+Aetheria GM is an AI-backed role-playing game (RPG) engine for solo and shared-table play. By defining any genre or setting, the AI Game Master (GM) procedurally designs a coherent 2-4 hour questline divided into three structured acts. As you play, the GM logs progress, tracks character stats/level/inventory, and presents AI-generated scene art when configured, with procedural SVG fallbacks and deterministic maps.
 
 The engine stores all events in a persistent SQLite database, which double-functions as a **Model Context Protocol (MCP)** server endpoint. This allows external LLMs or future game sessions to connect directly to the database to retrieve memories, character status, and adventure logs!
 
@@ -30,12 +30,15 @@ The engine stores all events in a persistent SQLite database, which double-funct
 
 ## Supported AI Providers
 
-- **Google Gemini** (Recommended, default: `gemini-1.5-flash` or `gemini-2.5-flash`)
-- **OpenAI GPT** (`gpt-4o-mini`, `gpt-4o`)
-- **Anthropic Claude** (`claude-3-5-sonnet-20241022`)
-- **xAI Grok** (`grok-3`, `grok-3-mini` — excellent structured/JSON output for the Council agents)
-- **Ollama** (Local models like `llama3`, `mistral`, `gemma`)
+- **Google Gemini**
+- **OpenAI GPT**
+- **Anthropic Claude**
+- **xAI Grok**
+- **Ollama** (local models)
 - **Custom OpenAI-Compatible** (LM Studio, OpenRouter, Groq, etc.)
+
+Provider model catalogs change. Configure an available model explicitly in `/admin` instead of
+treating documentation examples as durable defaults.
 
 ---
 

@@ -1,7 +1,10 @@
 # dr-1: Campaign delete/release settle callbacks wipe state and theme over whichever table the user has since entered
 
 **Severity**: MEDIUM — a slow DELETE settling after the user loads campaign Y snaps Y's theme to holodeck idle, nulls the campaign (Send silently no-ops, poll stops), and toasts "Campaign deleted." over the broken table.
-**Status**: Open (admitted 2026-07-11 from the skeptic-panel round; fix awaits an owner go). The worst sub-case — the blank screen when the settle races an in-flight load — was a poll-1 regression and is already fixed on that branch (`1409b58`); this finding covers the remaining wrong-table wipe.
+**Status**: Open; owner-approved, not started (admitted 2026-07-11 from the skeptic-panel round;
+authorized by the Phase T2 approval and implementation order in `plan.md`). The worst sub-case —
+the blank screen when the settle races an in-flight load — was a poll-1 regression and is already
+fixed on that branch (`1409b58`); this finding covers the remaining wrong-table wipe.
 **Branch**: (cut on fix start: `fix/dr-1-settle-epoch`)
 **Commit**:
 

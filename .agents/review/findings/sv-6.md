@@ -1,9 +1,9 @@
 # sv-6: `.agents/state.md` carries contradictory pre-S2 facts
 
 **Severity**: LOW — runtime unaffected, but the repo's mandated current-state entry point asserts mutually exclusive facts, which is exactly the failure `AGENTS.md` forbids.
-**Status**: Open
-**Branch**: `fix/sv-6-state-contradictions`
-**Commit**: (filled in after commit)
+**Status**: MERGED and verified after two rounds; final merge `d7b1c69` on master.
+**Branch**: deleted (was `fix/sv-6-state-contradictions`)
+**Commit**: `731d3c5` (accepted branch tip; final merge `d7b1c69`)
 
 ## Evidence
 At committed HEAD `0a8d712`:

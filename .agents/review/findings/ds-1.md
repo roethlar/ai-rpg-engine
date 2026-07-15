@@ -1,7 +1,8 @@
 # ds-1: Suggested-choice buttons allow overlapping submits, corrupting turnSubmitInFlight and duplicating renders
 
 **Severity**: MEDIUM — a second submit dispatched mid-flight re-enables the controls when the FIRST settles (UI lies while the Council still resolves turn two); a poll landing in the window renders the second turn, then the submit renders it again — action, narrative, and dice duplicated in the log.
-**Status**: Open (admitted 2026-07-11 from the skeptic-panel round; fix awaits an owner go)
+**Status**: Open; owner-approved, not started (admitted 2026-07-11 from the skeptic-panel round;
+authorized by the Phase T2 approval and implementation order in `plan.md`)
 **Branch**: (cut on fix start: `fix/ds-1-submit-reentrancy`)
 **Commit**:
 

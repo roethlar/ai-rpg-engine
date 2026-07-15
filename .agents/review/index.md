@@ -3,7 +3,7 @@
 Workflow: see `.agents/playbooks/reviewloop.md`.
 Per-finding detail: see `.agents/review/findings/<id>.md`.
 
-## Active Phase V implementation loop (2026-07-15)
+## Closed Phase V implementation loop (2026-07-15; owner playtest still gates the phase)
 
 | ID | Severity | Impact (one line) | Status | Branch |
 |----|----------|-------------------|--------|--------|
@@ -12,18 +12,19 @@ Per-finding detail: see `.agents/review/findings/<id>.md`.
 | v-3 | HIGH | Host/seat voice resolution diverges and identical playback multiplies provider calls | `[x]` merged (`bb5b9f0`) | `fix/v-3-canonical-voice-route` |
 | v-4 | HIGH | Browser aborts after one voice error and still offers non-canonical player overrides | `[x]` merged (`54c08d1`) | `fix/v-4-browser-voice-queue` |
 
-## Active loop (2026-07-13, reviewer: codex) — owner-reported bugs
+## Active loop (started 2026-07-13 with reviewer Codex) — owner-reported bugs
 
-Owner decision 2026-07-12: **all** code goes through this loop with codex; no exemption
-for small, obvious, or owner-approved changes (`.agents/decisions.md`). Two branches were
-caught by that rule and are unmerged pending review.
+Owner decision 2026-07-12: **all** code goes through this loop with an independent reviewer; no
+exemption for small, obvious, or owner-approved changes (`.agents/decisions.md`). The 2026-07-14
+division-of-labour decision later made Codex the default implementer and Claude the default reviewer;
+dated verdicts below retain the role actually used at the time.
 
 | ID | Severity | Impact (one line) | Status | Branch |
 |----|----------|-------------------|--------|--------|
 | map-1 | MEDIUM | Situation-panel area labels overrun their box: adjacent labels collide and the rightmost is clipped by the canvas edge | `[~]` REOPENED at r1 — 3 real defects (surrogate split, clip-id collision, canvas overflow still open); fix-ups pending | `fix/map-label-overflow` @ `b178222` |
 | css-1 | MEDIUM | Pre-existing: `rgba(var(--theme-*), α)` over HSL-triple vars is invalid CSS — header/glass/panel fills compute unpainted on every theme | `[x]` MERGED at `41e1938` (ACCEPTED r5); branch deleted | `09bb433` (was `fix/css-1-hsla-theme-vars`) |
-| css-2 | MEDIUM | The css-1 guard scans only `styles.css`, but `index.html` (inline styles), `app.js` and `map-render.js` also author theme-var CSS — the same defect can be reintroduced there with the suite green | `[!]` **CONTESTED / STOPPED at r3** — 16 findings incl. a suite-aborting crash and false positives. Reviewer and coder agree the text-scanner approach is **not converging**; both recommend removing the cause (complete `<color>` values) and retiring the linter. **DO NOT MERGE this branch.** Owner decision pending | `fix/css-2-scanner-scope` @ `0229679` |
-| css-3 | LOW | `--theme-glow` is dead: defined 6× in `styles.css`, written on every theme apply, read nowhere | `[-]` **SUPERSEDED** — folded into Phase CT (plan.md). It is a *quadruple* (components + alpha), so it has no complete-colour form and the migration forces its deletion. Never branched | none |
+| css-2 | MEDIUM | The css-1 guard scanned only one authoring surface, but the attempted broader scanner crashed and rejected valid CSS | `[!]` **ABANDONED / REPLACED BY PHASE CT** — branch refs deleted; never merge or recreate it. See `docs/history/css-2-abandoned-scanner.md` | none (was `fix/css-2-scanner-scope` @ `0229679`) |
+| css-3 | LOW | `--theme-glow` was dead: defined 6× in `styles.css`, written on every theme apply, read nowhere | `[-]` **SUPERSEDED** — folded into Phase CT (plan.md). It was a *quadruple* (components + alpha), so it had no complete-colour form and CT deleted it. Never branched | none |
 
 Intake, css-2 + css-3 (2026-07-14, post-merge review of the css-1 commits, owner go "yes, both"):
 two candidates, both admitted, zero declined-with-work. The css-1 **fix** was re-verified as correct
@@ -33,8 +34,8 @@ new findings are *residue*: css-2 is the r1–r5 "guard the class, not the spell
 level up (the guard covers the class in only one of the files where the class can occur); css-3 is
 dead-variable hygiene that **fails the intake gate on its own merits** (no observable failure) and is
 admitted solely on the owner's override — recorded that way in `findings/css-3.md` so the record does
-not imply cleanup findings pass triage unaided. Per the 2026-07-12 decision both go through the loop
-with codex regardless of size or owner approval.
+not imply cleanup findings pass triage unaided. Per the 2026-07-12 decision both went through the
+loop regardless of size or owner approval; Codex was the assigned reviewer at that time.
 
 **css-1 r1 verdict** (codex 0.144.1, `guard_confirmed: true`): REOPENED — but the split matters.
 The reviewer **independently verified the premise** (the theme vars really are HSL triples) and
@@ -51,7 +52,8 @@ both failed closed, neither became an accept. Detail: `findings/css-1.md`.
 
 Recorded process defect, now corrected: this index asserted from 2026-07-11 that a `guard-css-1`
 existed and proved the surfaces transparent-on-master / painted-at-the-fix. **No such committed
-guard ever existed** — it was an ad-hoc browser check, and the repo has no browser harness. The
+guard ever existed** — it was an ad-hoc browser check, and at that time the repo had no committed
+browser harness. bh-1 later landed at `ea9ca9b`. The
 reviewer's grading is explicit that the new static scanner does **not** retroactively substantiate
 that browser claim.
 
@@ -71,8 +73,8 @@ custom, implementation-ready system and plan. Read-only intake reviewed pinned
 snapshot `526aa5c` with Claude Code 2.1.207 (`claude-opus-4-8`, high effort,
 structured output). Verdict: `ready_for_owner_decisions` — **not** plan
 acceptance. It admitted 14 plan gaps (5 HIGH) and produced a 15-decision queue.
-D0 (fixed bespoke chassis + generated flavor versus the alternatives) is the
-next owner ask. No rules code is authorized before the decisions are recorded,
+D0 is decided: fixed bespoke chassis plus generated flavor. D1 (the die) is the
+next owner ask. No rules code is authorized before the remaining decisions are recorded,
 a concrete phase is written, and Claude accepts that pinned plan snapshot.
 
 Detailed intake and decision queue:
@@ -104,14 +106,13 @@ Merge state (2026-07-11, owner go): all four merged to master in stack order
 The MERGED combination re-verified: suite green and the full ten-guard
 browser battery (poll 1/1b/1c/1d/1e/1f/1g + dice dt1/dt2/dt3) ALL PASS
 against merged master — the stack was reviewed on per-branch bases, so this
-combined run is the integration proof. Branches retained (deletion is a
-separate owner call).
-| css-1 | MEDIUM | Pre-existing: `rgba(var(--theme-*), α)` with HSL-triple vars is invalid CSS — header/glass/panel fills and several glows compute unpainted on every theme today | `[~]` fix committed (owner go), verdict pending. Guard `guard-css-1`: all three surfaces transparent/none on master, painted at the fix | `fix/css-1-hsla-theme-vars` @ `32af1ba` |
-| jt-1 | HIGH | Pre-existing: Journal tab renders a stale campaign's history over the current one (empirically confirmed); Fork buttons then fork the wrong campaign | `[ ]` admitted (skeptic panel); fix awaits owner go | |
-| dr-1 | MEDIUM | Pre-existing: delete/release settle callbacks wipe theme/state over whichever table the user has since entered | `[ ]` admitted (skeptic panel); fix awaits owner go | |
-| tts-1 | MEDIUM | Pre-existing: the old table's GM voice keeps narrating over the menu/next campaign; skip pill unreachable on the menu | `[ ]` admitted (skeptic panel); fix awaits owner go | |
-| ds-1 | MEDIUM | Pre-existing: choice buttons allow overlapping submits — duplicated transcript entries and a mid-turn UI lie | `[ ]` admitted (skeptic panel); fix awaits owner go | |
-| fk-1 | MEDIUM | Pre-existing: a fork resolving after the user left (keyboard path) silently seizes the table | `[ ]` admitted (skeptic panel); fix awaits owner go | |
+combined run is the integration proof. The branches were retained at that point, then deleted on
+the owner's 2026-07-12 go after content-arrival verification.
+| jt-1 | HIGH | Pre-existing: Journal tab renders a stale campaign's history over the current one (empirically confirmed); Fork buttons then fork the wrong campaign | `[ ]` owner-approved; not started | |
+| dr-1 | MEDIUM | Pre-existing: delete/release settle callbacks wipe theme/state over whichever table the user has since entered | `[ ]` owner-approved; not started | |
+| tts-1 | MEDIUM | Pre-existing: the old table's GM voice keeps narrating over the menu/next campaign; skip pill unreachable on the menu | `[ ]` owner-approved; not started | |
+| ds-1 | MEDIUM | Pre-existing: choice buttons allow overlapping submits — duplicated transcript entries and a mid-turn UI lie | `[ ]` owner-approved; not started | |
+| fk-1 | MEDIUM | Pre-existing: a fork resolving after the user left (keyboard path) silently seizes the table | `[ ]` owner-approved; not started | |
 
 Skeptic-panel round (2026-07-11, three parallel adversarial agents, ultracode):
 13 candidates. Five admitted as NEW pre-existing findings of the poll-1 class
@@ -291,12 +292,12 @@ triaged below when it returns. Finding ids: `sv-*` (seat visibility).
 
 | ID | Severity | Impact (one line) | Status | Branch |
 |----|----------|-------------------|--------|--------|
-| sv-1 | HIGH | Released/stale seat context acts as the sole remaining player's character | `[x]` merged | `fix/sv-1-revoke-seat-on-release` |
-| sv-2 | HIGH | Internal error text (incl. raw model output) reaches a seat through error bodies | `[x]` merged | `fix/sv-2-seat-error-sanitization` |
-| sv-3 | LOW | A `seat_`-prefixed host secret locks the host out of the browser UI | `[x]` merged | `fix/sv-3-seat-token-shape` |
-| sv-4 | LOW | Seat payload leaks the act index — and any nested value — inside `currentQuest` | `[x]` merged | `fix/sv-4-scope-current-quest` |
-| sv-5 | LOW | An 81–120-char tone 400s and kills the rest of a seat's turn narration | `[x]` merged | `fix/sv-5-tone-bound` |
-| sv-6 | LOW | `state.md` asserts both "S2 landed" and "S2 never landed" | `[x]` merged | `fix/sv-6-state-contradictions` |
+| sv-1 | HIGH | Released/stale seat context acts as the sole remaining player's character | `[x]` merged | deleted (was `fix/sv-1-revoke-seat-on-release`) |
+| sv-2 | HIGH | Internal error text (incl. raw model output) reaches a seat through error bodies | `[x]` merged | deleted (was `fix/sv-2-seat-error-sanitization`) |
+| sv-3 | LOW | A `seat_`-prefixed host secret locks the host out of the browser UI | `[x]` merged | deleted (was `fix/sv-3-seat-token-shape`) |
+| sv-4 | LOW | Seat payload leaks the act index — and any nested value — inside `currentQuest` | `[x]` merged | deleted (was `fix/sv-4-scope-current-quest`) |
+| sv-5 | LOW | An 81–120-char tone 400s and kills the rest of a seat's turn narration | `[x]` merged | deleted (was `fix/sv-5-tone-bound`) |
+| sv-6 | LOW | `state.md` asserts both "S2 landed" and "S2 never landed" | `[x]` merged | deleted (was `fix/sv-6-state-contradictions`) |
 
 Merge state (2026-07-09): **all six merged to master** on the owner's explicit
 go. Master live-smoked after the merges: no leak markers in a seat payload; a
@@ -357,7 +358,7 @@ codex; findings triaged below.
 ## Legend
 - `[ ]` Admitted, open (passed intake triage; not yet started)
 - `[~]` In progress / pending review
-- `[x]` Verified (awaiting owner-gated merge)
+- `[x]` Verified; the row or close-out paragraph says whether it is merged
 - `[!]` Contested — declined, disputed, or ruled invalid; awaiting owner adjudication
 - `[-]` Declined at intake (kept for the record; no work)
 
@@ -365,10 +366,10 @@ codex; findings triaged below.
 
 | ID | Severity | Impact (one line) | Status | Branch |
 |----|----------|-------------------|--------|--------|
-| cr-1 | HIGH | Released browser silently becomes another player's character on the next poll | `[x]` | `fix/cr-1-claim-tombstone` |
-| cr-2 | MEDIUM | Campaign-card profile release reverts on restart, minting duplicate checked-out profiles | `[x]` | `fix/cr-2-backfill-once` |
-| cr-3 | MEDIUM | Denied actions inflate pacing cadence, licensing GM encounters early | `[x]` | `fix/cr-3-cadence-resolved` |
-| cr-4 | MEDIUM | Hostile bundle field shapes crash the imported campaign's UI | `[x]` | `fix/cr-4-record-field-shapes` |
+| cr-1 | HIGH | Released browser silently becomes another player's character on the next poll | `[x]` merged | deleted (was `fix/cr-1-claim-tombstone`) |
+| cr-2 | MEDIUM | Campaign-card profile release reverts on restart, minting duplicate checked-out profiles | `[x]` merged | deleted (was `fix/cr-2-backfill-once`) |
+| cr-3 | MEDIUM | Denied actions inflate pacing cadence, licensing GM encounters early | `[x]` merged | deleted (was `fix/cr-3-cadence-resolved`) |
+| cr-4 | MEDIUM | Hostile bundle field shapes crash the imported campaign's UI | `[x]` merged | deleted (was `fix/cr-4-record-field-shapes`) |
 
 Intake pass result: codex (gpt-5.5, xhigh) returned 4 candidates against
 `f9ecbd8..6c372c0`; all 4 admitted (evidence verified against code at HEAD),

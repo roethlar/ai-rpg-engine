@@ -1,9 +1,9 @@
 # dt-1: Stale roll theater after campaign or session changes
 
 **Severity**: MEDIUM — wrong-context overlay intercepts pointer input over the menu/another campaign (self-clears ≤3.2s/roll, click-dismissable), and misattributes a roll to the wrong table.
-**Status**: Verified (ACCEPTED; awaiting owner-gated merge)
-**Branch**: `fix/dt-1-theater-epoch` (stacked on `fix/poll-1-response-epoch`)
-**Commit**: `497ffc5` (base `6188461`)
+**Status**: MERGED — accepted; merge `ebb3fa8` on master.
+**Branch**: deleted (was `fix/dt-1-theater-epoch`, stacked on `fix/poll-1-response-epoch`)
+**Commit**: `497ffc5` (merge `ebb3fa8`)
 
 ## Evidence
 `public/app.js:1223-1232` — the poll awaits fetch with the then-current campaign id and never re-checks it after the await; `public/app.js:783-793` (menu return) clears the campaign meanwhile; `public/app.js:1251` then renders the stale response with `rollTheater: true`. The submit path renders unconditionally (`public/app.js:451-475`). The theater queue (`public/app.js:1827-1836`) carries no campaign/session identity and no cancellation hook.

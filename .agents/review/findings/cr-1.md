@@ -1,9 +1,9 @@
 # cr-1: Released browser can silently reclaim the remaining player's character
 
 **Severity**: HIGH — a browser can end up submitting turns as another player's character with no explicit claim.
-**Status**: Verified
-**Branch**: `fix/cr-1-claim-tombstone`
-**Commit**: `1748304`
+**Status**: MERGED and verified; merge `eb5bec3` on master.
+**Branch**: deleted (was `fix/cr-1-claim-tombstone`)
+**Commit**: `1748304` (merge `eb5bec3`)
 
 ## Evidence
 `public/app.js:982-999`. Condition: this browser's stored character id is no

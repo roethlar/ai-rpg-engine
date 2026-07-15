@@ -5,16 +5,18 @@
 > It is preserved deliberately, in a **fenced code block inside a Markdown file**, so that it
 > **cannot be applied** (`git apply` will not touch it) and cannot be merged. The branch it lived on,
 > `fix/css-2-scanner-scope`, was **deleted** on 2026-07-14 at the owner's instruction, precisely
-> because leaving it reachable was a hazard: it is one careless `git merge` away from landing, and
-> **it crashes the entire test suite**.
+> because leaving a project branch ref was a hazard: it was one careless `git merge` away from
+> landing, and **it crashes the entire test suite**.
 >
 > If you are reading this because you are about to write a static analyser to catch a CSS bug:
 > **read the whole file first.** That is what it is for.
 
 **Status**: ABANDONED. Superseded by **Phase CT** (merged `77cba10`), which removed the defect class
 at its root instead of policing it.
-**Branch**: `fix/css-2-scanner-scope` — **DELETED**. Its commits (`b8d1b49`, `ff77b95`, `0229679`)
-are unreachable and will be garbage-collected. This file is the only surviving copy.
+**Branch**: `fix/css-2-scanner-scope` — **DELETED** from project branches and remotes. Its commits
+(`b8d1b49`, `ff77b95`, `0229679`) are absent from `master`; machine-local worktrees may still pin
+their objects, with current evidence owned by `.agents/machines.md`. This file is the durable,
+non-applicable design record.
 **Full finding record**: `.agents/review/findings/css-2.md`.
 
 ---

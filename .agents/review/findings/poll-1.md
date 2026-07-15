@@ -1,9 +1,9 @@
 # poll-1: Stale poll responses render an older campaign/scene over the current one
 
 **Severity**: HIGH — a whole stale campaign state (narrative, theme, party, dice) can replace the currently loaded one; user actions then target a different campaign than the one displayed.
-**Status**: In progress (REOPENED twice; r3 fix-up committed, verdict pending)
-**Branch**: `fix/poll-1-response-epoch`
-**Commit**: `6188461` → `555335a` → `06d331d` (base `1894461`)
+**Status**: MERGED — accepted at r5; merge `3862fa4` on master.
+**Branch**: deleted (was `fix/poll-1-response-epoch`)
+**Commit**: `e30bb06` (accepted branch tip; merge `3862fa4`)
 
 ## Evidence
 `public/app.js:1223-1259` — overlapping polls are possible; no campaign/epoch captured before the awaits; the guard is `state.turn?.number !== lastRenderedTurnNumber` which accepts *older* turn numbers too; no ownership re-check after await. Transitions that invalidate in-flight work: menu return `public/app.js:783-793`, campaign load `public/app.js:876-887`, fork switch `public/app.js:2116-2120`. `renderGame` applies the payload's theme unconditionally (`public/app.js:939-942`).

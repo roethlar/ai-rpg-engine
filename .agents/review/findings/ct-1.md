@@ -3,10 +3,10 @@
 **Severity**: MEDIUM — removes the css-1 defect class at its root (a bare HSL component list in a
 CSS context is silently invalid and the surface renders unpainted), and retires the css-2 scanner
 that three review rounds proved could not police it.
-**Status**: Verified — **ACCEPTED** by adversarial review (Claude, 2026-07-14). Awaiting owner-gated
-merge.
-**Branch**: `fix/ct-1-codex`
-**Commit**: `072ff9d` (implementation, codex) + `861f2b5` (anti-scanner warning, grafted)
+**Status**: MERGED — **ACCEPTED** by adversarial review (Claude, 2026-07-14); merge `77cba10`.
+**Branch**: deleted (was `fix/ct-1-codex`)
+**Commit**: `4fcfffe` (accepted branch tip; includes `072ff9d` implementation and `861f2b5`
+anti-scanner warning), merged at `77cba10`
 **Base**: `master` @ `5646cf0`
 **Plan**: plan.md → "Phase CT". Plan correctness review ACCEPTED at r4; cold-implementer review ran
 to r2.

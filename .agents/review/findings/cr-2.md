@@ -1,9 +1,9 @@
 # cr-2: Profile release is undone by startup backfill
 
 **Severity**: MEDIUM — a user-visible release silently reverts on restart and mints duplicate checked-out profiles.
-**Status**: Verified
-**Branch**: `fix/cr-2-backfill-once`
-**Commit**: `05c4d67`
+**Status**: MERGED and verified; merge `57c2451` on master.
+**Branch**: deleted (was `fix/cr-2-backfill-once`)
+**Commit**: `05c4d67` (merge `57c2451`)
 
 ## Evidence
 Campaign-card release (`server.js` release-character route →

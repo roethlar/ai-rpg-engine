@@ -129,10 +129,16 @@ see the gate below):
    dispatch time), so the reviewer evaluates `git diff <base-sha>..<head-sha>` against
    a fixed snapshot — a `main..branch` range is *not* stable if the main branch moves.
    The reviewer reads the code from the **shared workspace** (you do not pipe it the
-   diff); it reads `.agents/review/findings/<id>.md`, and **independently performs the
+   diff); normally it reads `.agents/review/findings/<id>.md`, and **independently performs the
    guard proof** (revert → confirm FAIL → restore → confirm PASS) **in its own `git
    worktree` checked out at the head SHA** — never by mutating your working tree. A
    reviewer that crashes mid-proof leaves only its disposable worktree dirty.
+   **Content-filter exception:** if an earlier dispatch was filtered, or the finding trail has
+   accumulated hostile or encoded payloads, do not point the next reviewer at that trail and do not
+   reproduce the payload catalogue in the prompt. Send a sanitized, spec-framed brief that names the
+   behavior classes and required proof, plus the same pinned base/head. The finding remains the
+   durable record, but it is not reviewer input on that dispatch. A filtered or missing envelope
+   still fails closed under step 3.
 3. **Verdict contract (structured, fail-closed).** The reviewer returns its verdict in
    the JSON envelope. Its result payload must match:
    ```json

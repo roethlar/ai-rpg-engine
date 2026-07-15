@@ -1,9 +1,9 @@
 # sv-2: Raw internal error text reaches seats, and can carry GM-private data
 
 **Severity**: HIGH — a malformed model response bypasses S2's whitelist and can disclose memories, NPC notes, or echoed private context to an untrusted seat.
-**Status**: Open
-**Branch**: `fix/sv-2-seat-error-sanitization`
-**Commit**: (filled in after commit)
+**Status**: MERGED and verified after three rounds; merge `9c8d5a8` on master.
+**Branch**: deleted (was `fix/sv-2-seat-error-sanitization`)
+**Commit**: `79c484a` (accepted branch tip; merge `9c8d5a8`)
 
 ## Evidence
 - `server.js:436-437` — only the **successful** turn response is passed through `scopeStateForSeat`.

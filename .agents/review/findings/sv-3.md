@@ -1,9 +1,9 @@
 # sv-3: Client and server disagree on what "looks like a seat token"
 
 **Severity**: LOW — a host secret beginning with `seat_` locks the host out of the browser UI. Downgraded from the reviewer's MEDIUM: the trigger is an operator-chosen secret that collides with the reserved prefix, not a reachable state in normal configuration.
-**Status**: Verified
-**Branch**: `fix/sv-3-seat-token-shape`
-**Commit**: `cf45fbc`
+**Status**: MERGED and verified; merge `f80d3c8` on master.
+**Branch**: deleted (was `fix/sv-3-seat-token-shape`)
+**Commit**: `7c27c53` (accepted branch tip; merge `f80d3c8`)
 
 ## Evidence
 - `public/app.js:27-29` — `isSeatToken` classifies **any** `seat_` prefix as a seat.

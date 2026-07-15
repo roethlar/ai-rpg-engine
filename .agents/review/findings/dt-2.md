@@ -1,9 +1,9 @@
 # dt-2: Click-to-skip suppresses a later turn's queued theater
 
 **Severity**: LOW — a valid fresh turn's animation is silently skipped; the log card still records the roll, so information loss is cosmetic.
-**Status**: Verified (ACCEPTED; awaiting owner-gated merge)
-**Branch**: `fix/dt-2-skip-per-batch` (stacked on `fix/dt-1-theater-epoch`)
-**Commit**: `c04f0cd` (base `497ffc5`)
+**Status**: MERGED — accepted; merge `4a1482f` on master.
+**Branch**: deleted (was `fix/dt-2-skip-per-batch`, stacked on `fix/dt-1-theater-epoch`)
+**Commit**: `c04f0cd` (merge `4a1482f`)
 
 ## Evidence
 `public/app.js:1827-1836` — one global promise chain and one global `skipDiceTheater` flag govern all turns; the click handler (`public/app.js:1885-1886`) sets the global flag; `public/app.js:1841-1842` then drops every queued item regardless of which turn enqueued it.

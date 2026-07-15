@@ -1,21 +1,22 @@
-# Aetheria DM Improvement Plan
+# Aetheria GM Improvement Plan
 
-**Goal**: Perfect the single-player experience while laying solid architectural foundations for future multiplayer (tabletop-style: multiple characters in one campaign, sequential turns via initiative or round-robin, shared scenes, natural table-talk).
+**Goal**: Perfect solo and shared-table play while preserving a coherent GM, persistent campaigns,
+and natural table talk.
 
 **Core Principle**: Every change must improve *fun* and *feel* like a real GM. Avoid feature creep. Prioritize quality of interaction over new mechanics.
 
 ## Phase 0: Clarification & Table-Talk (Highest Priority - Fix the core complaint)
 
-**Problem**: The DM is too "video-gamey". It rushes to resolve actions and struggles with pure questions like "Which goblin is closer? Can I throw my dagger at it?" The `input_kind: "clarification"` path exists in code but is not reliable in practice.
+**Problem**: The GM is too "video-gamey". It rushes to resolve actions and struggles with pure questions like "Which goblin is closer? Can I throw my dagger at it?" The `input_kind: "clarification"` path exists in code but is not reliable in practice.
 
 **Concrete Changes**:
 - Strengthen the Interaction Agent prompt to be much more conservative about classifying input as `committed_action`.
 - Improve the Referee and Final Narration prompts with better few-shot examples of good clarification responses (scene grounding, partial information, "you don't know yet" answers, encouraging more questions).
-- Add explicit "scene grounding" output field so the DM is forced to describe the current tactical situation clearly before any resolution.
+- Add explicit "scene grounding" output field so the GM is forced to describe the current tactical situation clearly before any resolution.
 - Update `validateTurnData` and frontend to handle richer clarification responses.
 - Add a "pure question" detection heuristic in `rpg-engine.js` before the full Council pipeline.
 
-**Success metric**: Player can have 3-4 back-and-forth clarification exchanges without the world state advancing or the DM forcing an action.
+**Success metric**: Player can have 3-4 back-and-forth clarification exchanges without the world state advancing or the GM forcing an action.
 
 **Files to change**: `rpg-prompts.js`, `rpg-engine.js`, `rpg-state.js`, `public/app.js` (minor).
 
@@ -66,11 +67,11 @@ speaker+tone-tagged voice script (narration_lines) alongside the narrative;
 the engine resolves speakers to stored profiles and returns turn.voiceLines;
 the frontend plays segments sequentially (skip stops the queue), falling back
 to single-voice narration when no script is present. Playtest gate: NPC voices
-distinct and consistent across turns; narrator remains the player's chosen
-voice; graceful fallback when the model omits the script.
+distinct and consistent across turns, with graceful fallback when the model omits the script. The
+player-chosen narrator clause was superseded by Phase V's campaign-canonical GM decision.
 
 - Expand current TTS (OpenAI) to support multiple character voices per turn.
-- Give the DM a consistent persona/voice style that persists across a campaign.
+- Give the GM a consistent persona/voice style that persists across a campaign.
 - Allow emotional tone directives from the Council pipeline to influence TTS parameters.
 - **Mechanism note (owner design direction, 2026-06-13 — not yet promoted to scheduled work):** voice identity should be *recorded state*, not transient prompt wording — each NPC and a global GM-narrator voice get a stable voice identifier stored in character/campaign state, so a character sounds the same across turns and ideally across campaigns (the audio analog of canon commitment). Pair with structured narration output carrying per-line **speaker + emotional-tone** fields that drive TTS voice selection and parameters — which is what the three bullets above already call for. The hard requirement is voice-identity-as-state and within-campaign consistency; the TTS *provider* (and whether voice cloning is needed) is a separate, later call kept swappable like the rest of AI config (existing OpenAI TTS stays as the baseline/fallback). See the provider-strategy topic in Future Topics.
 
@@ -140,7 +141,7 @@ Phases features (theming, locations/map, heroics, Situation panel) so
 playtesters have accurate setup docs.
 Files: README.md.
 
-**Multiplayer end state vision**: Multiple players can join the same campaign (via shared URL + access token). The DM maintains one shared scene description. Players take turns in declared order. Clarification/table-talk works for everyone. Character progression is persistent across campaigns.
+**Multiplayer end state vision**: Multiple players can join the same campaign (via shared URL + access token). The GM maintains one shared scene description. Players take turns in declared order. Clarification/table-talk works for everyone. Character progression is persistent across campaigns.
 
 ## Infrastructure Phases (promoted 2026-07-03 — functional gates, not feel gates)
 
@@ -154,7 +155,8 @@ in `.agents/decisions.md`)
 - `/admin` page (not linked from game UI) gated by `ADMIN_SECRET` (unset = open for
   single-operator localhost dev, warned at startup; production fails closed).
 - Server ignores client-supplied AI config; player settings panel reduced to access
-  token, voice preference (toggle/voice/style), diagnostics.
+  token, voice narration on/off, and diagnostics. Phase V later removed player narrator identity
+  and style controls in favor of campaign-canonical voices.
 - Success: server env/admin config authoritative; a client sending forged apiConfig
   cannot change provider/model/key; owner can configure keys via /admin and play.
 - Files: db.js, server-config.js (new), server.js, admin/ (new), public/index.html,
@@ -417,8 +419,9 @@ validation rig):**
 ## 2026-07-04 Queue (promoted under the delegated review loop)
 
 Owner delegation recorded in `.agents/decisions.md` (2026-07-04): open calls
-agent-decided, plans approved via codex review loop, nothing gated on the
-owner until the multiplayer playtest. Priority order: Phase 3 (above) →
+agent-decided, plans independently reviewed, nothing gated on the owner until the multiplayer
+playtest. Codex was the assigned reviewer then; the 2026-07-14 division-of-labour decision controls
+current assignments. Priority order: Phase 3 (above) →
 V5 → D → H → P.
 
 **Phase V5: Visual gap closers** (extends the shipped V1–V4 designs)
@@ -595,41 +598,43 @@ existing secrets warnings/production fail-closed startup behavior.
 
 Raised during planning but deliberately deferred. **Per project rule, nothing here may be implemented until it is promoted into a concrete phase with planned entries.**
 
-- **Scene-dynamic theming — DRAFT PLAN WRITTEN 2026-07-11** (owner direction
-  2026-07-11; the plan is Phase T2 in the Visual Phases above, awaiting owner
-  approval). Original direction: the color scheme follows the *game* as it
+- **Scene-dynamic theming — PROMOTED AND APPROVED 2026-07-11** (owner direction
+  2026-07-11; the plan is Phase T2 in the Visual Phases above). Original direction:
+  the color scheme follows the *game* as it
   moves — night-club neon, forest earth tones — extending, not replacing,
   the T1 setup theme.
 
-- **Owner/player settings split & simple auth.** AI provider config is server-owned (see decision 2026-06-11 in `.agents/decisions.md`); the open question is the mechanism. Leading idea: a separate `/admin` URL — not linked from the game UI — gated by a master password distinct from any per-player credentials, where the owner manages provider/model/keys (and model-name entry UX, e.g. presets/datalist, lives there too). Implies an eventually-real, if simple, auth system: players will need credentials to protect/reclaim their persistent characters once the game is hosted publicly, so per-player auth and owner auth should be designed together rather than bolted on twice. Current single-key UI is acceptable while operator and player are the same person.
+- **Owner/player settings split & simple auth — LANDED.** Phase I1 moved provider/model/key
+  configuration to `/admin` behind `ADMIN_SECRET`; Phase S added per-seat credentials. Full user
+  accounts and long-term character ownership remain future topics. README owns the current flow.
 
-- **Model fallback tiering on transient provider errors.** Provider overload (e.g. Gemini 503) must never surface as a raw error in the DM's voice, and the DM cannot "take a break" — that kills the session. Direction: retry once, and/or fail over to a configured backup model per request. Open questions: how backup tiers are configured (depends on the owner-settings design above), and how failover interacts with Council role separation — a mid-chain model swap must not muddy the separation of duties or change adjudication behavior within a single turn. Frontend should restore the player's input and present transient failures as retriable, outside the DM's voice.
+- **Model fallback tiering — LANDED.** Phase I2 retries transient failures once, then uses the
+  configured backup tier per call while preserving Council-role boundaries. Surviving failures
+  surface outside the GM voice and restore the player's input.
 
-- **Spells, abilities & ruleset consistency — REOPENED 2026-07-11** (decision in
-  `.agents/decisions.md`): the engine needs a working, *user-predictable* rules
-  system; the freeform/no-rules path is not viable for multiplayer, and external
-  systems are back on the table. The 2026-07-03 first cut described below is
-  landed code but no longer the settled end state — a new design must be planned
-  and promoted before implementation. Original promotion (2026-07-03: selectable
-  at campaign start, lightweight house system as default). First-cut implementation:
+- **Spells, abilities & ruleset consistency — D0 DECIDED; D1 NEXT.** The engine needs a working,
+  user-predictable system. D0 chooses one bespoke, versioned chassis with generated campaign flavor;
+  it rejects both generated-per-campaign mechanics and wholesale adoption of an external system.
+  The remaining queue is `.agents/review/rules-system-plan-intake.md`; no implementation before it
+  produces a concrete reviewed phase. Historical first-cut implementation:
   campaign creation gains a ruleset selection; the Setup role generates the
   house ruleset for the campaign (resolution = the engine's existing d20 +
   attribute mod vs DC; campaign-specific starting abilities/spells with costs
   and limits) stored as `campaigns.ruleset_json`; the ruleset is injected into
   the GM system instruction and Council context as canon; players view it in
   the game UI. Consistency is the hard gate: rules must not drift between
-  turns. Owner judges this implementation before SRD options are added
-  (license check recorded as prerequisite for those).
+  turns. `docs/ruleset-licensing.md` remains research evidence only; D14 may decide whether CC0
+  material informs balance data.
 
 - **Genre atmosphere & the "empty holodeck" entry state — theming half PROMOTED 2026-07-04** (decision 2026-07-03 in `.agents/decisions.md`: agent-generated at campaign setup, owned by the Setup step; implementation is Phase T1 in the Visual Phases above; accent graphics deferred). The "empty holodeck" entry state below remains unscheduled. Entering the server before any campaign is chosen should feel like a TNG holodeck with no program running — a deliberately blank slate with potential, not a themed default. Once a genre is chosen, the visual/audio atmosphere must convincingly match it (a cyberpunk campaign with earthy tavern tones is a failure case). The adaptive HSL theme feature partially covers in-game theming today; open questions: curated templates vs fully agent-generated theming, and which agent owns the job — a dedicated campaign-setup agent, the Continuity agent, or the existing outline-generation step. To be decided.
 
-- **GM helpfulness / adversarial-style dial — DECIDED & PROMOTED 2026-07-04** (decision in `.agents/decisions.md`: helpful|classic|hardline, default classic, adjustable mid-campaign, choices fade with style; implementation is Phase D in the 2026-07-04 Queue). Original discussion: First Phase 0 playtest: asked a tactical question ("if I extinguish the light, can I still see?"), the DM volunteered a thorough answer with implicit odds and an unprompted middle-option tactic. Not wrong — but it's a notably *helpful* table style (a typical LLM trait); many human GMs would answer "You think so." and let the player own the risk. Direction: a campaign-start setting ("GM helpfulness" / table difficulty) selecting how much the DM volunteers — odds, tactical options, hints — implemented as narrator/interaction prompt variants. Default and option set to be decided.
+- **GM helpfulness / adversarial-style dial — DECIDED & PROMOTED 2026-07-04** (decision in `.agents/decisions.md`: helpful|classic|hardline, default classic, adjustable mid-campaign, choices fade with style; implementation is Phase D in the 2026-07-04 Queue). Original discussion: First Phase 0 playtest: asked a tactical question ("if I extinguish the light, can I still see?"), the GM volunteered a thorough answer with implicit odds and an unprompted middle-option tactic. Not wrong — but it's a notably *helpful* table style (a typical LLM trait); many human GMs would answer "You think so." and let the player own the risk. Direction: a campaign-start setting ("GM helpfulness" / table difficulty) selecting how much the GM volunteers — odds, tactical options, hints — implemented as narrator/interaction prompt variants. Default and option set to be decided.
 
 - **Encounter pacing dial — DECIDED & PROMOTED 2026-07-04** (decision in `.agents/decisions.md`: slow_burn|standard|action_heavy|player_driven, default standard, enforced as recorded cadence state; implementation is Phase D in the 2026-07-04 Queue). Original discussion: Nothing in the current prompts governs encounter frequency, and three things bias toward action every turn: the Challenge rule frames committed actions in danger/damage terms, XP rewards quest advancement per turn, and scene_grounding requests "immediate threats" in every scene. LLMs already trend toward eventfulness; good tables often run ~5 world-interaction turns per 1 combat/encounter. Direction: a campaign-start pacing target (encounter density) stored as campaign state, plus a recorded recent-cadence fact (e.g. turn-type history / turns since last GM-initiated encounter) that the Continuity agent — already nominally the pacing guardian — checks as a rule rather than a mood ("encounter 2 turns ago; do not introduce a new threat unless the player seeks one"). The dial governs what the GM initiates, never what the player may do. Groups with the GM helpfulness dial as campaign-start "table style" settings (likely one config object + one settings UI when promoted). Prompt-adjective-only implementations are expected to drift and should be treated as insufficient.
 
 - **Player authority boundary — settled.** Promoted to a durable decision (2026-06-11, `.agents/decisions.md`): the player is not in control of the game, the GM's decisions are final, out-of-character pressure is deflected in persona, with continuity gate + engine validation as backstop. Remaining open here: how the resistance prompts interact with the GM helpfulness dial above (both shape the GM-player relationship), and prompt implementation when promoted into a phase.
 
-- **Maps & Character Miniatures — PROMOTED 2026-07-04** into the Visual Phases above (V1 image seam, V2 structured locations, V3 current_heroic, V4 layout wiring), built on the owner directions recorded below and the 2026-07-03 image-seam decision. The discussion below is retained as the design record. Can the DM Council generate an encounter map and keep it coherent across revisits, so returning to an area isn't foreign? Key requirement identified during discussion: coherence demands *persistent, structured location state* — promote locations to first-class entities with a stored layout (areas, exits, fixed features) plus a mutable occupancy layer; generate once on first entry, load on revisit, and mutate only through the referee/continuity gate (never on clarification turns). A regenerated image cannot do this (image-gen won't reproduce a layout), so it implies structured data + a deterministic render; top-down maps suit SVG, which may keep SVG for maps even after scene illustration moves to image-gen. A map is essentially the persistent, structured evolution of `scene_grounding`. Open fork — how tactical: (a) structured/theater-of-mind zone positions only, (b) visual top-down map + tokens with purely narrative resolution, (c) full tactical grid / VTT with coordinates, movement, line-of-sight. **Tension:** (c) collides with the "Full combat grid / tactical combat system" non-goal above and with the Phase 0 anti-"video-gamey" principle; (b) is the likely sweet spot if pursued.
+- **Maps & Character Miniatures — PROMOTED 2026-07-04** into the Visual Phases above (V1 image seam, V2 structured locations, V3 current_heroic, V4 layout wiring), built on the owner directions recorded below and the 2026-07-03 image-seam decision. The discussion below is retained as the design record. Can the GM Council generate an encounter map and keep it coherent across revisits, so returning to an area isn't foreign? Key requirement identified during discussion: coherence demands *persistent, structured location state* — promote locations to first-class entities with a stored layout (areas, exits, fixed features) plus a mutable occupancy layer; generate once on first entry, load on revisit, and mutate only through the referee/continuity gate (never on clarification turns). A regenerated image cannot do this (image-gen won't reproduce a layout), so it implies structured data + a deterministic render; top-down maps suit SVG, which may keep SVG for maps even after scene illustration moves to image-gen. A map is essentially the persistent, structured evolution of `scene_grounding`. Open fork — how tactical: (a) structured/theater-of-mind zone positions only, (b) visual top-down map + tokens with purely narrative resolution, (c) full tactical grid / VTT with coordinates, movement, line-of-sight. **Historical tension:** (c) originally collided with a tactical-combat non-goal, but the owner struck that non-goal on 2026-07-11. Tactical depth now rides the rules-system decisions and the Phase 0 anti-"video-gamey" principle.
 
   Owner direction (2026-06-11, from first Phase 0 playtest): leaning (b), and further — the overhead map with simple tokens should *replace* the per-turn scene SVG as the visualizer entirely. The current AI-drawn scene SVGs communicate poorly (abstract to the point of guessing games); a simple grid with plainly-represented objects and characters would look better and carry real information, and it is the only visual that needs updating every turn. Scene *illustration* then becomes an occasional, higher-quality concern for a later phase: an image-generation model rendering hero images on notable encounters ("this is what you're interacting with" — e.g. the blight-twisted stag when first met), placed in the chat log or a persistent encounter panel, generated once per subject rather than per turn. This also resolves the Phase 1 "replace weak SVG" question: map = turn-to-turn canonical visual (persistent structured location state, mutated only through the referee/continuity gate); image-gen = on-demand set pieces. Tactical depth stays at (b): tokens inform theater-of-mind play, resolution remains narrative.
 
@@ -745,7 +750,8 @@ Raised during planning but deliberately deferred. **Per project rule, nothing he
   in the shell are not automatically product bugs. Success check: launches, creates or
   loads a campaign, plays a turn, exits cleanly leaving no orphan server process.
 
-- **Browser harness — `bh-1` (planned 2026-07-14, owner go; NOT STARTED).**
+- **Browser harness — `bh-1` (LANDED at `ea9ca9b`, 2026-07-14).** The accepted design record
+  follows; the active merge gate lives in `.agents/repo-guidance.md`.
 
   **Problem — this is the one bug class this codebase keeps shipping.** CSS declarations that the
   browser silently **drops** render nothing and raise no error. `node test.js` cannot see it, and
@@ -1362,15 +1368,20 @@ Raised during planning but deliberately deferred. **Per project rule, nothing he
   test goes red. Live: `/admin` → select provider → Refresh → list populates → pick a model
   → Save → play a turn. No playtest gate (dev tooling, not a game phase).
 
-**Review Process**: After completing each phase, we will test a full play session together, gather feedback, and only then move to the next phase. No code will be merged until it demonstrably improves the playing experience.
+**Review Process**: After completing each phase's implementation, test a full play session together,
+gather feedback, and only then mark the phase complete or move to the next. Review-accepted slices
+may merge first only when a more specific owner-approved phase plan says so.
 
-**Current Priority** (2026-07-09): the remote two-human multiplayer playtest itself. App-side readiness (S2 seat-scoped visibility, S3 seat bootstrap/mint flow, README) landed 2026-07-09; a cross-model review then found and closed six defects in it (`.agents/review/index.md`). Suite green with leak guards proven, API-level live smoke clean; the two-browser end-to-end is exactly what the playtest exercises. Remaining before play: owner sets ACCESS_SECRET + ADMIN_SECRET, ensures an AI provider is configured on the hosting machine (provider config is machine-local), exposes the server (owner-handled), mints seats. The playtest is the pending close point for the open feel gates.
+**Current Priority** (2026-07-15): the Phase V owner voice playtest, ideally combined with the
+pending remote two-human host/seat playtest. App-side readiness is landed. Before remote play, the
+owner sets `ACCESS_SECRET` + `ADMIN_SECRET`, confirms machine-local AI/TTS configuration, exposes the
+server, and mints the seat. `.agents/state.md` is the canonical live checklist.
 
 This plan will be updated as we learn from implementation and playtesting.
 
 ---
 
-## Phase V: Grok TTS — 26 voices, delivery tags, provider-aware voice profiles (promoted 2026-07-14, owner go)
+## Phase V: Grok TTS — CODE LANDED; OWNER PLAYTEST PENDING
 
 A **feel** phase: it exists because the owner judged OpenAI's narration flat ("it sounded unnatural
 and had no variance for accents or mood") and judged Grok's clearly better on a controlled
@@ -1388,9 +1399,9 @@ rather than replacing it (OpenAI stays registered and selectable in `/admin`); a
 "one voice for the GM, the rest cycled across NPCs, each with a habitual mood — the bartender is
 usually happy, the thief is usually whispering."
 
-### Problem
+### Problem at promotion (closed by v-1 through v-3)
 
-The voice layer is **structurally OpenAI-coupled**, so registering a Grok provider alone would
+The voice layer was **structurally OpenAI-coupled**, so registering a Grok provider alone would
 fail on literally every line:
 
 - `tts-providers.js:10` — `TTS_VOICES` is a hardcoded set of OpenAI voice names, and
@@ -1656,10 +1667,8 @@ Existing campaigns already persist OpenAI voice names in `npcs.voice_json` and
 
 ### Accents (explicitly scoped OUT of the provider work)
 
-Grok cannot do accents, and no provider switch will give them. The only lever is **dialect spelling
-in the narration text itself** ("Ye'll not be findin' the old road tonight"), which is a
-`rpg-prompts.js` concern, costs nothing, and works on *any* TTS provider including the current one.
-Recorded here so it is not lost; it is a **separate, optional slice**, not part of this phase.
+Grok has no accent control. OpenAI's free-text instructions can request an accent, but the owner
+found that delivery flat and it did not meet the feel bar.
 
 ### Batch consecutive same-speaker lines into ONE request (owner, 2026-07-14)
 
@@ -1853,16 +1862,16 @@ complete merely because the code and reviewloop are green.
 
 ---
 
-## Phase CT: Theme colour format — store colours, not loose components (promoted 2026-07-14, owner go)
+## Phase CT: Theme colour format — LANDED at `77cba10`
 
 Not a feel phase: the change is **intended to be visually invisible**. It is a correctness phase that
 removes a defect *class*, and it deletes ~400 lines of test code rather than adding any. No playtest
 gate.
 
-> **"Pixel-identical" is an INTENT, not a gate** *(cold review: the word implied a rigour nothing in
-> this repo can deliver — there is no browser harness, no baseline screenshots, and no pass/fail
-> criterion, so a cold agent cannot establish pixel identity and would either fake the claim or
-> stall)*. The **actual gate** is: (a) the pinned 25-entry alpha table asserted in `node test.js`;
+> **"Pixel-identical" is an INTENT, not a gate** *(cold review: the word implied a rigour the repo's
+> checks could not deliver at planning time — there was no browser harness, no baseline screenshots,
+> and no pass/fail criterion, so a cold agent could not establish pixel identity and would either
+> fake the claim or stall)*. The **actual gate** is: (a) the pinned 25-entry alpha table asserted in `node test.js`;
 > (b) the definition/writer grammar asserted in `node test.js`; (c) zero surviving
 > `hsl(var(--theme-`/`hsla(var(--theme-` in runtime sources; and (d) a **human sanity pass** —
 > every surface still paints, across the five themes and the holodeck idle. (d) is a smoke check, not
@@ -2154,8 +2163,9 @@ found the counts themselves were wrong (below); a count-driven sweep leaves surv
 - **The 25-entry table above is PINNED AS TEST DATA and asserted in `node test.js`** — this is the
   primary defence against a mis-mapped alpha, and it needs **no browser**.
   *(r2 fixes two errors here. First, the previous draft called for a `getComputedStyle` diff — but
-  **this repo has NO browser harness** (`.agents/state.md`, and T2 r6→r7 explicitly declined to
-  build one), so that gate was unimplementable, exactly the trap T2's r5-3 finding named. Second,
+  **at Phase CT review time this repo had no browser harness** (T2 r6→r7 explicitly declined to
+  build one; bh-1 landed later), so that gate was then unimplementable, exactly the trap T2's r5-3
+  finding named. Second,
   even with a browser it would not work: correct `color-mix(in srgb, …)` results **serialize
   differently** from legacy `hsla` inside gradients even when the resolved RGBA is identical, so
   every correct rewrite would "differ" and the resulting blanket waivers would hide the one real
@@ -2229,8 +2239,8 @@ found the counts themselves were wrong (below); a count-driven sweep leaves surv
   > *(Cold review r2: `package.json` has no browser dependency or smoke script, and the implementing
   > machine may have no Chromium or Firefox at all. Installing browsers is an unexplained external
   > mutation, and demanding it as a gate leaves a cold agent stuck or lying.)* Run whichever engines
-  > are actually present — on this machine that is **Safari/WebKit and the Tauri shell** — and
-  > **explicitly record which engines were NOT exercised**. Per AGENTS.md, "state clearly that it was
+  > are actually present and **explicitly record which engines were NOT exercised**. Per AGENTS.md,
+  > "state clearly that it was
   > not run" is an acceptable outcome; a fabricated matrix is not.
 - **If a target engine fails, the pre-baked fallback is a SEPARATE, SEPARATELY-REVIEWED SLICE — not
   a sentence in this plan** *(r1)*. It is not "more variables": it is **18 distinct
@@ -2241,8 +2251,9 @@ found the counts themselves were wrong (below); a count-driven sweep leaves surv
 - Mis-mapping a single alpha (`0.45` → `45%`) silently changes one surface's translucency. **The
   pinned 25-entry table, asserted in `node test.js`, is what catches it** — not eyeballing.
   *(r3: this line previously also demanded "the computed-style diff", which the Success metrics
-  section correctly **withdraws** as unimplementable — no browser harness — leaving a cold
-  implementer with two contradictory gates. There is exactly ONE gate for this risk: the table.)*
+  section correctly **withdrew** as unimplementable at CT review time, when no browser harness
+  existed, leaving a cold implementer with two contradictory gates. There is exactly ONE gate for
+  this risk: the table.)*
 
 ### Documentation that teaches the SUPERSEDED contract (must be fixed, r1)
 
@@ -2289,18 +2300,18 @@ Leaving these in place instructs a future cold agent to restore the abandoned be
   branch this plan forbids merging. That is now resolved: all plan/decision/state commits were
   rescued onto `master` (merge `88e6324`), and the poisoned branch keeps only its three code
   commits. **Never base implementation on `fix/css-2-scanner-scope`.**)*
-- **One finding ↔ one branch ↔ one verdict** still holds, even though CT *closes* css-2 and css-3.
-  Those are closed as **records**, not as code branches: css-2 is abandoned (branch never merged,
-  deleted after CT lands) and css-3 is superseded (never branched). `ct-1` is the only branch.
+- **One finding ↔ one branch ↔ one verdict** still holds, even though CT *closed* css-2 and css-3.
+  Those were closed as **records**, not as code branches: css-2 was abandoned and never merged;
+  css-3 was superseded and never branched. Their project branch refs were deleted after CT landed.
 - **Close-out ordering** *(cold review: the previous text was circular — it asked for reviewer
   verdicts and commit SHAs inside the same pre-review commit that produces them)*. Sequence:
   (1) the atomic code commit on `fix/ct-1-theme-colour-format`; (2) reviewloop dispatch and verdict;
   (3) a **separate** docs commit recording the verdict and closing out css-2/css-3/index. Do not
   attempt to write a verdict you do not yet have.
-- **Prerequisites a cold agent will not otherwise know**: run the suite with
-  `AI_RETRY_BACKOFF_MS=10 node test.js`; run the app with `node server.js` (port 3000); the desktop
-  shell is `npm run desktop` after `cargo build` in `desktop/src-tauri`. **There is no browser test
-  harness** — do not plan any check that needs one.
+- **Prerequisites a cold agent will not otherwise know**: run the unit suite with
+  `AI_RETRY_BACKOFF_MS=10 node test.js` and the browser suite with `npm run test:browser`; run the app
+  with `node server.js` (port 3000); the desktop shell is `npm run desktop` after `cargo build` in
+  `desktop/src-tauri`.
 - **Theme fixtures WITHOUT AI credentials, WITH EXACT EXPECTED MAPS** *(cold review: campaign creation
   calls the Setup AI, so a cold agent with no key cannot exercise the writer at all)*. Both writer
   paths are reachable purely through `public/theme-vars.js` (step 5) — that is the point of extracting
@@ -2355,24 +2366,27 @@ Leaving these in place instructs a future cold agent to restore the abandoned be
 
 ### Process
 
-Per the 2026-07-12 decision this is code and goes through `.agents/playbooks/reviewloop.md` with
-codex. **The plan itself is reviewed and accepted before implementation begins.**
+Per the 2026-07-12 decision this code went through `.agents/playbooks/reviewloop.md` with an
+independent reviewer. **The plan itself was reviewed and accepted before implementation began.**
 
 **Ship as ONE atomic slice** *(r1 endorsed)*: splitting definitions from consumers creates a broken
 intermediate state, and no smaller format change removes loose components while keeping runtime
 translucency. The single exception is the `color-mix` fallback above, which becomes its own slice
 *if* it is ever needed.
 
-The abandoned `fix/css-2-scanner-scope` branch is NOT merged (it crashes the suite and rejects valid
-CSS); it is retained only until this phase lands, then deleted.
+The abandoned `fix/css-2-scanner-scope` work was never merged (it crashed the suite and rejected
+valid CSS). Its project branch refs were deleted after CT landed; the postmortem owns the record.
 
 ---
 
-## Progress Log
+## Historical Progress Log (not current state)
+
+This section preserves implementation history. `.agents/state.md` is the canonical current-state
+entry point.
 
 **Phase 0 — Initial Prompt & Data Changes (completed first pass)**
 - Strengthened "Interactivity" rule in `rpg-prompts.js` with explicit table-conversation priority, strict classification guidance, and mandatory scene_grounding behavior on clarification turns.
-- Added `scene_grounding` field to the expected JSON schema in the main DM prompt.
+- Added `scene_grounding` field to the expected JSON schema in the main GM prompt.
 - Rewrote the Interaction Agent prompt in `rpg-engine.js` to be extremely conservative (default to clarification on any ambiguity, with many concrete examples).
 - Strengthened Referee prompt and final narration instructions (both single-model and Council paths) to protect clarification turns.
 - Added `scene_grounding` support to `validateTurnData` (`rpg-state.js`).
@@ -2387,14 +2401,9 @@ CSS); it is retained only until this phase lands, then deleted.
 
 **Next step**: Playtest a short campaign (ideally with Council mode + local or strong model) and observe whether clarification questions now receive proper, non-advancing answers + useful scene grounding. Then iterate on the prompts based on real output.
 
-**Interactive verification in progress** (started 2026-06-05):
-- (Side improvement during session) Added full first-class support for xAI Grok provider (`grok` / `XAI_API_KEY`). Since you already had an xAI key in the environment, you can now select "xAI Grok" in the in-app AI Settings (or set `AI_PROVIDER=grok`) and use it for the clarification playtest. Grok tends to be excellent at the strict "table talk vs committed action" distinctions we hardened in Phase 0. Server was restarted with the new code.
-- Live server running on http://localhost:3001 with persistent log monitor active in this session.
-- Added explicit `[CLARIFICATION]` console logs + extra defensive zeroing (dice_rolls) in both the single-model post-processing block and the Council `noStateChange` path in runMultiAgentTurn. These will be visible in real time in the agent monitor when the user submits questions.
-- Added belt-and-suspenders safety net *inside* `validateTurnData` (rpg-state.js): when input_kind==='clarification', it forcibly zeros character/quest/ability/NPC/memory/dice changes regardless of what the raw model JSON contained. New unit test assertions cover scene_grounding preservation + the forced no-op.
-- Awaiting user to open the UI, configure an AI provider + key in Settings, start a fantasy campaign with an ambiguous multi-creature scene, and submit the exact test inputs from the original complaint: "which goblin is closer?" and "can I throw my dagger at it?" (plus 1-2 follow-ups).
-- Will capture outputs, check for `sceneGrounding` "Current Situation" block, direct non-advancing answers, zero state mutations on clarification turns, and correct `input_kind`.
-- If good for several back-and-forths, mark Phase 0 complete + commit. If not, refine prompts + re-test immediately per the "review after each phase" rule.
+**Historical 2026-06-05 interactive snapshot:** clarification instrumentation, no-state-change guards,
+and their unit coverage were developed here. Machine-local server, credential, and campaign-session
+details were removed during the 2026-07-15 drift pass.
 
 **Visual Phases V1–V4 + T1 — first implementation pass (2026-07-04, owner playtest pending)**
 
@@ -2471,4 +2480,4 @@ Original design (recorded here first, so the code is plan-backed before it was w
 - **Branch the Council on `input_kind` after the Interaction Agent.** `clarification` and `dialogue` take a **2-call path**: (1) the Interaction Agent answers the question and classifies it, (2) a single grounding/continuity verifier independently checks that answer against game state (anti-hallucination / anti-drift) and emits the final player-facing JSON with all state forced to no-op. `committed_action` keeps the **full chain** (Interaction → Continuity → Referee → Continuity-Final → Narration), because only it mutates state. Rationale: a question should not cost 5 LLM calls — today the Referee and Continuity-Final are forced no-ops on clarification turns, pure overhead. The independent verifier preserves the anti-hallucination guarantee while halving the call count for table-talk.
 - **Delete the dead single-model path.** `isMultiAgentModeEnabled()` hardcodes `true`, so the single-model branch in `takeTurn`, its unused client, and the toggle are unreachable. Remove them; the Council becomes the only path. Fold the one correct behavior currently living in that block (resetting `quest_update` to the *real* active quest on clarification) into the verifier so it isn't lost.
 - **Success check:** clarification still produces zero state mutations and a useful `scene_grounding`; committed actions still adjudicate normally; all existing tests pass.
-- **Dice before narration (committed-action branch design, added 2026-06-11 from playtest evidence).** Dice rolls are a service the GM consumes, not a post-processing step. Flow: the adjudicating side of the Council (Referee, informed by Continuity's story/world knowledge — the agent that "knows what's around the next twelve corners") decides which checks the action requires (attribute, DC, stakes, failure consequences) under the campaign's rules; the engine rolls deterministically in code; the results are written into the turn record; only then does the narrator receive the resolved facts and write prose that reflects the actual outcome. This replaces today's inverted flow where `performDiceCheck` keyword-matches the player's text, rolls *after* the narrative is generated, and hardcodes a 5-10 HP penalty appended post-hoc — which produces narrative dissonance, applies damage even to referee-denied actions, and leaves the DM unable to explain its own mechanics (see decision 2026-06-11 "DM omniscience"). Failure consequences become adjudicator decisions under campaign rules, not engine constants. Roll records must be visible to later clarification turns. Playtest evidence (2026-06-11, campaign 1): keyword matching produced intellect checks for "head down the lower path" and "proceed cautiously toward the rustling sound," every committed action triggered a roll regardless of triviality, and all five failed (DCs 10-18), costing 33 HP for actions as mundane as walking — the adjudicator's first decision must be *whether* a check is warranted, under a recorded ruleset the model can apply without drifting (see the ruleset consistency topic).
+- **Dice before narration (committed-action branch design, added 2026-06-11 from playtest evidence).** Dice rolls are a service the GM consumes, not a post-processing step. Flow: the adjudicating side of the Council (Referee, informed by Continuity's story/world knowledge — the agent that "knows what's around the next twelve corners") decides which checks the action requires (attribute, DC, stakes, failure consequences) under the campaign's rules; the engine rolls deterministically in code; the results are written into the turn record; only then does the narrator receive the resolved facts and write prose that reflects the actual outcome. This replaces today's inverted flow where `performDiceCheck` keyword-matches the player's text, rolls *after* the narrative is generated, and hardcodes a 5-10 HP penalty appended post-hoc — which produces narrative dissonance, applies damage even to referee-denied actions, and leaves the GM unable to explain its own mechanics (see decision 2026-06-11 "GM omniscience"). Failure consequences become adjudicator decisions under campaign rules, not engine constants. Roll records must be visible to later clarification turns. Playtest evidence (2026-06-11, campaign 1): keyword matching produced intellect checks for "head down the lower path" and "proceed cautiously toward the rustling sound," every committed action triggered a roll regardless of triviality, and all five failed (DCs 10-18), costing 33 HP for actions as mundane as walking — the adjudicator's first decision must be *whether* a check is warranted, under a recorded ruleset the model can apply without drifting (see the ruleset consistency topic).

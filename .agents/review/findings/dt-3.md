@@ -1,9 +1,9 @@
 # dt-3: Landed die drops the theme palette for generic green/red
 
 **Severity**: LOW — plan/code contradiction; observable as a themed die going generic at its most prominent moment. No functional harm.
-**Status**: Verified (ACCEPTED; awaiting owner-gated merge)
-**Branch**: `fix/dt-3-landed-die-theme` (stacked on `fix/dt-2-skip-per-batch`)
-**Commit**: `e96a873` (base `c04f0cd`)
+**Status**: MERGED — accepted; merge `87808cf` on master.
+**Branch**: deleted (was `fix/dt-3-landed-die-theme`, stacked on `fix/dt-2-skip-per-batch`)
+**Commit**: `e96a873` (merge `87808cf`)
 
 ## Evidence
 `plan.md` dice-slice Riders: "the die body/glow follows `--theme-primary` … verdict green/red stay semantic." Code: `public/styles.css:1726-1733` recolors the landed SVG + glow green/red (`.roll-landed-success/-failure` target the svg); the tumble shadow at `public/styles.css:1697-1701` is plain black, and the die faces carry fixed dark fills (`public/app.js:1823-1824`).

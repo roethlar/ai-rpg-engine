@@ -3,8 +3,9 @@
 **Severity**: HIGH (process) — this repo has shipped the same defect class repeatedly (css-1) and
 then burned three review rounds and 22 reviewer defeats trying to catch it *statically* (css-2).
 Nothing automated could see what the browser does with a themed declaration.
-**Status**: **IMPLEMENTED and VERIFIED — awaiting an owner-gated merge.**
-**Branch**: `fix/bh-1-browser-harness` @ `3d34d37` (implementation, codex). Base: `master` @ `390c7fc`.
+**Status**: **MERGED and VERIFIED** at `ea9ca9b`.
+**Branch**: deleted (was `fix/bh-1-browser-harness`; accepted tip `3a96a53`, implementation
+`3d34d37`, base `master` @ `390c7fc`).
 **Plan**: `plan.md` → Dev Tooling → "Browser harness — `bh-1`" (accepted 2026-07-14 after r1–r7).
 **Owner go**: 2026-07-14 for the slice; 2026-07-14 for implementation ("Let codex implement").
 **Implemented by**: codex. **Adversarially verified by**: Claude (roles swapped — codex cannot review

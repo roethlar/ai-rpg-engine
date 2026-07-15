@@ -4,11 +4,11 @@
 from reaching a surface unpainted, and it took five reopen rounds (r1–r5) to close the last
 spelling-vs-class hole. It still reads only `public/styles.css`. Two other tracked files consume
 `--theme-*` today, so the same defect can be reintroduced in either one and the suite stays green.
-**Status**: In progress — REOPENED at r1 (1 bypass) and r2 (5 bypasses); all six closed at
-`0229679`; r3 re-review pending. Owner go to fix-and-re-review rather than park or re-scope
-(2026-07-14).
-**Branch**: `fix/css-2-scanner-scope`
-**Commit**: `b8d1b49` (fix) + `ff77b95` (r1 fix-up) + `0229679` (r2 fix-up, head)
+**Status**: ABANDONED after r3; never merged. Phase CT replaced the scanner with the root fix.
+**Branch**: deleted from project refs (was `fix/css-2-scanner-scope`); machine-local remnants, if
+any, belong in `.agents/machines.md`.
+**Commit**: unmerged evidence only — `b8d1b49` (fix) + `ff77b95` (r1 fix-up) + `0229679` (r2
+fix-up, final head). Durable postmortem: `docs/history/css-2-abandoned-scanner.md`.
 
 ## Evidence
 `test.js::testThemeVarConsumers` (at `41e1938`) reads exactly one file:

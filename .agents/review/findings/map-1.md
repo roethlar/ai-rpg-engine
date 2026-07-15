@@ -92,8 +92,8 @@ Reviewer should grade these explicitly:
    by design (the module contract forbids randomness). Two *different* locations rendered
    into one document could collide only if both name and area id slugify identically; the
    app renders one Situation map at a time.
-4. Guard is a string-level assertion on emitted SVG, not a rendered-pixel check. The repo
-   has no browser harness (no Playwright in `package.json` or `node_modules`).
+4. Guard is a string-level assertion on emitted SVG, not a rendered-pixel check. The bh-1 browser
+   harness landed later, but deliberately does not cover `map-render.js`.
 
 ## Reviewer comments
 

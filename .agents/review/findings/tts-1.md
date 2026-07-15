@@ -1,7 +1,8 @@
 # tts-1: Voice narration queue survives table transitions — the old table's GM keeps talking over the menu and the next campaign
 
 **Severity**: MEDIUM — audible wrong-table bleed; on the menu the skip pill is buried under the full-screen overlay (z-index 6 vs 100), so it cannot even be dismissed.
-**Status**: Open (admitted 2026-07-11 from the skeptic-panel round; fix awaits an owner go)
+**Status**: Open; owner-approved, not started (admitted 2026-07-11 from the skeptic-panel round;
+authorized by the Phase T2 approval and implementation order in `plan.md`)
 **Branch**: (cut on fix start: `fix/tts-1-stop-on-transition`)
 **Commit**:
 

@@ -1,10 +1,8 @@
 # Open Ruleset Licensing — Verified Findings (2026-07-04)
 
-Prerequisite evidence for the future "SRD-based ruleset options" build
-(decision 2026-07-03 in `.agents/decisions.md`: open-source systems join the
-generated house system as selectable options **after** the owner judges the
-house default, with licenses verified first — this document is that
-verification). **No SRD text has been adopted yet.**
+**Status:** retained research evidence only. D0 chooses one bespoke, versioned rules chassis and
+rejects a selectable-SRD build or wholesale adoption of an external system. D14 may still decide
+whether CC0 material can inform balance-reference data. **No SRD text has been adopted.**
 
 Method: parallel research agents fetched the actual license texts/deeds (not
 memory), and an independent adversarial pass re-fetched primary sources to

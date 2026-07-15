@@ -1,9 +1,9 @@
 # sv-4: Seat payload leaks the act index nested inside `currentQuest`
 
 **Severity**: LOW — a direct but narrow leak: the numeric current act, not act objectives or twists.
-**Status**: Open
-**Branch**: `fix/sv-4-scope-current-quest`
-**Commit**: (filled in after commit)
+**Status**: MERGED and verified after three rounds; final merge `c3da828` on master.
+**Branch**: deleted (was `fix/sv-4-scope-current-quest`)
+**Commit**: `9fb7ed6` (accepted branch tip; final merge `c3da828`)
 
 ## Evidence
 - `rpg-state.js:200-210` — every validated `quest_update` carries `current_act`; `rpg-state.js:332-337` force-stamps it from campaign truth.

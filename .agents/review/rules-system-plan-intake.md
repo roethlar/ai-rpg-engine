@@ -18,8 +18,8 @@ re-reviewed against a pinned plan snapshot.
 
 - The engine owns every number, die, resource, condition, timer, and state
   transition. Models emit validated identifiers and enums, never arithmetic.
-- A versioned fixed house chassis plus generated flavor is the leading frame;
-  the chassis choice itself remains decision D0 until approved.
+- D0 settled the overall frame: a versioned fixed house chassis plus generated
+  campaign flavor. D1 (the die) is the next owner decision.
 - The effect catalog is the gating design artifact. Generated abilities may
   select legal effects and supply flavor, but may not invent mechanics.
 - Tactical positioning must be explicit engine state. The leading option is a
@@ -63,20 +63,20 @@ owner-approved wording in `.agents/decisions.md` and the eventual plan status.
 | ID | Decision | Reviewer recommendation | Status |
 |---|---|---|---|
 | D0 | Overall frame | Bespoke fixed chassis plus campaign flavor skins | **DECIDED 2026-07-12** — fixed house chassis + generated flavor skins; see `.agents/decisions.md`. Unblocks D1, D2, D4, D6, D11, D12, D14. |
-| D1 | Dice engine | Keep d20, but prove the curve before wiring | Pending D0 |
-| D2 | Ability representation | Fixed effect catalog, genre-spread prototype first | Pending D0 |
-| D3 | Archetype boundary | Stable chassis archetypes, flavor-skinned | Pending D0/D2 |
-| D4 | Attribute count | Keep STR/AGI/INT/WIL | Pending D0 |
-| D5 | Player spend economy | One Strain/Effort pool plus HP and XP | Pending D0/D2 |
-| D6 | Tactical space | Zones over existing location occupancy | Pending D0 |
+| D1 | Dice engine | Keep d20, but prove the curve before wiring | **Pending — next owner decision** |
+| D2 | Ability representation | Fixed effect catalog, genre-spread prototype first | Pending owner decision |
+| D3 | Archetype boundary | Stable chassis archetypes, flavor-skinned | Pending D2 |
+| D4 | Attribute count | Keep STR/AGI/INT/WIL | Pending owner decision |
+| D5 | Player spend economy | One Strain/Effort pool plus HP and XP | Pending D2 |
+| D6 | Tactical space | Zones over existing location occupancy | Pending owner decision |
 | D7 | Initiative/reactions | Seed then fixed rotation; no v1 reactions | Pending D6 |
 | D8 | Opposition | Model chooses level/role/flavor; engine derives stats | Pending D1 |
 | D9 | Dying/death | Visible countdown plus player-chosen outcome | Pending D11 |
 | D10 | Recovery | Partial scene refresh plus explicit party rest | Pending D5 |
-| D11 | Mid-resolution choices | One offer/deadline/default state machine | Pending D0 |
-| D12 | GM threat currency | Defer until a feel experiment | Pending D0 |
-| D13 | Legacy/versioning/freeform | Legacy tier, pinned chassis, explicit `rules_mode` decision | Pending D0/D2 |
-| D14 | CC0 balance shortcut | Allow WWN/CWN CC0 reference data | Pending D0 |
+| D11 | Mid-resolution choices | One offer/deadline/default state machine | Pending owner decision |
+| D12 | GM threat currency | Defer until a feel experiment | Pending owner decision |
+| D13 | Legacy/versioning/freeform | Legacy tier, pinned chassis, explicit `rules_mode` decision | Pending D2 |
+| D14 | CC0 balance shortcut | Allow WWN/CWN CC0 reference data | Pending owner decision |
 
 ## Candidate implementation order from intake
 

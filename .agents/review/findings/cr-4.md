@@ -1,9 +1,9 @@
 # cr-4: Imported turn records can carry field shapes that crash the UI
 
 **Severity**: MEDIUM — a hostile-but-authenticated bundle renders the imported campaign unopenable.
-**Status**: Verified
-**Branch**: `fix/cr-4-record-field-shapes`
-**Commit**: `4771b8a` (round-1 fix `4cd869b` + reopen fix-up; one intermediate commit briefly left the suite red, corrected by follow-up — disclosed to the reviewer)
+**Status**: MERGED and verified; merge `6123dff` on master.
+**Branch**: deleted (was `fix/cr-4-record-field-shapes`)
+**Commit**: `4771b8a` (round-1 fix `4cd869b` + reopen fix-up; merge `6123dff`)
 
 ## Evidence
 `rpg-state.js` bundle validation stores turn `state_changes_json` verbatim

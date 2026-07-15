@@ -1,9 +1,9 @@
 # cr-3: Pacing cadence counts unresolved committed actions as world turns
 
 **Severity**: MEDIUM — the pacing dial loosens after denials; the GM is told it has room to initiate earlier than configured.
-**Status**: Verified
-**Branch**: `fix/cr-3-cadence-resolved`
-**Commit**: `4693647`
+**Status**: MERGED and verified; merge `d8fbab0` on master.
+**Branch**: deleted (was `fix/cr-3-cadence-resolved`)
+**Commit**: `4693647` (merge `d8fbab0`)
 
 ## Evidence
 rpg-engine.js cadence history (takeTurn) filters records on

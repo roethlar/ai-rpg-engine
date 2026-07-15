@@ -1,9 +1,9 @@
 # sv-5: Valid long tone values abort a seat's entire voice narration
 
 **Severity**: LOW — deterministically breaks optional narration, but only for 81–120-character model-generated tone directions.
-**Status**: Verified
-**Branch**: `fix/sv-5-tone-bound`
-**Commit**: `cb44e36`
+**Status**: MERGED and verified; merge `52efb5e` on master.
+**Branch**: deleted (was `fix/sv-5-tone-bound`)
+**Commit**: `09cd769` (accepted branch tip; merge `52efb5e`)
 
 ## Evidence
 - `rpg-state.js:261` — `validateTurnData` accepts `tone` up to **120** characters.
