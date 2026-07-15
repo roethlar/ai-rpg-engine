@@ -8,10 +8,12 @@
  */
 import * as db from './db.js';
 import { listImageProviders } from './image-providers.js';
+import { listTtsProviders } from './tts-providers.js';
 
 export const AI_PROVIDERS = ['gemini', 'openai', 'claude', 'grok', 'ollama', 'custom'];
 export const AI_ROLES = ['setup', 'interaction', 'continuity', 'referee', 'narration'];
 const IMAGE_PROVIDERS = listImageProviders();
+const VOICE_PROVIDERS = listTtsProviders();
 const SETTING_KEY = 'ai_config';
 const MAX_FIELD_LENGTH = 400;
 
@@ -37,6 +39,19 @@ function sanitizeRoleConfig(raw) {
   };
 }
 
+function sanitizeVoiceApiKeys(data) {
+  const nested = data.voiceApiKeys && typeof data.voiceApiKeys === 'object' && !Array.isArray(data.voiceApiKeys)
+    ? data.voiceApiKeys
+    : {};
+  const hasNestedOpenAi = Object.prototype.hasOwnProperty.call(nested, 'openai');
+  return {
+    // Legacy ai_config rows stored one scalar OpenAI key. Read it until the
+    // next save rewrites the canonical nested shape.
+    openai: cleanField(hasNestedOpenAi ? nested.openai : data.voiceApiKey),
+    grok: cleanField(nested.grok)
+  };
+}
+
 /**
  * Validates and bounds an admin-supplied AI config object. Unknown providers
  * become '' (fall through to env), all strings are trimmed and length-capped.
@@ -50,9 +65,9 @@ export function sanitizeAdminAiConfig(raw) {
     apiKey: cleanField(data.apiKey),
     baseUrl: cleanField(data.baseUrl),
     ollamaUrl: cleanField(data.ollamaUrl),
-    voiceApiKey: cleanField(data.voiceApiKey),
+    voiceApiKeys: sanitizeVoiceApiKeys(data),
     voiceModel: cleanField(data.voiceModel),
-    voiceProvider: cleanField(data.voiceProvider),
+    voiceProvider: VOICE_PROVIDERS.includes(cleanField(data.voiceProvider)) ? cleanField(data.voiceProvider) : '',
     imageProvider: IMAGE_PROVIDERS.includes(data.imageProvider) ? data.imageProvider : '',
     imageModel: cleanField(data.imageModel),
     imageApiKey: cleanField(data.imageApiKey),
@@ -76,15 +91,22 @@ export function sanitizeAdminAiConfig(raw) {
  */
 export function mergeAiConfig(adminConfig, env = process.env) {
   const admin = sanitizeAdminAiConfig(adminConfig);
+  const envVoiceProvider = VOICE_PROVIDERS.includes(cleanField(env.TTS_PROVIDER))
+    ? cleanField(env.TTS_PROVIDER)
+    : '';
+  const voiceProvider = admin.voiceProvider || envVoiceProvider || 'openai';
+  const voiceEnvKey = voiceProvider === 'grok'
+    ? (env.XAI_API_KEY || env.GROK_API_KEY || '')
+    : (env.OPENAI_API_KEY || '');
   const merged = {
     provider: admin.provider || env.AI_PROVIDER || 'gemini',
     model: admin.model || env.AI_MODEL || undefined,
     apiKey: admin.apiKey || undefined,
     baseUrl: admin.baseUrl || undefined,
     ollamaUrl: admin.ollamaUrl || undefined,
-    voiceApiKey: admin.voiceApiKey || env.OPENAI_API_KEY || '',
-    voiceModel: admin.voiceModel || env.TTS_MODEL || '',
-    voiceProvider: admin.voiceProvider || env.TTS_PROVIDER || 'openai',
+    voiceApiKey: admin.voiceApiKeys[voiceProvider] || voiceEnvKey,
+    voiceModel: voiceProvider === 'openai' ? (admin.voiceModel || env.TTS_MODEL || '') : '',
+    voiceProvider,
     // Image generation (Phase V1): no provider configured = feature inert.
     // Endpoint SSRF posture (mirrors the custom-LLM endpoint rule, and /admin
     // may run ungated in dev): an admin-set endpoint is honored only when it
@@ -139,7 +161,10 @@ export function maskAiConfig(adminConfig) {
     imageModel: admin.imageModel,
     imageEndpoint: admin.imageEndpoint,
     apiKeySet: !!admin.apiKey,
-    voiceApiKeySet: !!admin.voiceApiKey,
+    voiceApiKeySet: {
+      openai: !!admin.voiceApiKeys.openai,
+      grok: !!admin.voiceApiKeys.grok
+    },
     imageApiKeySet: !!admin.imageApiKey,
     fallback: {
       provider: admin.fallback.provider,
@@ -180,13 +205,24 @@ export async function loadAdminAiConfig() {
 export async function saveAdminAiConfig(raw) {
   const existing = sanitizeAdminAiConfig(await loadAdminAiConfig());
   const incoming = raw && typeof raw === 'object' ? raw : {};
+  const incomingVoiceKeys = incoming.voiceApiKeys && typeof incoming.voiceApiKeys === 'object' && !Array.isArray(incoming.voiceApiKeys)
+    ? incoming.voiceApiKeys
+    : {};
+  const hasNestedOpenAi = Object.prototype.hasOwnProperty.call(incomingVoiceKeys, 'openai');
+  const hasLegacyOpenAi = Object.prototype.hasOwnProperty.call(incoming, 'voiceApiKey');
   const incomingFallback = incoming.fallback && typeof incoming.fallback === 'object' ? incoming.fallback : {};
   const incomingRoles = incoming.roles && typeof incoming.roles === 'object' ? incoming.roles : {};
 
   const merged = sanitizeAdminAiConfig({
     ...incoming,
     apiKey: resolveSecretField(incoming.apiKey, existing.apiKey),
-    voiceApiKey: resolveSecretField(incoming.voiceApiKey, existing.voiceApiKey),
+    voiceApiKeys: {
+      openai: resolveSecretField(
+        hasNestedOpenAi ? incomingVoiceKeys.openai : (hasLegacyOpenAi ? incoming.voiceApiKey : undefined),
+        existing.voiceApiKeys.openai
+      ),
+      grok: resolveSecretField(incomingVoiceKeys.grok, existing.voiceApiKeys.grok)
+    },
     imageApiKey: resolveSecretField(incoming.imageApiKey, existing.imageApiKey),
     fallback: {
       ...incomingFallback,

@@ -48,6 +48,10 @@ to `docs/history/state-archive.md`.
     executable. Implementation starts with owner-gated reviewloop slice v-1. Grok's verified
     capabilities are in decisions.md — **26 voices, delivery tags work, accents do not.**
     Do not re-derive them from vendor docs or by asking a model; both were wrong.
+  - **v-1 ACTIVE** on `fix/v-1-grok-provider-config`: provider registry/request contract,
+    provider-isolated key/config compatibility, admin storage, and guards are **ACCEPTED** by Claude
+    at pinned head `0371e35` with independent red→green confirmation. Awaiting the owner's explicit
+    merge go. Status and verdict trail: `.agents/review/index.md` + `findings/v-1.md`.
 - **bh-1 — the browser harness is MERGED** (`ea9ca9b`, 2026-07-14; branch deleted). codex
   implemented; Claude verified adversarially — roles swapped, since codex cannot review what codex
   wrote. Plan accepted after **seven review rounds**. Full trail:

@@ -604,7 +604,14 @@ async function testTaskQueueSerialization() {
 // -------------------------------------------------------------
 async function testServerConfigResolution() {
   console.log(' - Running server-owned AI config tests...');
-  const { sanitizeAdminAiConfig, mergeAiConfig, maskAiConfig, resolveSecretField } = await import('./server-config.js');
+  const {
+    sanitizeAdminAiConfig,
+    mergeAiConfig,
+    maskAiConfig,
+    resolveSecretField,
+    loadAdminAiConfig,
+    saveAdminAiConfig
+  } = await import('./server-config.js');
 
   // Sanitization: unknown providers fall through, strings trimmed/bounded
   const dirty = sanitizeAdminAiConfig({
@@ -617,6 +624,12 @@ async function testServerConfigResolution() {
   assert.strictEqual(dirty.model.length, 400, 'Fields must be length-capped');
   assert.strictEqual(dirty.apiKey, 'secret', 'Fields must be trimmed');
   assert.strictEqual(dirty.fallback.provider, 'grok');
+  assert.deepStrictEqual(
+    sanitizeAdminAiConfig({ voiceApiKey: ' legacy-openai ' }).voiceApiKeys,
+    { openai: 'legacy-openai', grok: '' },
+    'A legacy flat voice key reads as OpenAI only'
+  );
+  assert.strictEqual(sanitizeAdminAiConfig({ voiceProvider: 'elevenlabs' }).voiceProvider, '', 'Unknown voice providers fall through');
 
   // Merge order: admin > env > default
   const env = { AI_PROVIDER: 'openai', AI_MODEL: 'env-model', FALLBACK_AI_PROVIDER: 'gemini', OPENAI_API_KEY: 'env-voice' };
@@ -632,15 +645,37 @@ async function testServerConfigResolution() {
   assert.strictEqual(envWins.apiKey, undefined, 'No admin key → AIClient resolves the provider env key');
   assert.strictEqual(envWins.voiceApiKey, 'env-voice', 'Voice key falls back to OPENAI_API_KEY');
 
+  const grokAdmin = mergeAiConfig({
+    voiceProvider: 'grok',
+    voiceModel: 'must-not-cross',
+    voiceApiKeys: { openai: 'openai-stored', grok: 'grok-stored' }
+  }, { OPENAI_API_KEY: 'openai-env', XAI_API_KEY: 'grok-env' });
+  assert.strictEqual(grokAdmin.voiceProvider, 'grok');
+  assert.strictEqual(grokAdmin.voiceApiKey, 'grok-stored', 'Grok selects only the stored Grok key');
+  assert.strictEqual(grokAdmin.voiceModel, '', 'Grok has no model field');
+  const openAiAdmin = mergeAiConfig({
+    voiceProvider: 'openai',
+    voiceApiKeys: { openai: 'openai-stored', grok: 'grok-stored' }
+  }, { XAI_API_KEY: 'grok-env' });
+  assert.strictEqual(openAiAdmin.voiceApiKey, 'openai-stored', 'OpenAI selects only the stored OpenAI key');
+  const grokEnv = mergeAiConfig(null, { TTS_PROVIDER: 'grok', OPENAI_API_KEY: 'wrong-vendor', GROK_API_KEY: 'grok-env' });
+  assert.strictEqual(grokEnv.voiceApiKey, 'grok-env', 'Grok env fallback never uses OPENAI_API_KEY');
+
   const defaults = mergeAiConfig(null, {});
   assert.strictEqual(defaults.provider, 'gemini', 'Default provider is gemini');
   assert.strictEqual(defaults.fallback, undefined, 'No fallback tier unless configured');
 
   // Masking: secrets must never be echoed
-  const masked = maskAiConfig({ provider: 'openai', apiKey: 'super-secret', voiceApiKey: 'v', fallback: { apiKey: 'f' } });
+  const masked = maskAiConfig({
+    provider: 'openai', apiKey: 'super-secret',
+    voiceApiKeys: { openai: 'openai-voice-secret', grok: 'grok-voice-secret' },
+    fallback: { apiKey: 'f' }
+  });
   assert.strictEqual(JSON.stringify(masked).includes('super-secret'), false, 'Masked view must not contain the key');
+  assert.strictEqual(JSON.stringify(masked).includes('openai-voice-secret'), false, 'Masked view must not contain the OpenAI voice key');
+  assert.strictEqual(JSON.stringify(masked).includes('grok-voice-secret'), false, 'Masked view must not contain the Grok voice key');
   assert.strictEqual(masked.apiKeySet, true);
-  assert.strictEqual(masked.voiceApiKeySet, true);
+  assert.deepStrictEqual(masked.voiceApiKeySet, { openai: true, grok: true });
   assert.strictEqual(masked.fallback.apiKeySet, true);
 
   // Secret-field update semantics against a masked form
@@ -666,6 +701,26 @@ async function testServerConfigResolution() {
   assert.strictEqual(JSON.stringify(maskedRoles).includes('role-secret'), false, 'Role keys must never be echoed');
   assert.strictEqual(maskedRoles.roles.narration.apiKeySet, true);
   assert.strictEqual(maskedRoles.roles.setup.apiKeySet, false);
+
+  // Actual storage migration and independent secret semantics. Start from a
+  // legacy row rather than testing a duplicate of saveAdminAiConfig's merge.
+  const db = await import('./db.js');
+  await db.run(
+    `INSERT INTO server_settings (key, value, updated_at) VALUES ('ai_config', ?, CURRENT_TIMESTAMP)
+     ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP`,
+    [JSON.stringify({ voiceProvider: 'openai', voiceApiKey: 'legacy-stored' })]
+  );
+  await saveAdminAiConfig({ voiceProvider: 'openai' });
+  const migrated = await loadAdminAiConfig();
+  assert.strictEqual(Object.prototype.hasOwnProperty.call(migrated, 'voiceApiKey'), false, 'Next save removes the legacy flat key');
+  assert.deepStrictEqual(migrated.voiceApiKeys, { openai: 'legacy-stored', grok: '' }, 'Legacy OpenAI key survives in the nested shape');
+
+  await saveAdminAiConfig({ voiceApiKeys: { openai: null, grok: 'grok-new' } });
+  const independentlyUpdated = await loadAdminAiConfig();
+  assert.deepStrictEqual(independentlyUpdated.voiceApiKeys, { openai: '', grok: 'grok-new' }, 'One provider key clears without clearing the other');
+  await saveAdminAiConfig({ voiceApiKeys: { openai: '', grok: '' } });
+  assert.deepStrictEqual((await loadAdminAiConfig()).voiceApiKeys, { openai: '', grok: 'grok-new' }, 'Blank fields keep each stored key independently');
+  await db.run(`DELETE FROM server_settings WHERE key = 'ai_config'`);
 }
 
 // -------------------------------------------------------------
@@ -785,9 +840,26 @@ async function testFallbackTiering() {
 // -------------------------------------------------------------
 async function testTtsProviderSeam() {
   console.log(' - Running TTS provider seam tests...');
-  const { synthesizeSpeech, validateVoiceProfile, listTtsProviders } = await import('./tts-providers.js');
+  const {
+    GROK_TTS_VOICES,
+    getTtsProviderCatalog,
+    synthesizeSpeech,
+    validateVoiceProfile,
+    listTtsProviders
+  } = await import('./tts-providers.js');
 
-  assert.deepStrictEqual(listTtsProviders(), ['openai'], 'OpenAI is the baseline provider');
+  assert.deepStrictEqual(listTtsProviders(), ['openai', 'grok'], 'OpenAI and Grok are registered');
+  assert.deepStrictEqual(GROK_TTS_VOICES, [
+    'altair', 'atlas', 'castor', 'cosmo', 'helios', 'helix', 'kepler', 'leo', 'lumen', 'lux', 'naksh',
+    'orion', 'perseus', 'rex', 'rigel', 'sal', 'sirius', 'zagan', 'zenith',
+    'ara', 'carina', 'celeste', 'eve', 'iris', 'luna', 'ursa'
+  ], 'The live-verified ordered Grok voice registry stays pinned at 26');
+  const catalog = getTtsProviderCatalog();
+  assert.deepStrictEqual(catalog.map(entry => entry.provider), ['openai', 'grok']);
+  assert.strictEqual(catalog.find(entry => entry.provider === 'grok').narratorVoice, 'leo');
+  assert.strictEqual(catalog.find(entry => entry.provider === 'grok').hasModel, false);
+  assert.strictEqual(catalog.find(entry => entry.provider === 'grok').maxSegmentsPerRequest, 40);
+  assert.strictEqual(catalog.find(entry => entry.provider === 'openai').maxSegmentsPerRequest, 1);
   await assert.rejects(
     () => synthesizeSpeech({ provider: 'elevenlabs', apiKey: 'k', text: 'hi' }),
     /Unsupported TTS provider/,
@@ -796,14 +868,20 @@ async function testTtsProviderSeam() {
   await assert.rejects(
     () => synthesizeSpeech({ provider: 'openai', apiKey: '', text: 'hi' }),
     /API key is required/,
-    'Missing key fails fast'
+    'Missing OpenAI key fails fast'
+  );
+  await assert.rejects(
+    () => synthesizeSpeech({ provider: 'grok', apiKey: '', text: 'hi' }),
+    /API key is required/,
+    'Missing Grok key fails fast'
   );
 
   const realFetch = globalThis.fetch;
   let captured = null;
+  let responseBytes = new Uint8Array([1, 2, 3]);
   globalThis.fetch = async (url, options) => {
     captured = { url: String(url), auth: options.headers.Authorization, body: JSON.parse(options.body) };
-    return { ok: true, arrayBuffer: async () => new Uint8Array([1, 2, 3]).buffer };
+    return { ok: true, arrayBuffer: async () => responseBytes.buffer };
   };
   try {
     const audio = await synthesizeSpeech({
@@ -822,6 +900,36 @@ async function testTtsProviderSeam() {
 
     await synthesizeSpeech({ provider: 'openai', apiKey: 'k', model: 'made-up-model', text: 'hi' });
     assert.strictEqual(captured.body.model, 'gpt-4o-mini-tts', 'Unknown TTS models fall back to the default');
+
+    responseBytes = new Uint8Array([0x49, 0x44, 0x33, 0x04, 0x00]);
+    const grokAudio = await synthesizeSpeech({
+      provider: 'grok', apiKey: 'xai-voice-key', model: 'must-not-send', voice: 'orion',
+      instructions: 'must not send', text: '[tense] The door opens.'
+    });
+    assert.strictEqual(grokAudio.length, 5, 'Grok returns the verified MP3 bytes');
+    assert.strictEqual(captured.url, 'https://api.x.ai/v1/tts', 'Grok endpoint is pinned');
+    assert.strictEqual(captured.auth, 'Bearer xai-voice-key');
+    assert.deepStrictEqual(captured.body, {
+      text: '[tense] The door opens.',
+      voice_id: 'orion',
+      language: 'en',
+      output_format: { codec: 'mp3' },
+      speed: 1
+    }, 'Grok receives only its pinned request contract');
+
+    await synthesizeSpeech({ provider: 'grok', apiKey: 'x', voice: 'not-real', text: 'hi' });
+    assert.strictEqual(captured.body.voice_id, 'leo', 'Invalid Grok voice falls back to the reserved narrator');
+
+    responseBytes = new Uint8Array([0xff, 0xfb, 0x90, 0x64]);
+    const frameSyncAudio = await synthesizeSpeech({ provider: 'grok', apiKey: 'x', voice: 'leo', text: 'hi' });
+    assert.strictEqual(frameSyncAudio.length, 4, 'An MPEG frame-sync prefix is accepted as MP3');
+
+    responseBytes = new Uint8Array([0x7b, 0x22, 0x65, 0x72, 0x72]);
+    await assert.rejects(
+      () => synthesizeSpeech({ provider: 'grok', apiKey: 'x', voice: 'leo', text: 'hi' }),
+      /not MP3 audio/,
+      'A successful non-MP3 response is rejected before callers can cache or serve it'
+    );
   } finally {
     globalThis.fetch = realFetch;
   }
@@ -834,6 +942,8 @@ async function testTtsProviderSeam() {
   const fallbackProfile = validateVoiceProfile({ voice: 'not-a-voice' });
   assert.strictEqual(fallbackProfile.voice, 'marin');
   assert.strictEqual(fallbackProfile.provider, 'openai');
+  const grokProfile = validateVoiceProfile({ provider: 'grok', voice: 'orion', instructions: 'quiet' });
+  assert.deepStrictEqual(grokProfile, { provider: 'grok', voice: 'orion', instructions: 'quiet' });
 }
 
 // -------------------------------------------------------------
