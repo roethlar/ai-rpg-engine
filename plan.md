@@ -1385,7 +1385,10 @@ Raised during planning but deliberately deferred. **Per project rule, nothing he
   entries require a non-empty provider and model id. For `claude-code`, the model is an editable
   Claude Code alias or full id; the reserved value `default` omits `--model` and uses that login's
   configured/default model. `claude-code` entries must use provider authentication and may not carry
-  a custom API key. Their assignment label reads `Claude Code login`, not `shared key`.
+  a custom API key; v2 validation rejects `keySource: custom` or a non-empty entry secret for this
+  provider. Their assignment label reads `Claude Code login`, not `shared key`. A blank model that
+  reaches the adapter through legacy/environment-only resolution also omits `--model`, preserving
+  the plan's environment-only operation instead of manufacturing a model id.
 
   `legacyDefault: true` is the one migration-only compatibility marker. It preserves v1's
   field-by-field environment/default inheritance, including a blank role or fallback key even when
@@ -1437,9 +1440,11 @@ Raised during planning but deliberately deferred. **Per project rule, nothing he
     existing environment/SSRF production policy. Model entries do not carry endpoints, so models on
     one provider connection cannot silently route to different hosts.
   - `claude-code` never reads a stored key, custom entry key, `ANTHROPIC_API_KEY`, or cloud-provider
-    routing variable. Before every status/generation subprocess, the adapter removes API-key and
-    Bedrock/Vertex/Foundry routing variables and requires `claude auth status --json` to report a
-    logged-in `claude.ai` authentication method. `CLAUDE_CODE_OAUTH_TOKEN` remains eligible because
+    routing variable. Before every status/generation subprocess, the adapter removes
+    `ANTHROPIC_API_KEY`, `ANTHROPIC_AUTH_TOKEN`, `ANTHROPIC_BASE_URL`,
+    `CLAUDE_CODE_USE_BEDROCK`, `CLAUDE_CODE_USE_VERTEX`, and `CLAUDE_CODE_USE_FOUNDRY`, and requires
+    `claude auth status --json` to report a logged-in `claude.ai` authentication method.
+    `CLAUDE_CODE_OAUTH_TOKEN` remains eligible because
     it is subscription authentication. A Console/API-key login fails closed with an actionable
     admin error instead of silently billing API usage.
   - The existing "Clear stored keys" action clears every provider default, every model override,
@@ -1633,8 +1638,11 @@ Raised during planning but deliberately deferred. **Per project rule, nothing he
   command. Run the auth preflight and generation with the same sanitized child environment. The
   preflight is `claude auth status --json`; accept only `loggedIn: true` plus
   `authMethod: "claude.ai"`, and expose only safe status fields. Strip `ANTHROPIC_API_KEY`,
-  `ANTHROPIC_AUTH_TOKEN`, `ANTHROPIC_BASE_URL`, and Claude Code's Bedrock, Vertex, and Foundry routing
-  variables before both commands. Do not strip `CLAUDE_CODE_OAUTH_TOKEN`.
+  `ANTHROPIC_AUTH_TOKEN`, `ANTHROPIC_BASE_URL`, `CLAUDE_CODE_USE_BEDROCK`,
+  `CLAUDE_CODE_USE_VERTEX`, and `CLAUDE_CODE_USE_FOUNDRY` before both commands. Do not strip
+  `CLAUDE_CODE_OAUTH_TOKEN`. The preflight proves the
+  authentication path, not a model's current entitlement or whether the account owner enabled
+  overage usage credits; the admin status must not claim that a manually entered model is included.
 
   Generation uses print mode with `--output-format json`, `--no-session-persistence`,
   `--max-turns 1`, `--tools ""`, `--disable-slash-commands`, `--setting-sources ""`,
@@ -1642,11 +1650,18 @@ Raised during planning but deliberately deferred. **Per project rule, nothing he
   replacement `--system-prompt` carrying the engine's existing system instruction. It runs from an
   empty temporary working directory so project instructions cannot leak into campaign output. Do
   not use `--bare`: current Claude Code documents that it skips keychain reads, which would break
-  the logged-in-plan contract. A configured model other than the reserved `default` is passed
-  verbatim with `--model`; no fallback model is supplied, so an unavailable model is reported rather
-  than silently changed. Parse only a successful JSON envelope with a string `result`; bound runtime
-  and captured output, terminate on timeout, and redact prompts, email/org identifiers, child
-  environment, and raw stderr from operator-facing errors.
+  the logged-in-plan contract. A non-blank configured model other than the reserved `default` is
+  passed verbatim with `--model`; no fallback model is supplied, so an unavailable model is reported
+  rather than silently changed. The default runtime limit is the existing AI request limit of 240
+  seconds; `CLAUDE_CODE_TIMEOUT_MS` may override it only from 1,000 through 900,000 milliseconds,
+  and stdout plus stderr are each capped at 4 MiB. On timeout, terminate the child and mark the error
+  transient. Parse the JSON envelope even when the process exits non-zero: success requires exit 0,
+  `is_error !== true`, and a string `result`; a numeric `api_error_status` is copied to the sanitized
+  provider error so the existing 408/429/5xx classifier drives one retry and configured fallback.
+  Missing executable, auth mismatch, 4xx model/config errors, malformed/oversized output, and other
+  unclassified exits are non-transient. Never classify by interpolating or returning raw stderr.
+  Always remove the temporary directory, including timeout/error paths, and redact prompts,
+  email/org identifiers, child environment, and raw CLI output from operator-facing errors.
 
   Child-process construction, auth-status parsing, output-envelope parsing, and timeout/error
   mapping are exported or dependency-injectable so the automated suite never consumes Claude usage.
@@ -1763,9 +1778,11 @@ Raised during planning but deliberately deferred. **Per project rule, nothing he
     explicit resolved null is not revived. Reverting the `fallbackResolved` branch makes both fail.
   - Claude Code adapter tests use an injected child runner, never the real account. They cover
     executable selection, subscription-only auth gating, environment stripping, no-shell argv and
-    stdin prompt transport, `default` versus explicit model arguments, empty tools/settings/MCP,
-    replacement system prompt, temporary cwd, JSON-envelope parsing, bounded output, timeout kill,
-    non-zero/malformed output redaction, and `AIClient` retry/fallback handoff. A discriminating
+    stdin prompt transport, blank/`default` versus explicit model arguments, rejection of custom
+    keys, empty tools/settings/MCP,
+    replacement system prompt, temporary cwd cleanup, JSON-envelope parsing on exit 0 and exit 1,
+    `api_error_status` transient mapping, bounded output, timeout kill, non-zero/malformed output
+    redaction, and `AIClient` retry/fallback handoff. A discriminating
     guard gives the fake child an `ANTHROPIC_API_KEY` and makes it report API authentication unless
     the adapter strips that variable; removing the strip must turn the test red before any fake
     generation runs. Another mutation removes the provider dispatch and must make the AIClient

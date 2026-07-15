@@ -386,3 +386,38 @@ Timestamp: 2026-07-15T16:56:05Z. The CLI's free-text envelope was noisy, but its
 
 Convergence is reached: both independent reviewers accepted the same complete pinned r8 SHA with no
 material comments. Earlier-round verdicts remain historical and do not carry forward.
+
+### Round 9 — `claude-code` extension pinned `3bc40b0b6e975072f32c452b95896bb8d0ae4860`
+
+Base: `cd00785fc214025db634f5118d9e17667a39dffe`. Accepted `am-1` substrate inspected separately at
+`a4372df788cb85c30a92bf9adc82cfc533f0c78e`.
+
+#### Claude Code 2.1.210 / Claude Fable 5 (high effort)
+
+Dispatch used the required `--model claude-fable-5` flag in a disposable worktree. It reached the
+explicit 14-turn review bound before returning the structured verdict, so the result is invalid and
+counts as no verdict.
+
+#### Grok 0.2.101 / Grok 4.5 (high reasoning)
+
+The first dispatch returned a placeholder with `evidence_checked: false` and no schema-enforced
+`structuredOutput`. The one allowed corrected dispatch began evidence collection but again stopped
+without `structuredOutput` or material comments. Both envelopes fail closed and count as no verdict.
+
+Convergence is not reached. No reviewer finding is inferred from either failed envelope.
+
+#### Response to Round 9
+
+Independent implementation-author checks found two executable omissions before redispatch:
+
+1. Environment-only `AI_PROVIDER=claude-code` could reach the adapter with a blank model, while the
+   draft defined omission of `--model` only for the stored `default` sentinel.
+2. The draft promised existing transient retry/fallback behavior without defining how a non-zero
+   CLI process maps to `isTransientAiError`. A bounded invalid-model probe confirmed that Claude Code
+   still emits a parseable JSON envelope with `is_error` and numeric `api_error_status` on exit 1.
+
+The r10 draft now treats blank and `default` as CLI-default selection, rejects every Claude Code
+custom-key path, names the exact stripped variables, distinguishes auth proof from model entitlement
+or overage settings, and defines timeout/output/cleanup plus numeric status propagation into the
+existing retry classifier. Both reviewers must inspect the complete new SHA; r9 has no verdict to
+carry forward.
