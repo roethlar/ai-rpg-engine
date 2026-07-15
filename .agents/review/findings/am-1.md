@@ -5,7 +5,7 @@ cannot select a distinct fallback per Council role, and cannot migrate to the ne
 risking stored secrets or cross-provider inheritance.
 **Status**: Pending review
 **Branch**: `feat/am-1-config-runtime`
-**Implementation commit**: pending
+**Implementation commit**: `718de4aec14f89a65778de2ba315c335c84cf20d`
 
 ## Evidence
 
