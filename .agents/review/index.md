@@ -8,15 +8,17 @@ Per-finding detail: see `.agents/review/findings/<id>.md`.
 Owner-approved replacement for the incoherent repeated `/admin` provider/model/key forms and the
 superseded catalog-only plan. The draft defines shared provider credentials, reusable configured
 models with custom-key overrides, and per-role primary/fallback assignment. Implementation was
-gated until Claude and Grok accepted the same pinned plan SHA. Both accepted r8 at
-`5f0261375f9b97f464f54ee406d5bafca7f3ea8d`; implementation starts at `am-1`. Review trail:
+gated until Claude and Grok accepted the same pinned base-plan SHA. Both accepted r8 at
+`5f0261375f9b97f464f54ee406d5bafca7f3ea8d`; Claude Fable 5 accepted the later `claude-code`
+extension at `0f36f0f920e2e26a0783840e49ad8144f797dec5`. Review trail:
 `.agents/review/admin-model-registry-plan.md`.
 
 ## Active admin model-registry implementation
 
 | ID | Severity | Impact (one line) | Status | Branch |
 |----|----------|-------------------|--------|--------|
-| am-1 | HIGH | Repeated tuples cannot safely migrate to shared providers and per-role fallbacks | `[x]` accepted; awaiting owner merge | `feat/am-1-config-runtime` |
+| am-1 | HIGH | Repeated tuples cannot safely migrate to shared providers and per-role fallbacks | `[x]` merged (`a2ad7a7`) | `feat/am-1-config-runtime` |
+| am-cc | HIGH | Unsafe CLI transport can use API billing or repository capabilities | `[~]` pending Claude Fable review | `feat/am-cc-claude-code-runtime` |
 
 ## Closed Phase V implementation loop (2026-07-15; owner playtest still gates the phase)
 
