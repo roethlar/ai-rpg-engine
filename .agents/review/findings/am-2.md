@@ -3,9 +3,10 @@
 **Severity**: HIGH — without bounded, authenticated discovery the admin must guess model ids, while
 an unsafe implementation could leak credentials or let stored/request endpoints bypass production
 network policy.
-**Status**: In progress (direct review accepted; valid response-body timeout gap pending fix/re-review)
+**Status**: In progress (response-body timeout fixed; pending Claude Fable re-review)
 **Branch**: `feat/am-2-provider-catalogs`
-**Implementation commit**: `619b83821cc93f5f812b548cd1ebc65c9eaf39d0`
+**Implementation commits**: `619b83821cc93f5f812b548cd1ebc65c9eaf39d0`,
+`05781156a5fed97f3f406d0e81204254a905d52d`
 
 ## Evidence
 
@@ -61,9 +62,13 @@ boundary.
 - **RED — cross-provider entry ownership:** temporarily removed the provider-match predicate from
   `resolveModelCatalogRequest`, then ran `node test.js`. The spoof guard failed at `test.js:1750`
   with HTTP 200 instead of the required zero-fetch HTTP 400.
-- **GREEN restored:** restored both production predicates and reran `node test.js`; every unit-test
-  group completed successfully. `git diff --check` and syntax checks for all five implementation
-  files also passed.
+- **RED — response-body timeout:** after the direct review identified the headers/body gap,
+  temporarily restored the old early `clearTimeout(timeout)` immediately after fetch resolution
+  without changing the new test. `node test.js` failed at `test.js:1530` with “Missing expected
+  rejection” because a body resolving after the deadline succeeded instead of returning 504.
+- **GREEN restored:** restored all three production mechanisms and reran `node test.js`; every
+  unit-test group completed successfully. `git diff --check` and syntax checks also passed, and the
+  branch was clean at `0578115`.
 
 The committed suite additionally covers all provider fixture shapes; Gemini generation-method
 filtering; xAI ids, aliases, and text modality; trimming/deduplication/sorting; malformed success
