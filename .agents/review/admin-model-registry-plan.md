@@ -189,3 +189,29 @@ Both findings are incorporated in the r4 draft:
   role-endpoint cases.
 
 Round 4 must review the complete new shared SHA; prior results do not carry forward.
+
+### Round 4 — pinned `d7d9db209978c47c032064ec7fd549b2c9f0a427`
+
+Base: `0dc4ca6fd451126bfaffff4a6c51f5e3914f63e4`.
+
+#### Claude Code 2.1.210 / Claude Opus 4.8 (high effort)
+
+Timestamp: 2026-07-15T16:19:57Z. Structured verdict valid and SHA-matched.
+`evidence_checked: true`; `cold_implementer_executable: true`; verdict: **accepted**, zero comments.
+
+#### Grok 0.2.101 / Grok 4.5 (high reasoning)
+
+Timestamp: 2026-07-15T16:19:57Z. The CLI's free-text envelope was noisy, but its schema-enforced
+`structuredOutput` was valid and SHA-matched. `evidence_checked: true`;
+`cold_implementer_executable: false`; verdict: **reopened**.
+
+1. **HIGH — complete-looking migrated entries lose role/fallback key precedence.** A legacy role
+   tuple with explicit provider + model but blank key does not qualify for `legacyDefault`, so the
+   normal-entry chain would skip `ROLE_API_KEY` and same-provider default-primary key inheritance.
+   The current resolver gives both precedence over the provider environment. A legacy fallback with
+   provider + model but blank key likewise currently consults `FALLBACK_API_KEY`. Require a
+   migration-only key-inheritance marker or equivalent field-specific compatibility path, and guard
+   populated fixtures for both primary and fallback.
+
+Convergence is not reached. The Grok finding is admitted: the plan preserves partial tuples but does
+not yet preserve key-only inheritance for v1 tuples whose provider and model were already complete.
