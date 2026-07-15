@@ -44,6 +44,10 @@ to `docs/history/state-archive.md`.
   It adds canonical v2 projection/validation/save seams and Council runtime resolution
   while leaving the v1 admin HTTP wire active. `.agents/review/findings/am-1.md` owns the scope,
   guard proof, and verdict.
+- **`am-cc` is accepted at review head `4e42aaf`; owner merge is pending.** Implementation commit
+  `abbf956` adds the isolated, subscription-authenticated Claude Code adapter and routes it through
+  the existing AIClient/Council pipeline. Claude Fable independently confirmed the red/green guard
+  proof. `.agents/review/findings/am-cc.md` owns the verdict trail.
 - **The remote two-human multiplayer playtest remains pending.** App-side seat work is landed;
   connectivity is owner-handled and out of repo scope. The playtest is the scheduled close for open
   multiplayer feel gates. Seat isolation must be re-tested whenever a field crosses a seat payload,
@@ -56,9 +60,9 @@ to `docs/history/state-archive.md`.
 
 ## Next
 
-**THE IMMEDIATE NEXT ACTION: implement and review `am-cc` from updated `master`.** The remaining
-ordered reviewloop slices are `am-cc`, `am-2`, and `am-3`, each accepted and owner-merged before the
-next.
+**THE IMMEDIATE NEXT ACTION: obtain the owner-gated merge of accepted `am-cc`.** Only after it is
+merged may `am-2` start from updated `master`. The remaining ordered slices are `am-2` live catalogs
+and safe Claude Code status, then `am-3` compact UI; each is accepted and owner-merged before the next.
 
 - Phase V's owner playtest remains the pending feel gate after this explicitly selected repo work.
   Configure either OpenAI or Grok voice in `/admin`, enable Voice Narration, and play a real scene

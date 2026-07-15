@@ -33,6 +33,7 @@ The engine stores all events in a persistent SQLite database, which double-funct
 - **Google Gemini**
 - **OpenAI GPT**
 - **Anthropic Claude**
+- **Claude Code** (the server process's logged-in Claude.ai subscription; no API key)
 - **xAI Grok**
 - **Ollama** (local models)
 - **Custom OpenAI-Compatible** (LM Studio, OpenRouter, Groq, etc.)
@@ -76,6 +77,16 @@ model choices. Configure it either way:
 - **Environment**: create a `.env` from the template (`cp .env.example .env`) and
   fill in API keys (e.g. `GEMINI_API_KEY`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`,
   or `XAI_API_KEY`).
+
+**Claude Code subscription provider**: install Claude Code and log the server process in with
+`claude auth login`, then set `AI_PROVIDER=claude-code`. Set `AI_MODEL` to any model alias or full
+identifier available to that login, or leave it blank/use `default` to let Claude Code choose its
+configured default. If `claude` is not on the server's `PATH`, set `CLAUDE_CODE_PATH` to its absolute
+path. `CLAUDE_CODE_TIMEOUT_MS` may override the 240-second request limit from 1,000 through 900,000
+milliseconds. This transport deliberately ignores API-key/cloud-provider authentication and runs
+Claude Code without repository tools, settings, MCP servers, browser access, or session persistence.
+The compact `/admin` controls for this provider arrive with the model-registry UI; until that slice
+lands, configure it through the environment.
 
 **Fallback tier**: transient provider errors (overload, rate limit, timeout) retry
 once, then fail over per-call to a backup model if configured — via `/admin` or

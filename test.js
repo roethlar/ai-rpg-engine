@@ -664,6 +664,13 @@ async function testServerConfigResolution() {
   const defaults = mergeAiConfig(null, {});
   assert.strictEqual(defaults.provider, 'gemini', 'Default provider is gemini');
   assert.strictEqual(defaults.fallback, undefined, 'No fallback tier unless configured');
+  const subscriptionEnv = mergeAiConfig({ apiKey: 'stale-http-key' }, {
+    AI_PROVIDER: 'claude-code',
+    FALLBACK_AI_PROVIDER: 'claude-code',
+    FALLBACK_API_KEY: 'stale-fallback-key'
+  });
+  assert.strictEqual(subscriptionEnv.apiKey, undefined, 'Claude Code ignores a stale legacy primary API key');
+  assert.strictEqual(subscriptionEnv.fallback.apiKey, undefined, 'Claude Code ignores FALLBACK_API_KEY');
 
   // Masking: secrets must never be echoed
   const masked = maskAiConfig({
@@ -784,7 +791,8 @@ async function testAdminModelRegistryV2() {
   for (const secret of ['stored-primary-key', 'stored-role-key', 'stored-voice-key', 'stored-image-key']) {
     assert.strictEqual(maskedRaw.includes(secret), false, `Masked v2 DTO must not contain ${secret}`);
   }
-  assert.deepStrictEqual(Object.keys(masked.providers), ['gemini', 'openai', 'claude', 'grok', 'ollama', 'custom']);
+  assert.deepStrictEqual(Object.keys(masked.providers), ['gemini', 'openai', 'claude', 'grok', 'ollama', 'custom', 'claude-code']);
+  assert.deepStrictEqual(masked.providers['claude-code'], {}, 'Claude Code exposes no key or endpoint fields');
   assert.strictEqual(masked.providers.openai.apiKeySet, true);
   assert.strictEqual(masked.modelEntries.find(entry => entry.id === 'legacy_role_referee').apiKeySet, true);
   assert.deepStrictEqual(Object.keys(masked.roleAssignments), ['setup', 'interaction', 'continuity', 'referee', 'narration']);
@@ -836,6 +844,34 @@ async function testAdminModelRegistryV2() {
     'Typed admin validation errors map to 400');
   assert.strictEqual(adminSettingsErrorStatus(new Error('storage failed')), 500,
     'Unexpected admin errors remain 500');
+  const claudeCodeEntry = {
+    id: 'subscription_default', label: 'Claude Code default', provider: 'claude-code', model: 'default',
+    keySource: 'provider', apiKey: '', legacyDefault: false
+  };
+  const claudeCodeConfig = validateAdminAiConfigV2({
+    ...projected,
+    modelEntries: [...projected.modelEntries, claudeCodeEntry],
+    roleAssignments: {
+      ...projected.roleAssignments,
+      setup: { primary: claudeCodeEntry.id, fallback: '' }
+    }
+  }, { legacyBaseline: legacy });
+  const claudeCodeRuntime = resolveAgentConfig(mergeAiConfig(claudeCodeConfig, {}), 'setup', {});
+  assert.deepStrictEqual(
+    { provider: claudeCodeRuntime.provider, model: claudeCodeRuntime.model, apiKey: claudeCodeRuntime.apiKey },
+    { provider: 'claude-code', model: 'default', apiKey: undefined },
+    'Claude Code registry entries resolve through the Council pipeline without an API key'
+  );
+  expectValidation(() => validateAdminAiConfigV2({
+    ...claudeCodeConfig,
+    providers: { ...claudeCodeConfig.providers, 'claude-code': { apiKey: 'must-reject' } }
+  }, { legacyBaseline: legacy }));
+  expectValidation(() => validateAdminAiConfigV2({
+    ...claudeCodeConfig,
+    modelEntries: claudeCodeConfig.modelEntries.map(entry => entry.id === claudeCodeEntry.id
+      ? { ...entry, keySource: 'custom', apiKey: 'must-reject' }
+      : entry)
+  }, { legacyBaseline: legacy }));
   expectValidation(() => validateAdminAiConfigV2({
     ...projected,
     modelEntries: [...projected.modelEntries, projected.modelEntries[0]]
@@ -1067,6 +1103,279 @@ async function testAdminModelRegistryV2() {
     } else {
       await db.run(`DELETE FROM server_settings WHERE key = 'ai_config'`);
     }
+  }
+}
+
+// -------------------------------------------------------------
+// Test: am-cc Claude Code subscription transport
+// -------------------------------------------------------------
+async function testClaudeCodeProvider() {
+  console.log(' - Running Claude Code subscription provider tests...');
+  const {
+    callClaudeCode,
+    claudeCodeTimeoutMs,
+    parseClaudeCodeAuthStatus,
+    resolveClaudeCodeExecutable,
+    runClaudeCodeProcess
+  } = await import('./claude-code-provider.js');
+
+  const executable = path.resolve(os.tmpdir(), 'fake-claude-code');
+  const childEnv = {
+    PATH: process.env.PATH || '',
+    CLAUDE_CODE_PATH: executable,
+    CLAUDE_CODE_OAUTH_TOKEN: 'subscription-oauth-token',
+    ANTHROPIC_API_KEY: 'must-not-reach-child',
+    anthropic_auth_token: 'case-insensitive-strip',
+    ANTHROPIC_BASE_URL: 'https://api-key-proxy.invalid',
+    CLAUDE_CODE_USE_BEDROCK: '1',
+    CLAUDE_CODE_USE_VERTEX: '1',
+    CLAUDE_CODE_USE_FOUNDRY: '1'
+  };
+  const calls = [];
+  let generationStarted = false;
+  const successfulRunner = async spec => {
+    calls.push({ ...spec, args: [...spec.args], env: { ...spec.env } });
+    if (spec.args[0] === 'auth') {
+      const apiCredentialReachedChild = Object.keys(spec.env)
+        .some(key => ['ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN'].includes(key.toUpperCase()));
+      return {
+        exitCode: 0,
+        stdout: JSON.stringify({
+          loggedIn: true,
+          authMethod: apiCredentialReachedChild ? 'apiKey' : 'claude.ai',
+          subscriptionType: 'max',
+          apiProvider: 'firstParty',
+          email: 'private@example.invalid',
+          organization: 'private-org'
+        }),
+        stderr: ''
+      };
+    }
+    generationStarted = true;
+    return {
+      exitCode: 0,
+      stdout: JSON.stringify({ type: 'result', subtype: 'success', is_error: false, result: 'subscription-ok' }),
+      stderr: ''
+    };
+  };
+
+  const opaqueModel = 'available-model; touch /tmp/never';
+  assert.strictEqual(await callClaudeCode({
+    systemInstruction: 'You are the engine GM.',
+    prompt: 'Generate the campaign.',
+    model: opaqueModel,
+    env: childEnv,
+    runner: successfulRunner
+  }), 'subscription-ok');
+  assert.strictEqual(calls.length, 2, 'Auth is checked before one generation call');
+  assert.strictEqual(generationStarted, true, 'Sanitized subscription auth permits generation');
+  assert.deepStrictEqual(calls[0].args, ['auth', 'status', '--json']);
+  assert.strictEqual(calls[0].executable, executable);
+  assert.strictEqual(calls[0].cwd, calls[1].cwd, 'Auth and generation share the isolated workspace');
+  assert.strictEqual(fs.existsSync(calls[0].cwd), false, 'Temporary workspace is removed after success');
+  assert.strictEqual(calls[1].shell, false, 'The runner contract is explicitly shell-free');
+  assert.strictEqual(calls[1].stdin, 'Generate the campaign.', 'Prompt content travels only through stdin');
+  assert.strictEqual(calls[1].env.CLAUDE_CODE_OAUTH_TOKEN, 'subscription-oauth-token', 'Subscription OAuth survives sanitization');
+  for (const key of ['ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN', 'ANTHROPIC_BASE_URL',
+    'CLAUDE_CODE_USE_BEDROCK', 'CLAUDE_CODE_USE_VERTEX', 'CLAUDE_CODE_USE_FOUNDRY']) {
+    assert.strictEqual(Object.keys(calls[1].env).some(candidate => candidate.toUpperCase() === key), false,
+      `${key} must not reach Claude Code`);
+  }
+  const generationArgs = calls[1].args;
+  const argValue = flag => generationArgs[generationArgs.indexOf(flag) + 1];
+  for (const flag of ['--print', '--no-session-persistence', '--disable-slash-commands',
+    '--strict-mcp-config', '--no-chrome']) {
+    assert.notStrictEqual(generationArgs.indexOf(flag), -1, `${flag} is required for isolation`);
+  }
+  assert.strictEqual(argValue('--output-format'), 'json');
+  assert.strictEqual(argValue('--max-turns'), '1');
+  assert.strictEqual(argValue('--tools'), '');
+  assert.strictEqual(argValue('--setting-sources'), '');
+  assert.strictEqual(argValue('--mcp-config'), '{"mcpServers":{}}');
+  assert.strictEqual(argValue('--permission-mode'), 'dontAsk');
+  assert.strictEqual(argValue('--system-prompt'), 'You are the engine GM.');
+  assert.strictEqual(argValue('--model'), opaqueModel, 'Configured model is one opaque argv value');
+
+  const authStatus = parseClaudeCodeAuthStatus(JSON.stringify({
+    loggedIn: true,
+    authMethod: 'claude.ai',
+    subscriptionType: 'max',
+    apiProvider: 'firstParty',
+    email: 'must-not-return@example.invalid',
+    organization: 'must-not-return'
+  }));
+  assert.deepStrictEqual(authStatus, {
+    installed: true,
+    loggedIn: true,
+    authMethod: 'claude.ai',
+    subscriptionType: 'max',
+    apiProvider: 'firstParty'
+  }, 'Auth parsing returns only safe plan fields');
+
+  calls.length = 0;
+  await callClaudeCode({ prompt: 'default-model', model: 'default', env: childEnv, runner: successfulRunner });
+  assert.strictEqual(calls[1].args.includes('--model'), false, 'Reserved default omits --model');
+  calls.length = 0;
+  await callClaudeCode({ prompt: 'blank-model', model: '', env: childEnv, runner: successfulRunner });
+  assert.strictEqual(calls[1].args.includes('--model'), false, 'Blank model also uses the logged-in CLI default');
+
+  let authOnlyCalls = 0;
+  await assert.rejects(callClaudeCode({
+    prompt: 'must-not-run',
+    env: childEnv,
+    runner: async spec => {
+      authOnlyCalls += 1;
+      return {
+        exitCode: 0,
+        stdout: JSON.stringify({ loggedIn: true, authMethod: 'apiKey' }),
+        stderr: 'PRIVATE_AUTH_DIAGNOSTIC'
+      };
+    }
+  }), error => error.code === 'SUBSCRIPTION_AUTH_REQUIRED'
+    && !error.message.includes('PRIVATE_AUTH_DIAGNOSTIC'));
+  assert.strictEqual(authOnlyCalls, 1, 'API-key authentication fails before generation');
+
+  const envelopeRunner = envelope => async spec => spec.args[0] === 'auth'
+    ? {
+        exitCode: 0,
+        stdout: JSON.stringify({ loggedIn: true, authMethod: 'claude.ai', subscriptionType: 'max' }),
+        stderr: ''
+      }
+    : envelope;
+  await assert.rejects(callClaudeCode({
+    prompt: 'transient',
+    env: childEnv,
+    runner: envelopeRunner({
+      exitCode: 1,
+      stdout: JSON.stringify({ is_error: true, api_error_status: 503, result: 'PRIVATE_PROVIDER_BODY' }),
+      stderr: 'PRIVATE_STDERR'
+    })
+  }), error => error.status === 503 && isTransientAiError(error)
+    && !error.message.includes('PRIVATE_PROVIDER_BODY') && !error.message.includes('PRIVATE_STDERR'));
+  await assert.rejects(callClaudeCode({
+    prompt: 'bad-model',
+    env: childEnv,
+    runner: envelopeRunner({
+      exitCode: 1,
+      stdout: JSON.stringify({ is_error: true, api_error_status: 404, result: 'PRIVATE_MODEL_NAME' }),
+      stderr: ''
+    })
+  }), error => error.status === 404 && !isTransientAiError(error)
+    && !error.message.includes('PRIVATE_MODEL_NAME'));
+  let failedCwd = '';
+  await assert.rejects(callClaudeCode({
+    prompt: 'malformed',
+    env: childEnv,
+    runner: async spec => {
+      failedCwd = spec.cwd;
+      return spec.args[0] === 'auth'
+        ? { exitCode: 0, stdout: JSON.stringify({ loggedIn: true, authMethod: 'claude.ai' }), stderr: '' }
+        : { exitCode: 1, stdout: 'PRIVATE_MALFORMED_OUTPUT', stderr: 'PRIVATE_MALFORMED_STDERR' };
+    }
+  }), error => error.code === 'INVALID_RESPONSE'
+    && !error.message.includes('PRIVATE_MALFORMED_OUTPUT') && !error.message.includes('PRIVATE_MALFORMED_STDERR'));
+  assert.strictEqual(fs.existsSync(failedCwd), false, 'Temporary workspace is removed after failure');
+
+  assert.strictEqual(claudeCodeTimeoutMs({ CLAUDE_CODE_TIMEOUT_MS: '1000' }), 1000);
+  assert.strictEqual(claudeCodeTimeoutMs({ CLAUDE_CODE_TIMEOUT_MS: '999' }), 240000);
+  assert.strictEqual(claudeCodeTimeoutMs({ CLAUDE_CODE_TIMEOUT_MS: '900001' }), 240000);
+  assert.throws(() => resolveClaudeCodeExecutable({ CLAUDE_CODE_PATH: './relative-claude' }),
+    error => error.code === 'INVALID_EXECUTABLE' && !error.message.includes('relative-claude'));
+  await assert.rejects(callClaudeCode({
+    prompt: 'missing',
+    env: { CLAUDE_CODE_PATH: path.resolve(os.tmpdir(), 'definitely-missing-claude-code') }
+  }), error => error.code === 'EXECUTABLE_UNAVAILABLE'
+    && !error.message.includes('definitely-missing-claude-code'));
+  await assert.rejects(runClaudeCodeProcess({
+    executable: process.execPath,
+    args: ['-e', 'setInterval(() => {}, 1000)'],
+    stdin: '',
+    env: process.env,
+    cwd: os.tmpdir(),
+    timeoutMs: 40,
+    maxOutputBytes: 1024
+  }), error => error.code === 'TIMEOUT' && error.transient === true);
+  await assert.rejects(runClaudeCodeProcess({
+    executable: process.execPath,
+    args: ['-e', "process.stdout.write('x'.repeat(512))"],
+    stdin: '',
+    env: process.env,
+    cwd: os.tmpdir(),
+    timeoutMs: 1000,
+    maxOutputBytes: 64
+  }), error => error.code === 'OUTPUT_LIMIT' && error.transient !== true);
+
+  assert.throws(() => new AIClient({ provider: 'claude-code', apiKey: 'must-reject' }),
+    /does not accept API keys/);
+  const previousProvider = process.env.AI_PROVIDER;
+  const previousModel = process.env.AI_MODEL;
+  const realFetch = globalThis.fetch;
+  try {
+    process.env.AI_PROVIDER = 'claude-code';
+    delete process.env.AI_MODEL;
+    calls.length = 0;
+    const environmentClient = new AIClient({ claudeCodeRunner: successfulRunner, claudeCodeEnv: childEnv });
+    assert.strictEqual(environmentClient.model, 'default', 'Blank Claude Code model never inherits an HTTP default');
+    assert.strictEqual(environmentClient.apiKey, null);
+    assert.strictEqual(await environmentClient.sendPrompt({ systemInstruction: 'system', prompt: 'environment-only' }), 'subscription-ok');
+    assert.strictEqual(calls[1].args.includes('--model'), false, 'Environment-only AIClient dispatch uses the CLI default');
+
+    let httpFailures = 2;
+    process.env.AI_MODEL = 'must-not-leak-to-claude-code-fallback';
+    globalThis.fetch = async () => {
+      if (httpFailures-- > 0) {
+        return { ok: false, status: 503, statusText: 'Unavailable', text: async () => 'retry' };
+      }
+      throw new Error('Unexpected third HTTP request');
+    };
+    calls.length = 0;
+    const subscriptionFallback = new AIClient({
+      provider: 'openai',
+      model: 'primary-http',
+      apiKey: 'http-key',
+      fallbackResolved: true,
+      fallback: { provider: 'claude-code', apiKey: 'must-not-survive' },
+      claudeCodeRunner: successfulRunner,
+      claudeCodeEnv: childEnv
+    });
+    assert.strictEqual(subscriptionFallback.fallback.apiKey, undefined,
+      'Claude Code fallback discards FALLBACK_API_KEY/custom key material');
+    assert.strictEqual(subscriptionFallback.fallback.model, 'default',
+      'Blank Claude Code fallback does not inherit the primary AI_MODEL');
+    assert.strictEqual(await subscriptionFallback.sendPrompt({ prompt: 'fallback-to-subscription' }), 'subscription-ok');
+    assert.strictEqual(calls.at(-1).args.includes('--model'), false, 'Fallback AIClient also preserves the CLI default');
+
+    let generationFailures = 2;
+    const transientRunner = envelopeRunner({
+      exitCode: 1,
+      stdout: JSON.stringify({ is_error: true, api_error_status: 503 }),
+      stderr: 'PRIVATE_TRANSIENT_DETAIL'
+    });
+    const countingTransientRunner = async spec => {
+      if (spec.args[0] === 'auth') return transientRunner(spec);
+      generationFailures -= 1;
+      return transientRunner(spec);
+    };
+    globalThis.fetch = async () => ({
+      ok: true,
+      json: async () => ({ choices: [{ message: { content: 'http-fallback-ok' } }] })
+    });
+    const transientPrimary = new AIClient({
+      provider: 'claude-code',
+      fallbackResolved: true,
+      fallback: { provider: 'openai', model: 'backup-http', apiKey: 'backup-key' },
+      claudeCodeRunner: countingTransientRunner,
+      claudeCodeEnv: childEnv
+    });
+    assert.strictEqual(await transientPrimary.sendPrompt({ prompt: 'subscription-transient' }), 'http-fallback-ok',
+      'Numeric Claude status participates in existing retry and fallback behavior');
+    assert.strictEqual(generationFailures, 0, 'Claude Code retries exactly once before fallback');
+  } finally {
+    globalThis.fetch = realFetch;
+    if (previousProvider === undefined) delete process.env.AI_PROVIDER;
+    else process.env.AI_PROVIDER = previousProvider;
+    if (previousModel === undefined) delete process.env.AI_MODEL;
+    else process.env.AI_MODEL = previousModel;
   }
 }
 
@@ -3235,6 +3544,7 @@ async function runAll() {
     await testImageProviderSeam();
     await testServerConfigResolution();
     await testAdminModelRegistryV2();
+    await testClaudeCodeProvider();
     await testFallbackTiering();
     await testProviderEndpointPin();
     await testTaskQueueSerialization();

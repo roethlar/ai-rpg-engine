@@ -3,7 +3,7 @@
 **Severity**: HIGH — the current repeated tuple shape cannot share provider credentials explicitly,
 cannot select a distinct fallback per Council role, and cannot migrate to the new registry without
 risking stored secrets or cross-provider inheritance.
-**Status**: Verified (awaiting owner-gated merge)
+**Status**: Verified (merged into `master` at `a2ad7a7`)
 **Branch**: `feat/am-1-config-runtime`
 **Implementation commit**: `718de4aec14f89a65778de2ba315c335c84cf20d`
 
@@ -89,5 +89,4 @@ focused removal of the Council handoff failed in the registry/migration guard; r
 the full suite to green. It reported no material correctness, security, compatibility, test-quality,
 or scope issue and removed its worktree before returning.
 
-**Status → Verified.** The branch is ready for the owner-gated merge. Acceptance does not authorize
-merge, push, or history rewrite.
+**Status → Verified.** The owner authorized and the branch was merged into `master` at `a2ad7a7`.
