@@ -12,6 +12,12 @@ gated until Claude and Grok accepted the same pinned plan SHA. Both accepted r8 
 `5f0261375f9b97f464f54ee406d5bafca7f3ea8d`; implementation starts at `am-1`. Review trail:
 `.agents/review/admin-model-registry-plan.md`.
 
+## Active admin model-registry implementation
+
+| ID | Severity | Impact (one line) | Status | Branch |
+|----|----------|-------------------|--------|--------|
+| am-1 | HIGH | Repeated tuples cannot safely migrate to shared providers and per-role fallbacks | `[~]` pending review | `feat/am-1-config-runtime` |
+
 ## Closed Phase V implementation loop (2026-07-15; owner playtest still gates the phase)
 
 | ID | Severity | Impact (one line) | Status | Branch |

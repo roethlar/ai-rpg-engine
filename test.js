@@ -724,6 +724,353 @@ async function testServerConfigResolution() {
 }
 
 // -------------------------------------------------------------
+// Test: am-1 canonical model registry, migration, and Council runtime
+// -------------------------------------------------------------
+async function testAdminModelRegistryV2() {
+  console.log(' - Running admin model registry v2 tests...');
+  const {
+    AdminConfigValidationError,
+    projectAdminAiConfigV2,
+    validateAdminAiConfigV2,
+    prepareAdminAiConfigV2Save,
+    maskAdminAiConfigV2,
+    mergeAiConfig,
+    loadAdminAiConfig,
+    saveAdminAiConfigV2
+  } = await import('./server-config.js');
+  const db = await import('./db.js');
+
+  const legacy = {
+    provider: 'openai',
+    model: 'primary-model',
+    apiKey: 'stored-primary-key',
+    baseUrl: 'http://localhost:4100/v1/chat/completions',
+    ollamaUrl: 'http://localhost:11434',
+    fallback: { provider: 'grok', model: 'fallback-model', apiKey: '' },
+    roles: {
+      interaction: { provider: 'openai', model: 'interaction-model', apiKey: '' },
+      continuity: { model: 'continuity-model' },
+      referee: { provider: 'custom', apiKey: 'stored-role-key' }
+    },
+    voiceProvider: 'openai',
+    voiceModel: 'gpt-4o-mini-tts',
+    voiceApiKeys: { openai: 'stored-voice-key', grok: 'stored-grok-voice-key' },
+    imageProvider: 'openai',
+    imageModel: 'gpt-image-1',
+    imageApiKey: 'stored-image-key',
+    imageEndpoint: 'http://localhost:7860'
+  };
+
+  const projected = projectAdminAiConfigV2(legacy);
+  assert.strictEqual(projected.configVersion, 2);
+  assert.deepStrictEqual(projectAdminAiConfigV2(legacy), projected, 'Legacy projection ids are deterministic');
+  assert.strictEqual(projected.providers.openai.apiKey, 'stored-primary-key');
+  assert.strictEqual(projected.providers.custom.baseUrl, legacy.baseUrl);
+  assert.strictEqual(projected.providers.ollama.ollamaUrl, legacy.ollamaUrl);
+  assert.strictEqual(projected.defaultModel, 'legacy_primary');
+  assert.strictEqual(projected.roleAssignments.setup.primary, '', 'Roles without tuples stay inherited');
+  assert.strictEqual(projected.roleAssignments.interaction.primary, 'legacy_role_interaction');
+  assert.strictEqual(projected.modelEntries.find(entry => entry.id === 'legacy_role_interaction').legacyDefault, true,
+    'Complete-looking legacy role remains marked for blank-key precedence');
+  assert.strictEqual(projected.modelEntries.find(entry => entry.id === 'legacy_role_referee').apiKey, 'stored-role-key');
+  assert.strictEqual(projected.modelEntries.find(entry => entry.id === 'legacy_role_referee').keySource, 'custom');
+  assert.strictEqual(projected.modelEntries.find(entry => entry.id === 'legacy_fallback').legacyDefault, true);
+  assert.strictEqual(projected.roleAssignments.narration.fallback, 'legacy_fallback');
+  assert.deepStrictEqual(projected.voiceApiKeys, legacy.voiceApiKeys);
+  assert.strictEqual(projected.imageApiKey, legacy.imageApiKey);
+
+  const masked = maskAdminAiConfigV2(legacy);
+  const maskedRaw = JSON.stringify(masked);
+  for (const secret of ['stored-primary-key', 'stored-role-key', 'stored-voice-key', 'stored-image-key']) {
+    assert.strictEqual(maskedRaw.includes(secret), false, `Masked v2 DTO must not contain ${secret}`);
+  }
+  assert.deepStrictEqual(Object.keys(masked.providers), ['gemini', 'openai', 'claude', 'grok', 'ollama', 'custom']);
+  assert.strictEqual(masked.providers.openai.apiKeySet, true);
+  assert.strictEqual(masked.modelEntries.find(entry => entry.id === 'legacy_role_referee').apiKeySet, true);
+  assert.deepStrictEqual(Object.keys(masked.roleAssignments), ['setup', 'interaction', 'continuity', 'referee', 'narration']);
+
+  const noOpSaved = prepareAdminAiConfigV2Save(masked, legacy);
+  assert.strictEqual(noOpSaved.providers.openai.apiKey, 'stored-primary-key', 'Blank masked provider key keeps projected secret');
+  assert.strictEqual(noOpSaved.modelEntries.find(entry => entry.id === 'legacy_role_referee').apiKey, 'stored-role-key',
+    'Blank masked entry key keeps deterministic projected secret');
+  assert.deepStrictEqual(noOpSaved.voiceApiKeys, legacy.voiceApiKeys, 'Blank masked voice keys survive first rewrite');
+  assert.strictEqual(noOpSaved.imageApiKey, 'stored-image-key', 'Blank masked image key survives first rewrite');
+  assert.strictEqual(noOpSaved.modelEntries.find(entry => entry.id === 'legacy_role_interaction').legacyDefault, true,
+    'No-op save retains authorized migration marker');
+
+  const relabeled = prepareAdminAiConfigV2Save({
+    ...masked,
+    modelEntries: masked.modelEntries.map(entry => entry.id === 'legacy_role_interaction'
+      ? { ...entry, label: 'Relabeled only' }
+      : entry)
+  }, legacy);
+  assert.strictEqual(relabeled.modelEntries.find(entry => entry.id === 'legacy_role_interaction').legacyDefault, true,
+    'Label-only edit retains migration behavior');
+
+  const edited = prepareAdminAiConfigV2Save({
+    ...masked,
+    modelEntries: masked.modelEntries.map(entry => entry.id === 'legacy_role_interaction'
+      ? { ...entry, model: 'operator-selected-model' }
+      : entry)
+  }, legacy);
+  assert.strictEqual(edited.modelEntries.find(entry => entry.id === 'legacy_role_interaction').legacyDefault, false,
+    'Runtime-field edit clears migration behavior');
+
+  const replacedSecrets = prepareAdminAiConfigV2Save({
+    ...masked,
+    providers: { ...masked.providers, openai: { apiKey: 'replacement-provider-key' } },
+    modelEntries: masked.modelEntries.map(entry => entry.id === 'legacy_role_interaction'
+      ? { ...entry, keySource: 'custom', apiKey: 'replacement-entry-key' }
+      : entry),
+    voiceApiKeys: { openai: null, grok: '' },
+    imageApiKey: null
+  }, legacy);
+  assert.strictEqual(replacedSecrets.providers.openai.apiKey, 'replacement-provider-key');
+  assert.strictEqual(replacedSecrets.modelEntries.find(entry => entry.id === 'legacy_role_interaction').apiKey, 'replacement-entry-key');
+  assert.deepStrictEqual(replacedSecrets.voiceApiKeys, { openai: '', grok: 'stored-grok-voice-key' });
+  assert.strictEqual(replacedSecrets.imageApiKey, '');
+
+  const expectValidation = fn => assert.throws(fn, AdminConfigValidationError);
+  const { adminSettingsErrorStatus } = await import('./server.js');
+  assert.strictEqual(adminSettingsErrorStatus(new AdminConfigValidationError('bad registry')), 400,
+    'Typed admin validation errors map to 400');
+  assert.strictEqual(adminSettingsErrorStatus(new Error('storage failed')), 500,
+    'Unexpected admin errors remain 500');
+  expectValidation(() => validateAdminAiConfigV2({
+    ...projected,
+    modelEntries: [...projected.modelEntries, projected.modelEntries[0]]
+  }, { legacyBaseline: legacy }));
+  expectValidation(() => validateAdminAiConfigV2({
+    ...projected,
+    roleAssignments: { ...projected.roleAssignments, setup: { primary: 'missing', fallback: '' } }
+  }, { legacyBaseline: legacy }));
+  expectValidation(() => validateAdminAiConfigV2({
+    ...projected,
+    roleAssignments: { setup: projected.roleAssignments.setup }
+  }, { legacyBaseline: legacy }));
+  expectValidation(() => validateAdminAiConfigV2({
+    ...projected,
+    modelEntries: [...projected.modelEntries, {
+      id: 'forged_legacy', label: 'Forged', provider: '', model: '', keySource: 'provider', apiKey: '', legacyDefault: true
+    }]
+  }, { legacyBaseline: legacy }));
+  expectValidation(() => validateAdminAiConfigV2({
+    ...projected,
+    modelEntries: Array.from({ length: 65 }, (_, i) => ({
+      id: `model_${i}`, label: `Model ${i}`, provider: 'openai', model: `m-${i}`,
+      keySource: 'provider', apiKey: '', legacyDefault: false
+    }))
+  }));
+  expectValidation(() => validateAdminAiConfigV2({
+    ...projected,
+    modelEntries: [{
+      id: 'x'.repeat(81), label: 'Too long', provider: 'openai', model: 'm',
+      keySource: 'provider', apiKey: '', legacyDefault: false
+    }],
+    defaultModel: '',
+    roleAssignments: Object.fromEntries(['setup', 'interaction', 'continuity', 'referee', 'narration']
+      .map(role => [role, { primary: '', fallback: '' }]))
+  }));
+  expectValidation(() => validateAdminAiConfigV2({
+    ...projected,
+    modelEntries: [{
+      id: 'custom_missing', label: 'Missing key', provider: 'openai', model: 'm',
+      keySource: 'custom', apiKey: '', legacyDefault: false
+    }],
+    defaultModel: '',
+    roleAssignments: Object.fromEntries(['setup', 'interaction', 'continuity', 'referee', 'narration']
+      .map(role => [role, { primary: '', fallback: '' }]))
+  }));
+
+  const migrationEnv = {
+    AI_PROVIDER: 'openai',
+    AI_MODEL: 'global-env-model',
+    OPENAI_API_KEY: 'provider-env-key',
+    XAI_API_KEY: 'grok-provider-env-key',
+    INTERACTION_API_KEY: 'role-env-key',
+    CONTINUITY_AI_PROVIDER: 'openai',
+    CONTINUITY_API_KEY: 'continuity-env-key',
+    FALLBACK_API_KEY: 'fallback-env-key',
+    SETUP_AI_PROVIDER: 'grok'
+  };
+  const beforeRuntime = mergeAiConfig(legacy, migrationEnv);
+  const afterRuntime = mergeAiConfig(noOpSaved, migrationEnv);
+  for (const role of ['setup', 'interaction', 'continuity', 'referee', 'narration']) {
+    assert.deepStrictEqual(
+      resolveAgentConfig(beforeRuntime, role, migrationEnv),
+      resolveAgentConfig(afterRuntime, role, migrationEnv),
+      `${role} effective config survives first canonical rewrite`
+    );
+  }
+  assert.strictEqual(resolveAgentConfig(afterRuntime, 'interaction', migrationEnv).apiKey, 'role-env-key',
+    'Complete legacy role with blank key retains ROLE_API_KEY precedence');
+  assert.strictEqual(resolveAgentConfig(afterRuntime, 'interaction', migrationEnv).fallback.apiKey, 'fallback-env-key',
+    'Complete legacy fallback with blank key retains FALLBACK_API_KEY precedence');
+  const crossProvider = resolveAgentConfig(afterRuntime, 'setup', migrationEnv);
+  assert.strictEqual(crossProvider.provider, 'grok');
+  assert.strictEqual(crossProvider.apiKey, undefined, 'Default-primary key never crosses provider boundary');
+  assert.strictEqual(crossProvider.model, undefined, 'Default-primary model never crosses provider boundary');
+
+  const empty = projectAdminAiConfigV2(null);
+  const normalInput = {
+    ...maskAdminAiConfigV2(empty),
+    providers: {
+      gemini: { apiKey: '' },
+      openai: { apiKey: 'shared-openai-key' },
+      claude: { apiKey: '' },
+      grok: { apiKey: '' },
+      ollama: { ollamaUrl: 'http://localhost:11434' },
+      custom: { apiKey: 'custom-shared-key', baseUrl: 'http://localhost:4100/v1/chat/completions' }
+    },
+    modelEntries: [
+      { id: 'shared_a', label: 'Shared A', provider: 'openai', model: 'gpt-a', keySource: 'provider', apiKey: '', legacyDefault: false },
+      { id: 'shared_b', label: 'Shared B', provider: 'openai', model: 'gpt-b', keySource: 'provider', apiKey: '', legacyDefault: false },
+      { id: 'custom_primary', label: 'Custom', provider: 'custom', model: 'custom-model', keySource: 'provider', apiKey: '', legacyDefault: false },
+      { id: 'override', label: 'Override', provider: 'grok', model: 'grok-model', keySource: 'custom', apiKey: 'entry-override-key', legacyDefault: false },
+      { id: 'ollama_fb', label: 'Local fallback', provider: 'ollama', model: 'llama3', keySource: 'provider', apiKey: '', legacyDefault: false }
+    ],
+    defaultModel: '',
+    roleAssignments: {
+      setup: { primary: 'shared_a', fallback: 'ollama_fb' },
+      interaction: { primary: 'shared_b', fallback: 'custom_primary' },
+      continuity: { primary: 'override', fallback: '' },
+      referee: { primary: 'ollama_fb', fallback: '' },
+      narration: { primary: 'custom_primary', fallback: '' }
+    }
+  };
+  const normal = prepareAdminAiConfigV2Save(normalInput, null);
+  const normalMasked = maskAdminAiConfigV2(normal);
+  const clearedNormalSecrets = prepareAdminAiConfigV2Save({
+    ...normalMasked,
+    providers: { ...normalMasked.providers, openai: { apiKey: null } },
+    modelEntries: normalMasked.modelEntries.map(entry => entry.id === 'override'
+      ? { ...entry, keySource: 'provider', apiKey: '' }
+      : entry)
+  }, normal);
+  assert.strictEqual(clearedNormalSecrets.providers.openai.apiKey, '', 'Explicit null clears one provider key');
+  assert.strictEqual(clearedNormalSecrets.modelEntries.find(entry => entry.id === 'override').apiKey, '',
+    'Switching to provider mode clears obsolete custom override');
+  expectValidation(() => prepareAdminAiConfigV2Save({
+    ...normalMasked,
+    modelEntries: normalMasked.modelEntries.map(entry => entry.id === 'override'
+      ? { ...entry, apiKey: null }
+      : entry)
+  }, normal));
+  const normalRuntime = mergeAiConfig(normal, {});
+  const setup = resolveAgentConfig(normalRuntime, 'setup', { SETUP_API_KEY: 'must-not-win' });
+  assert.strictEqual(setup.apiKey, 'shared-openai-key', 'Normal assigned entry uses shared provider key');
+  assert.strictEqual(setup.fallback.ollamaUrl, 'http://localhost:11434', 'Ollama fallback carries connection endpoint');
+  const interaction = resolveAgentConfig(normalRuntime, 'interaction', {});
+  assert.strictEqual(interaction.model, 'gpt-b', 'Different model entries may share one provider key');
+  assert.strictEqual(interaction.apiKey, 'shared-openai-key');
+  assert.strictEqual(interaction.fallback.baseUrl, 'http://localhost:4100/v1/chat/completions',
+    'Custom fallback carries connection endpoint');
+  const continuity = resolveAgentConfig(normalRuntime, 'continuity', {});
+  assert.strictEqual(continuity.apiKey, 'entry-override-key', 'Per-model custom key overrides provider key');
+  const referee = resolveAgentConfig(normalRuntime, 'referee', {});
+  assert.strictEqual(referee.ollamaUrl, 'http://localhost:11434', 'Ollama primary carries connection endpoint');
+  assert.strictEqual(resolveAgentConfig(normalRuntime, 'referee', {
+    REFEREE_OLLAMA_URL: 'http://localhost:11500'
+  }).ollamaUrl, 'http://localhost:11500', 'Role Ollama endpoint env beats matching provider connection');
+  const narration = resolveAgentConfig(normalRuntime, 'narration', {
+    NARRATION_CUSTOM_ENDPOINT_URL: 'http://localhost:4200/v1/chat/completions'
+  });
+  assert.strictEqual(narration.baseUrl, 'http://localhost:4200/v1/chat/completions',
+    'Role endpoint env beats matching provider connection');
+
+  const wrongKeyConfig = prepareAdminAiConfigV2Save({
+    ...normalInput,
+    providers: { ...normalInput.providers, openai: { apiKey: '' } },
+    roleAssignments: {
+      setup: { primary: 'override', fallback: 'shared_a' },
+      interaction: { primary: 'shared_b', fallback: '' },
+      continuity: { primary: 'override', fallback: '' },
+      referee: { primary: 'shared_a', fallback: '' },
+      narration: { primary: 'custom_primary', fallback: '' }
+    }
+  }, null);
+  const wrongKeyResolved = resolveAgentConfig(mergeAiConfig(wrongKeyConfig, {}), 'setup', {
+    OPENAI_API_KEY: 'correct-openai-env-key',
+    FALLBACK_API_KEY: 'wrong-fallback-key'
+  });
+  assert.strictEqual(wrongKeyResolved.fallback.apiKey, undefined);
+
+  const previousOpenAi = process.env.OPENAI_API_KEY;
+  const previousFallbackKey = process.env.FALLBACK_API_KEY;
+  const previousFallbackProvider = process.env.FALLBACK_AI_PROVIDER;
+  const previousCustomEndpoint = process.env.CUSTOM_ENDPOINT_URL;
+  const realFetch = globalThis.fetch;
+  const calls = [];
+  let failures = 2;
+  try {
+    process.env.OPENAI_API_KEY = 'correct-openai-env-key';
+    process.env.FALLBACK_API_KEY = 'wrong-fallback-key';
+    process.env.CUSTOM_ENDPOINT_URL = 'http://localhost:4100/v1/chat/completions';
+    delete process.env.FALLBACK_AI_PROVIDER;
+    globalThis.fetch = async (url, options) => {
+      calls.push({ url: String(url), auth: options?.headers?.Authorization || '' });
+      if (failures-- > 0) {
+        return { ok: false, status: 503, statusText: 'Unavailable', text: async () => 'retry' };
+      }
+      return { ok: true, json: async () => ({ choices: [{ message: { content: 'fallback-ok' } }] }) };
+    };
+    const wrongKeyClient = new AIClient(wrongKeyResolved);
+    assert.strictEqual(wrongKeyClient.fallback.apiKey, undefined, 'Marked normalization does not inject FALLBACK_API_KEY');
+    assert.strictEqual(await wrongKeyClient.sendPrompt({ prompt: 'guard' }), 'fallback-ok');
+    assert.strictEqual(calls.at(-1).auth, 'Bearer correct-openai-env-key', 'Backup uses provider env, never FALLBACK_API_KEY');
+
+    calls.length = 0;
+    failures = 2;
+    const customFallbackClient = new AIClient(interaction);
+    assert.strictEqual(await customFallbackClient.sendPrompt({ prompt: 'endpoint guard' }), 'fallback-ok');
+    assert.strictEqual(calls.at(-1).url, 'http://localhost:4100/v1/chat/completions',
+      'Failover constructor forwards the custom connection endpoint');
+    assert.strictEqual(calls.at(-1).auth, 'Bearer custom-shared-key');
+
+    const resolvedNull = resolveAgentConfig(mergeAiConfig(normal, {}), 'continuity', {});
+    assert.strictEqual(resolvedNull.fallback, null);
+    process.env.FALLBACK_AI_PROVIDER = 'grok';
+    assert.strictEqual(new AIClient(resolvedNull).fallback, null, 'Resolved null fallback cannot be revived later');
+  } finally {
+    globalThis.fetch = realFetch;
+    if (previousOpenAi === undefined) delete process.env.OPENAI_API_KEY;
+    else process.env.OPENAI_API_KEY = previousOpenAi;
+    if (previousFallbackKey === undefined) delete process.env.FALLBACK_API_KEY;
+    else process.env.FALLBACK_API_KEY = previousFallbackKey;
+    if (previousFallbackProvider === undefined) delete process.env.FALLBACK_AI_PROVIDER;
+    else process.env.FALLBACK_AI_PROVIDER = previousFallbackProvider;
+    if (previousCustomEndpoint === undefined) delete process.env.CUSTOM_ENDPOINT_URL;
+    else process.env.CUSTOM_ENDPOINT_URL = previousCustomEndpoint;
+  }
+
+  const previousStored = await loadAdminAiConfig();
+  try {
+    await db.run(
+      `INSERT INTO server_settings (key, value, updated_at) VALUES ('ai_config', ?, CURRENT_TIMESTAMP)
+       ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP`,
+      [JSON.stringify(legacy)]
+    );
+    await saveAdminAiConfigV2(masked);
+    const rewritten = await loadAdminAiConfig();
+    assert.strictEqual(rewritten.configVersion, 2);
+    assert.strictEqual(rewritten.providers.openai.apiKey, 'stored-primary-key');
+    assert.strictEqual(rewritten.modelEntries.find(entry => entry.id === 'legacy_role_referee').apiKey, 'stored-role-key');
+    assert.deepStrictEqual(rewritten.voiceApiKeys, legacy.voiceApiKeys);
+    assert.strictEqual(rewritten.imageApiKey, 'stored-image-key');
+  } finally {
+    if (previousStored) {
+      await db.run(
+        `INSERT INTO server_settings (key, value, updated_at) VALUES ('ai_config', ?, CURRENT_TIMESTAMP)
+         ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP`,
+        [JSON.stringify(previousStored)]
+      );
+    } else {
+      await db.run(`DELETE FROM server_settings WHERE key = 'ai_config'`);
+    }
+  }
+}
+
+// -------------------------------------------------------------
 // Test: provider endpoint pinning — baseUrl must never redirect keyed providers
 // -------------------------------------------------------------
 async function testProviderEndpointPin() {
@@ -2887,6 +3234,7 @@ async function runAll() {
     await testBrowserVoiceQueue();
     await testImageProviderSeam();
     await testServerConfigResolution();
+    await testAdminModelRegistryV2();
     await testFallbackTiering();
     await testProviderEndpointPin();
     await testTaskQueueSerialization();
