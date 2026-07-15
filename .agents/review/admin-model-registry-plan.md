@@ -90,3 +90,45 @@ All findings are admitted and addressed in the r2 draft:
 - The UI uses same-origin ES modules, an explicit route for the helper, and the existing CSP.
 
 Round 2 must review the new shared SHA from scratch; neither r1 verdict carries forward.
+
+### Round 2 — pinned `24577fbc87d5db16f78c6f44037f8e0f671c99c6`
+
+Base: `0dc4ca6fd451126bfaffff4a6c51f5e3914f63e4`.
+
+#### Claude Code 2.1.210 / Claude Opus 4.8 (high effort)
+
+Timestamp: 2026-07-15T16:00:48Z. Structured verdict valid and SHA-matched.
+`evidence_checked: true`; `cold_implementer_executable: true`; verdict: **accepted**.
+
+Claude verified every r1 correction and found no HIGH/MEDIUM plan defect. It recorded two explicit
+non-blocking notes:
+
+1. `am-1` would change the settings GET/POST to v2 while the v1 browser remains until `am-3`, leaving
+   `/admin` blank/clobber-prone between owner-gated merges; implement promptly or add compatibility.
+2. The intermediate `mergeAiConfig` → `resolveAgentConfig` per-role fallback shape is implied rather
+   than stated, though tests pin the intended result.
+
+#### Grok 0.2.101 / Grok 4.5 (high reasoning, corrected dispatch)
+
+Timestamp: 2026-07-15T16:00:48Z. The first response was rejected fail-closed because it returned a
+placeholder comment after no repository inspection. The one allowed corrected re-prompt produced a
+valid, SHA-matched structured verdict. `evidence_checked: true`;
+`cold_implementer_executable: false`; verdict: **reopened**.
+
+1. **HIGH — inherited primary loses role env precedence.** Assigning the projected v1 primary
+   directly to roles that had no explicit tuple turns inheritance into an explicit assignment, so
+   `ROLE_AI_PROVIDER` / `ROLE_AI_MODEL` / `ROLE_API_KEY` stop beating the old primary. Leave such
+   roles unassigned and retain an inherited default entry/path, or explicitly preserve the chain.
+2. **HIGH — owner-gated slice breaks `/admin`.** Claude's non-blocking note is material under the
+   plan's own merge sequencing: after `am-1`, the old JS consumes v1 while the route returns v2.
+   Keep a v1 compatibility DTO/POST until `am-3`, or move wire activation into `am-3`.
+3. **MEDIUM — primary endpoint omission.** The plan forwards custom/Ollama endpoints on fallback but
+   does not explicitly attach the provider connection to an assigned primary. Require and guard both.
+4. **MEDIUM — Ollama production default mismatch.** `AIClient` uses
+   `OLLAMA_URL || http://localhost:11434` after dropping config endpoints in production; catalog
+   wording allowed only the env field, making refresh fail where runtime succeeds. One shared endpoint
+   resolver must include the same Ollama default and be parity-tested.
+
+Convergence is not reached: both verdicts are valid, but the shared-SHA contract requires both to
+accept. The Grok findings are admitted; Claude's first note is resolved as the same root issue as
+Grok finding 2 rather than left as accepted risk.
