@@ -3,7 +3,7 @@
 **Severity**: HIGH — without bounded, authenticated discovery the admin must guess model ids, while
 an unsafe implementation could leak credentials or let stored/request endpoints bypass production
 network policy.
-**Status**: In progress (response-body timeout fixed; pending Claude Fable re-review)
+**Status**: Verified (awaiting owner-gated merge)
 **Branch**: `feat/am-2-provider-catalogs`
 **Implementation commits**: `619b83821cc93f5f812b548cd1ebc65c9eaf39d0`,
 `05781156a5fed97f3f406d0e81204254a905d52d`
@@ -140,3 +140,24 @@ admin boundary, and five-field usage-free Claude Code status. It identified one 
 request beyond the promised ten-second bound. Fable classified this as non-blocking and accepted;
 the coder accepts the finding and will close it within am-2 before requesting owner merge, then
 re-review the changed head.
+
+### Attempt 4 — timeout fix accepted (Claude Code 2.1.210 / Claude Fable 5)
+
+- **Timestamp**: 2026-07-15T20:24:51Z
+- **reviewed_sha**: `678db3173353e6d2f5685ed69326566a17b5f178` · **base_sha**:
+  `1a62848805ee56941365f73ecc55ee8fb0750361` · **guard_confirmed**: `true`
+- **verdict**: `accepted`
+
+The exact direct-route `--model claude-fable-5` re-review confirmed that the timer now survives
+through body parsing, the body promise races abort, the listener and timer are cleaned on every
+exit, late settlement cannot become an unhandled rejection, and network/upstream/invalid-response
+classification and redaction remain intact.
+
+Fable ran the pristine full suite green, independently reintroduced the early timer clear without
+changing tests, and observed the stalled-body guard fail at `test.js:1530` with “Missing expected
+rejection.” It restored exact bytes, reran the full suite green, and proved the detached worktree
+clean. The whole-head review found no new material issue and made no real provider or Claude account
+call.
+
+**Status → Verified.** The branch is ready for the owner-gated merge. Acceptance does not authorize
+merge, push, or history rewrite.
