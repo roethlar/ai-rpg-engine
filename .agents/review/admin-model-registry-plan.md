@@ -422,3 +422,34 @@ custom-key path, names the exact stripped variables, distinguishes auth proof fr
 or overage settings, and defines timeout/output/cleanup plus numeric status propagation into the
 existing retry classifier. Both reviewers must inspect the complete new SHA; r9 has no verdict to
 carry forward.
+
+### Round 10 — `claude-code` extension pinned `1e4a43a87056d35c6ebc5a8cffed543a4abda4db`
+
+Base: `cd00785fc214025db634f5118d9e17667a39dffe`. Accepted `am-1` substrate:
+`a4372df788cb85c30a92bf9adc82cfc533f0c78e`.
+
+#### Claude Code 2.1.210 / Claude Fable 5 (high effort)
+
+Timestamp: 2026-07-15T17:52:19Z. Dispatch used the exact `--model claude-fable-5` argument. The
+structured verdict was valid and SHA-matched. `evidence_checked: true`;
+`cold_implementer_executable: false`; verdict: **reopened**.
+
+1. **MEDIUM — AIClient makes the planned blank-model behavior unreachable.** The accepted
+   constructor assigns `gpt-4o-mini` from its unknown-provider default whenever model is blank.
+   Therefore an environment-only `AI_PROVIDER=claude-code` or blank-model fallback reaches the
+   adapter as `--model gpt-4o-mini`, not as the Claude Code default. Adapter-only blank/default tests
+   do not exercise that constructor. Add a provider-specific constructor case and a guard that
+   builds through `AIClient` with no model for both primary/environment-only and fallback paths.
+
+Convergence is not reached. The finding is admitted. Grok is not part of this or future convergence
+after the owner's reviewer-policy decision; an already-running Grok attempt was stopped and has no
+verdict.
+
+#### Response to Round 10
+
+The r11 draft names the existing `AIClient` default-model switch as an `am-cc` change site. A blank
+Claude Code model maps to the reserved `default` sentinel (or remains blank), never to an HTTP
+provider model. The guard now constructs through `AIClient`, inspects the fake child argv, and covers
+both the primary/environment-only and backup-client constructors; reverting the constructor case
+must inject `gpt-4o-mini` and turn the guard red. Claude Fable 5 must review the complete new SHA;
+the r10 verdict does not carry forward.

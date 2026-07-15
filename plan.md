@@ -1632,6 +1632,13 @@ Raised during planning but deliberately deferred. **Per project rule, nothing he
   role resolution, transient retry, and configured fallback selection remain unchanged. The
   adapter has no HTTP API key and never calls Anthropic's Messages API directly.
 
+  `AIClient`'s current blank-model switch assigns `gpt-4o-mini` in its `default` branch, so adding
+  only a dispatch case is insufficient. `am-cc` adds an explicit `claude-code` constructor case
+  that maps a blank model to the reserved `default` sentinel (or equivalently preserves blank) and
+  never inherits an HTTP provider's model. The same constructor behavior applies to a primary and
+  to the backup client created during fallback. `getEnvKey('claude-code')` remains empty; the child
+  login is the only authentication source.
+
   Resolve the executable from an absolute `CLAUDE_CODE_PATH` when set, otherwise `claude` on the
   server process's `PATH`. Launch it with Node child-process argument arrays and `shell: false`; the
   model is one opaque argument and the prompt is written to stdin, so neither can become a shell
@@ -1785,8 +1792,11 @@ Raised during planning but deliberately deferred. **Per project rule, nothing he
     redaction, and `AIClient` retry/fallback handoff. A discriminating
     guard gives the fake child an `ANTHROPIC_API_KEY` and makes it report API authentication unless
     the adapter strips that variable; removing the strip must turn the test red before any fake
-    generation runs. Another mutation removes the provider dispatch and must make the AIClient
-    integration guard red.
+    generation runs. An integration guard constructs `AIClient` with provider `claude-code` and no
+    model, including the environment-only resolution path, then proves the fake generation argv has
+    no `--model`; reverting the constructor case injects `gpt-4o-mini` and makes it red. The same
+    assertion covers construction of a Claude Code fallback client. Another mutation removes the
+    provider dispatch and must make the AIClient integration guard red.
   - Catalog parser fixtures cover all seven providers, Grok language-only filtering/aliases, Gemini
     method filtering, malformed success bodies, timeout/error sanitization, and custom/Ollama SSRF.
     An HTTP-boundary test proves unsaved → entry override → provider stored → env precedence and
