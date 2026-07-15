@@ -1315,7 +1315,7 @@ Raised during planning but deliberately deferred. **Per project rule, nothing he
     which is the whole argument for this harness existing.
 
 - **Admin model registry + Council assignments — `am-*` (BASE ACCEPTED r8 2026-07-15 at
-  `5f0261375f9b97f464f54ee406d5bafca7f3ea8d`; `claude-code` provider extension review pending;
+  `5f0261375f9b97f464f54ee406d5bafca7f3ea8d`; `claude-code` provider Claude review pending;
   accepted `am-1` scope is unchanged).**
 
   **Problem.** `/admin` currently repeats a full provider/model/key form seven times: primary,
@@ -1846,10 +1846,12 @@ Raised during planning but deliberately deferred. **Per project rule, nothing he
   Grok (UX/runtime/data-model/adversarial lens). Record both structured verdicts in
   `.agents/review/admin-model-registry-plan.md`. Revise and re-dispatch any reopened plan until both
   reviewers return accepted against the same SHA; that shared-SHA dual acceptance is convergence.
-  The r8 acceptance remains authoritative for `am-1`. Before `am-cc`, independently dispatch the
-  complete amended plan and decision snapshot to Claude and Grok under the same convergence
-  contract; both must accept one shared SHA, and an earlier r8 verdict does not approve the new
-  provider. Codex then implements. Each code slice gets a pinned independent implementation verdict from an
+  The historical r8 acceptance remains authoritative for `am-1`. For the `claude-code` extension
+  and subsequent reviewloops, the 2026-07-15 owner decision supersedes dual review: before `am-cc`,
+  dispatch the complete amended plan and decision snapshot to Claude Code with the exact
+  `--model claude-fable-5` argument. Claude must accept the pinned SHA; Grok is not dispatched, and
+  the earlier r8 verdict does not approve the new provider. Codex then implements. Each code slice
+  gets a pinned independent implementation verdict from an
   agent that did not author it, with guard proof executed in a disposable worktree. Accepted is not
   merge authority; each merge remains owner-gated.
 

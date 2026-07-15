@@ -20,6 +20,26 @@ Supersedes:
 <Optional prior decision, doc, or rule.>
 -->
 
+### 2026-07-15 - Claude Code Fable 5 is the reviewloop reviewer
+
+Status: Active
+
+Decision:
+Independent reviewloop dispatches for Codex-authored plans and code use Claude Code with the exact
+`--model claude-fable-5` argument. Grok is not dispatched. Review remains fail-closed: a missing,
+invalid, mismatched-SHA, or incomplete Claude envelope is not acceptance, and the implementation
+author still cannot review their own work.
+
+Reason:
+Owner wording (2026-07-15): **"skip grok going forward and stick with claude --model
+claude-fable-5 for reviewloops"**. One consistently specified independent reviewer is the desired
+review process; repeated Grok envelope failures were not useful review signal.
+
+Supersedes:
+The Claude + Grok dual-acceptance requirement for new admin model-registry plan rounds and any
+repo-state wording that names Grok as a required reviewer. Historical dual-review verdicts remain
+valid evidence for the SHAs they accepted.
+
 ### 2026-07-15 - Admin AI configuration is a provider/model registry with per-role primary and fallback assignments
 
 Status: Active

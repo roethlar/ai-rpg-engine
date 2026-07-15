@@ -2,26 +2,27 @@
 
 **Status**: Base registry **Accepted** at r8 / `5f0261375f9b97f464f54ee406d5bafca7f3ea8d`;
 `am-1` remains authorized and unchanged. The owner-added `claude-code` provider extension is
-pending a new shared-SHA Claude + Grok acceptance before `am-cc` or later slices begin.
+pending a pinned Claude Fable 5 acceptance before `am-cc` or later slices begin. Per the later
+2026-07-15 owner decision, Grok is no longer dispatched.
 **Plan location**: `plan.md` → Dev Tooling → `am-*`
 **Owner direction**: `.agents/decisions.md` (2026-07-15 admin AI configuration decision)
 
 ## Convergence contract
 
-Claude reviews correctness, migration/key isolation, security, guardability, and cold-implementer
-completeness. Grok independently reviews the runtime/data model, operator UX, live-catalog boundary,
-and migration/compatibility risks. Both receive the same pinned repository SHA and return the
-reviewloop structured verdict envelope. The plan converges only when both return `accepted` with no
-material comments against the same SHA.
+Rounds 1–8 used the then-active dual-review contract: Claude covered correctness,
+migration/key isolation, security, guardability, and cold-implementer completeness; Grok covered
+runtime/data model, operator UX, catalog boundaries, and compatibility. Both had to accept one SHA.
+Those rounds remain historical evidence only.
 
-Any reopen is recorded below before the plan changes. The revised plan is committed and both
-reviewers are dispatched again against the new shared SHA; an earlier acceptance does not carry
-forward to a changed snapshot.
-
-The 2026-07-15 `claude-code` extension reuses this contract. Reviewers must additionally examine
+The later 2026-07-15 owner decision makes Claude Code with the exact `--model claude-fable-5`
+argument the sole reviewer for the `claude-code` extension and subsequent reviewloops. It returns
+the same fail-closed structured verdict envelope and must additionally examine
 subscription-versus-API auth isolation, child-process injection/tool isolation, failure redaction,
 manual model entry when no catalog exists, and preservation of the existing Setup/Council pipeline.
-The r8 verdict continues to cover `am-1` only and does not carry forward to this extension.
+The r8 verdict continues to cover `am-1` only and does not carry forward to this extension. The
+extension converges on one valid, SHA-matched Claude verdict with no material comments. Any reopen
+is recorded before the plan changes; the revised plan receives a new pinned review, and acceptance
+does not carry forward across a technical-plan change.
 
 ## Review rounds
 

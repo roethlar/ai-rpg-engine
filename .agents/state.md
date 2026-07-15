@@ -9,8 +9,9 @@ to `docs/history/state-archive.md`.
 - **ALL CODE GOES THROUGH THE REVIEWLOOP**, and planning completes before coding starts
   (owner decisions 2026-07-12 and 2026-07-14, `.agents/decisions.md`). This is
   unconditional; docs-only changes are outside the rule. The current default division of labour is
-  Codex implementation with independent Claude planning and adversarial verification. The roles may
-  swap for the nature of a slice, but an author never reviews their own code.
+  Codex implementation with independent Claude planning and adversarial verification, dispatched
+  with the exact `--model claude-fable-5` argument; Grok is not used. The roles may swap for the
+  nature of a slice, but an author never reviews their own code.
 - **PHASE V CODE IS COMPLETE; THE OWNER PLAYTEST IS PENDING.** All four implementation slices are
   merged and accepted; `.agents/review/index.md` owns their status and verdict trail. The live
   contract is one campaign-canonical narrator, server-resolved NPC voices, and shared host/seat
@@ -37,7 +38,7 @@ to `docs/history/state-archive.md`.
   `5f0261375f9b97f464f54ee406d5bafca7f3ea8d`; `am-1` is unchanged. A first-class, no-key
   `claude-code` provider using the server process's logged-in plan is now being added as a plan
   extension; model ids remain manually editable because the installed CLI has no documented
-  machine-readable account catalog. The extension requires a new shared-SHA Claude + Grok plan
+  machine-readable account catalog. The extension requires a new pinned Claude Fable 5 plan
   acceptance before its code slice starts.
 - **The remote two-human multiplayer playtest remains pending.** App-side seat work is landed;
   connectivity is owner-handled and out of repo scope. The playtest is the scheduled close for open
@@ -51,7 +52,8 @@ to `docs/history/state-archive.md`.
 
 ## Next
 
-**THE IMMEDIATE NEXT ACTION: converge the `claude-code` provider plan extension.** After convergence,
+**THE IMMEDIATE NEXT ACTION: converge the `claude-code` provider plan extension with Claude Fable
+5.** After convergence,
 the already accepted `am-1` branch still requires its owner-gated merge before `am-cc` can start from
 updated `master`. The remaining ordered reviewloop slices are `am-cc`, `am-2`, and `am-3`, each
 accepted and owner-merged before the next.
