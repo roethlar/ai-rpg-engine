@@ -88,4 +88,19 @@ None.
 
 ## Reviewer comments
 
-Pending Claude Code review with the exact `--model claude-fable-5` argument.
+### Attempt 1 — invalid harness execution (Claude Code 2.1.210 / Claude Fable 5)
+
+- **Timestamp**: 2026-07-15T18:37:16Z
+- **reviewed_sha**: `109988c039ed2850b415565a5e0bb364a8ceed9a` · **base_sha**:
+  `a2ad7a7e33476be5c55a3028fcf9b9bd78bad8bd` · **guard_confirmed**: `false`
+- **verdict**: `invalid`
+
+The exact `--model claude-fable-5` dispatch produced a valid, SHA-matched envelope, but Claude
+Code's `dontAsk` permission mode denied every attempted `node test.js`, npm test, and trivial Node
+command. The reviewer therefore could not run the pristine suite or independently perform the
+red/green mutation proof. It left its disposable worktree clean.
+
+Its complete static diff review found no material code defect and explicitly classified its invalid
+verdict as a harness-permission failure, not a scope disagreement or reopen. Per the fail-closed
+contract, this is not acceptance. One corrected dispatch will use explicit test-execution permission
+against the new pinned review-record head; no code changed after the static review.
