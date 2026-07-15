@@ -6,6 +6,7 @@ role.
 **Status**: In progress (reopened by independent review)
 **Branch**: `feat/am-3-admin-model-registry-ui`
 **Implementation commit**: `93a91e8c1d2e8e957b6dbf9391490c416338957b`
+**Fix-up commit**: `6e05325` (legacy-safe all-key clear)
 
 ## Evidence
 
@@ -66,6 +67,15 @@ layout without contacting a real provider.
 - **GREEN restored:** restored both production mechanisms and reran `node test.js` and
   `npm run test:browser`; both completed successfully, including the new admin registry guard. The
   working tree returned clean at the implementation commit.
+- **RED — reopened legacy clear:** after the fix-up commit, temporarily removed only the server
+  save seam's `legacySecretClearIds.add(id)` authorization. `node test.js` failed in
+  `testAdminModelRegistryV2` with `modelEntries[3] requires provider and model`, reproducing the
+  reviewer's partial-tuple failure. The test was unchanged.
+- **GREEN fix-up restored:** restored that production line and reran `node test.js` plus
+  `npm run test:browser`; both completed successfully and the working tree was clean at `6e05325`.
+  The guard covers the browser payload through `prepareAdminAiConfigV2Save`, runtime role-key
+  precedence for partial and complete legacy tuples, and persisted `saveAdminAiConfigV2` →
+  `loadAdminAiConfig` state.
 
 ## Coder dispute (if any)
 
