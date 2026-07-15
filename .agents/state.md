@@ -52,6 +52,12 @@ to `docs/history/state-archive.md`.
     provider-isolated key/config compatibility, admin storage, and guards. Claude accepted pinned
     head `0371e35` with independent red→green confirmation; the full suite passed again after merge.
     Status and verdict trail: `.agents/review/index.md` + `findings/v-1.md`.
+  - **v-2 ACTIVE** on `fix/v-2-portable-voice-profiles`: finite delivery schema and portable
+    narrator/NPC profiles across creation, legacy read, fork, export, and import are implemented and
+    guard-proven; independent review is next. The owner granted
+    standing authorization on 2026-07-15 to execute the queued Phase V slices serially through
+    accepted merges without pausing; stop only for a genuine blocker. Review trail:
+    `.agents/review/index.md` + `findings/v-2.md`.
 - **bh-1 — the browser harness is MERGED** (`ea9ca9b`, 2026-07-14; branch deleted). codex
   implemented; Claude verified adversarially — roles swapped, since codex cannot review what codex
   wrote. Plan accepted after **seven review rounds**. Full trail:

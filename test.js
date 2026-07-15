@@ -842,8 +842,14 @@ async function testTtsProviderSeam() {
   console.log(' - Running TTS provider seam tests...');
   const {
     GROK_TTS_VOICES,
+    VOICE_DELIVERY_VALUES,
+    assignNpcVoiceProfile,
+    createNarratorVoiceProfile,
     getTtsProviderCatalog,
+    resolveNarratorVoiceProfile,
+    resolveNpcVoiceProfile,
     synthesizeSpeech,
+    validateVoiceDelivery,
     validateVoiceProfile,
     listTtsProviders
   } = await import('./tts-providers.js');
@@ -860,6 +866,13 @@ async function testTtsProviderSeam() {
   assert.strictEqual(catalog.find(entry => entry.provider === 'grok').hasModel, false);
   assert.strictEqual(catalog.find(entry => entry.provider === 'grok').maxSegmentsPerRequest, 40);
   assert.strictEqual(catalog.find(entry => entry.provider === 'openai').maxSegmentsPerRequest, 1);
+  assert.deepStrictEqual(VOICE_DELIVERY_VALUES, [
+    'neutral', 'warm', 'bright', 'gruff', 'whispers', 'cold',
+    'weary', 'tense', 'menacing', 'angry', 'manic'
+  ], 'The public delivery vocabulary is finite and ordered');
+  assert.strictEqual(validateVoiceDelivery('tense'), 'tense');
+  assert.strictEqual(validateVoiceDelivery(' tense '), 'neutral', 'Delivery membership is exact, not fuzzy');
+  assert.strictEqual(validateVoiceDelivery('say the secret'), 'neutral', 'Free text never becomes delivery state');
   await assert.rejects(
     () => synthesizeSpeech({ provider: 'elevenlabs', apiKey: 'k', text: 'hi' }),
     /Unsupported TTS provider/,
@@ -943,7 +956,27 @@ async function testTtsProviderSeam() {
   assert.strictEqual(fallbackProfile.voice, 'marin');
   assert.strictEqual(fallbackProfile.provider, 'openai');
   const grokProfile = validateVoiceProfile({ provider: 'grok', voice: 'orion', instructions: 'quiet' });
-  assert.deepStrictEqual(grokProfile, { provider: 'grok', voice: 'orion', instructions: 'quiet' });
+  assert.deepStrictEqual(grokProfile, {
+    provider: 'grok', voice: 'orion', voiceSeed: null, mood: 'neutral', instructions: 'quiet'
+  });
+
+  const assigned = assignNpcVoiceProfile({ voice_mood: 'whispers', personality: 'PRIVATE', quirks: 'PRIVATE' }, 1, 'openai');
+  assert.deepStrictEqual(assigned, { provider: 'openai', voice: 'ash', voiceSeed: 1, mood: 'whispers' });
+  assert.strictEqual(JSON.stringify(assigned).includes('PRIVATE'), false, 'New profiles contain no private personality direction');
+  const switched = resolveNpcVoiceProfile({ ...assigned, voice: 'cedar' }, 'grok', 99);
+  assert.deepStrictEqual(switched, { provider: 'grok', voice: 'atlas', voiceSeed: 1, mood: 'whispers' },
+    'A provider switch resolves the portable seed in the active provider pool');
+  const switchedBack = resolveNpcVoiceProfile({ ...assigned, voice: 'cedar' }, 'openai', 99);
+  assert.strictEqual(switchedBack.voice, 'cedar', 'Switching back honors the stored same-provider voice');
+  const legacyWithGappedId = resolveNpcVoiceProfile({ provider: 'openai', voice: 'cedar' }, 'grok', 2);
+  assert.strictEqual(legacyWithGappedId.voice, 'castor', 'Legacy resolution uses the campaign ordinal supplied by the reader');
+  assert.strictEqual(legacyWithGappedId.voiceSeed, 2);
+
+  assert.deepStrictEqual(createNarratorVoiceProfile('grok'), {
+    provider: 'grok', voice: 'leo', voiceSeed: null, mood: 'neutral'
+  });
+  assert.strictEqual(resolveNarratorVoiceProfile({ provider: 'openai', voice: 'marin' }, 'grok').voice, 'leo',
+    'A narrator profile maps to the active provider reserved narrator');
 }
 
 // -------------------------------------------------------------
@@ -1201,6 +1234,32 @@ async function testCampaignBundle() {
   const bundle = validateCampaignBundle(fixture);
   assert.strictEqual(bundle.format_version, 1);
   assert.strictEqual(bundle.campaign.title, 'Shadows of the Sunken Sands');
+
+  const portableVoiceFixture = JSON.parse(JSON.stringify(fixture));
+  portableVoiceFixture.campaign.narrator_voice_json = JSON.stringify({
+    provider: 'grok', voice: 'leo', voiceSeed: null, mood: 'warm'
+  });
+  portableVoiceFixture.npcs[0].voice_json = JSON.stringify({
+    provider: 'grok', voice: 'atlas', voiceSeed: 7.9, mood: 'whispers'
+  });
+  const portableVoiceBundle = validateCampaignBundle(portableVoiceFixture);
+  assert.deepStrictEqual(portableVoiceBundle.campaign.narrator_voice, {
+    provider: 'grok', voice: 'leo', instructions: '', voiceSeed: null, mood: 'warm'
+  });
+  assert.deepStrictEqual(portableVoiceBundle.npcs[0].voice, {
+    provider: 'grok', voice: 'atlas', instructions: '', voiceSeed: 7, mood: 'whispers'
+  }, 'Import validation preserves a numeric seed and finite public mood');
+  assert.strictEqual(typeof portableVoiceBundle.npcs[0].voice.voiceSeed, 'number');
+
+  for (const invalidSeed of ['7', -1, Number.POSITIVE_INFINITY, {}, null]) {
+    const hostileVoiceFixture = JSON.parse(JSON.stringify(fixture));
+    hostileVoiceFixture.npcs[0].voice_json = {
+      provider: 'openai', voice: 'cedar', voiceSeed: invalidSeed, mood: 'say the secret'
+    };
+    const cleanedVoice = validateCampaignBundle(hostileVoiceFixture).npcs[0].voice;
+    assert.strictEqual(cleanedVoice.voiceSeed, null, `Invalid seed ${String(invalidSeed)} becomes null`);
+    assert.strictEqual(cleanedVoice.mood, 'neutral', 'Unknown mood falls closed to neutral');
+  }
 
   // sv-4 round 2: bundles are untrusted DATA. getCampaignState promotes the
   // last turn's quest_update into `currentQuest`, which crosses the seat
@@ -1744,8 +1803,8 @@ async function testVoiceScript() {
     input_kind: 'dialogue',
     narrative: 'Kessler laughs.',
     narration_lines: [
-      { speaker: 'narrator', tone: 'low, tense', text: 'The bar falls quiet.' },
-      { speaker: 'Kessler', tone: 'amused contempt', text: '"You again."' },
+      { speaker: 'narrator', tone: 'tense', text: 'The bar falls quiet.' },
+      { speaker: 'Kessler', tone: 'menacing', text: '"You again."' },
       { speaker: '', text: 'orphan line gets narrator' },
       { text: '   ' },
       'not an object'
@@ -1753,6 +1812,8 @@ async function testVoiceScript() {
   }, 1);
   assert.strictEqual(validated.narration_lines.length, 3, 'Empty/garbage lines dropped');
   assert.strictEqual(validated.narration_lines[1].speaker, 'Kessler');
+  assert.strictEqual(validated.narration_lines[1].tone, 'menacing');
+  assert.strictEqual(validated.narration_lines[2].tone, 'neutral', 'Missing tone is the canonical neutral value');
   assert.strictEqual(validated.narration_lines[2].speaker, 'narrator', 'Blank speaker defaults to narrator');
 
   // The table-talk no-op net must NOT strip the voice script (presentation, not state)
@@ -1763,49 +1824,161 @@ async function testVoiceScript() {
   }, 1);
   assert.strictEqual(clarified.narration_lines.length, 1, 'Voice script survives clarification forcing');
 
-  // Sticky NPC voice assignment: deterministic, marin excluded, direction from character
+  // Sticky NPC voice assignment: deterministic, marin excluded, no private direction
   assert.strictEqual(NPC_VOICE_POOL.includes('marin'), false, 'NPC pool must exclude the default narrator voice');
-  const npc = { name: 'Kessler', personality: 'Cold, patient predator', quirks: 'Never raises his voice' };
+  const npc = { name: 'Kessler', personality: 'Cold, patient predator', quirks: 'Never raises his voice', voice_mood: 'cold' };
   const profile1 = assignNpcVoiceProfile(npc, 0);
   const profile2 = assignNpcVoiceProfile(npc, 0);
   assert.deepStrictEqual(profile1, profile2, 'Same NPC + index → same profile (sticky)');
   assert.notStrictEqual(assignNpcVoiceProfile(npc, 1).voice, profile1.voice, 'Different index → different voice');
-  assert.strictEqual(profile1.instructions.includes('Never raises his voice'), true, 'Direction derives from quirks');
+  assert.strictEqual(profile1.voiceSeed, 0);
+  assert.strictEqual(profile1.mood, 'cold');
+  assert.strictEqual(Object.prototype.hasOwnProperty.call(profile1, 'instructions'), false,
+    'New profiles never derive audible direction from private quirks');
 
   // Script resolution: NPC lines get stored profiles (case-insensitive), narrator gets nulls
-  const npcs = [{ name: 'Kessler', voice_json: JSON.stringify({ provider: 'openai', voice: 'cedar', instructions: 'Cold, quiet menace.' }) }];
+  const npcs = [{ name: 'Kessler', voice_json: JSON.stringify({
+    provider: 'openai', voice: 'cedar', voiceSeed: 0, mood: 'cold', instructions: 'Legacy direction.'
+  }) }];
   const script = buildVoiceScript(validated.narration_lines, npcs);
   assert.strictEqual(script[0].voice, null, 'Narrator line: client falls back to player voice');
-  assert.strictEqual(script[0].instructions, 'Tone: low, tense.', 'Narrator tone rides as suffix');
+  assert.strictEqual(script[0].instructions, 'Tone: tense.', 'Narrator tone uses the finite enum');
   assert.strictEqual(script[1].voice, 'cedar', 'NPC line uses the stored sticky voice');
-  assert.strictEqual(script[1].instructions, 'Cold, quiet menace. Tone: amused contempt.', 'NPC direction + line tone compose');
-  const unknownSpeaker = buildVoiceScript([{ speaker: 'Someone New', tone: '', text: 'Hi.' }], npcs);
+  assert.strictEqual(script[1].instructions, 'Legacy direction. Mood: cold. Tone: menacing.',
+    'Legacy OpenAI direction plus canonical mood/tone compose during compatibility');
+  const unknownSpeaker = buildVoiceScript([{ speaker: 'Someone New', tone: 'invented prose', text: 'Hi.' }], npcs);
   assert.strictEqual(unknownSpeaker[0].voice, null, 'Unknown speakers degrade to narrator voice');
   assert.deepStrictEqual(buildVoiceScript(undefined, npcs), [], 'Missing script → empty (single-voice fallback)');
 
-  // sv-5: a seat hands speaker/tone back to the narrate route, which bounds
-  // them via boundVoiceDirective — the same function server.js calls. It must
-  // accept, unchanged, the widest values validateTurnData can emit; a
-  // stricter cap there 400s a valid line and kills the rest of the queue.
+  // A seat hands speaker/tone back to the compatibility route. The speaker is
+  // bounded and the delivery value is exact enum membership.
   const { boundVoiceDirective } = await import('./rpg-state.js');
   const widest = validateTurnData({
     input_kind: 'dialogue',
     narrative: 'x',
-    narration_lines: [{ speaker: 'S'.repeat(500), tone: 'T'.repeat(500), text: 'Line.' }]
+    narration_lines: [{ speaker: 'S'.repeat(500), tone: 'manic', text: 'Line.' }]
   }, 1).narration_lines[0];
-  assert.strictEqual(widest.tone.length, 120, 'validateTurnData caps tone at 120');
   const bounded = boundVoiceDirective(widest.speaker, widest.tone);
   assert.strictEqual(bounded.tone, widest.tone,
     'The narrate route passes through the longest tone validateTurnData emits');
   assert.strictEqual(bounded.speaker, widest.speaker,
     'The narrate route passes through the longest speaker validateTurnData emits');
 
-  // A hostile over-length value is truncated, not rejected: bounded, and the
-  // narration queue survives.
+  // Hostile free text cannot become a model instruction; speaker remains bounded.
   const hostile = boundVoiceDirective('x'.repeat(9000), 'y'.repeat(9000));
-  assert.strictEqual(hostile.tone.length, 120, 'Over-length tone is truncated to the cap');
+  assert.strictEqual(hostile.tone, 'neutral', 'Unknown delivery text falls closed to neutral');
   assert.strictEqual(hostile.speaker.length, 80, 'Over-length speaker is truncated to the cap');
-  assert.deepStrictEqual(boundVoiceDirective(undefined, null), { speaker: '', tone: '' }, 'Missing fields degrade to empty');
+  assert.deepStrictEqual(boundVoiceDirective(undefined, null), { speaker: '', tone: 'neutral' }, 'Missing fields degrade to neutral');
+}
+
+// -------------------------------------------------------------
+// Test: portable voice state across creation, fork, export, and import (v-2)
+// -------------------------------------------------------------
+async function testPortableVoicePersistence() {
+  console.log(' - Running portable voice persistence tests...');
+  const db = await import('./db.js');
+  const { createCampaign, exportCampaign, forkCampaign, importCampaign } = await import('./rpg-engine.js');
+  const { resolveNpcVoiceProfile } = await import('./tts-providers.js');
+
+  const outline = {
+    title: 'Voice Portability Probe',
+    setting: 'A compact test stage.',
+    theme_colors: { primary: '210, 50%, 50%', secondary: '30, 50%, 50%', background: '220, 20%, 8%' },
+    theme_fonts: { title: 'Cinzel', body: 'Inter', dialogue: 'Crimson Pro' },
+    acts: [{ act: 1, title: 'Probe', objective: 'Verify voice state', key_events: ['begin'] }],
+    major_locations: [{ name: 'Test Stage', description: 'A single controlled room.' }],
+    key_npcs: [
+      { name: 'Aster', role: 'Guide', personality: 'PRIVATE_ASTER', quirks: 'PRIVATE_QUIRK', voice_mood: 'warm' },
+      { name: 'Borel', role: 'Guard', personality: 'PRIVATE_BOREL', quirks: 'PRIVATE_QUIRK', voice_mood: 'gruff' }
+    ],
+    starting_quest: { title: 'Begin', description: 'Start the probe.' }
+  };
+  const opening = {
+    input_kind: 'dialogue',
+    narrative: 'The test stage waits.',
+    narration_lines: [{ speaker: 'narrator', tone: 'neutral', text: 'The test stage waits.' }],
+    scene_grounding: 'A single room with one exit.',
+    suggested_choices: ['Begin'],
+    character_update: {},
+    quest_update: { active_quest: 'Begin', quest_description: 'Start the probe.', current_act: 1 },
+    npc_updates: [],
+    memory_summary: 'The probe began.',
+    memory_importance: 1,
+    memory_keywords: 'probe'
+  };
+  const layout = {
+    name: 'Test Stage', description: 'A single controlled room.',
+    areas: [{ id: 'stage', name: 'Stage', x: 0, y: 0, w: 100, h: 100 }],
+    exits: [], features: []
+  };
+
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async (_url, options) => {
+    const body = JSON.parse(options.body);
+    const prompt = body.messages.map(message => message.content).join('\n');
+    const payload = prompt.includes('Draft an epic')
+      ? outline
+      : prompt.includes('Set the scene and begin')
+        ? opening
+        : layout;
+    return {
+      ok: true,
+      json: async () => ({ choices: [{ message: { content: JSON.stringify(payload) } }] })
+    };
+  };
+
+  try {
+    const created = await createCampaign({
+      genre: 'test', characterName: 'Tester', characterClass: 'Observer',
+      apiConfig: { provider: 'openai', apiKey: 'test-key', voiceProvider: 'grok' },
+      rulesMode: false, ruleset: 'none'
+    });
+    const createdCampaign = await db.get(`SELECT * FROM campaigns WHERE id = ?`, [created.campaignId]);
+    assert.deepStrictEqual(JSON.parse(createdCampaign.narrator_voice_json), {
+      provider: 'grok', voice: 'leo', voiceSeed: null, mood: 'neutral'
+    }, 'Campaign creation persists the active provider reserved narrator');
+
+    const createdNpcs = await db.all(`SELECT id, name, voice_json FROM npcs WHERE campaign_id = ? ORDER BY id`, [created.campaignId]);
+    const createdProfiles = createdNpcs.map(npc => JSON.parse(npc.voice_json));
+    assert.deepStrictEqual(createdProfiles, [
+      { provider: 'grok', voice: 'altair', voiceSeed: 0, mood: 'warm' },
+      { provider: 'grok', voice: 'atlas', voiceSeed: 1, mood: 'gruff' }
+    ], 'Creation indexes are collision-free within the provider pool cycle');
+    assert.strictEqual(JSON.stringify(createdProfiles).includes('PRIVATE_'), false,
+      'New stored profiles contain no private personality or quirk text');
+
+    const forked = await forkCampaign(created.campaignId, 1, 'Voice Portability Fork');
+    const forkCampaignRow = await db.get(`SELECT narrator_voice_json FROM campaigns WHERE id = ?`, [forked.campaignId]);
+    assert.strictEqual(forkCampaignRow.narrator_voice_json, createdCampaign.narrator_voice_json,
+      'Fork copies the canonical narrator profile verbatim');
+    const forkProfiles = (await db.all(`SELECT voice_json FROM npcs WHERE campaign_id = ? ORDER BY id`, [forked.campaignId]))
+      .map(row => JSON.parse(row.voice_json));
+    assert.deepStrictEqual(forkProfiles, createdProfiles, 'Fork copies NPC voice profiles instead of reassigning them');
+
+    const exported = await exportCampaign(created.campaignId);
+    assert.deepStrictEqual(JSON.parse(exported.campaign.narrator_voice_json), JSON.parse(createdCampaign.narrator_voice_json));
+    assert.deepStrictEqual(JSON.parse(exported.npcs[0].voice_json), createdProfiles[0]);
+    const imported = await importCampaign(exported);
+    const importedCampaign = await db.get(`SELECT narrator_voice_json FROM campaigns WHERE id = ?`, [imported.campaignId]);
+    const importedNpc = await db.get(`SELECT voice_json FROM npcs WHERE campaign_id = ? ORDER BY id LIMIT 1`, [imported.campaignId]);
+    assert.deepStrictEqual(JSON.parse(importedCampaign.narrator_voice_json), {
+      provider: 'grok', voice: 'leo', instructions: '', voiceSeed: null, mood: 'neutral'
+    });
+    assert.deepStrictEqual(JSON.parse(importedNpc.voice_json), {
+      provider: 'grok', voice: 'altair', instructions: '', voiceSeed: 0, mood: 'warm'
+    }, 'Export/import preserves numeric seed type and mood');
+
+    const legacyRows = [
+      { id: 4, voice_json: JSON.stringify({ provider: 'openai', voice: 'cedar' }) },
+      { id: 91, voice_json: JSON.stringify({ provider: 'openai', voice: 'ash' }) },
+      { id: 400, voice_json: JSON.stringify({ provider: 'openai', voice: 'onyx' }) }
+    ];
+    const legacyResolved = legacyRows.map((row, ordinal) => resolveNpcVoiceProfile(row.voice_json, 'grok', ordinal));
+    assert.deepStrictEqual(legacyResolved.map(profile => profile.voice), ['altair', 'atlas', 'castor'],
+      'Legacy gapped global ids resolve by zero-based campaign ordinal, not id modulo the pool');
+  } finally {
+    globalThis.fetch = realFetch;
+  }
 }
 
 // -------------------------------------------------------------
@@ -2083,8 +2256,8 @@ async function testSeatVisibility() {
       suggestedChoices: ['Talk to the clerk'],
       rollResults: [{ attribute: 'stealth', roll: 14, dc: 12, success: true }],
       voiceLines: [
-        { speaker: 'narrator', text: 'The lobby hums.', tone: 'low, tense', voice: null, instructions: 'Tone: low, tense.' },
-        { speaker: 'Kessler', text: '"You again."', tone: 'amused contempt', voice: 'cedar', instructions: `${LEAK.voiceInstructions} Tone: amused contempt.` }
+        { speaker: 'narrator', text: 'The lobby hums.', tone: 'tense', voice: null, instructions: 'Tone: tense.' },
+        { speaker: 'Kessler', text: '"You again."', tone: 'menacing', voice: 'cedar', instructions: `${LEAK.voiceInstructions} Tone: menacing.` }
       ],
       location: { name: 'Corporate Lobby', positional: true },
       heroic: { imageUrl: '/api/campaigns/7/images/3', subjectKind: 'location', subjectKey: 'corporate lobby' }
@@ -2199,13 +2372,14 @@ async function testSeatVisibility() {
   assert.strictEqual(sparse.turn.playerAction, null, 'Absent player action stays null');
 
   // Voice lines: speaker/tone/text only — the profile resolves server-side.
-  assert.deepStrictEqual(scoped.turn.voiceLines[1], { speaker: 'Kessler', text: '"You again."', tone: 'amused contempt' });
+  assert.deepStrictEqual(scoped.turn.voiceLines[1], { speaker: 'Kessler', text: '"You again."', tone: 'menacing' });
 
   // The narrate route recomposes the same directive the host client sends.
-  const resolved = resolveSpeakerVoice(hostState.npcs[0].voice_json, 'amused contempt');
+  const resolved = resolveSpeakerVoice(hostState.npcs[0].voice_json, 'menacing');
   assert.strictEqual(resolved.voice, 'cedar');
-  assert.strictEqual(resolved.instructions, `${LEAK.voiceInstructions} Tone: amused contempt.`);
-  assert.deepStrictEqual(resolveSpeakerVoice(null, 'gentle'), { voice: null, instructions: 'Tone: gentle.' }, 'Unknown speaker keeps narrator fallback + tone');
+  assert.strictEqual(resolved.instructions, `${LEAK.voiceInstructions} Tone: menacing.`);
+  assert.deepStrictEqual(resolveSpeakerVoice(null, 'gentle'), { voice: null, instructions: null },
+    'Unknown free-text delivery falls closed to neutral');
   assert.deepStrictEqual(resolveSpeakerVoice('not json', ''), { voice: null, instructions: null }, 'Corrupt profile degrades to narrator');
 
   // Journal: sanitized shape, no state_changes_json.
@@ -2247,6 +2421,7 @@ async function runAll() {
     testThemeColorContract();
     await testThemeGeneration();
     await testVoiceScript();
+    await testPortableVoicePersistence();
     await testTtsProviderSeam();
     await testImageProviderSeam();
     await testServerConfigResolution();

@@ -38,7 +38,7 @@ import { generateImage, validateIdentityAnchor } from './image-providers.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const imagesDir = path.join(__dirname, 'data', 'images');
-import { assignNpcVoiceProfile } from './tts-providers.js';
+import { assignNpcVoiceProfile, createNarratorVoiceProfile } from './tts-providers.js';
 import { getGMSystemInstruction, getOutlineSystemInstruction } from './rpg-prompts.js';
 
 // Export these so index/test scripts still have direct access
@@ -1164,6 +1164,7 @@ Give the player character 4 to 8 starting abilities fitting their concept and th
     role: npc.role,
     personality: npc.personality,
     quirks: npc.quirks,
+    voice_mood: npc.voice_mood,
     relationship_value: 0,
     notes: `Created at campaign start. Role: ${npc.role}.`,
     status: 'alive'
@@ -1259,8 +1260,14 @@ Output the JSON object containing the opening narrative, scene_grounding, sugges
 
     // Insert campaign into DB
     const campaignResult = await db.run(
-      `INSERT INTO campaigns (title, genre, summary, current_act, rules_mode, ruleset_json, table_style_json) VALUES (?, ?, ?, 1, ?, ?, ?)`,
-      [outline.title, genre, outline.setting, rulesModeInt, rulesetData ? JSON.stringify(rulesetData) : null, JSON.stringify(tableStyleData)]
+      `INSERT INTO campaigns (title, genre, summary, current_act, rules_mode, ruleset_json, table_style_json, narrator_voice_json)
+       VALUES (?, ?, ?, 1, ?, ?, ?, ?)`,
+      [
+        outline.title, genre, outline.setting, rulesModeInt,
+        rulesetData ? JSON.stringify(rulesetData) : null,
+        JSON.stringify(tableStyleData),
+        JSON.stringify(createNarratorVoiceProfile(apiConfig?.voiceProvider))
+      ]
     );
     campaignId = campaignResult.id;
 
@@ -1337,7 +1344,7 @@ Output the JSON object containing the opening narrative, scene_grounding, sugges
         `INSERT INTO npcs (campaign_id, name, role, personality, quirks, relationship_value, notes, status, voice_json)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [campaignId, npc.name, npc.role, npc.personality, npc.quirks, npc.relationship_value, npc.notes, npc.status,
-         JSON.stringify(assignNpcVoiceProfile(npc, npcIndex))]
+         JSON.stringify(assignNpcVoiceProfile(npc, npcIndex, apiConfig?.voiceProvider))]
       );
     }
 
@@ -2483,11 +2490,15 @@ export async function forkCampaign(campaignId, turnNumber, newTitle) {
   }
   const firstSourceId = sourceParty[0].id;
 
-  const npcs = (outline.key_npcs || []).map((npc, idx) => ({
+  const sourceNpcs = await db.all(`SELECT * FROM npcs WHERE campaign_id = ? ORDER BY id ASC`, [campaignId]);
+  const sourceNpcByName = new Map(sourceNpcs.map(npc => [npc.name.toLowerCase(), npc]));
+  const npcs = (outline.key_npcs || []).map(npc => ({
+    ...sourceNpcByName.get(npc.name.toLowerCase()),
     name: npc.name,
     role: npc.role,
     personality: npc.personality,
     quirks: npc.quirks,
+    voice_mood: npc.voice_mood,
     relationship_value: 0,
     notes: `Created at campaign start. Role: ${npc.role}.`,
     status: 'alive'
@@ -2557,8 +2568,13 @@ export async function forkCampaign(campaignId, turnNumber, newTitle) {
   let newPlayerCharacterId;
   await db.withWriteTransaction(async () => {
     const campaignResult = await db.run(
-      `INSERT INTO campaigns (title, genre, summary, current_act, rules_mode, ruleset_json, table_style_json) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [newTitle, campaign.genre, campaign.summary, lastAct, campaign.rules_mode, campaign.ruleset_json || null, campaign.table_style_json || null]
+      `INSERT INTO campaigns (title, genre, summary, current_act, rules_mode, ruleset_json, table_style_json, narrator_voice_json)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        newTitle, campaign.genre, campaign.summary, lastAct, campaign.rules_mode,
+        campaign.ruleset_json || null, campaign.table_style_json || null,
+        campaign.narrator_voice_json || null
+      ]
     );
     newCampaignId = campaignResult.id;
 
@@ -2637,7 +2653,7 @@ export async function forkCampaign(campaignId, turnNumber, newTitle) {
         `INSERT INTO npcs (campaign_id, name, role, personality, quirks, relationship_value, notes, status, voice_json)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [newCampaignId, npc.name, npc.role, npc.personality, npc.quirks, npc.relationship_value, npc.notes, npc.status,
-         JSON.stringify(assignNpcVoiceProfile(npc, npcIndex))]
+         npc.voice_json || JSON.stringify(assignNpcVoiceProfile(npc, npcIndex))]
       );
     }
 
