@@ -3,7 +3,7 @@
 **Severity**: HIGH — without bounded, authenticated discovery the admin must guess model ids, while
 an unsafe implementation could leak credentials or let stored/request endpoints bypass production
 network policy.
-**Status**: In progress (pending Claude Fable review)
+**Status**: In progress (first Claude Fable dispatch timed out; one fail-closed retry pending)
 **Branch**: `feat/am-2-provider-catalogs`
 **Implementation commit**: `619b83821cc93f5f812b548cd1ebc65c9eaf39d0`
 
@@ -87,4 +87,17 @@ None.
 
 ## Reviewer comments
 
-Pending Claude Code review with the exact `--model claude-fable-5` argument.
+### Attempt 1 — invalid harness execution (Claude Code 2.1.210 / Claude Fable 5)
+
+- **Timestamp**: 2026-07-15T19:54:52Z
+- **reviewed_sha**: `2c72907d91204f4c9b0427330639989eaac0eb4e` · **base_sha**:
+  `1a62848805ee56941365f73ecc55ee8fb0750361` · **guard_confirmed**: `false`
+- **verdict**: `invalid`
+
+The exact `--model claude-fable-5` dispatch used safe mode, a fresh disposable detached worktree,
+test-execution permission, a 20-minute process bound, and a schema pinned to both SHAs. It produced
+no output envelope before `timeout` exited 124. The disposable worktree remained clean and no
+partial result was interpreted as a verdict.
+
+Per the reviewloop's fail-closed contract, this is not acceptance. One fresh dispatch will restate
+the schema against the same pinned base and a new review-record head.
