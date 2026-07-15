@@ -2,6 +2,7 @@ import net from 'net';
 import dns from 'dns';
 import { promisify } from 'util';
 import dotenv from 'dotenv';
+import { callClaudeCode } from './claude-code-provider.js';
 dotenv.config();
 
 const dnsLookup = promisify(dns.lookup);
@@ -199,8 +200,8 @@ function normalizeFallbackConfig(config = {}) {
     if (!fallback?.provider) return null;
     return {
       provider: fallback.provider,
-      model: fallback.model || undefined,
-      apiKey: fallback.apiKey || undefined,
+      model: fallback.model || (fallback.provider === 'claude-code' ? 'default' : undefined),
+      apiKey: fallback.provider === 'claude-code' ? undefined : (fallback.apiKey || undefined),
       baseUrl: fallback.baseUrl || undefined,
       ollamaUrl: fallback.ollamaUrl || undefined
     };
@@ -210,8 +211,11 @@ function normalizeFallbackConfig(config = {}) {
   if (!provider) return null;
   return {
     provider,
-    model: config.fallback?.model || process.env.FALLBACK_AI_MODEL || undefined,
-    apiKey: config.fallback?.apiKey || process.env.FALLBACK_API_KEY || undefined,
+    model: config.fallback?.model || process.env.FALLBACK_AI_MODEL
+      || (provider === 'claude-code' ? 'default' : undefined),
+    apiKey: provider === 'claude-code'
+      ? undefined
+      : (config.fallback?.apiKey || process.env.FALLBACK_API_KEY || undefined),
     baseUrl: config.fallback?.baseUrl || undefined,
     ollamaUrl: config.fallback?.ollamaUrl || undefined
   };
@@ -235,6 +239,7 @@ function providerConnection(council, provider) {
 
 function descriptorStoredKey(descriptor, council, provider) {
   if (!descriptor) return undefined;
+  if (provider === 'claude-code') return undefined;
   if (descriptor.keySource === 'custom') return descriptor.customApiKey || undefined;
   return providerConnection(council, provider).apiKey || undefined;
 }
@@ -275,7 +280,7 @@ function resolveCouncilFallback(apiConfig, role, env) {
     return {
       provider,
       model: env.FALLBACK_AI_MODEL || undefined,
-      apiKey: env.FALLBACK_API_KEY || undefined,
+      apiKey: provider === 'claude-code' ? undefined : (env.FALLBACK_API_KEY || undefined),
       baseUrl: undefined,
       ollamaUrl: undefined
     };
@@ -296,7 +301,9 @@ function resolveCouncilFallback(apiConfig, role, env) {
   return {
     provider,
     model: descriptor.model || env.FALLBACK_AI_MODEL || undefined,
-    apiKey: descriptor.customApiKey || env.FALLBACK_API_KEY || undefined,
+    apiKey: provider === 'claude-code'
+      ? undefined
+      : (descriptor.customApiKey || env.FALLBACK_API_KEY || undefined),
     ...descriptorEndpoints(council, provider, env)
   };
 }
@@ -351,7 +358,7 @@ export function resolveAgentConfig(apiConfig = {}, role, env = process.env) {
     return {
       provider,
       model,
-      apiKey,
+      apiKey: provider === 'claude-code' ? undefined : apiKey,
       ...descriptorEndpoints(council, provider, env, prefix),
       fallback: resolveCouncilFallback(apiConfig, role, env),
       fallbackResolved: true
@@ -368,7 +375,9 @@ export function resolveAgentConfig(apiConfig = {}, role, env = process.env) {
   return {
     provider,
     model: adminRole.model || env[`${prefix}_AI_MODEL`] || (inherit ? apiConfig.model : undefined),
-    apiKey: adminRole.apiKey || env[`${prefix}_API_KEY`] || (inherit ? apiConfig.apiKey : undefined),
+    apiKey: provider === 'claude-code'
+      ? undefined
+      : (adminRole.apiKey || env[`${prefix}_API_KEY`] || (inherit ? apiConfig.apiKey : undefined)),
     baseUrl: env[`${prefix}_CUSTOM_ENDPOINT_URL`] || (inherit ? apiConfig.baseUrl : undefined),
     ollamaUrl: env[`${prefix}_OLLAMA_URL`] || (inherit ? apiConfig.ollamaUrl : undefined),
     // The fallback tier is role-independent: any role's failing call may fail
@@ -385,7 +394,12 @@ export class AIClient {
     // Merge server environment configuration with optional runtime overrides
     this.provider = config.provider || process.env.AI_PROVIDER || 'gemini';
     this.model = config.model || process.env.AI_MODEL;
-    this.apiKey = config.apiKey || this.getEnvKey(this.provider);
+    if (this.provider === 'claude-code' && config.apiKey) {
+      throw new Error('Claude Code uses its logged-in subscription and does not accept API keys.');
+    }
+    this.apiKey = this.provider === 'claude-code' ? null : (config.apiKey || this.getEnvKey(this.provider));
+    this.claudeCodeRunner = config.claudeCodeRunner;
+    this.claudeCodeEnv = config.claudeCodeEnv;
     
     const isProduction = process.env.NODE_ENV === 'production';
     const rawBaseUrl = (isProduction ? null : config.baseUrl) || process.env.CUSTOM_ENDPOINT_URL || '';
@@ -420,6 +434,9 @@ export class AIClient {
         case 'ollama':
           this.model = 'llama3';
           break;
+        case 'claude-code':
+          this.model = 'default';
+          break;
         default:
           this.model = 'gpt-4o-mini';
       }
@@ -432,6 +449,7 @@ export class AIClient {
       case 'openai': return process.env.OPENAI_API_KEY;
       case 'claude': return process.env.ANTHROPIC_API_KEY;
       case 'grok': return process.env.XAI_API_KEY || process.env.GROK_API_KEY;
+      case 'claude-code': return null;
       default: return null;
     }
   }
@@ -459,7 +477,9 @@ export class AIClient {
           model: this.fallback.model,
           apiKey: this.fallback.apiKey,
           baseUrl: this.fallback.baseUrl,
-          ollamaUrl: this.fallback.ollamaUrl
+          ollamaUrl: this.fallback.ollamaUrl,
+          claudeCodeRunner: this.claudeCodeRunner,
+          claudeCodeEnv: this.claudeCodeEnv
         });
         return backupClient.dispatchPrompt(args);
       }
@@ -486,9 +506,21 @@ export class AIClient {
       return this.callOllama(systemInstruction, prompt, jsonMode);
     } else if (this.provider === 'custom') {
       return this.callCustomOpenAI(systemInstruction, prompt, jsonMode);
+    } else if (this.provider === 'claude-code') {
+      return this.callClaudeCode(systemInstruction, prompt);
     } else {
       throw new Error(`Unsupported AI provider: ${this.provider}`);
     }
+  }
+
+  async callClaudeCode(system, prompt) {
+    return callClaudeCode({
+      systemInstruction: system,
+      prompt,
+      model: this.model,
+      env: this.claudeCodeEnv || process.env,
+      runner: this.claudeCodeRunner
+    });
   }
 
   async callGemini(system, prompt, jsonMode) {

@@ -10,7 +10,7 @@ import * as db from './db.js';
 import { listImageProviders } from './image-providers.js';
 import { listTtsProviders } from './tts-providers.js';
 
-export const AI_PROVIDERS = ['gemini', 'openai', 'claude', 'grok', 'ollama', 'custom'];
+export const AI_PROVIDERS = ['gemini', 'openai', 'claude', 'grok', 'ollama', 'custom', 'claude-code'];
 export const AI_ROLES = ['setup', 'interaction', 'continuity', 'referee', 'narration'];
 const IMAGE_PROVIDERS = listImageProviders();
 const VOICE_PROVIDERS = listTtsProviders();
@@ -51,7 +51,8 @@ function emptyProviderConnections() {
     claude: { apiKey: '' },
     grok: { apiKey: '' },
     ollama: { ollamaUrl: '' },
-    custom: { apiKey: '', baseUrl: '' }
+    custom: { apiKey: '', baseUrl: '' },
+    'claude-code': {}
   };
 }
 
@@ -225,6 +226,9 @@ function normalizeProviderConnections(raw) {
   const providers = emptyProviderConnections();
   for (const provider of AI_PROVIDERS) {
     const connection = isPlainObject(raw[provider]) ? raw[provider] : {};
+    if (provider === 'claude-code' && cleanField(connection.apiKey)) {
+      validationFailure('Claude Code provider connections cannot store API keys.');
+    }
     if (API_KEY_PROVIDERS.has(provider)) providers[provider].apiKey = cleanField(connection.apiKey);
     if (provider === 'custom') providers.custom.baseUrl = cleanField(connection.baseUrl);
     if (provider === 'ollama') providers.ollama.ollamaUrl = cleanField(connection.ollamaUrl);
@@ -263,6 +267,9 @@ function normalizeModelEntries(raw, legacyBaseline = null, trustStoredLegacy = f
     const model = rawModel;
     const keySource = value.keySource === 'custom' ? 'custom' : value.keySource === 'provider' ? 'provider' : '';
     if (!keySource) validationFailure(`modelEntries[${index}].keySource is invalid.`);
+    if (provider === 'claude-code' && keySource !== 'provider') {
+      validationFailure(`modelEntries[${index}] must use Claude Code login authentication.`);
+    }
     const apiKey = keySource === 'custom' ? cleanField(value.apiKey) : '';
     if (Object.prototype.hasOwnProperty.call(value, 'legacyDefault') && typeof value.legacyDefault !== 'boolean') {
       validationFailure(`modelEntries[${index}].legacyDefault must be boolean.`);
@@ -413,7 +420,8 @@ export function maskAdminAiConfigV2(raw) {
       claude: { apiKeySet: !!config.providers.claude.apiKey },
       grok: { apiKeySet: !!config.providers.grok.apiKey },
       ollama: { ollamaUrl: config.providers.ollama.ollamaUrl },
-      custom: { apiKeySet: !!config.providers.custom.apiKey, baseUrl: config.providers.custom.baseUrl }
+      custom: { apiKeySet: !!config.providers.custom.apiKey, baseUrl: config.providers.custom.baseUrl },
+      'claude-code': {}
     },
     modelEntries: config.modelEntries.map(entry => ({
       id: entry.id,
@@ -474,6 +482,7 @@ function buildCouncilRuntime(raw) {
  */
 export function mergeAiConfig(adminConfig, env = process.env) {
   const admin = sanitizeAdminAiConfig(adminConfig);
+  const provider = admin.provider || env.AI_PROVIDER || 'gemini';
   const envVoiceProvider = VOICE_PROVIDERS.includes(cleanField(env.TTS_PROVIDER))
     ? cleanField(env.TTS_PROVIDER)
     : '';
@@ -482,9 +491,9 @@ export function mergeAiConfig(adminConfig, env = process.env) {
     ? (env.XAI_API_KEY || env.GROK_API_KEY || '')
     : (env.OPENAI_API_KEY || '');
   const merged = {
-    provider: admin.provider || env.AI_PROVIDER || 'gemini',
+    provider,
     model: admin.model || env.AI_MODEL || undefined,
-    apiKey: admin.apiKey || undefined,
+    apiKey: provider === 'claude-code' ? undefined : (admin.apiKey || undefined),
     baseUrl: admin.baseUrl || undefined,
     ollamaUrl: admin.ollamaUrl || undefined,
     voiceApiKey: admin.voiceApiKeys[voiceProvider] || voiceEnvKey,
@@ -507,7 +516,9 @@ export function mergeAiConfig(adminConfig, env = process.env) {
     merged.fallback = {
       provider: fallbackProvider,
       model: admin.fallback.model || env.FALLBACK_AI_MODEL || undefined,
-      apiKey: admin.fallback.apiKey || env.FALLBACK_API_KEY || undefined
+      apiKey: fallbackProvider === 'claude-code'
+        ? undefined
+        : (admin.fallback.apiKey || env.FALLBACK_API_KEY || undefined)
     };
   }
 
