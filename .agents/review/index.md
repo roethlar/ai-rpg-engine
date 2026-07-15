@@ -9,6 +9,7 @@ Per-finding detail: see `.agents/review/findings/<id>.md`.
 |----|----------|-------------------|--------|--------|
 | v-1 | HIGH | Grok is unregistered and one generic voice-key slot can cross vendor boundaries | `[x]` merged (`7d55b77`) | `fix/v-1-grok-provider-config` |
 | v-2 | HIGH | OpenAI-only/free-text profiles lose identity across providers, forks, and imports | `[x]` merged (`ef304b7`) | `fix/v-2-portable-voice-profiles` |
+| v-3 | HIGH | Host/seat voice resolution diverges and identical playback multiplies provider calls | `[~]` implementation in progress | `fix/v-3-canonical-voice-route` |
 
 ## Active loop (2026-07-13, reviewer: codex) — owner-reported bugs
 

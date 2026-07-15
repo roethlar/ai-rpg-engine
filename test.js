@@ -891,7 +891,7 @@ async function testTtsProviderSeam() {
 
   const realFetch = globalThis.fetch;
   let captured = null;
-  let responseBytes = new Uint8Array([1, 2, 3]);
+  let responseBytes = new Uint8Array([0x49, 0x44, 0x33]);
   globalThis.fetch = async (url, options) => {
     captured = { url: String(url), auth: options.headers.Authorization, body: JSON.parse(options.body) };
     return { ok: true, arrayBuffer: async () => responseBytes.buffer };
@@ -901,7 +901,7 @@ async function testTtsProviderSeam() {
       provider: 'openai', apiKey: 'voice-key', model: 'gpt-4o-mini-tts',
       voice: 'cedar', instructions: 'gravelly Viennese accent', text: 'Guten Abend.'
     });
-    assert.strictEqual(audio.length, 3, 'Returns the audio buffer');
+    assert.strictEqual(audio.length, 3, 'Returns the verified audio buffer');
     assert.strictEqual(captured.url, 'https://api.openai.com/v1/audio/speech');
     assert.strictEqual(captured.auth, 'Bearer voice-key');
     assert.strictEqual(captured.body.voice, 'cedar');
@@ -977,6 +977,41 @@ async function testTtsProviderSeam() {
   });
   assert.strictEqual(resolveNarratorVoiceProfile({ provider: 'openai', voice: 'marin' }, 'grok').voice, 'leo',
     'A narrator profile maps to the active provider reserved narrator');
+}
+
+async function testTtsCache() {
+  console.log(' - Running TTS cache bound tests...');
+  const { TtsCache } = await import('./tts-cache.js');
+  const { SynthesisMissLimiter } = await import('./voice-narration.js');
+  let now = 0;
+  const cache = new TtsCache({ ttlMs: 10, maxEntries: 2, maxBytes: 5, now: () => now });
+  let calls = 0;
+  const make = value => async () => { calls += 1; return Buffer.from(value); };
+
+  assert.strictEqual((await cache.getOrCreate('a', make('aa'))).cache, 'miss');
+  assert.strictEqual((await cache.getOrCreate('b', make('bb'))).cache, 'miss');
+  assert.strictEqual((await cache.getOrCreate('a', make('xx'))).cache, 'completed', 'Completed hits reuse bytes');
+  await cache.getOrCreate('c', make('cc'));
+  assert.strictEqual((await cache.getOrCreate('b', make('bb'))).cache, 'miss', 'Access-order eviction removes the oldest entry');
+
+  let release;
+  const gate = new Promise(resolve => { release = resolve; });
+  const first = cache.getOrCreate('shared', async () => { calls += 1; await gate; return Buffer.from('s'); });
+  const second = cache.getOrCreate('shared', make('should-not-run'));
+  release();
+  assert.strictEqual((await first).cache, 'miss');
+  assert.strictEqual((await second).cache, 'in-flight', 'Concurrent requests share one Promise');
+
+  await assert.rejects(() => cache.getOrCreate('failure', async () => { throw new Error('boom'); }), /boom/);
+  assert.strictEqual((await cache.getOrCreate('failure', make('ok'))).cache, 'miss', 'Failures never poison the cache');
+  now = 20;
+  assert.strictEqual((await cache.getOrCreate('shared', make('s'))).cache, 'miss', 'Expired entries miss');
+
+  const limiter = new SynthesisMissLimiter({ limit: 1, windowMs: 10, now: () => now });
+  limiter.take('ip');
+  assert.throws(() => limiter.take('ip'), error => error.status === 429 && error.code === 'VOICE_SYNTHESIS_RATE_LIMIT');
+  now += 11;
+  limiter.take('ip');
 }
 
 // -------------------------------------------------------------
@@ -1982,6 +2017,273 @@ async function testPortableVoicePersistence() {
 }
 
 // -------------------------------------------------------------
+// Test: canonical host/seat audio HTTP boundary and shared cost (v-3)
+// -------------------------------------------------------------
+async function testCanonicalVoiceRoute() {
+  console.log(' - Running canonical voice HTTP route tests...');
+  const http = await import('http');
+  const db = await import('./db.js');
+  const { mintSeatToken, hashSeatToken } = await import('./seat-auth.js');
+  const { loadAdminAiConfig, saveAdminAiConfig } = await import('./server-config.js');
+  const { cleanSpokenText, resetVoiceNarrationState } = await import('./voice-narration.js');
+  const { app } = await import('./server.js');
+
+  assert.strictEqual(
+    cleanSpokenText('The [angry] guard says [open the vault] now. A stray ] remains.'),
+    'The guard says now. A stray remains.',
+    'Bracket interiors and unmatched brackets are deleted before server tags are composed'
+  );
+  assert.strictEqual(cleanSpokenText('Read [the visible label](https://secret.example).'), 'Read the visible label.',
+    'Existing narration cleanup preserves a Markdown link label before bracket deletion');
+
+  const previousAccess = process.env.ACCESS_SECRET;
+  const previousAdmin = process.env.ADMIN_SECRET;
+  const previousConfig = await loadAdminAiConfig();
+  const realFetch = globalThis.fetch;
+  let server;
+  const providerCalls = [];
+  let failNext = false;
+
+  try {
+    process.env.ACCESS_SECRET = 'voice-route-host';
+    process.env.ADMIN_SECRET = 'voice-route-admin';
+    await saveAdminAiConfig({
+      voiceProvider: 'grok',
+      voiceApiKeys: { openai: 'openai-route-key', grok: 'grok-route-key' }
+    });
+    resetVoiceNarrationState();
+
+    const campaignId = (await db.run(
+      `INSERT INTO campaigns (title, genre, summary, current_act, narrator_voice_json)
+       VALUES ('Voice Route One', 'test', 'test', 1, ?)`,
+      [JSON.stringify({ provider: 'grok', voice: 'leo', voiceSeed: null, mood: 'neutral' })]
+    )).id;
+    const otherCampaignId = (await db.run(
+      `INSERT INTO campaigns (title, genre, summary, current_act, narrator_voice_json)
+       VALUES ('Voice Route Two', 'test', 'test', 1, ?)`,
+      [JSON.stringify({ provider: 'grok', voice: 'leo', voiceSeed: null, mood: 'manic' })]
+    )).id;
+    await db.run(
+      `INSERT INTO npcs (campaign_id, name, role, personality, quirks, relationship_value, notes, status, voice_json)
+       VALUES (?, 'Aster', 'guide', 'PRIVATE_PERSONALITY', 'PRIVATE_QUIRK', 0, '', 'alive', ?)`,
+      [campaignId, JSON.stringify({
+        provider: 'grok', voice: 'altair', voiceSeed: 0, mood: 'warm',
+        instructions: 'PRIVATE_DIRECTION_NEVER_SEND'
+      })]
+    );
+    await db.run(
+      `INSERT INTO npcs (campaign_id, name, role, personality, quirks, relationship_value, notes, status, voice_json)
+       VALUES (?, 'Borel', 'guard', '', '', 0, '', 'alive', ?)`,
+      [campaignId, JSON.stringify({ provider: 'grok', voice: 'atlas', voiceSeed: 1, mood: 'gruff' })]
+    );
+    const characterId = (await db.run(
+      `INSERT INTO characters (campaign_id, name, class, health, max_health, mana, max_mana, xp, level,
+       inventory_json, attributes_json, abilities_json, status)
+       VALUES (?, 'Seat Player', 'tester', 10, 10, 5, 5, 0, 1, '[]', '{}', '[]', 'active')`,
+      [campaignId]
+    )).id;
+    const seatToken = mintSeatToken();
+    await db.run(
+      `INSERT INTO seats (campaign_id, character_id, token_hash, label) VALUES (?, ?, ?, 'voice route')`,
+      [campaignId, characterId, hashSeatToken(seatToken)]
+    );
+
+    globalThis.fetch = async (url, options) => {
+      const call = {
+        url: String(url),
+        auth: options.headers.Authorization,
+        body: JSON.parse(options.body)
+      };
+      providerCalls.push(call);
+      await new Promise(resolve => setTimeout(resolve, 20));
+      if (failNext) {
+        failNext = false;
+        return { ok: false, status: 503, statusText: 'Unavailable', text: async () => 'temporary' };
+      }
+      return {
+        ok: true,
+        arrayBuffer: async () => new Uint8Array([0x49, 0x44, 0x33, 0x04]).buffer
+      };
+    };
+
+    server = await new Promise(resolve => {
+      const listener = app.listen(0, '127.0.0.1', () => resolve(listener));
+    });
+    const port = server.address().port;
+    const request = (pathname, { method = 'GET', token = 'voice-route-host', body } = {}) => new Promise((resolve, reject) => {
+      const payload = body === undefined ? null : Buffer.from(JSON.stringify(body));
+      const req = http.request({
+        host: '127.0.0.1', port, path: pathname, method,
+        headers: {
+          Authorization: `Bearer ${token}`,
+          ...(payload ? { 'Content-Type': 'application/json', 'Content-Length': payload.length } : {})
+        }
+      }, response => {
+        const chunks = [];
+        response.on('data', chunk => chunks.push(chunk));
+        response.on('end', () => resolve({
+          status: response.statusCode,
+          headers: response.headers,
+          body: Buffer.concat(chunks)
+        }));
+      });
+      req.on('error', reject);
+      if (payload) req.write(payload);
+      req.end();
+    });
+    const json = response => JSON.parse(response.body.toString('utf8'));
+
+    const capabilities = await request('/api/audio/capabilities');
+    assert.strictEqual(capabilities.status, 200);
+    assert.deepStrictEqual(json(capabilities), { provider: 'grok', maxSegmentsPerRequest: 40 });
+    const catalog = await request('/api/admin/voice-catalog', { token: 'voice-route-admin' });
+    assert.strictEqual(catalog.status, 200);
+    assert.deepStrictEqual(json(catalog).providers.map(entry => entry.provider), ['openai', 'grok']);
+    assert.strictEqual(json(catalog).providers[1].narratorVoice, 'leo');
+
+    const canonicalBody = {
+      campaignId,
+      speaker: 'Aster',
+      segments: [{
+        text: 'The [angry] guard says [open the vault] now. A stray ] remains.',
+        tone: 'tense'
+      }]
+    };
+    const [hostAudio, seatAudio] = await Promise.all([
+      request('/api/audio/narrate', { method: 'POST', body: canonicalBody }),
+      request('/api/audio/narrate', {
+        method: 'POST', token: seatToken,
+        body: { ...canonicalBody, campaignId: otherCampaignId }
+      })
+    ]);
+    assert.strictEqual(hostAudio.status, 200);
+    assert.strictEqual(seatAudio.status, 200);
+    assert.deepStrictEqual(hostAudio.body, seatAudio.body);
+    assert.strictEqual(providerCalls.length, 1, 'Simultaneous host and seat playback causes one provider call');
+    assert.strictEqual(providerCalls[0].url, 'https://api.x.ai/v1/tts');
+    assert.strictEqual(providerCalls[0].auth, 'Bearer grok-route-key');
+    assert.strictEqual(providerCalls[0].body.voice_id, 'altair', 'Seat body campaign spoof is ignored');
+    assert.strictEqual(providerCalls[0].body.text, '[warm, tense] The guard says now. A stray remains.');
+    assert.strictEqual(JSON.stringify(providerCalls[0]).includes('PRIVATE_'), false,
+      'Private NPC profile text never crosses the audio boundary');
+
+    assert.strictEqual((await request('/api/audio/narrate', { method: 'POST', body: canonicalBody })).status, 200);
+    assert.strictEqual(providerCalls.length, 1, 'Later identical playback hits the completed cache');
+    await request('/api/audio/narrate', {
+      method: 'POST', body: { ...canonicalBody, segments: [{ text: canonicalBody.segments[0].text, tone: 'angry' }] }
+    });
+    assert.strictEqual(providerCalls.length, 2, 'Different tone misses the cache');
+    await request('/api/audio/narrate', {
+      method: 'POST', body: { campaignId: otherCampaignId, speaker: 'narrator', segments: [{ text: 'Same words.', tone: 'neutral' }] }
+    });
+    await request('/api/audio/narrate', {
+      method: 'POST', body: { campaignId, speaker: 'narrator', segments: [{ text: 'Same words.', tone: 'neutral' }] }
+    });
+    assert.strictEqual(providerCalls.length, 4, 'Campaign scope is part of the cache key');
+
+    const previewText = 'Preview scope words.';
+    await request('/api/audio/narrate', {
+      method: 'POST', body: { campaignId, speaker: 'narrator', segments: [{ text: previewText, tone: 'neutral' }] }
+    });
+    await request('/api/audio/narrate', {
+      method: 'POST', body: { preview: true, segments: [{ text: previewText, tone: 'neutral' }] }
+    });
+    assert.strictEqual(providerCalls.length, 6, 'Preview has a distinct cache scope');
+
+    assert.strictEqual((await request('/api/audio/narrate', {
+      method: 'POST', body: { segments: [{ text: 'No campaign.', tone: 'neutral' }] }
+    })).status, 400, 'Host campaign narration requires campaignId');
+    assert.strictEqual((await request('/api/audio/narrate', {
+      method: 'POST', body: { campaignId: 0, segments: [{ text: 'Bad id.', tone: 'neutral' }] }
+    })).status, 400);
+    assert.strictEqual((await request('/api/audio/narrate', {
+      method: 'POST', body: { campaignId: 999999999, segments: [{ text: 'Missing.', tone: 'neutral' }] }
+    })).status, 404);
+    assert.strictEqual((await request('/api/audio/narrate', {
+      method: 'POST', body: { preview: true, campaignId, segments: [{ text: 'Conflict.', tone: 'neutral' }] }
+    })).status, 400);
+    assert.strictEqual((await request('/api/audio/narrate', {
+      method: 'POST', body: { preview: true, speaker: 'Aster', segments: [{ text: 'Conflict.', tone: 'neutral' }] }
+    })).status, 400);
+
+    const beforeRace = providerCalls.length;
+    await saveAdminAiConfig({
+      voiceProvider: 'openai',
+      voiceApiKeys: { openai: 'openai-route-key', grok: '' }
+    });
+    const raced = await request('/api/audio/narrate', {
+      method: 'POST', body: { ...canonicalBody, expectedProvider: 'grok' }
+    });
+    assert.strictEqual(raced.status, 409);
+    assert.strictEqual(json(raced).code, 'VOICE_PROVIDER_CHANGED');
+    assert.strictEqual(providerCalls.length, beforeRace, 'Provider mismatch returns before synthesis');
+    const oversized = await request('/api/audio/narrate', {
+      method: 'POST', body: {
+        campaignId, expectedProvider: 'openai', speaker: 'Aster',
+        segments: [{ text: 'one', tone: 'neutral' }, { text: 'two', tone: 'neutral' }]
+      }
+    });
+    assert.strictEqual(oversized.status, 400);
+    assert.strictEqual(providerCalls.length, beforeRace, 'Provider maximum is enforced before synthesis');
+
+    const openAiAudio = await request('/api/audio/narrate', {
+      method: 'POST', body: {
+        campaignId, expectedProvider: 'openai', speaker: 'Aster',
+        segments: [{ text: 'Provider key isolation.', tone: 'cold' }]
+      }
+    });
+    assert.strictEqual(openAiAudio.status, 200);
+    assert.strictEqual(providerCalls.at(-1).url, 'https://api.openai.com/v1/audio/speech');
+    assert.strictEqual(providerCalls.at(-1).auth, 'Bearer openai-route-key');
+    assert.strictEqual(providerCalls.at(-1).body.voice, 'cedar');
+
+    await saveAdminAiConfig({
+      voiceProvider: 'grok',
+      voiceApiKeys: { openai: '', grok: 'grok-route-key' }
+    });
+    const grokAgain = await request('/api/audio/narrate', {
+      method: 'POST', body: {
+        campaignId, expectedProvider: 'grok', speaker: 'Aster',
+        segments: [{ text: 'Provider key isolation.', tone: 'cold' }]
+      }
+    });
+    assert.strictEqual(grokAgain.status, 200);
+    assert.strictEqual(providerCalls.at(-1).url, 'https://api.x.ai/v1/tts');
+    assert.strictEqual(providerCalls.at(-1).auth, 'Bearer grok-route-key');
+    assert.strictEqual(providerCalls.at(-1).body.voice_id, 'altair');
+
+    failNext = true;
+    const failed = await request('/api/audio/narrate', {
+      method: 'POST', body: { campaignId, speaker: 'Borel', segments: [{ text: 'Retry after failure.', tone: 'gruff' }] }
+    });
+    assert.strictEqual(failed.status, 500);
+    const callsAfterFailure = providerCalls.length;
+    const recovered = await request('/api/audio/narrate', {
+      method: 'POST', body: { campaignId, speaker: 'Borel', segments: [{ text: 'Retry after failure.', tone: 'gruff' }] }
+    });
+    assert.strictEqual(recovered.status, 200);
+    assert.strictEqual(providerCalls.length, callsAfterFailure + 1, 'A failed synthesis is not cached');
+  } finally {
+    globalThis.fetch = realFetch;
+    resetVoiceNarrationState();
+    if (server) await new Promise(resolve => server.close(resolve));
+    if (previousConfig) {
+      await db.run(
+        `INSERT INTO server_settings (key, value, updated_at) VALUES ('ai_config', ?, CURRENT_TIMESTAMP)
+         ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP`,
+        [JSON.stringify(previousConfig)]
+      );
+    } else {
+      await db.run(`DELETE FROM server_settings WHERE key = 'ai_config'`);
+    }
+    if (previousAccess === undefined) delete process.env.ACCESS_SECRET;
+    else process.env.ACCESS_SECRET = previousAccess;
+    if (previousAdmin === undefined) delete process.env.ADMIN_SECRET;
+    else process.env.ADMIN_SECRET = previousAdmin;
+  }
+}
+
+// -------------------------------------------------------------
 // Test: per-role Council config resolution (provider-scoped inheritance)
 // -------------------------------------------------------------
 function testResolveAgentConfig() {
@@ -2422,7 +2724,9 @@ async function runAll() {
     await testThemeGeneration();
     await testVoiceScript();
     await testPortableVoicePersistence();
+    await testCanonicalVoiceRoute();
     await testTtsProviderSeam();
+    await testTtsCache();
     await testImageProviderSeam();
     await testServerConfigResolution();
     await testFallbackTiering();

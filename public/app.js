@@ -608,8 +608,9 @@ function renderRules(ruleset, tableStyle) {
   }
 }
 
-// Voice preview: audition the selected voice + direction on a sample line
-// without spending a game turn. Uses the current (unsaved) form values.
+// Voice preview is deliberately campaign-free and always uses the active
+// provider's reserved narrator. Player voice/direction controls remain visible
+// until v4 removes them, but they are no longer an authority.
 async function previewVoice() {
   const btn = document.getElementById('btn-voice-preview');
   btn.disabled = true;
@@ -617,11 +618,11 @@ async function previewVoice() {
     const response = await fetchWithTimeout('/api/audio/narrate', {
       method: 'POST',
       body: JSON.stringify({
-        text: 'The torchlight gutters as you step into the vault. Whatever slept here is awake now — and it knows your name.',
-        audioConfig: {
-          voice: selectVoiceName.value,
-          instructions: inputVoiceInstructions.value.trim()
-        }
+        preview: true,
+        segments: [{
+          text: 'The torchlight gutters as you step into the vault. Whatever slept here is awake now — and it knows your name.',
+          tone: 'tense'
+        }]
       })
     }, 60000);
     if (!response.ok) {
@@ -1495,9 +1496,8 @@ function playAudioBlob(blob) {
 }
 
 // Multi-voice narration (Phase 2): plays the turn's voice script segment by
-// segment — NPC lines in their sticky stored voices, narrator lines in the
-// player's chosen voice. Falls back to single-voice narration of the whole
-// narrative when no script is present. Skip stops the entire queue.
+// segment. The server resolves every speaker from campaign-canonical state;
+// the browser carries no voice identity or free-text direction authority.
 async function narrateGmResponse(turn) {
   if (!apiConfig.voiceNarration) return;
 
@@ -1505,7 +1505,7 @@ async function narrateGmResponse(turn) {
 
   const script = Array.isArray(turn.voiceLines) && turn.voiceLines.length > 0
     ? turn.voiceLines
-    : [{ text: turn.narrative, voice: null, instructions: null }];
+    : [{ speaker: 'narrator', tone: 'neutral', text: turn.narrative }];
 
   const queue = script
     .map(line => ({ ...line, text: stripNarrationText(line.text) }))
@@ -1521,19 +1521,11 @@ async function narrateGmResponse(turn) {
     for (const line of queue) {
       if (narrationQueueToken !== token) return;
 
-      // NPC lines carry their full stored direction; narrator lines compose
-      // the player's chosen direction with the line's tone.
-      const audioConfig = line.voice
-        ? { voice: line.voice, instructions: line.instructions || '' }
-        : { voice: apiConfig.voiceName, instructions: [apiConfig.voiceInstructions, line.instructions].filter(Boolean).join(' ') };
-
-      // Seat lines carry speaker/tone only (S2): the server resolves the
-      // stored voice profile so NPC personality never reaches this client.
-      const requestBody = { text: line.text, audioConfig };
-      if (seatMode) {
-        if (line.speaker) requestBody.speaker = line.speaker;
-        if (line.tone) requestBody.tone = line.tone;
-      }
+      const requestBody = {
+        campaignId: currentCampaignId,
+        speaker: line.speaker || 'narrator',
+        segments: [{ text: line.text, tone: line.tone || 'neutral' }]
+      };
 
       const response = await fetchWithTimeout('/api/audio/narrate', {
         method: 'POST',

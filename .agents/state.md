@@ -58,6 +58,9 @@ to `docs/history/state-archive.md`.
     standing authorization on 2026-07-15 to execute the queued Phase V slices serially through
     accepted merges without pausing; stop only for a genuine blocker. Review trail:
     `.agents/review/index.md` + `findings/v-2.md`.
+  - **v-3 ACTIVE** on `fix/v-3-canonical-voice-route`: canonical host/seat audio route and minimum
+    client cutover, active-provider profile resolution, bracket neutralization, capabilities, and
+    shared synthesis cache. Review trail: `.agents/review/index.md` + `findings/v-3.md`.
 - **bh-1 — the browser harness is MERGED** (`ea9ca9b`, 2026-07-14; branch deleted). codex
   implemented; Claude verified adversarially — roles swapped, since codex cannot review what codex
   wrote. Plan accepted after **seven review rounds**. Full trail:

@@ -1,6 +1,7 @@
 // Aetheria GM admin panel (Phases I1 + I3). Operator-only; talks to /api/admin/*.
 
 let adminToken = sessionStorage.getItem('aetheria_admin_token') || '';
+let voiceProviderCatalog = [];
 
 const el = (id) => document.getElementById(id);
 
@@ -81,7 +82,18 @@ function renderSecretState(id, isSet) {
 }
 
 function updateVoiceProviderUi() {
-  el('voice-model-group').style.display = el('voice-provider').value === 'grok' ? 'none' : '';
+  const selected = voiceProviderCatalog.find(entry => entry.provider === el('voice-provider').value);
+  el('voice-model-group').style.display = selected && selected.hasModel === false ? 'none' : '';
+}
+
+function renderVoiceProviderCatalog(providers) {
+  voiceProviderCatalog = Array.isArray(providers) ? providers : [];
+  const select = el('voice-provider');
+  select.replaceChildren(new Option('(default: OpenAI)', ''));
+  for (const entry of voiceProviderCatalog) {
+    const label = entry.provider === 'grok' ? 'xAI Grok' : entry.provider === 'openai' ? 'OpenAI' : entry.provider;
+    select.append(new Option(label, entry.provider));
+  }
 }
 
 function renderSettings(settings) {
@@ -117,7 +129,11 @@ function renderSettings(settings) {
 }
 
 async function loadSettings() {
-  const settings = await api('/api/admin/settings');
+  const [settings, catalog] = await Promise.all([
+    api('/api/admin/settings'),
+    api('/api/admin/voice-catalog')
+  ]);
+  renderVoiceProviderCatalog(catalog.providers);
   renderSettings(settings);
   showPanel();
 }

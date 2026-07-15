@@ -12,10 +12,15 @@ import {
   saveAdminAiConfig,
   maskAiConfig
 } from './server-config.js';
-import { synthesizeSpeech, TTS_VOICES } from './tts-providers.js';
 import { looksLikeSeatToken, hashSeatToken, mintSeatToken, findLiveSeat } from './seat-auth.js';
-import { scopeStateForSeat, scopeJournalForSeat, resolveSpeakerVoice, boundVoiceDirective } from './rpg-state.js';
+import { scopeStateForSeat, scopeJournalForSeat } from './rpg-state.js';
 import { errorPayloadFor, apiErrorHandler } from './server-errors.js';
+import {
+  VoiceRequestError,
+  getAdminVoiceCatalog,
+  getVoiceCapabilities,
+  narrateVoiceRequest
+} from './voice-narration.js';
 
 dotenv.config();
 
@@ -89,8 +94,6 @@ const MAX_GENRE_LENGTH = 200;
 const MAX_CHARACTER_FIELD_LENGTH = 80;
 const MAX_ACTION_LENGTH = 2000;
 const MAX_TITLE_LENGTH = 160;
-const MAX_NARRATION_LENGTH = 4000;
-const MAX_TTS_INSTRUCTIONS_LENGTH = 600;
 
 function boundedString(value, fieldName, maxLength) {
   if (typeof value !== 'string') {
@@ -119,17 +122,6 @@ function parsePositiveInteger(value, fieldName) {
 function optionalBoundedString(value, fieldName, maxLength, fallback = '') {
   if (value === undefined || value === null || value === '') return fallback;
   return boundedString(value, fieldName, maxLength);
-}
-
-function stripNarrationText(value) {
-  return String(value || '')
-    .replace(/<svg[\s\S]*?<\/svg>/gi, '')
-    .replace(/```[\s\S]*?```/g, '')
-    .replace(/!\[[^\]]*]\([^)]*\)/g, '')
-    .replace(/\[([^\]]+)]\([^)]*\)/g, '$1')
-    .replace(/[*_#>`~]/g, '')
-    .replace(/\s+/g, ' ')
-    .trim();
 }
 
 function timingSafeTokenEqual(token, secret) {
@@ -164,8 +156,9 @@ function rateLimit(limitCount, windowMs) {
   };
 }
 
-// Periodically clean up stale rate limit entries to prevent memory leak
-setInterval(() => {
+// Periodically clean up stale rate limit entries to prevent memory leak. The
+// timer must not keep an imported app alive after its HTTP server is closed.
+const rateLimitCleanupTimer = setInterval(() => {
   const now = Date.now();
   for (const [ip, timestamps] of rateLimits.entries()) {
     // Evict entries where all timestamps are older than 60 seconds (max rateLimit window in use)
@@ -177,6 +170,7 @@ setInterval(() => {
     }
   }
 }, 300000); // Clean up every 5 minutes
+rateLimitCleanupTimer.unref?.();
 
 // -------------------------------------------------------------
 // AUTHENTICATION MIDDLEWARE
@@ -306,6 +300,10 @@ app.get('/api/admin/settings', async (req, res) => {
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
+});
+
+app.get('/api/admin/voice-catalog', (req, res) => {
+  res.json({ providers: getAdminVoiceCatalog() });
 });
 
 app.post('/api/admin/settings', async (req, res) => {
@@ -725,62 +723,30 @@ app.get('/api/campaigns/:id/images/:imageId', requireSeatCampaign, async (req, r
   }
 });
 
-app.post('/api/audio/narrate', rateLimit(20, 60000), async (req, res) => {
+app.get('/api/audio/capabilities', async (req, res) => {
   try {
-    const { text, speaker, tone, audioConfig = {} } = req.body;
-    const narrationText = boundedString(stripNarrationText(text), 'text', MAX_NARRATION_LENGTH);
-    // Voice API key and TTS model are server-owned (decision 2026-07-03); the
-    // voice choice and style instructions remain player preferences.
-    const serverConfig = await getServerAiConfig();
-    let voice = TTS_VOICES.has(audioConfig.voice || process.env.TTS_VOICE)
-      ? (audioConfig.voice || process.env.TTS_VOICE)
-      : 'marin';
-    let instructions = optionalBoundedString(
-      audioConfig.instructions,
-      'instructions',
-      MAX_TTS_INSTRUCTIONS_LENGTH,
-      'Narrate as an atmospheric game master. Keep the delivery clear, tense, and cinematic without overacting.'
-    );
+    res.json(await getVoiceCapabilities());
+  } catch (error) {
+    res.status(500).json(errorPayloadFor(req, error, 'Voice capabilities unavailable.'));
+  }
+});
 
-    // Phase S2: seat voiceLines carry speaker/tone/text only — the stored
-    // voice profile (whose instructions embed NPC personality) is resolved
-    // HERE, so that text never leaves the server. Unknown speakers keep the
-    // player's narrator settings with the tone riding as a suffix.
-    if (req.auth?.kind === 'seat' && (speaker || tone)) {
-      // sv-5: truncate to the caps validateTurnData itself emits, never 400.
-      // These come from our own scoped payload; rejecting a valid tone exits
-      // the client's narration loop and drops the rest of the turn's lines.
-      const { speaker: cleanSpeaker, tone: cleanTone } = boundVoiceDirective(speaker, tone);
-      const npc = cleanSpeaker
-        ? await db.get(
-            `SELECT voice_json FROM npcs WHERE campaign_id = ? AND LOWER(name) = LOWER(?)`,
-            [req.auth.campaignId, cleanSpeaker]
-          )
-        : null;
-      const resolved = resolveSpeakerVoice(npc?.voice_json || null, cleanTone);
-      if (resolved.voice && TTS_VOICES.has(resolved.voice)) {
-        voice = resolved.voice;
-        instructions = resolved.instructions;
-      } else if (resolved.instructions) {
-        instructions = [instructions, resolved.instructions].filter(Boolean).join(' ');
-      }
-    }
-
-    const audioBuffer = await synthesizeSpeech({
-      provider: serverConfig.voiceProvider,
-      apiKey: serverConfig.voiceApiKey,
-      model: serverConfig.voiceModel,
-      voice,
-      instructions,
-      text: narrationText
+app.post('/api/audio/narrate', rateLimit(240, 60000), async (req, res) => {
+  try {
+    const result = await narrateVoiceRequest({
+      auth: req.auth,
+      body: req.body,
+      requester: req.ip || req.socket.remoteAddress || 'unknown'
     });
     res.setHeader('Content-Type', 'audio/mpeg');
     res.setHeader('Cache-Control', 'no-store');
-    res.send(audioBuffer);
+    res.send(result.audio);
   } catch (error) {
     console.error('Error synthesizing narration:', error);
-    const status = error.message.includes('required') || error.message.includes('characters or fewer') || error.message.includes('must be a string') ? 400 : 500;
-    res.status(status).json(errorPayloadFor(req, error, 'Voice narration failed.'));
+    const status = error instanceof VoiceRequestError ? error.status : 500;
+    const payload = errorPayloadFor(req, error, 'Voice narration failed.');
+    if (error instanceof VoiceRequestError && error.code) payload.code = error.code;
+    res.status(status).json(payload);
   }
 });
 
@@ -1039,21 +1005,19 @@ async function handleToolCall(toolName, args) {
 // after every route, as Express requires.
 app.use(apiErrorHandler);
 
-// Production safety checks: fail closed if production is active without ACCESS_SECRET configured
-if (process.env.NODE_ENV === 'production' && !process.env.ACCESS_SECRET) {
-  console.error('\n❌ CRITICAL STARTUP ERROR: ACCESS_SECRET is not configured in .env!');
-  console.error('In a production environment, you must set ACCESS_SECRET to secure your database and API endpoints.\n');
-  process.exit(1);
-}
+export { app };
 
-// Start server after successful database initialization
-db.initDb()
-  .then(() => {
-    app.listen(PORT, () => {
+export async function startServer(port = PORT) {
+  // Production safety checks: fail closed if production is active without ACCESS_SECRET configured
+  if (process.env.NODE_ENV === 'production' && !process.env.ACCESS_SECRET) {
+    throw new Error('ACCESS_SECRET is required in production.');
+  }
+  await db.initDb();
+  return app.listen(port, () => {
       console.log(`--------------------------------------------------------`);
-      console.log(`   Aetheria GM Game & MCP Server running on port ${PORT}`);
-      console.log(`   Local URL: http://localhost:${PORT}`);
-      console.log(`   MCP SSE Endpoint: http://localhost:${PORT}/api/mcp/sse`);
+      console.log(`   Aetheria GM Game & MCP Server running on port ${port}`);
+      console.log(`   Local URL: http://localhost:${port}`);
+      console.log(`   MCP SSE Endpoint: http://localhost:${port}/api/mcp/sse`);
       if (!process.env.ADMIN_SECRET) {
         console.log(`   ⚠️  ADMIN_SECRET not set: /admin is open (single-operator dev mode).`);
         console.log(`   Set ADMIN_SECRET before hosting for others.`);
@@ -1068,9 +1032,13 @@ db.initDb()
         console.log(`   to protect from unauthorized requests & financial DoS.\n`);
       }
       console.log(`--------------------------------------------------------`);
-    });
-  })
-  .catch(err => {
+  });
+}
+
+const isMainModule = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+if (isMainModule) {
+  startServer().catch(err => {
     console.error('\n❌ CRITICAL: Failed to initialize SQLite database:', err);
     process.exit(1);
   });
+}
