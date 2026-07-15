@@ -1527,6 +1527,19 @@ async function testModelCatalogs() {
     })
   }), error => error.code === 'CATALOG_TIMEOUT' && error.status === 504
     && !error.message.includes(privateMarker));
+  await assert.rejects(listModels('openai', {
+    apiKey: privateMarker,
+    timeoutMs: 10,
+    fetchImpl: async () => ({
+      ok: true,
+      status: 200,
+      json: async () => {
+        await new Promise(resolve => setTimeout(resolve, 75));
+        return { data: [{ id: privateMarker }] };
+      }
+    })
+  }), error => error.code === 'CATALOG_TIMEOUT' && error.status === 504
+    && !error.message.includes(privateMarker));
   let blockedFetches = 0;
   await assert.rejects(listModels('custom', {
     baseUrl: 'https://api.openai.com/not-a-chat-url',

@@ -128,33 +128,52 @@ function safeClaudeCodeStatus(raw) {
 async function fetchCatalogJson(provider, url, options, fetchImpl, timeoutMs) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
-  let response;
   try {
-    response = await fetchImpl(url, { ...options, signal: controller.signal });
-  } catch (error) {
-    const timedOut = error?.name === 'AbortError' || controller.signal.aborted;
-    throw new ModelCatalogError(
-      `Could not list ${provider} models (${timedOut ? 'timeout' : 'network error'}).`,
-      { status: timedOut ? 504 : 502, code: timedOut ? 'CATALOG_TIMEOUT' : 'CATALOG_NETWORK' }
-    );
+    let response;
+    try {
+      response = await fetchImpl(url, { ...options, signal: controller.signal });
+    } catch (error) {
+      const timedOut = error?.name === 'AbortError' || controller.signal.aborted;
+      throw new ModelCatalogError(
+        `Could not list ${provider} models (${timedOut ? 'timeout' : 'network error'}).`,
+        { status: timedOut ? 504 : 502, code: timedOut ? 'CATALOG_TIMEOUT' : 'CATALOG_NETWORK' }
+      );
+    }
+
+    if (!response?.ok) {
+      const upstreamStatus = Number.isInteger(response?.status) ? response.status : 502;
+      throw new ModelCatalogError(`Could not list ${provider} models (${upstreamStatus}).`, {
+        status: 502,
+        code: 'CATALOG_UPSTREAM'
+      });
+    }
+
+    let rejectOnAbort;
+    const aborted = new Promise((_, reject) => {
+      rejectOnAbort = () => {
+        const error = new Error('Catalog response timed out.');
+        error.name = 'AbortError';
+        reject(error);
+      };
+      if (controller.signal.aborted) rejectOnAbort();
+      else controller.signal.addEventListener('abort', rejectOnAbort, { once: true });
+    });
+    try {
+      return await Promise.race([response.json(), aborted]);
+    } catch (error) {
+      const timedOut = error?.name === 'AbortError' || controller.signal.aborted;
+      throw new ModelCatalogError(
+        `Could not list ${provider} models (${timedOut ? 'timeout' : 'invalid response'}).`,
+        {
+          status: timedOut ? 504 : 502,
+          code: timedOut ? 'CATALOG_TIMEOUT' : 'CATALOG_INVALID_RESPONSE'
+        }
+      );
+    } finally {
+      controller.signal.removeEventListener('abort', rejectOnAbort);
+    }
   } finally {
     clearTimeout(timeout);
-  }
-
-  if (!response?.ok) {
-    const upstreamStatus = Number.isInteger(response?.status) ? response.status : 502;
-    throw new ModelCatalogError(`Could not list ${provider} models (${upstreamStatus}).`, {
-      status: 502,
-      code: 'CATALOG_UPSTREAM'
-    });
-  }
-  try {
-    return await response.json();
-  } catch (error) {
-    throw new ModelCatalogError(`Could not list ${provider} models (invalid response).`, {
-      status: 502,
-      code: 'CATALOG_INVALID_RESPONSE'
-    });
   }
 }
 
