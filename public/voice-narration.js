@@ -29,6 +29,10 @@ function splitText(value) {
   return chunks;
 }
 
+function sameSpeaker(left, right) {
+  return String(left || '').toLowerCase() === String(right || '').toLowerCase();
+}
+
 /** Normalize and bound the exact lines the production queue will send. */
 export function normalizeVoiceLines(lines, fallbackText = '') {
   const source = Array.isArray(lines) && lines.length > 0
@@ -59,7 +63,7 @@ export function buildNarrationRuns(lines, maxSegmentsPerRequest = 1) {
       ? previous.segments.reduce((total, segment) => total + segment.text.length, 0)
       : 0;
     if (previous
-      && previous.speaker === line.speaker
+      && sameSpeaker(previous.speaker, line.speaker)
       && previous.segments.length < limit
       && previousLength + line.text.length <= MAX_REQUEST_TEXT) {
       previous.segments.push({ text: line.text, tone: line.tone });

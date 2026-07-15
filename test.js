@@ -1028,7 +1028,7 @@ async function testBrowserVoiceQueue() {
 
   const lines = normalizeVoiceLines([
     { speaker: 'Aster', tone: 'warm', text: 'First.' },
-    { speaker: 'Aster', tone: 'tense', text: 'Second.' },
+    { speaker: 'aster', tone: 'tense', text: 'Second.' },
     { speaker: 'Borel', tone: 'gruff', text: 'Third.' },
     { speaker: 'Aster', tone: 'cold', text: 'Fourth.' }
   ]);
@@ -1037,7 +1037,7 @@ async function testBrowserVoiceQueue() {
     { speaker: 'Aster', segments: [{ text: 'First.', tone: 'warm' }, { text: 'Second.', tone: 'tense' }] },
     { speaker: 'Borel', segments: [{ text: 'Third.', tone: 'gruff' }] },
     { speaker: 'Aster', segments: [{ text: 'Fourth.', tone: 'cold' }] }
-  ], 'Grok groups adjacent same-speaker lines only and preserves each tone');
+  ], 'Grok groups adjacent same-speaker lines case-insensitively and preserves each tone');
   assert.deepStrictEqual(buildNarrationRuns(lines, 1).map(run => run.segments.length), [1, 1, 1, 1],
     'A provider limit of one creates OpenAI singleton runs');
 
@@ -1058,7 +1058,7 @@ async function testBrowserVoiceQueue() {
   assert.strictEqual(openAiResult.hadError, false);
   assert.deepStrictEqual(openAiCalls.map(call => call.expectedProvider), ['openai', 'openai', 'openai']);
   assert.deepStrictEqual(openAiCalls.map(call => call.run.segments.length), [1, 1, 1]);
-  assert.deepStrictEqual(openAiPlayed, ['Aster', 'Aster', 'Borel']);
+  assert.deepStrictEqual(openAiPlayed, ['Aster', 'aster', 'Borel']);
 
   const failedRuns = [];
   const playedAfterFailure = [];
