@@ -362,3 +362,21 @@ The shared finding is incorporated in the r8 draft:
   removed, while ordinary stored-connection selection remains covered elsewhere.
 
 Round 8 must review the complete new shared SHA; prior results do not carry forward.
+
+### Round 8 — pinned `5f0261375f9b97f464f54ee406d5bafca7f3ea8d`
+
+Base: `0dc4ca6fd451126bfaffff4a6c51f5e3914f63e4`.
+
+#### Claude Code 2.1.210 / Claude Opus 4.8 (high effort)
+
+Timestamp: 2026-07-15T16:56:05Z. Structured verdict valid and SHA-matched.
+`evidence_checked: true`; `cold_implementer_executable: true`; verdict: **accepted**, zero comments.
+
+#### Grok 0.2.101 / Grok 4.5 (high reasoning)
+
+Timestamp: 2026-07-15T16:56:05Z. The CLI's free-text envelope was noisy, but its schema-enforced
+`structuredOutput` was valid and SHA-matched. `evidence_checked: true`;
+`cold_implementer_executable: true`; verdict: **accepted**, zero comments.
+
+Convergence is reached: both independent reviewers accepted the same complete pinned r8 SHA with no
+material comments. Earlier-round verdicts remain historical and do not carry forward.
