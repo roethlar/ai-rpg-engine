@@ -149,3 +149,29 @@ All four Grok findings and both Claude notes are addressed in the r3 draft:
   Ollama's `http://localhost:11434` default when `OLLAMA_URL` is absent.
 
 Round 3 must review the complete new shared SHA; prior results do not carry forward.
+
+### Round 3 — pinned `826b733bf61d5c0acb1f8df3624eedd1bef50c79`
+
+Base: `0dc4ca6fd451126bfaffff4a6c51f5e3914f63e4`.
+
+#### Claude Code 2.1.210 / Claude Opus 4.8 (high effort)
+
+Timestamp: 2026-07-15T16:11:07Z. Structured verdict valid and SHA-matched.
+`evidence_checked: true`; `cold_implementer_executable: true`; verdict: **accepted**, zero comments.
+
+#### Grok 0.2.101 / Grok 4.5 (high reasoning)
+
+Timestamp: 2026-07-15T16:11:07Z. Structured verdict valid and SHA-matched.
+`evidence_checked: true`; `cold_implementer_executable: false`; verdict: **reopened**.
+
+1. **HIGH — incomplete runtime return contract.** Describing the intermediate as only
+   `{ defaultPrimary, roles }` could make a cold implementation drop the unchanged top-level
+   voice/image configuration consumed by `voice-narration.js` and `rpg-engine.js`. State that all
+   non-Council fields remain top-level siblings.
+2. **HIGH — provider-match inheritance gate omitted.** Cases 2/3 could choose a role provider such as
+   Grok and then inherit another provider's default model/key/endpoint. Preserve the current
+   provider-equality gate for every inherited model/key/endpoint, and retain role-specific endpoint
+   env precedence.
+
+Convergence is not reached. Both Grok findings are admitted; they close an executable ambiguity and
+the existing cross-provider credential-leak class respectively.
