@@ -279,3 +279,30 @@ Both findings are incorporated in the r6 draft:
   top-level `roles` object; voice/image and every old runtime sibling remain intact.
 
 Round 6 must review the complete new shared SHA; prior results do not carry forward.
+
+### Round 6 — pinned `87d4be3b069f1f7c12dfcb9173bb69e761db5896`
+
+Base: `0dc4ca6fd451126bfaffff4a6c51f5e3914f63e4`.
+
+#### Claude Code 2.1.210 / Claude Opus 4.8 (high effort)
+
+Timestamp: 2026-07-15T16:37:35Z. Structured verdict valid and SHA-matched.
+`evidence_checked: true`; `cold_implementer_executable: true`; verdict: **accepted**, zero comments.
+
+#### Grok 0.2.101 / Grok 4.5 (high reasoning)
+
+Timestamp: 2026-07-15T16:37:35Z. The CLI's free-text envelope was noisy, but its schema-enforced
+`structuredOutput` was valid and SHA-matched. `evidence_checked: true`;
+`cold_implementer_executable: false`; verdict: **reopened**.
+
+1. **HIGH — the Council→AIClient fallback handoff has no resolved-state signal.** The Council-aware
+   resolver returns a flat config without `council`, while `normalizeFallbackConfig` runs later in
+   `AIClient`. It therefore cannot distinguish an already resolved normal/null Council fallback from
+   legacy input and can reapply `FALLBACK_*`, selecting the wrong backup key or reviving a null tier.
+2. **HIGH — the guards do not discriminate double injection.** A migrated fallback already using
+   `FALLBACK_API_KEY` remains unchanged if the helper applies the same variable twice. Add a normal
+   v2 fallback with distinct provider/connection environment keys versus `FALLBACK_API_KEY`, assert
+   the failover Authorization header, and prove a resolved null is not revived.
+
+Convergence is not reached. Both comments are admitted as one contract defect plus its required
+non-vacuous proof.
