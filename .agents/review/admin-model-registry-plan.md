@@ -1,6 +1,6 @@
 # Admin model registry plan review
 
-**Status**: Round 6 findings incorporated; revised plan awaiting dual round 7; no implementation
+**Status**: Round 7 finding incorporated; revised plan awaiting dual round 8; no implementation
 authorized.
 **Plan location**: `plan.md` → Dev Tooling → `am-*`
 **Owner direction**: `.agents/decisions.md` (2026-07-15 admin AI configuration decision)
@@ -347,3 +347,18 @@ Both reviewers independently reported the same material issue:
 
 Convergence is not reached. The finding is admitted as a verification-contract defect; neither
 reviewer identified a new product or runtime-design gap.
+
+#### Response to Round 7
+
+The shared finding is incorporated in the r8 draft:
+
+- Provider-environment key resolution is explicitly deferred to the selected primary or backup
+  `AIClient`; a Council-resolved object keeps `apiKey: undefined` when custom/connection/specific-env
+  tiers are empty.
+- The wrong-key guard now leaves both entry custom and stored connection keys blank, with distinct
+  `OPENAI_API_KEY` and `FALLBACK_API_KEY`. The marker keeps the key undefined until backup-provider
+  lookup selects OpenAI; removing it injects the fallback key and changes the Authorization header.
+- The existing null-revival guard remains unchanged. Both guards now fail when the marker branch is
+  removed, while ordinary stored-connection selection remains covered elsewhere.
+
+Round 8 must review the complete new shared SHA; prior results do not carry forward.

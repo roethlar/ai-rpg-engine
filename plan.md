@@ -1314,7 +1314,7 @@ Raised during planning but deliberately deferred. **Per project rule, nothing he
     **refuted**. This is the third round in which a reviewer's careful CSS reasoning was wrong —
     which is the whole argument for this harness existing.
 
-- **Admin model registry + Council assignments — `am-*` (REVISED r7 2026-07-15; owner-approved
+- **Admin model registry + Council assignments — `am-*` (REVISED r8 2026-07-15; owner-approved
   direction, dual plan re-review pending; no implementation branch).**
 
   **Problem.** `/admin` currently repeats a full provider/model/key form seven times: primary,
@@ -1560,17 +1560,22 @@ Raised during planning but deliberately deferred. **Per project rule, nothing he
   or existing callers.
 
   `resolveAgentConfig` uses `council` when present and otherwise retains its current v1 path. It is
-  the only function that turns descriptors and connections into the final
+  the only function that turns descriptors and connections into the final selected
   `{ provider, model, apiKey, baseUrl, ollamaUrl, fallback, fallbackResolved }`. On the Council path,
   `fallbackResolved` is always `true` and `fallback` is always either a fully selected object or
-  explicit `null`; the legacy path omits the marker. It applies exactly three primary cases:
+  explicit `null`; the legacy path omits the marker. Provider-environment secrets are deliberately
+  deferred: when no custom, connection, or role/fallback-specific key wins, the selected object's
+  `apiKey` stays `undefined` and the primary or backup `AIClient.getEnvKey(effectiveProvider)` reads
+  that provider's environment variable. It applies exactly three primary cases:
 
   1. A normal explicit role primary wins as admin intent. Its required provider/model come from the
-     descriptor; key resolution is custom entry → stored connection → provider environment.
+     descriptor; key resolution is custom entry → stored connection → otherwise `undefined` for
+     `AIClient`'s provider-environment lookup.
   2. A `legacyDefault` role descriptor applies each non-empty raw stored field first. Its key is
      custom entry → matching `ROLE_API_KEY` → provider-matched resolved `defaultPrimary` key →
-     provider environment. A blank legacy provider/model similarly consults its matching `ROLE_*`
-     field and then a provider-matched `defaultPrimary` field.
+     otherwise `undefined` for `AIClient`'s provider-environment lookup. A blank legacy
+     provider/model similarly consults its matching `ROLE_*` field and then a provider-matched
+     `defaultPrimary` field.
   3. A null role primary applies `ROLE_*` env first, then provider-matched `defaultPrimary`, then
      global env/provider default. This is how a filled old primary stays below role env after
      migration.
@@ -1587,11 +1592,12 @@ Raised during planning but deliberately deferred. **Per project rule, nothing he
   weakening the current role-endpoint precedence or cross-provider isolation boundary.
 
   Each role's selected fallback replaces the old global stored fallback. A normal descriptor uses
-  custom entry → stored connection → provider environment. A `legacyDefault` descriptor applies its
-  non-empty raw stored fields, then corresponding `FALLBACK_*`, then the selected provider's
-  environment/default; it never consults the connection key or default primary. A null assignment
-  uses the environment fallback tier. The selected custom/Ollama connection endpoint attaches to
-  both normal and legacy primary/fallback results after provider resolution.
+  custom entry → stored connection → otherwise leaves `apiKey` undefined for the backup `AIClient`'s
+  provider-environment lookup. A `legacyDefault` descriptor applies its non-empty raw stored fields,
+  then corresponding `FALLBACK_*`, then likewise leaves the key undefined for the selected provider
+  environment; it never consults the connection key or default primary. A null assignment uses the
+  environment fallback tier. The selected custom/Ollama connection endpoint attaches to both normal
+  and legacy primary/fallback results after provider resolution.
 
   On the `council` path, `resolveAgentConfig` supplies the already selected fallback (or null) and
   sets `fallbackResolved: true`. `normalizeFallbackConfig` branches on that marker: when true it
@@ -1687,10 +1693,12 @@ Raised during planning but deliberately deferred. **Per project rule, nothing he
     custom/Ollama endpoint migration; populated-env effective no-op-save equivalence; the exact
     masked/save DTO; typed 400 versus unexpected 500; and masking (raw secrets absent from every
     admin response).
-    A discriminating fallback guard resolves a normal, non-legacy provider-key entry while
-    `OPENAI_API_KEY`, its stored connection key, and `FALLBACK_API_KEY` are distinct, then asserts
-    both `AIClient.fallback.apiKey` and the actual failover Authorization header use the selected
-    normal chain rather than `FALLBACK_API_KEY`. A separate guard resolves no fallback with the
+    A discriminating fallback guard resolves a normal, non-legacy provider-key entry with blank
+    custom and stored connection keys while `OPENAI_API_KEY` and `FALLBACK_API_KEY` are distinct. It
+    asserts the selected fallback and `AIClient.fallback` retain `apiKey: undefined`, then forces
+    failover and proves the Authorization header uses `OPENAI_API_KEY`, never `FALLBACK_API_KEY`.
+    Without the marker branch, legacy normalization injects the wrong fallback key before the backup
+    client can perform its provider lookup. A separate guard resolves no fallback with the
     environment tier empty, changes `FALLBACK_*` before constructing `AIClient`, and proves the
     explicit resolved null is not revived. Reverting the `fallbackResolved` branch makes both fail.
   - Catalog parser fixtures cover all six providers, Grok language-only filtering/aliases, Gemini
