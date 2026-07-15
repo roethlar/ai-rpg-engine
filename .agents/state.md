@@ -52,9 +52,9 @@ to `docs/history/state-archive.md`.
     provider-isolated key/config compatibility, admin storage, and guards. Claude accepted pinned
     head `0371e35` with independent red→green confirmation; the full suite passed again after merge.
     Status and verdict trail: `.agents/review/index.md` + `findings/v-1.md`.
-  - **v-2 ACTIVE** on `fix/v-2-portable-voice-profiles`: finite delivery schema and portable
-    narrator/NPC profiles across creation, legacy read, fork, export, and import are **ACCEPTED** by
-    Claude at pinned head `dc7d169` with independent red→green confirmation. The owner granted
+  - **v-2 MERGED** (`ef304b7`, 2026-07-15): finite delivery schema and portable narrator/NPC
+    profiles across creation, legacy read, fork, export, and import. Claude accepted pinned head
+    `dc7d169` with independent red→green confirmation; the full suite passed again after merge. The owner granted
     standing authorization on 2026-07-15 to execute the queued Phase V slices serially through
     accepted merges without pausing; stop only for a genuine blocker. Review trail:
     `.agents/review/index.md` + `findings/v-2.md`.
@@ -168,11 +168,11 @@ to `docs/history/state-archive.md`.
 
 ## Next
 
-**THE IMMEDIATE NEXT ACTION: Phase V (Grok TTS) — implement and review v-2.**
-v-1 is merged and post-merge green. Start v-2 from updated `master`; it owns the finite delivery
-schema plus portable NPC/narrator profiles across create, legacy read, fork, export, and import. Keep
-the existing `/api/audio/narrate` contract operational until v-3 lands the route and minimum client
-cutover together. Each slice remains owner-gated and independently reviewed by Claude or Grok.
+**THE IMMEDIATE NEXT ACTION: Phase V (Grok TTS) — implement and review v-3.**
+v-1 and v-2 are merged and post-merge green. v-3 owns the canonical host/seat route, minimum client
+cutover, provider capabilities, bracket neutralization, active-provider profile resolution, and
+shared in-flight/completed synthesis cache. Start from updated `master`; keep v-4 browser batching
+and control removal out of this slice.
 
 - **Carry the bh-1 lessons into it.** Both are now decisions (`.agents/decisions.md`): *do not reason
   about CSS in this repo — execute it*; and *a guard proof must fail if its mechanism is removed*
