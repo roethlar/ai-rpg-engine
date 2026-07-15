@@ -53,8 +53,8 @@ to `docs/history/state-archive.md`.
     head `0371e35` with independent red→green confirmation; the full suite passed again after merge.
     Status and verdict trail: `.agents/review/index.md` + `findings/v-1.md`.
   - **v-2 ACTIVE** on `fix/v-2-portable-voice-profiles`: finite delivery schema and portable
-    narrator/NPC profiles across creation, legacy read, fork, export, and import are implemented and
-    guard-proven; independent review is next. The owner granted
+    narrator/NPC profiles across creation, legacy read, fork, export, and import are **ACCEPTED** by
+    Claude at pinned head `dc7d169` with independent red→green confirmation. The owner granted
     standing authorization on 2026-07-15 to execute the queued Phase V slices serially through
     accepted merges without pausing; stop only for a genuine blocker. Review trail:
     `.agents/review/index.md` + `findings/v-2.md`.

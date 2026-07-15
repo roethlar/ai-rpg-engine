@@ -8,7 +8,7 @@ Per-finding detail: see `.agents/review/findings/<id>.md`.
 | ID | Severity | Impact (one line) | Status | Branch |
 |----|----------|-------------------|--------|--------|
 | v-1 | HIGH | Grok is unregistered and one generic voice-key slot can cross vendor boundaries | `[x]` merged (`7d55b77`) | `fix/v-1-grok-provider-config` |
-| v-2 | HIGH | OpenAI-only/free-text profiles lose identity across providers, forks, and imports | `[~]` implementation complete; pending review | `fix/v-2-portable-voice-profiles` |
+| v-2 | HIGH | OpenAI-only/free-text profiles lose identity across providers, forks, and imports | `[x]` accepted; merging under standing go | `fix/v-2-portable-voice-profiles` |
 
 ## Active loop (2026-07-13, reviewer: codex) — owner-reported bugs
 
