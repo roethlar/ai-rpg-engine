@@ -53,7 +53,7 @@ to `docs/history/state-archive.md`.
   endpoint provenance, a bounded response-body timeout, and the admin-authenticated catalog route.
   Fable independently confirmed the red/green timeout guard and found no remaining material issue.
   `.agents/review/findings/am-2.md` owns the verdict trail.
-- **`am-3` is accepted and awaiting the owner's merge go.** Commit `93a91e8`
+- **`am-3` is accepted and merged into `master` at `e75c89f`.** Commit `93a91e8`
   atomically activates the v2 admin settings wire and replaces repeated forms with compact provider
   connections, reusable configured models, and five primary/fallback Council assignments. Fable's
   first review found that clearing stored keys can reject or declassify migrated legacy entries;
@@ -73,8 +73,8 @@ to `docs/history/state-archive.md`.
 
 ## Next
 
-**THE IMMEDIATE NEXT ACTION: obtain the owner's go to merge accepted `am-3`.** Do not merge or push
-without that separate outward-facing authorization.
+**THE ADMIN MODEL-REGISTRY IMPLEMENTATION TRACK IS COMPLETE.** The immediate product gate returns to
+Phase V's owner voice playtest; the rules track resumes with D1 when the owner chooses it.
 
 - Phase V's owner playtest remains the pending feel gate after this explicitly selected repo work.
   Configure either OpenAI or Grok voice in `/admin`, enable Voice Narration, and play a real scene
@@ -98,9 +98,9 @@ without that separate outward-facing authorization.
 
 ## Verification
 
-- Automated: `node test.js` — green on merged `master` at `5103f46` on 2026-07-15; independently
-  green at accepted review head `678db31`.
-- Browser: `npm run test:browser` — green on code at `ca55b55`, re-run during the same drift pass.
+- Automated: `node test.js` — green on merged `master` at `e75c89f` on 2026-07-15; independently
+  green at accepted am-3 review head `5c2aeb5`.
+- Browser: `npm run test:browser` — green on merged `master` at `e75c89f` on 2026-07-15.
   **Required before
   merging any change to `public/styles.css` or `public/theme-vars.js`** (`.agents/repo-guidance.md`);
   it does **not** cover `app.js` theme wiring or `map-render.js`. One-time setup per machine:

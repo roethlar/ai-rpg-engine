@@ -3,7 +3,7 @@
 **Severity**: HIGH — the legacy form repeats provider/model/key tuples, cannot safely express shared
 credentials with per-model overrides, and cannot assign reusable primary/fallback models per Council
 role.
-**Status**: Verified (awaiting owner-gated merge)
+**Status**: Merged (`e75c89f`)
 **Branch**: `feat/am-3-admin-model-registry-ui`
 **Implementation commit**: `93a91e8c1d2e8e957b6dbf9391490c416338957b`
 **Fix-up commit**: `6e05325` (legacy-safe all-key clear)
@@ -145,3 +145,7 @@ suites green, and proved the detached worktree clean. No live or billable provid
 
 **Status → Verified.** The branch is ready for the owner-gated merge. Acceptance does not authorize
 merge, push, or history rewrite.
+
+Owner go merged the accepted branch into `master` at `e75c89f`. Content arrival was verified with
+an empty branch-to-master diff; `node test.js` and `npm run test:browser` both passed on the merge
+result.
