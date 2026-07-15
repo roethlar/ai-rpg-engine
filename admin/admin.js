@@ -80,6 +80,10 @@ function renderSecretState(id, isSet) {
   state.className = `secret-state${isSet ? ' set' : ''}`;
 }
 
+function updateVoiceProviderUi() {
+  el('voice-model-group').style.display = el('voice-provider').value === 'grok' ? 'none' : '';
+}
+
 function renderSettings(settings) {
   el('provider').value = settings.provider || '';
   el('model').value = settings.model || '';
@@ -93,11 +97,13 @@ function renderSettings(settings) {
   el('fb-provider').value = settings.fallback?.provider || '';
   el('fb-model').value = settings.fallback?.model || '';
   renderSecretState('api-key-state', settings.apiKeySet);
-  renderSecretState('voice-api-key-state', settings.voiceApiKeySet);
+  renderSecretState('voice-api-key-openai-state', settings.voiceApiKeySet?.openai);
+  renderSecretState('voice-api-key-grok-state', settings.voiceApiKeySet?.grok);
   renderSecretState('image-api-key-state', settings.imageApiKeySet);
   renderSecretState('fb-api-key-state', settings.fallback?.apiKeySet);
   el('api-key').value = '';
-  el('voice-api-key').value = '';
+  el('voice-api-key-openai').value = '';
+  el('voice-api-key-grok').value = '';
   el('image-api-key').value = '';
   el('fb-api-key').value = '';
   for (const [key] of AI_ROLES) {
@@ -107,6 +113,7 @@ function renderSettings(settings) {
     el(`role-${key}-key`).value = '';
     renderSecretState(`role-${key}-key-state`, role.apiKeySet);
   }
+  updateVoiceProviderUi();
 }
 
 async function loadSettings() {
@@ -127,7 +134,10 @@ function collectSettings(clearKeys = false) {
     apiKey: secret('api-key'),
     baseUrl: el('base-url').value,
     ollamaUrl: el('ollama-url').value,
-    voiceApiKey: secret('voice-api-key'),
+    voiceApiKeys: {
+      openai: secret('voice-api-key-openai'),
+      grok: secret('voice-api-key-grok')
+    },
     voiceModel: el('voice-model').value,
     voiceProvider: el('voice-provider').value,
     imageProvider: el('image-provider').value,
@@ -176,6 +186,7 @@ el('admin-password').addEventListener('keydown', (event) => {
 });
 
 el('btn-save').addEventListener('click', () => saveSettings(false));
+el('voice-provider').addEventListener('change', updateVoiceProviderUi);
 el('btn-clear-keys').addEventListener('click', () => {
   if (confirm('Clear all stored API keys from the server settings?')) saveSettings(true);
 });

@@ -3,6 +3,12 @@
 Workflow: see `.agents/playbooks/reviewloop.md`.
 Per-finding detail: see `.agents/review/findings/<id>.md`.
 
+## Active Phase V implementation loop (2026-07-15)
+
+| ID | Severity | Impact (one line) | Status | Branch |
+|----|----------|-------------------|--------|--------|
+| v-1 | HIGH | Grok is unregistered and one generic voice-key slot can cross vendor boundaries | `[~]` implementation complete; pending review | `fix/v-1-grok-provider-config` |
+
 ## Active loop (2026-07-13, reviewer: codex) — owner-reported bugs
 
 Owner decision 2026-07-12: **all** code goes through this loop with codex; no exemption

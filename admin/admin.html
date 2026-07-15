@@ -135,14 +135,20 @@
         <select id="voice-provider">
           <option value="">(default: OpenAI)</option>
           <option value="openai">OpenAI</option>
+          <option value="grok">xAI Grok</option>
         </select>
-        <div class="hint">Speech goes through a provider seam; additional providers (e.g. voice cloning for unique NPC voices) register in tts-providers.js and appear here.</div>
-        <label for="voice-api-key">Voice API key (OpenAI)</label>
-        <input type="password" id="voice-api-key" placeholder="blank = keep current" autocomplete="off">
-        <div class="secret-state" id="voice-api-key-state"></div>
-        <label for="voice-model">TTS model</label>
-        <input type="text" id="voice-model" placeholder="gpt-4o-mini-tts">
-        <div class="hint">Voice narration is OpenAI-only for now (a provider seam is a recorded future topic). Accepted models: gpt-4o-mini-tts (instruction-steerable — accents/emotion via Voice Direction), tts-1, tts-1-hd (fixed character). Anything else silently falls back to gpt-4o-mini-tts. Players choose the voice and style in their own settings; the key and model live here.</div>
+        <div class="hint">OpenAI and Grok credentials are stored separately; switching providers never reuses the other vendor's key.</div>
+        <label for="voice-api-key-openai">OpenAI voice API key</label>
+        <input type="password" id="voice-api-key-openai" placeholder="blank = keep current" autocomplete="off">
+        <div class="secret-state" id="voice-api-key-openai-state"></div>
+        <label for="voice-api-key-grok">xAI Grok voice API key</label>
+        <input type="password" id="voice-api-key-grok" placeholder="blank = keep current" autocomplete="off">
+        <div class="secret-state" id="voice-api-key-grok-state"></div>
+        <div id="voice-model-group">
+          <label for="voice-model">OpenAI TTS model</label>
+          <input type="text" id="voice-model" placeholder="gpt-4o-mini-tts">
+          <div class="hint">OpenAI models: gpt-4o-mini-tts, tts-1, or tts-1-hd. Grok has no model field.</div>
+        </div>
       </section>
 
       <section>
