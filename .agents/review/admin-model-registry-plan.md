@@ -1,6 +1,7 @@
 # Admin model registry plan review
 
-**Status**: Round 1 reopened by both reviewers; revision required; no implementation authorized.
+**Status**: Round 1 findings incorporated; revised plan awaiting dual round 2; no implementation
+authorized.
 **Plan location**: `plan.md` → Dev Tooling → `am-*`
 **Owner direction**: `.agents/decisions.md` (2026-07-15 admin AI configuration decision)
 
@@ -70,3 +71,22 @@ Timestamp: 2026-07-15T15:50:38Z. Structured verdict valid and SHA-matched.
 Procedural note: the first Grok launch rejected the incompatible `--check --no-subagents` flag
 combination before model execution. It produced no verdict and was re-run read-only with the same
 pinned SHA and schema; only the valid second result above is a review outcome.
+
+### Round 1 response — revision committed after verdict record
+
+All findings are admitted and addressed in the r2 draft:
+
+- The custom endpoint remains a full chat-completions URL; catalog derivation replaces the exact
+  `/chat/completions` suffix with `/models` or reports discovery unavailable.
+- `legacyDefault` plus deterministic projected ids is the only blank provider/model exception;
+  authorization is tied to the server's existing projection/stored id, and runtime keeps the old
+  populated environment precedence.
+- Top-level legacy custom/Ollama endpoints map unconditionally into provider connections; partial
+  role tuples preserve raw partial fields and the no-op guard now exercises all of them.
+- The masked GET and secret-preserving POST schemas, entry-id merge rules, shared-mode secret clear,
+  and typed validation 400 boundary are explicit.
+- Catalog endpoints are request/stored/env only in non-production and env-only in production, with a
+  discriminating zero-fetch proof.
+- The UI uses same-origin ES modules, an explicit route for the helper, and the existing CSP.
+
+Round 2 must review the new shared SHA from scratch; neither r1 verdict carries forward.

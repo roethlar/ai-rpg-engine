@@ -1314,8 +1314,8 @@ Raised during planning but deliberately deferred. **Per project rule, nothing he
     **refuted**. This is the third round in which a reviewer's careful CSS reasoning was wrong —
     which is the whole argument for this harness existing.
 
-- **Admin model registry + Council assignments — `am-*` (DRAFT 2026-07-15; owner-approved
-  direction, plan review pending; no implementation branch).**
+- **Admin model registry + Council assignments — `am-*` (REVISED r2 2026-07-15; owner-approved
+  direction, dual plan re-review pending; no implementation branch).**
 
   **Problem.** `/admin` currently repeats a full provider/model/key form seven times: primary,
   fallback, and the five Council roles. Credentials, reusable model choices, and role assignment are
@@ -1359,7 +1359,8 @@ Raised during planning but deliberately deferred. **Per project rule, nothing he
         "provider": "openai",
         "model": "gpt-example",
         "keySource": "provider",
-        "apiKey": ""
+        "apiKey": "",
+        "legacyDefault": false
       }
     ],
     "roleAssignments": {
@@ -1376,10 +1377,23 @@ Raised during planning but deliberately deferred. **Per project rule, nothing he
   Entry ids are stable opaque ids (client-generated UUIDs for new rows, validated server-side),
   unique, and at most 80 characters. Labels are required, bounded to 80 characters, and need not be
   unique; assignment options disambiguate with `label — provider/model — shared|custom key`. New
-  entries require a non-empty exact model id. The server rejects duplicate ids, invalid providers,
-  missing custom override secrets, and dangling assignment references with 400 rather than silently
-  changing the operator's intent. The UI blocks deletion of an assigned entry and names the roles
-  using it; the server independently rejects a crafted dangling save.
+  entries require a non-empty provider and exact model id.
+
+  `legacyDefault: true` is the one migration-only exception: it preserves a projected v1 entry whose
+  provider and/or model was blank and therefore inherited environment/provider defaults. Projected
+  ids are deterministic (`legacy_primary`, `legacy_role_<role>`, `legacy_fallback`, with a stable
+  suffix only when deduplication requires it), never random per GET. A save may retain
+  `legacyDefault: true` only for an id the server itself projected from the existing v1 row or an id
+  already stored with that flag in v2; a crafted new legacy entry is rejected. Selecting an explicit
+  provider and model clears the flag permanently. This is the discriminator used by validation,
+  runtime resolution, the UI warning, and the migration guard.
+
+  The server rejects duplicate ids, invalid providers, missing custom override secrets, illegal
+  legacy flags, and dangling assignment references with 400 rather than silently changing the
+  operator's intent. `AdminConfigValidationError` is the typed boundary: the settings route maps
+  only that error to 400; unexpected storage/programming errors remain 500. The UI blocks deletion
+  of an assigned entry and names the roles using it; the server independently rejects a crafted
+  dangling save.
 
   An empty primary assignment means the existing environment/default chain for that role. An empty
   fallback means no stored per-role fallback; the existing `FALLBACK_*` environment tier may still
@@ -1392,37 +1406,95 @@ Raised during planning but deliberately deferred. **Per project rule, nothing he
     `keySource: custom`) → stored provider key → that provider's environment key. A key never crosses
     provider boundaries.
   - Provider and entry secrets keep the existing masked-form semantics independently: blank/missing
-    keeps the stored value, explicit `null` clears, non-empty replaces. `GET /api/admin/settings`
-    returns only `apiKeySet` booleans. A custom-key entry whose secret is cleared must be switched to
-    provider-key mode in the same valid save.
+    keeps the stored value, explicit `null` clears, non-empty replaces. A custom-key entry whose
+    secret is cleared must be switched to provider-key mode in the same valid save.
   - Official provider endpoints remain pinned. `custom.baseUrl` and `ollama.ollamaUrl` retain the
     existing environment/SSRF production policy. Model entries do not carry endpoints, so models on
     one provider connection cannot silently route to different hosts.
   - The existing "Clear stored keys" action clears every provider default, every model override,
     and the separate voice/image keys only after confirmation; it never changes assignments.
 
+  The exact masked `GET /api/admin/settings` v2 DTO is the canonical non-secret shape (voice/image
+  fields follow their existing mask unchanged):
+
+  ```json
+  {
+    "configVersion": 2,
+    "providers": {
+      "gemini": { "apiKeySet": true },
+      "openai": { "apiKeySet": false },
+      "claude": { "apiKeySet": false },
+      "grok": { "apiKeySet": false },
+      "ollama": { "ollamaUrl": "" },
+      "custom": { "apiKeySet": false, "baseUrl": "" }
+    },
+    "modelEntries": [
+      {
+        "id": "model_opaque-id",
+        "label": "Fast interaction",
+        "provider": "openai",
+        "model": "gpt-example",
+        "keySource": "provider",
+        "apiKeySet": false,
+        "legacyDefault": false
+      }
+    ],
+    "roleAssignments": {
+      "setup": { "primary": "model_opaque-id", "fallback": "" }
+    }
+  }
+  ```
+
+  The POST body has the same structure but sends secret `apiKey` fields instead of trusting
+  `apiKeySet`. Provider secrets merge by provider name. Entry secrets merge by stable entry id: blank
+  or absent keeps that id's stored secret, `null` clears, non-empty replaces. New `keySource: custom`
+  entries require a non-empty submitted secret. Switching an existing entry to
+  `keySource: provider` writes `apiKey: ''` regardless of a blank masked input, so an obsolete
+  override cannot linger. Removing an unassigned entry drops its secret. `apiKeySet` values in a
+  POST are ignored. Non-secret fields and the complete five-role assignment map are replaced by the
+  validated incoming values in the same transaction-like JSON-row save; voice/image fields use
+  their existing independent keep/replace/clear merge. The save response is the masked DTO above.
+
   **Legacy `ai_config` projection and canonical rewrite.** `server-config.js` accepts both the old
   tuple shape and version 2. A legacy row is projected deterministically for display and runtime,
   then written as version 2 on the next admin save:
 
+  - Legacy top-level `baseUrl` always maps to `providers.custom.baseUrl`, and top-level `ollamaUrl`
+    always maps to `providers.ollama.ollamaUrl`, even when the legacy primary provider is neither
+    `custom` nor `ollama`. Neither endpoint is discarded by canonical rewrite.
   - The legacy primary tuple becomes a provider default plus one configured entry used by every role
-    that had no explicit role tuple.
-  - Each explicit legacy role tuple becomes (or reuses) an entry. A role key equal to its provider
-    default uses shared-key mode; a distinct role key becomes a custom override.
+    that had no explicit role tuple. If its provider is blank, its key stays on the projected
+    `legacy_primary` entry as a custom key so it follows the same environment-selected provider as
+    before; it is not guessed into a provider row.
+  - An explicit legacy role tuple means **any** non-empty stored `provider`, `model`, or `apiKey`
+    field. It becomes (or reuses) a deterministic legacy entry preserving those raw partial fields.
+    Blank provider/model fields are not filled and pinned during storage migration: while
+    `legacyDefault` remains true, runtime applies the exact old precedence
+    (stored role field → matching `ROLE_*` environment field → stored primary field → global
+    environment/default). A stored role key remains the entry's custom key; if provider is explicit
+    and that key equals its stored provider default, it may safely use shared-key mode. Thus a
+    model-only, provider-only, or key-only old role survives without inventing a provider/model or
+    copying an environment secret.
   - The one legacy global fallback becomes one configured entry and is assigned as fallback to all
     five roles, per the owner decision.
   - Identical provider/model/key-source tuples deduplicate; distinct keys never do. Voice/image data
     is copied byte-for-byte through the projection. Environment secrets are never copied into the
     stored JSON.
   - A fixed-environment migration guard compares the effective primary and fallback config for all
-    five roles before and after a no-op canonical save. Legacy blank-model/provider defaults continue
-    to run until the operator selects an explicit entry; the UI marks such projected entries
-    "legacy provider default" rather than inventing a current model id.
+    five roles before and after a no-op canonical save. Its fixture includes partial role tuples,
+    populated `AI_MODEL`, role model/provider variables, `FALLBACK_AI_MODEL`, a custom full chat URL,
+    and an Ollama URL; leaving those env values blank would make the proof vacuous. Legacy blank
+    provider/model entries keep consulting the same environment variables until the operator selects
+    explicit values. The UI marks them "legacy inherited default" rather than inventing a current
+    provider or model id.
 
   **Runtime resolution.** `mergeAiConfig` expands version 2 into role-specific primary/fallback
-  configurations; `resolveAgentConfig` consumes an assigned primary first, otherwise keeps the
-  current role-env → primary-env/default chain. Each role's selected fallback replaces the old global
-  stored fallback. `FALLBACK_*` remains the fallback only for roles without a stored fallback.
+  configurations; `resolveAgentConfig` consumes a normal assigned primary first, otherwise keeps the
+  current role-env → primary-env/default chain. An assigned `legacyDefault` entry uses its stored
+  partial fields but still resolves every blank provider/model through that exact old chain; a blank
+  legacy fallback model still consults `FALLBACK_AI_MODEL`. Each role's selected fallback replaces
+  the old global stored fallback. `FALLBACK_*` remains the fallback only for roles without a stored
+  fallback.
   Fallback configs now carry `baseUrl`/`ollamaUrl` as well as provider/model/key so a configured
   custom or Ollama fallback actually reaches its selected connection. The `AIClient` failover path
   forwards those fields to the backup client. Call sites in `rpg-engine.js` do not change.
@@ -1440,7 +1512,14 @@ Raised during planning but deliberately deferred. **Per project rule, nothing he
   - Grok: `GET https://api.x.ai/v1/language-models`, Bearer; return each `models[].id` plus advertised
     aliases, excluding image/video-only catalogs.
   - Ollama: `GET {ollamaUrl}/api/tags`; return unique `models[].name`.
-  - Custom OpenAI-compatible: `GET {baseUrl}/models`; return unique `data[].id`.
+  - Custom OpenAI-compatible: preserve the existing contract that `baseUrl` / `CUSTOM_ENDPOINT_URL`
+    is the **full chat-completions URL** consumed directly by `callCustomOpenAI`. Derive the catalog
+    URL only when its parsed pathname ends in `/chat/completions` (an optional trailing slash is
+    normalized): replace that suffix with `/models`, preserving the origin and preceding path.
+    Example: `https://openrouter.ai/api/v1/chat/completions` →
+    `https://openrouter.ai/api/v1/models`. If the full chat URL has another shape, live discovery is
+    unavailable with a controlled 400 and manual model entry remains usable; never append blindly.
+    Return unique OpenAI-shaped `data[].id`.
 
   Results are trimmed, deduplicated, and sorted; malformed success bodies fail closed rather than
   returning an empty success. Catalog requests time out after 10 seconds. Official URLs are pinned.
@@ -1451,12 +1530,19 @@ Raised during planning but deliberately deferred. **Per project rule, nothing he
 
   **Catalog route.** Add admin-authenticated `POST /api/admin/models/catalog` under the existing
   `/api/admin` limiter. Body:
-  `{ provider, modelEntryId?, apiKey?, baseUrl?, ollamaUrl? }`. Resolution is non-empty request key
+  `{ provider, modelEntryId?, apiKey?, baseUrl?, ollamaUrl? }`. Here `baseUrl` retains the full custom
+  chat-completions URL contract above. Resolution is non-empty request key
   (test an unsaved value) → stored override for a matching entry id → stored provider key → provider
-  environment key. Endpoint fields follow the analogous request → stored provider connection → env
-  chain and then the existing SSRF policy. An entry id must exist and match the requested provider
-  before its stored override is eligible. The route returns `{ models: string[] }`, never config or
-  credential material. Seats/game authentication cannot reach it.
+  environment key. In non-production, endpoint fields follow request → stored provider connection →
+  env, then the shared SSRF policy. In production, request and stored `baseUrl` / `ollamaUrl` are
+  discarded **before** URL derivation and SSRF, exactly as `AIClient` discards config-supplied
+  endpoints; only `CUSTOM_ENDPOINT_URL` / `OLLAMA_URL` may supply them. Put this environment-policy
+  helper in the shared server/network boundary rather than pretending SSRF implements it. A
+  discriminating test sets `NODE_ENV=production`, proves a request/stored public URL causes zero
+  fetches, then proves the env-pinned URL is the only one fetched. An entry id must exist and match
+  the requested provider before its stored override is eligible. The route returns
+  `{ models: string[] }`, never config or credential material. Seats/game authentication cannot
+  reach it.
 
   **Admin UI.** Replace the repeated text-model forms in `admin/admin.html` and `admin/admin.js`:
 
@@ -1474,19 +1560,27 @@ Raised during planning but deliberately deferred. **Per project rule, nothing he
     styling. Save is one atomic POST. Inline validation identifies the exact row/role; a catalog
     failure stays local to its provider and does not clear an existing selection.
   - Move reusable registry/assignment state operations into a browser-safe pure module imported by
-    `admin.js` and `test.js`; DOM rendering remains in `admin.js`. No framework is added.
+    `admin.js` and `test.js`; DOM rendering remains in `admin.js`. `admin.html` loads
+    `/admin/admin.js` with `type="module"`; `admin.js` imports `./model-registry.js`; `server.js` adds
+    an explicit `/admin/model-registry.js` `sendFile` route beside the existing admin-script route.
+    The current CSP `script-src 'self'` permits both same-origin modules without an inline-script or
+    policy change. No framework or broad static mount is added.
 
   **Verification and non-vacuous guards.**
 
   - `AI_RETRY_BACKOFF_MS=10 node test.js` green. Tests cover v2 bounds/reference validation; every
     independent secret keep/replace/clear path; provider-default versus custom key resolution;
     same-provider sharing; per-role primary/fallback; cross-provider key isolation; custom/Ollama
-    fallback endpoints; legacy projection and effective no-op-save equivalence; and masking (raw
-    secrets absent from every admin response).
+    fallback endpoints; deterministic legacy ids/flag authorization; partial legacy tuples;
+    custom/Ollama endpoint migration; populated-env effective no-op-save equivalence; the exact
+    masked/save DTO; typed 400 versus unexpected 500; and masking (raw secrets absent from every
+    admin response).
   - Catalog parser fixtures cover all six providers, Grok language-only filtering/aliases, Gemini
     method filtering, malformed success bodies, timeout/error sanitization, and custom/Ollama SSRF.
     An HTTP-boundary test proves unsaved → entry override → provider stored → env precedence and
-    rejects cross-provider entry-id spoofing without making a provider call.
+    rejects cross-provider entry-id spoofing without making a provider call. Custom fixtures prove
+    the full-chat → models URL derivation and reject a non-derivable full URL without fetching;
+    production fixtures prove request/stored endpoints are ignored and env-pinned endpoints work.
   - Extend the committed Playwright harness to open `/admin` against a throwaway store, stub a live
     catalog result, add two models sharing one provider key plus one custom override, assign primary
     and fallback models to multiple roles, save/reload, and assert the compact rows and selections
@@ -1505,8 +1599,9 @@ Raised during planning but deliberately deferred. **Per project rule, nothing he
 
   1. `am-1` — canonical registry, legacy projection, masked save/load, role-specific primary/fallback
      runtime resolution, and fallback endpoint forwarding. Files: `server-config.js`,
-     `api-client.js`, `test.js`, review/state docs. Observable failure: the current shape cannot
-     share provider credentials explicitly or assign distinct fallbacks per role.
+     `api-client.js`, `server.js` (typed validation 400), `test.js`, review/state docs. Observable
+     failure: the current shape cannot share provider credentials explicitly or assign distinct
+     fallbacks per role.
   2. `am-2` — provider catalog module and authenticated route with credential precedence, timeout,
      error redaction, and SSRF reuse. Files: `model-catalog.js` (new), `api-client.js` (export shared
      network policy only), `server.js`, `test.js`, review/state docs. Observable failure: the server
