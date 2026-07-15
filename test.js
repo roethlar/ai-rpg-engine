@@ -1014,6 +1014,163 @@ async function testTtsCache() {
   limiter.take('ip');
 }
 
+async function testBrowserVoiceQueue() {
+  console.log(' - Running browser voice queue policy tests...');
+  const {
+    normalizeVoiceLines,
+    buildNarrationRuns,
+    runVoiceNarration
+  } = await import('./public/voice-narration.js');
+
+  const fallback = normalizeVoiceLines([], 'x'.repeat(2501));
+  assert.deepStrictEqual(fallback.map(line => line.text.length), [2000, 501],
+    'Voice-line-less narrative fallback is split to the server segment bound without losing text');
+
+  const lines = normalizeVoiceLines([
+    { speaker: 'Aster', tone: 'warm', text: 'First.' },
+    { speaker: 'aster', tone: 'tense', text: 'Second.' },
+    { speaker: 'Borel', tone: 'gruff', text: 'Third.' },
+    { speaker: 'Aster', tone: 'cold', text: 'Fourth.' }
+  ]);
+  const grouped = buildNarrationRuns(lines, 40);
+  assert.deepStrictEqual(grouped, [
+    { speaker: 'Aster', segments: [{ text: 'First.', tone: 'warm' }, { text: 'Second.', tone: 'tense' }] },
+    { speaker: 'Borel', segments: [{ text: 'Third.', tone: 'gruff' }] },
+    { speaker: 'Aster', segments: [{ text: 'Fourth.', tone: 'cold' }] }
+  ], 'Grok groups adjacent same-speaker lines case-insensitively and preserves each tone');
+  assert.deepStrictEqual(buildNarrationRuns(lines, 1).map(run => run.segments.length), [1, 1, 1, 1],
+    'A provider limit of one creates OpenAI singleton runs');
+
+  const longLines = Array.from({ length: 8 }, () => ({ speaker: 'Aster', tone: 'neutral', text: 'y'.repeat(2000) }));
+  assert.deepStrictEqual(buildNarrationRuns(longLines, 40).map(run => run.segments.length), [7, 1],
+    'Browser batching also honors the server aggregate-text bound');
+
+  const openAiCalls = [];
+  const openAiPlayed = [];
+  const openAiResult = await runVoiceNarration(lines.slice(0, 3), {
+    loadCapabilities: async () => ({ provider: 'openai', maxSegmentsPerRequest: 1 }),
+    synthesize: async (run, expectedProvider) => {
+      openAiCalls.push({ run, expectedProvider });
+      return run.speaker;
+    },
+    play: async audio => openAiPlayed.push(audio)
+  });
+  assert.strictEqual(openAiResult.hadError, false);
+  assert.deepStrictEqual(openAiCalls.map(call => call.expectedProvider), ['openai', 'openai', 'openai']);
+  assert.deepStrictEqual(openAiCalls.map(call => call.run.segments.length), [1, 1, 1]);
+  assert.deepStrictEqual(openAiPlayed, ['Aster', 'aster', 'Borel']);
+
+  const failedRuns = [];
+  const playedAfterFailure = [];
+  let notices = 0;
+  const continued = await runVoiceNarration(lines.slice(0, 3), {
+    loadCapabilities: async () => ({ provider: 'grok', maxSegmentsPerRequest: 40 }),
+    synthesize: async (run, expectedProvider) => {
+      failedRuns.push({ run, expectedProvider });
+      if (failedRuns.length === 1) throw new Error('temporary synthesis failure');
+      return run.speaker;
+    },
+    play: async audio => playedAfterFailure.push(audio),
+    onError: () => { notices += 1; }
+  });
+  assert.strictEqual(continued.hadError, true);
+  assert.strictEqual(failedRuns.length, 2, 'A failed first run does not abort the remaining queue');
+  assert.deepStrictEqual(playedAfterFailure, ['Borel'], 'The next run still plays');
+  assert.strictEqual(notices, 1, 'Voice errors are reported once per queue');
+
+  for (const loadCapabilities of [
+    async () => { throw new Error('capabilities timeout'); },
+    async () => ({ provider: 'grok', maxSegmentsPerRequest: '40' }),
+    async () => ({ provider: 'unknown', maxSegmentsPerRequest: 40 }),
+    async () => ({ provider: 'grok', maxSegmentsPerRequest: 41 }),
+    async () => ({ provider: 'openai', maxSegmentsPerRequest: 40 })
+  ]) {
+    const singletonCalls = [];
+    await runVoiceNarration(lines.slice(0, 2), {
+      loadCapabilities,
+      synthesize: async (run, expectedProvider) => {
+        singletonCalls.push({ run, expectedProvider });
+        return run.segments[0].text;
+      },
+      play: async () => {}
+    });
+    assert.deepStrictEqual(singletonCalls.map(call => call.run.segments.length), [1, 1]);
+    assert.deepStrictEqual(singletonCalls.map(call => call.expectedProvider), [null, null],
+      'Failed or malformed capabilities fail closed to provider-agnostic singletons');
+  }
+
+  let capabilityLoads = 0;
+  const firstRaceCalls = [];
+  await runVoiceNarration(lines.slice(0, 2), {
+    loadCapabilities: async () => (++capabilityLoads === 1
+      ? { provider: 'grok', maxSegmentsPerRequest: 40 }
+      : { provider: 'openai', maxSegmentsPerRequest: 1 }),
+    synthesize: async (run, expectedProvider) => {
+      firstRaceCalls.push({ run, expectedProvider });
+      if (firstRaceCalls.length === 1) {
+        const error = new Error('provider changed');
+        error.code = 'VOICE_PROVIDER_CHANGED';
+        throw error;
+      }
+      return run.segments[0].text;
+    },
+    play: async () => {}
+  });
+  assert.strictEqual(capabilityLoads, 2, 'The first provider race refreshes capabilities once');
+  assert.deepStrictEqual(firstRaceCalls.map(call => call.expectedProvider), ['grok', 'openai', 'openai']);
+  assert.deepStrictEqual(firstRaceCalls.map(call => call.run.segments.length), [2, 1, 1]);
+
+  capabilityLoads = 0;
+  const repeatedRaceCalls = [];
+  const repeatedRacePlayed = [];
+  await runVoiceNarration(lines.slice(0, 2), {
+    loadCapabilities: async () => (++capabilityLoads === 1
+      ? { provider: 'grok', maxSegmentsPerRequest: 40 }
+      : { provider: 'openai', maxSegmentsPerRequest: 1 }),
+    synthesize: async (run, expectedProvider) => {
+      repeatedRaceCalls.push({ run, expectedProvider });
+      if (repeatedRaceCalls.length <= 2) {
+        const error = new Error('provider changed again');
+        error.code = 'VOICE_PROVIDER_CHANGED';
+        throw error;
+      }
+      return run.segments[0].text;
+    },
+    play: async audio => repeatedRacePlayed.push(audio)
+  });
+  assert.strictEqual(capabilityLoads, 2, 'A second race does not trigger another capability fetch');
+  assert.deepStrictEqual(repeatedRaceCalls.map(call => call.expectedProvider), ['grok', 'openai', null, null]);
+  assert.deepStrictEqual(repeatedRaceCalls.map(call => call.run.segments.length), [2, 1, 1, 1]);
+  assert.deepStrictEqual(repeatedRacePlayed, ['First.', 'Second.'],
+    'Repeated provider flips degrade to singletons and still finish the queue');
+
+  let cancelled = false;
+  let cancellationSyntheses = 0;
+  let cancellationPlays = 0;
+  const cancellation = await runVoiceNarration(lines.slice(0, 3), {
+    loadCapabilities: async () => ({ provider: 'openai', maxSegmentsPerRequest: 1 }),
+    synthesize: async () => {
+      cancellationSyntheses += 1;
+      cancelled = true;
+      return 'audio';
+    },
+    play: async () => { cancellationPlays += 1; },
+    isCancelled: () => cancelled
+  });
+  assert.strictEqual(cancellation.cancelled, true);
+  assert.strictEqual(cancellationSyntheses, 1);
+  assert.strictEqual(cancellationPlays, 0, 'Cancellation stops before stale audio is played');
+
+  const indexSource = fs.readFileSync(path.join(process.cwd(), 'public', 'index.html'), 'utf8');
+  const appSource = fs.readFileSync(path.join(process.cwd(), 'public', 'app.js'), 'utf8');
+  assert.strictEqual(/select-voice-name|input-voice-instructions/.test(indexSource), false,
+    'Player voice and free-text direction controls are removed');
+  assert.strictEqual(/voiceName|voiceInstructions|selectVoiceName|inputVoiceInstructions/.test(appSource), false,
+    'Player voice and free-text direction state is removed');
+  assert.strictEqual(appSource.includes('runVoiceNarration(queue'), true,
+    'The browser executes the guarded production queue helper');
+}
+
 // -------------------------------------------------------------
 // Test: round-robin turn order (Phase 3 M2)
 // -------------------------------------------------------------
@@ -2727,6 +2884,7 @@ async function runAll() {
     await testCanonicalVoiceRoute();
     await testTtsProviderSeam();
     await testTtsCache();
+    await testBrowserVoiceQueue();
     await testImageProviderSeam();
     await testServerConfigResolution();
     await testFallbackTiering();

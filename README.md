@@ -66,7 +66,7 @@ AI configuration belongs to the server operator — players never supply keys or
 model choices. Configure it either way:
 
 - **Admin panel**: open **`/admin`** (not linked from the game UI) and set the
-  provider, model, keys, optional fallback tier, and voice key. Settings persist
+  provider, model, keys, optional fallback tier, and OpenAI/Grok voice provider keys. Settings persist
   in the server database and take precedence over environment variables. Gate the
   panel with `ADMIN_SECRET` in `.env`; if unset, `/admin` is open for
   single-operator localhost use (production refuses to serve it without the secret).
@@ -201,7 +201,15 @@ The engine has five first-class AI roles, each independently configurable in `/a
 
 ## Voice Narration
 
-Voice narration can be enabled in the player settings panel (voice choice and style are player preferences). It uses the server endpoint `/api/audio/narrate` to generate MP3 audio from the final GM narrative via OpenAI's speech endpoint; the voice API key and TTS model are server-owned — set them at `/admin` or via `OPENAI_API_KEY` / `TTS_MODEL`. The app labels the feature as AI-generated voice narration for user disclosure.
+Voice narration can be enabled or previewed in the player settings panel. Voice identity and delivery
+belong to the campaign, not to each listener: the server resolves the GM narrator and NPC voices, and
+identical host/seat playback shares one synthesis result instead of multiplying provider calls.
+
+The operator chooses **OpenAI** or **xAI Grok** and stores that provider's voice key at `/admin`.
+Environment alternatives are `TTS_PROVIDER=openai` with `OPENAI_API_KEY` and optional `TTS_MODEL`, or
+`TTS_PROVIDER=grok` with `XAI_API_KEY`. Grok batches adjacent lines from the same speaker while
+preserving each line's delivery tone; OpenAI uses one line per request. The app labels playback as
+AI-generated voice narration for user disclosure.
 
 ---
 
