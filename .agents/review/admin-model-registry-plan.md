@@ -319,3 +319,31 @@ Both comments are incorporated in the r7 draft:
   and proves normalization cannot revive it. Reverting the marker branch makes both red.
 
 Round 7 must review the complete new shared SHA; prior results do not carry forward.
+
+### Round 7 — pinned `46c1913f33f835347b583213359e64ade16b7b0a`
+
+Base: `0dc4ca6fd451126bfaffff4a6c51f5e3914f63e4`.
+
+#### Claude Code 2.1.210 / Claude Opus 4.8 (high effort)
+
+Timestamp: 2026-07-15T16:49:39Z. Structured verdict valid and SHA-matched.
+`evidence_checked: true`; `cold_implementer_executable: false`; verdict: **reopened**.
+
+#### Grok 0.2.101 / Grok 4.5 (high reasoning)
+
+Timestamp: 2026-07-15T16:49:39Z. The CLI's free-text envelope was noisy, but its schema-enforced
+`structuredOutput` was valid and SHA-matched. `evidence_checked: true`;
+`cold_implementer_executable: false`; verdict: **reopened**.
+
+Both reviewers independently reported the same material issue:
+
+1. **HIGH — wrong-key marker guard is vacuous with a stored connection key.** A normal fallback's
+   non-empty connection key is already copied into the resolved fallback object, so the old
+   `apiKey || FALLBACK_API_KEY` expression still selects that connection key after the marker branch
+   is removed. The Authorization assertion stays green, contradicting the promised guard proof.
+   Use a provider-key entry with blank custom and connection keys, distinct provider-environment and
+   `FALLBACK_API_KEY` secrets, and explicitly defer provider-environment resolution to the backup
+   `AIClient`; then removing the marker injects the wrong fallback secret and turns the test red.
+
+Convergence is not reached. The finding is admitted as a verification-contract defect; neither
+reviewer identified a new product or runtime-design gap.
