@@ -194,12 +194,26 @@ function delay(ms) {
 }
 
 function normalizeFallbackConfig(config = {}) {
+  if (config.fallbackResolved === true) {
+    const fallback = config.fallback;
+    if (!fallback?.provider) return null;
+    return {
+      provider: fallback.provider,
+      model: fallback.model || undefined,
+      apiKey: fallback.apiKey || undefined,
+      baseUrl: fallback.baseUrl || undefined,
+      ollamaUrl: fallback.ollamaUrl || undefined
+    };
+  }
+
   const provider = config.fallback?.provider || process.env.FALLBACK_AI_PROVIDER;
   if (!provider) return null;
   return {
     provider,
     model: config.fallback?.model || process.env.FALLBACK_AI_MODEL || undefined,
-    apiKey: config.fallback?.apiKey || process.env.FALLBACK_API_KEY || undefined
+    apiKey: config.fallback?.apiKey || process.env.FALLBACK_API_KEY || undefined,
+    baseUrl: config.fallback?.baseUrl || undefined,
+    ollamaUrl: config.fallback?.ollamaUrl || undefined
   };
 }
 
@@ -214,7 +228,80 @@ function normalizeFallbackConfig(config = {}) {
  * back to that provider's own env key (e.g. XAI_API_KEY) instead of sending
  * another provider's credentials to the wrong API.
  */
-export function resolveAgentConfig(apiConfig = {}, role) {
+function providerConnection(council, provider) {
+  const connection = council?.connections?.[provider];
+  return connection && typeof connection === 'object' ? connection : {};
+}
+
+function descriptorStoredKey(descriptor, council, provider) {
+  if (!descriptor) return undefined;
+  if (descriptor.keySource === 'custom') return descriptor.customApiKey || undefined;
+  return providerConnection(council, provider).apiKey || undefined;
+}
+
+function descriptorEndpoints(council, provider, env, prefix = '') {
+  const connection = providerConnection(council, provider);
+  return {
+    baseUrl: provider === 'custom'
+      ? ((prefix && env[`${prefix}_CUSTOM_ENDPOINT_URL`]) || connection.baseUrl || undefined)
+      : undefined,
+    ollamaUrl: provider === 'ollama'
+      ? ((prefix && env[`${prefix}_OLLAMA_URL`]) || connection.ollamaUrl || undefined)
+      : undefined
+  };
+}
+
+function resolveCouncilDefault(apiConfig, env) {
+  const council = apiConfig.council;
+  const descriptor = council?.defaultPrimary;
+  if (!descriptor) return null;
+  const provider = descriptor.provider || env.AI_PROVIDER || apiConfig.provider || 'gemini';
+  const endpoints = descriptorEndpoints(council, provider, env);
+  return {
+    provider,
+    model: descriptor.model || undefined,
+    apiKey: descriptorStoredKey(descriptor, council, provider),
+    ...endpoints
+  };
+}
+
+function resolveCouncilFallback(apiConfig, role, env) {
+  const council = apiConfig.council;
+  const descriptor = council?.roles?.[role]?.fallback || null;
+
+  if (!descriptor) {
+    const provider = env.FALLBACK_AI_PROVIDER || '';
+    if (!provider) return null;
+    return {
+      provider,
+      model: env.FALLBACK_AI_MODEL || undefined,
+      apiKey: env.FALLBACK_API_KEY || undefined,
+      baseUrl: undefined,
+      ollamaUrl: undefined
+    };
+  }
+
+  if (!descriptor.legacyDefault) {
+    const provider = descriptor.provider;
+    return {
+      provider,
+      model: descriptor.model,
+      apiKey: descriptorStoredKey(descriptor, council, provider),
+      ...descriptorEndpoints(council, provider, env)
+    };
+  }
+
+  const provider = descriptor.provider || env.FALLBACK_AI_PROVIDER || '';
+  if (!provider) return null;
+  return {
+    provider,
+    model: descriptor.model || env.FALLBACK_AI_MODEL || undefined,
+    apiKey: descriptor.customApiKey || env.FALLBACK_API_KEY || undefined,
+    ...descriptorEndpoints(council, provider, env)
+  };
+}
+
+export function resolveAgentConfig(apiConfig = {}, role, env = process.env) {
   const prefixes = {
     setup: 'SETUP',
     interaction: 'INTERACTION',
@@ -223,19 +310,67 @@ export function resolveAgentConfig(apiConfig = {}, role) {
     narration: 'NARRATION'
   };
   const prefix = prefixes[role] || String(role).toUpperCase();
+
+  if (apiConfig.council) {
+    const council = apiConfig.council;
+    const descriptor = council.roles?.[role]?.primary || null;
+    const defaultPrimary = resolveCouncilDefault(apiConfig, env);
+    let provider;
+    let model;
+    let apiKey;
+
+    if (descriptor && !descriptor.legacyDefault) {
+      provider = descriptor.provider;
+      model = descriptor.model;
+      apiKey = descriptorStoredKey(descriptor, council, provider);
+    } else if (descriptor) {
+      provider = descriptor.provider
+        || env[`${prefix}_AI_PROVIDER`]
+        || defaultPrimary?.provider
+        || apiConfig.provider
+        || 'gemini';
+      const inheritDefault = provider === defaultPrimary?.provider;
+      model = descriptor.model
+        || env[`${prefix}_AI_MODEL`]
+        || (inheritDefault ? defaultPrimary.model : undefined);
+      apiKey = descriptor.customApiKey
+        || env[`${prefix}_API_KEY`]
+        || (inheritDefault ? defaultPrimary.apiKey : undefined);
+    } else {
+      provider = env[`${prefix}_AI_PROVIDER`]
+        || defaultPrimary?.provider
+        || apiConfig.provider
+        || 'gemini';
+      const inheritDefault = provider === defaultPrimary?.provider;
+      model = env[`${prefix}_AI_MODEL`]
+        || (inheritDefault ? defaultPrimary.model : undefined);
+      apiKey = env[`${prefix}_API_KEY`]
+        || (inheritDefault ? defaultPrimary.apiKey : undefined);
+    }
+
+    return {
+      provider,
+      model,
+      apiKey,
+      ...descriptorEndpoints(council, provider, env, prefix),
+      fallback: resolveCouncilFallback(apiConfig, role, env),
+      fallbackResolved: true
+    };
+  }
+
   // Per-role admin config (decision 2026-07-03): /admin values beat role env
   // vars, which beat the primary config.
   const adminRole = (apiConfig.roles && apiConfig.roles[role]) || {};
 
-  const provider = adminRole.provider || process.env[`${prefix}_AI_PROVIDER`] || apiConfig.provider;
+  const provider = adminRole.provider || env[`${prefix}_AI_PROVIDER`] || apiConfig.provider;
   const inherit = provider === apiConfig.provider;
 
   return {
     provider,
-    model: adminRole.model || process.env[`${prefix}_AI_MODEL`] || (inherit ? apiConfig.model : undefined),
-    apiKey: adminRole.apiKey || process.env[`${prefix}_API_KEY`] || (inherit ? apiConfig.apiKey : undefined),
-    baseUrl: process.env[`${prefix}_CUSTOM_ENDPOINT_URL`] || (inherit ? apiConfig.baseUrl : undefined),
-    ollamaUrl: process.env[`${prefix}_OLLAMA_URL`] || (inherit ? apiConfig.ollamaUrl : undefined),
+    model: adminRole.model || env[`${prefix}_AI_MODEL`] || (inherit ? apiConfig.model : undefined),
+    apiKey: adminRole.apiKey || env[`${prefix}_API_KEY`] || (inherit ? apiConfig.apiKey : undefined),
+    baseUrl: env[`${prefix}_CUSTOM_ENDPOINT_URL`] || (inherit ? apiConfig.baseUrl : undefined),
+    ollamaUrl: env[`${prefix}_OLLAMA_URL`] || (inherit ? apiConfig.ollamaUrl : undefined),
     // The fallback tier is role-independent: any role's failing call may fail
     // over to the backup model (per-call, so role separation is preserved).
     fallback: apiConfig.fallback
@@ -322,7 +457,9 @@ export class AIClient {
         const backupClient = new AIClient({
           provider: this.fallback.provider,
           model: this.fallback.model,
-          apiKey: this.fallback.apiKey
+          apiKey: this.fallback.apiKey,
+          baseUrl: this.fallback.baseUrl,
+          ollamaUrl: this.fallback.ollamaUrl
         });
         return backupClient.dispatchPrompt(args);
       }

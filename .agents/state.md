@@ -35,11 +35,15 @@ to `docs/history/state-archive.md`.
   direction 2026-07-15: compact provider connections with shared keys, reusable configured models
   with optional custom key overrides and live editable catalogs, then primary + fallback assignment
   per Council role. The `am-*` r8 plan in plan.md is accepted by Claude and Grok at
-  `5f0261375f9b97f464f54ee406d5bafca7f3ea8d`; `am-1` is unchanged. A first-class, no-key
+  `5f0261375f9b97f464f54ee406d5bafca7f3ea8d`. A first-class, no-key
   `claude-code` provider using the server process's logged-in plan is covered by the accepted r11
   extension at `0f36f0f920e2e26a0783840e49ad8144f797dec5`; model ids remain manually editable
   because the installed CLI has no documented machine-readable account catalog. Claude Fable 5
   accepted the pinned extension with evidence checked and no comments.
+- **`am-1` is accepted at review head `80c2143` and merged into `master` under the owner's go.**
+  It adds canonical v2 projection/validation/save seams and Council runtime resolution
+  while leaving the v1 admin HTTP wire active. `.agents/review/findings/am-1.md` owns the scope,
+  guard proof, and verdict.
 - **The remote two-human multiplayer playtest remains pending.** App-side seat work is landed;
   connectivity is owner-handled and out of repo scope. The playtest is the scheduled close for open
   multiplayer feel gates. Seat isolation must be re-tested whenever a field crosses a seat payload,
@@ -52,9 +56,9 @@ to `docs/history/state-archive.md`.
 
 ## Next
 
-**THE IMMEDIATE NEXT ACTION: obtain the owner-gated merges of the accepted admin plan and `am-1`
-branches.** Then start `am-cc` from updated `master`. The remaining ordered reviewloop slices are
-`am-cc`, `am-2`, and `am-3`, each accepted and owner-merged before the next.
+**THE IMMEDIATE NEXT ACTION: implement and review `am-cc` from updated `master`.** The remaining
+ordered reviewloop slices are `am-cc`, `am-2`, and `am-3`, each accepted and owner-merged before the
+next.
 
 - Phase V's owner playtest remains the pending feel gate after this explicitly selected repo work.
   Configure either OpenAI or Grok voice in `/admin`, enable Voice Narration, and play a real scene

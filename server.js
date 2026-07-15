@@ -10,7 +10,8 @@ import {
   getServerAiConfig,
   loadAdminAiConfig,
   saveAdminAiConfig,
-  maskAiConfig
+  maskAiConfig,
+  AdminConfigValidationError
 } from './server-config.js';
 import { looksLikeSeatToken, hashSeatToken, mintSeatToken, findLiveSeat } from './seat-auth.js';
 import { scopeStateForSeat, scopeJournalForSeat } from './rpg-state.js';
@@ -28,6 +29,10 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 const PORT = process.env.PORT || 3000;
 const TRUST_PROXY = process.env.TRUST_PROXY;
+
+export function adminSettingsErrorStatus(error) {
+  return error instanceof AdminConfigValidationError ? 400 : 500;
+}
 
 if (TRUST_PROXY) {
   const parsedTrustProxy = TRUST_PROXY === 'true'
@@ -311,7 +316,7 @@ app.post('/api/admin/settings', async (req, res) => {
     const saved = await saveAdminAiConfig(req.body);
     res.json(maskAiConfig(saved));
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(adminSettingsErrorStatus(error)).json({ error: error.message });
   }
 });
 
