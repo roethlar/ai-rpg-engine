@@ -18,7 +18,7 @@ extension at `0f36f0f920e2e26a0783840e49ad8144f797dec5`. Review trail:
 | ID | Severity | Impact (one line) | Status | Branch |
 |----|----------|-------------------|--------|--------|
 | am-1 | HIGH | Repeated tuples cannot safely migrate to shared providers and per-role fallbacks | `[x]` merged (`a2ad7a7`) | `feat/am-1-config-runtime` |
-| am-cc | HIGH | Unsafe CLI transport can use API billing or repository capabilities | `[~]` pending Claude Fable review | `feat/am-cc-claude-code-runtime` |
+| am-cc | HIGH | Unsafe CLI transport can use API billing or repository capabilities | `[x]` accepted; awaiting owner merge | `feat/am-cc-claude-code-runtime` |
 
 ## Closed Phase V implementation loop (2026-07-15; owner playtest still gates the phase)
 

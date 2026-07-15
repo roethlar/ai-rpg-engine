@@ -2,7 +2,7 @@
 
 **Severity**: HIGH — a naive Claude Code child process could consume API credentials, load repository
 instructions or tools into campaign generation, or bypass the Council retry/fallback pipeline.
-**Status**: In progress (pending review)
+**Status**: Verified (awaiting owner-gated merge)
 **Branch**: `feat/am-cc-claude-code-runtime`
 **Implementation commit**: `abbf956a3bcc3fc299e0046e3464e75c48f28db2`
 
@@ -104,3 +104,27 @@ Its complete static diff review found no material code defect and explicitly cla
 verdict as a harness-permission failure, not a scope disagreement or reopen. Per the fail-closed
 contract, this is not acceptance. One corrected dispatch will use explicit test-execution permission
 against the new pinned review-record head; no code changed after the static review.
+
+### Attempt 2 — accepted (Claude Code 2.1.210 / Claude Fable 5)
+
+- **Timestamp**: 2026-07-15T18:43:35Z
+- **reviewed_sha**: `4e42aaf119adeced4728e28ae2a980d0e0f20f5a` · **base_sha**:
+  `a2ad7a7e33476be5c55a3028fcf9b9bd78bad8bd` · **guard_confirmed**: `true`
+- **verdict**: `accepted`
+
+The corrected exact `--model claude-fable-5` dispatch used a fresh disposable worktree with test
+execution enabled. The reviewer ran the pristine full suite green, independently removed the
+`ANTHROPIC_API_KEY` strip and observed `SUBSCRIPTION_AUTH_REQUIRED` before generation, restored it,
+then removed the Claude Code constructor default and observed actual `gpt-4o-mini` versus expected
+`default`. It restored both production mutations without changing tests, reran the full suite green,
+and verified a clean worktree.
+
+The reviewer found no material correctness, security, compatibility, scope, or test-quality defect.
+It confirmed subscription/API-key isolation across configuration and runtime tiers; shell-free,
+stdin-only prompt transport and the complete isolation flag set; bounds, cleanup, and redaction;
+blank/default plus explicit model behavior; numeric status retry classification; and both directions
+of configured fallback. It noted only that a practically unreachable temporary-directory cleanup
+failure would replace a successful result with a fail-closed cleanup error; no change was requested.
+
+**Status → Verified.** The branch is ready for the owner-gated merge. Acceptance does not authorize
+merge, push, or history rewrite.
