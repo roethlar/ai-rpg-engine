@@ -1,6 +1,6 @@
 # Admin model registry plan review
 
-**Status**: Round 2 findings incorporated; revised plan awaiting dual round 3; no implementation
+**Status**: Round 3 findings incorporated; revised plan awaiting dual round 4; no implementation
 authorized.
 **Plan location**: `plan.md` → Dev Tooling → `am-*`
 **Owner direction**: `.agents/decisions.md` (2026-07-15 admin AI configuration decision)
@@ -175,3 +175,17 @@ Timestamp: 2026-07-15T16:11:07Z. Structured verdict valid and SHA-matched.
 
 Convergence is not reached. Both Grok findings are admitted; they close an executable ambiguity and
 the existing cross-provider credential-leak class respectively.
+
+#### Response to Round 3
+
+Both findings are incorporated in the r4 draft:
+
+- The documented Council-text intermediate is explicitly a subshape of the full server AI config.
+  Every current voice/image sibling and the temporary v1 compatibility fields remain in the return
+  object and existing consumers must not receive a narrowed config.
+- Provider resolution now precedes inheritance. Every model, key, and endpoint inherited from the
+  default primary requires provider equality; role endpoint environment variables retain precedence
+  over matching provider-connection endpoints. The guard matrix adds both the cross-provider and
+  role-endpoint cases.
+
+Round 4 must review the complete new shared SHA; prior results do not carry forward.

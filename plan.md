@@ -1314,7 +1314,7 @@ Raised during planning but deliberately deferred. **Per project rule, nothing he
     **refuted**. This is the third round in which a reviewer's careful CSS reasoning was wrong —
     which is the whole argument for this harness existing.
 
-- **Admin model registry + Council assignments — `am-*` (REVISED r3 2026-07-15; owner-approved
+- **Admin model registry + Council assignments — `am-*` (REVISED r4 2026-07-15; owner-approved
   direction, dual plan re-review pending; no implementation branch).**
 
   **Problem.** `/admin` currently repeats a full provider/model/key form seven times: primary,
@@ -1515,10 +1515,14 @@ Raised during planning but deliberately deferred. **Per project rule, nothing he
     explicit values. The UI marks them "legacy inherited default" rather than inventing a current
     provider or model id.
 
-  **Runtime resolution.** `mergeAiConfig` expands version 2 into this explicit intermediate contract:
-  `{ defaultPrimary, roles: { <role>: { primary, fallback } } }`, where each non-null expanded entry
-  contains provider, model, apiKey, `baseUrl`, and `ollamaUrl` after provider-connection resolution.
-  `resolveAgentConfig` applies exactly three primary cases:
+  **Runtime resolution.** `mergeAiConfig` retains the full current top-level server AI config. Its
+  Council-text subshape is `{ defaultPrimary, roles: { <role>: { primary, fallback } } }`, where each
+  non-null expanded entry contains provider, model, apiKey, `baseUrl`, and `ollamaUrl` after
+  provider-connection resolution. The unchanged `voiceApiKey`, `voiceModel`, `voiceProvider`,
+  `imageProvider`, `imageModel`, `imageApiKey`, and `imageEndpoint` fields remain top-level siblings;
+  so do the v1 compatibility fields required while `am-1` and `am-2` still serve the old admin wire
+  format. The Council migration must not narrow the object returned to `voice-narration.js`,
+  `rpg-engine.js`, or existing callers. `resolveAgentConfig` applies exactly three primary cases:
 
   1. A normal explicit role primary wins as admin intent; its entry custom/provider/env key and its
      provider connection endpoint travel together.
@@ -1526,6 +1530,15 @@ Raised during planning but deliberately deferred. **Per project rule, nothing he
      the matching `ROLE_*` environment field, then `defaultPrimary`, then global env/provider default.
   3. An empty role primary applies `ROLE_*` env first, then `defaultPrimary`, then global
      env/provider default. This is how a filled old primary stays below role env after migration.
+
+  Provider resolution happens before model, key, or endpoint inheritance. In cases 2 and 3, a field
+  may inherit from `defaultPrimary` only when the effective role provider equals
+  `defaultPrimary.provider`; a provider mismatch skips every default-primary model, key, `baseUrl`,
+  and `ollamaUrl` field so `AIClient` can resolve the selected provider's own environment/defaults.
+  For every primary case, `${ROLE}_CUSTOM_ENDPOINT_URL` or `${ROLE}_OLLAMA_URL` wins for its matching
+  effective provider, followed by that provider connection's endpoint; an endpoint for a different
+  provider never travels. Thus an explicit stored model assignment remains admin intent without
+  weakening the current role-endpoint precedence or cross-provider isolation boundary.
 
   Each role's selected fallback replaces the old global stored fallback. A normal explicit fallback
   uses its complete expanded entry; a legacy blank fallback field consults its corresponding
@@ -1609,7 +1622,8 @@ Raised during planning but deliberately deferred. **Per project rule, nothing he
 
   - `AI_RETRY_BACKOFF_MS=10 node test.js` green. Tests cover v2 bounds/reference validation; every
     independent secret keep/replace/clear path; provider-default versus custom key resolution;
-    same-provider sharing; per-role primary/fallback; cross-provider key isolation; custom/Ollama
+    same-provider sharing; per-role primary/fallback; cross-provider model/key/endpoint isolation;
+    role custom/Ollama endpoint env precedence over matching connection endpoints; custom/Ollama
     **primary and fallback** endpoints; filled-primary `ROLE_*` precedence; deterministic legacy
     ids/flag authorization; partial legacy tuples;
     custom/Ollama endpoint migration; populated-env effective no-op-save equivalence; the exact
