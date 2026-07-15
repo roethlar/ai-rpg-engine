@@ -1,6 +1,6 @@
 # Admin model registry plan review
 
-**Status**: Round 5 findings incorporated; revised plan awaiting dual round 6; no implementation
+**Status**: Round 6 findings incorporated; revised plan awaiting dual round 7; no implementation
 authorized.
 **Plan location**: `plan.md` → Dev Tooling → `am-*`
 **Owner direction**: `.agents/decisions.md` (2026-07-15 admin AI configuration decision)
@@ -306,3 +306,16 @@ Timestamp: 2026-07-15T16:37:35Z. The CLI's free-text envelope was noisy, but its
 
 Convergence is not reached. Both comments are admitted as one contract defect plus its required
 non-vacuous proof.
+
+#### Response to Round 6
+
+Both comments are incorporated in the r7 draft:
+
+- Council-aware `resolveAgentConfig` always returns `fallbackResolved: true` plus either a fully
+  resolved fallback object or explicit null. `normalizeFallbackConfig` uses that internal marker for
+  copy-only/null-preserving behavior; callers without it retain the old environment merge.
+- One guard uses distinct stored-connection, provider-environment, and `FALLBACK_API_KEY` values and
+  checks the actual backup Authorization header. A second changes `FALLBACK_*` after resolving null
+  and proves normalization cannot revive it. Reverting the marker branch makes both red.
+
+Round 7 must review the complete new shared SHA; prior results do not carry forward.

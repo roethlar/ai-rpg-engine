@@ -1314,7 +1314,7 @@ Raised during planning but deliberately deferred. **Per project rule, nothing he
     **refuted**. This is the third round in which a reviewer's careful CSS reasoning was wrong —
     which is the whole argument for this harness existing.
 
-- **Admin model registry + Council assignments — `am-*` (REVISED r6 2026-07-15; owner-approved
+- **Admin model registry + Council assignments — `am-*` (REVISED r7 2026-07-15; owner-approved
   direction, dual plan re-review pending; no implementation branch).**
 
   **Problem.** `/admin` currently repeats a full provider/model/key form seven times: primary,
@@ -1561,7 +1561,9 @@ Raised during planning but deliberately deferred. **Per project rule, nothing he
 
   `resolveAgentConfig` uses `council` when present and otherwise retains its current v1 path. It is
   the only function that turns descriptors and connections into the final
-  `{ provider, model, apiKey, baseUrl, ollamaUrl, fallback }`. It applies exactly three primary cases:
+  `{ provider, model, apiKey, baseUrl, ollamaUrl, fallback, fallbackResolved }`. On the Council path,
+  `fallbackResolved` is always `true` and `fallback` is always either a fully selected object or
+  explicit `null`; the legacy path omits the marker. It applies exactly three primary cases:
 
   1. A normal explicit role primary wins as admin intent. Its required provider/model come from the
      descriptor; key resolution is custom entry → stored connection → provider environment.
@@ -1591,11 +1593,13 @@ Raised during planning but deliberately deferred. **Per project rule, nothing he
   uses the environment fallback tier. The selected custom/Ollama connection endpoint attaches to
   both normal and legacy primary/fallback results after provider resolution.
 
-  On the `council` path, `resolveAgentConfig` supplies the already selected fallback (or null), and
-  `normalizeFallbackConfig` only validates/copies provider, model, apiKey, `baseUrl`, and
-  `ollamaUrl`; it must not inject `FALLBACK_*` a second time. Its old unconditional environment
-  behavior remains only for callers without `council`. The `AIClient` failover constructor forwards
-  both endpoint fields to the backup client. Call sites in `rpg-engine.js` do not change.
+  On the `council` path, `resolveAgentConfig` supplies the already selected fallback (or null) and
+  sets `fallbackResolved: true`. `normalizeFallbackConfig` branches on that marker: when true it
+  returns null unchanged or validates/copies only provider, model, apiKey, `baseUrl`, and
+  `ollamaUrl`, without consulting any `FALLBACK_*` variable; when absent it retains the old
+  environment-filling behavior for direct/legacy callers. The marker is internal runtime metadata,
+  not stored or returned by an admin route. The `AIClient` failover constructor forwards both
+  endpoint fields to the backup client. Call sites in `rpg-engine.js` do not change.
 
   **Live model catalog (`model-catalog.js`).** Export pure response parsers plus
   `listModels(provider, { apiKey, baseUrl, ollamaUrl, fetchImpl })`. The endpoint contracts were
@@ -1683,6 +1687,12 @@ Raised during planning but deliberately deferred. **Per project rule, nothing he
     custom/Ollama endpoint migration; populated-env effective no-op-save equivalence; the exact
     masked/save DTO; typed 400 versus unexpected 500; and masking (raw secrets absent from every
     admin response).
+    A discriminating fallback guard resolves a normal, non-legacy provider-key entry while
+    `OPENAI_API_KEY`, its stored connection key, and `FALLBACK_API_KEY` are distinct, then asserts
+    both `AIClient.fallback.apiKey` and the actual failover Authorization header use the selected
+    normal chain rather than `FALLBACK_API_KEY`. A separate guard resolves no fallback with the
+    environment tier empty, changes `FALLBACK_*` before constructing `AIClient`, and proves the
+    explicit resolved null is not revived. Reverting the `fallbackResolved` branch makes both fail.
   - Catalog parser fixtures cover all six providers, Grok language-only filtering/aliases, Gemini
     method filtering, malformed success bodies, timeout/error sanitization, and custom/Ollama SSRF.
     An HTTP-boundary test proves unsaved → entry override → provider stored → env precedence and
