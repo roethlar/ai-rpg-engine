@@ -20,6 +20,29 @@ Supersedes:
 <Optional prior decision, doc, or rule.>
 -->
 
+### 2026-07-14 - The GM narrator is campaign-canonical; synthesis is shared across players
+
+Status: Active
+
+Decision:
+Each campaign has one server-resolved GM narrator identity. Host and seat clients may enable or
+disable narration locally, but they do not choose a different narrator voice, accent, or free-text
+direction. `campaigns.narrator_voice_json` is authoritative; the active TTS provider maps that
+logical narrator to its reserved voice (`leo` for Grok, `marin` for OpenAI).
+
+Identical canonical narration requested by multiple players is synthesized once upstream and reused
+from a bounded server-side in-flight/completed cache. Multiplayer may deliver the same audio bytes to
+several clients, but it must not multiply provider calls for the same campaign narration.
+
+Reason:
+Owner wording (2026-07-14): **"one GM voice. no compounded API costs because one player likes an
+Australian accent."** A per-browser narrator preference makes the GM's identity vary by listener and
+forces distinct paid synthesis. Voice identity is campaign state, not a player presentation choice.
+
+Supersedes:
+The current player-side voice-name and free-text Voice Direction controls, and Phase V draft wording
+that preserved those preferences for narrator lines.
+
 ### 2026-07-14 - bh-1 browser harness: plan ACCEPTED after seven review rounds; codex implements
 
 Status: Active

@@ -35,7 +35,13 @@ to `docs/history/state-archive.md`.
     function for the host at all** (only for seat players), the voice assignment was not
     collision-free, the injection defence was theatre (the mood is **spoken aloud**, so a
     JSON payload scan could never prove seat-safety), and the admin premise was false.
-    Redesigned; **needs another plan review before codex implements.** Grok's verified
+    The r2 cold-implementer review REOPENED the redesign: host campaign identity was false,
+    batching could not carry per-line tone, provider capability was invisible to the client,
+    legacy ordinals/key migration were undefined, and the narrator had two authorities. The owner
+    settled the product conflict: **one campaign-canonical GM voice, and identical host/seat audio
+    is synthesized once and reused — no per-player accent and no multiplied provider charge.** The
+    r3 plan now pins request/cache/migration/guard contracts and **needs independent acceptance
+    before codex implements.** Grok's verified
     capabilities are in decisions.md — **26 voices, delivery tags work, accents do not.**
     Do not re-derive them from vendor docs or by asking a model; both were wrong.
 - **bh-1 — the browser harness is MERGED** (`ea9ca9b`, 2026-07-14; branch deleted). codex
@@ -148,13 +154,13 @@ to `docs/history/state-archive.md`.
 
 ## Next
 
-**THE IMMEDIATE NEXT ACTION: Phase V (Grok TTS) — re-review the redesigned plan, then implement.**
+**THE IMMEDIATE NEXT ACTION: Phase V (Grok TTS) — independently review the r3 plan, then implement.**
 It is the one the owner actually cares about, and bh-1 (the housekeeping that was in front of it) is
-now merged. The plan was redesigned after its review returned 14 findings and has **not** been
-re-reviewed; dispatch that review before any code. Weigh the workflow carve-out: V touches the
-**seat/auth boundary**, this repo's most-broken-before area (the sv-* loop found six defects, and
-four of the first fixes were themselves wrong), so **Claude implementing with codex reviewing** may
-fit better than the default codex-implements.
+now merged. The r2 cold-implementer pass reopened the first redesign; the r3 correction records the
+owner's campaign-canonical/shared-cost narrator decision and the missing executable contracts. It
+has **not** been independently accepted; dispatch that review before any code. When code starts,
+codex implements one owner-gated slice at a time and Claude or Grok reviews each pinned result, as
+the owner directed 2026-07-14.
 
 - **Carry the bh-1 lessons into it.** Both are now decisions (`.agents/decisions.md`): *do not reason
   about CSS in this repo — execute it*; and *a guard proof must fail if its mechanism is removed*
