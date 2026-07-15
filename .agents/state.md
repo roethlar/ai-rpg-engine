@@ -63,6 +63,9 @@ to `docs/history/state-archive.md`.
     synthesis cache. Claude accepted pinned head `9d23b3f` after independent base and mutation
     proofs; the full suite passed again after merge. Review trail: `.agents/review/index.md` +
     `findings/v-3.md`.
+  - **v-4 ACTIVE** on `fix/v-4-browser-voice-queue`: production browser queue helper,
+    provider-aware batching/race recovery, skip-and-continue playback, canonical control cleanup,
+    and README. Review trail: `.agents/review/index.md` + `findings/v-4.md`.
 - **bh-1 — the browser harness is MERGED** (`ea9ca9b`, 2026-07-14; branch deleted). codex
   implemented; Claude verified adversarially — roles swapped, since codex cannot review what codex
   wrote. Plan accepted after **seven review rounds**. Full trail:

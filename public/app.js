@@ -3,6 +3,7 @@
  */
 
 import { baseThemeVars, fullThemeVars } from './theme-vars.js';
+import { normalizeVoiceLines, runVoiceNarration } from './voice-narration.js';
 
 // Application state
 let currentCampaignId = null;
@@ -25,9 +26,7 @@ let savedCharacters = [];
 const DEFAULT_API_CONFIG = {
   accessToken: '', // Authentication token
   enableDiagnostics: false, // Dev mode flag
-  voiceNarration: false,
-  voiceName: 'marin',
-  voiceInstructions: 'Narrate as an atmospheric game master. Keep the delivery clear, tense, and cinematic without overacting.'
+  voiceNarration: false
 };
 let apiConfig = { ...DEFAULT_API_CONFIG };
 
@@ -79,8 +78,6 @@ const inputAccessToken = document.getElementById('input-access-token');
 const checkboxDiagnostics = document.getElementById('input-enable-diagnostics');
 const checkboxVoiceNarration = document.getElementById('input-enable-voice-narration');
 const voiceSettingsGroup = document.getElementById('voice-settings-group');
-const selectVoiceName = document.getElementById('select-voice-name');
-const inputVoiceInstructions = document.getElementById('input-voice-instructions');
 
 // Game Panel DOM Elements
 const activeQuestTitle = document.getElementById('active-quest-title');
@@ -130,6 +127,7 @@ const attrWil = document.getElementById('attr-wil');
 // Illustration
 const visualizerFrame = document.getElementById('visualizer-frame');
 let currentNarrationAudio = null;
+let currentNarrationFinish = null;
 let voiceErrorShown = false;
 
 // Init application on load
@@ -164,8 +162,6 @@ function loadSettings() {
   inputAccessToken.value = apiConfig.accessToken || '';
   checkboxDiagnostics.checked = !!apiConfig.enableDiagnostics;
   checkboxVoiceNarration.checked = !!apiConfig.voiceNarration;
-  selectVoiceName.value = apiConfig.voiceName || 'marin';
-  inputVoiceInstructions.value = apiConfig.voiceInstructions || '';
 
   toggleVoiceSettings();
 }
@@ -175,8 +171,6 @@ function saveSettings() {
   apiConfig.accessToken = inputAccessToken.value.trim();
   apiConfig.enableDiagnostics = checkboxDiagnostics.checked;
   apiConfig.voiceNarration = checkboxVoiceNarration.checked;
-  apiConfig.voiceName = selectVoiceName.value || 'marin';
-  apiConfig.voiceInstructions = inputVoiceInstructions.value.trim();
 
   localStorage.setItem('aetheria_settings', JSON.stringify(apiConfig));
 
@@ -609,8 +603,7 @@ function renderRules(ruleset, tableStyle) {
 }
 
 // Voice preview is deliberately campaign-free and always uses the active
-// provider's reserved narrator. Player voice/direction controls remain visible
-// until v4 removes them, but they are no longer an authority.
+// provider's reserved, server-owned narrator.
 async function previewVoice() {
   const btn = document.getElementById('btn-voice-preview');
   btn.disabled = true;
@@ -1476,40 +1469,80 @@ function stopNarration() {
   narrationQueueToken = null;
   if (currentNarrationAudio) {
     currentNarrationAudio.pause();
-    URL.revokeObjectURL(currentNarrationAudio.src);
-    currentNarrationAudio = null;
+    if (currentNarrationFinish) {
+      currentNarrationFinish();
+    } else {
+      URL.revokeObjectURL(currentNarrationAudio.src);
+      currentNarrationAudio = null;
+    }
   }
   document.getElementById('btn-skip-narration').style.display = 'none';
 }
 
 function playAudioBlob(blob) {
-  return new Promise(resolve => {
+  return new Promise((resolve, reject) => {
     const objectUrl = URL.createObjectURL(blob);
-    currentNarrationAudio = new Audio(objectUrl);
-    currentNarrationAudio.addEventListener('ended', () => {
+    const audio = new Audio(objectUrl);
+    let settled = false;
+    const finish = error => {
+      if (settled) return;
+      settled = true;
       URL.revokeObjectURL(objectUrl);
-      currentNarrationAudio = null;
-      resolve();
-    }, { once: true });
-    currentNarrationAudio.play().catch(() => resolve());
+      if (currentNarrationAudio === audio) currentNarrationAudio = null;
+      if (currentNarrationFinish === finish) currentNarrationFinish = null;
+      if (error) reject(error); else resolve();
+    };
+    currentNarrationAudio = audio;
+    currentNarrationFinish = finish;
+    audio.addEventListener('ended', () => finish(), { once: true });
+    audio.addEventListener('error', () => finish(new Error('Voice audio playback failed.')), { once: true });
+    audio.play().catch(finish);
   });
 }
 
-// Multi-voice narration (Phase 2): plays the turn's voice script segment by
-// segment. The server resolves every speaker from campaign-canonical state;
-// the browser carries no voice identity or free-text direction authority.
+async function loadVoiceCapabilities() {
+  const response = await fetchWithTimeout('/api/audio/capabilities', {}, 5000);
+  if (!response.ok) throw new Error('Voice capabilities unavailable.');
+  return response.json();
+}
+
+async function requestNarrationRun(run, expectedProvider) {
+  const response = await fetchWithTimeout('/api/audio/narrate', {
+    method: 'POST',
+    body: JSON.stringify({
+      campaignId: currentCampaignId,
+      speaker: run.speaker,
+      segments: run.segments,
+      ...(expectedProvider ? { expectedProvider } : {})
+    })
+  }, 90000);
+  if (!response.ok) {
+    const raw = await response.text();
+    let payload = null;
+    try {
+      payload = raw ? JSON.parse(raw) : null;
+    } catch {
+      // Preserve a non-JSON server message below.
+    }
+    const error = new Error(payload?.error || raw || 'Voice narration failed');
+    if (typeof payload?.code === 'string') error.code = payload.code;
+    throw error;
+  }
+  return response.blob();
+}
+
+// The production helper groups adjacent same-speaker lines for providers that
+// support it, preserves each tone, and skips failed runs instead of silencing
+// the remainder of the GM turn.
 async function narrateGmResponse(turn) {
   if (!apiConfig.voiceNarration) return;
 
   stopNarration();
 
-  const script = Array.isArray(turn.voiceLines) && turn.voiceLines.length > 0
-    ? turn.voiceLines
-    : [{ speaker: 'narrator', tone: 'neutral', text: turn.narrative }];
-
-  const queue = script
-    .map(line => ({ ...line, text: stripNarrationText(line.text) }))
-    .filter(line => line.text);
+  const script = Array.isArray(turn.voiceLines)
+    ? turn.voiceLines.map(line => ({ ...line, text: stripNarrationText(line.text) }))
+    : [];
+  const queue = normalizeVoiceLines(script, stripNarrationText(turn.narrative));
   if (queue.length === 0) return;
 
   const token = {};
@@ -1518,35 +1551,20 @@ async function narrateGmResponse(turn) {
   skipBtn.style.display = 'inline-flex';
 
   try {
-    for (const line of queue) {
-      if (narrationQueueToken !== token) return;
-
-      const requestBody = {
-        campaignId: currentCampaignId,
-        speaker: line.speaker || 'narrator',
-        segments: [{ text: line.text, tone: line.tone || 'neutral' }]
-      };
-
-      const response = await fetchWithTimeout('/api/audio/narrate', {
-        method: 'POST',
-        body: JSON.stringify(requestBody)
-      }, 90000);
-
-      if (!response.ok) {
-        const message = await getResponseErrorMessage(response, 'Voice narration failed');
-        throw new Error(message);
+    const result = await runVoiceNarration(queue, {
+      loadCapabilities: loadVoiceCapabilities,
+      synthesize: requestNarrationRun,
+      play: playAudioBlob,
+      isCancelled: () => narrationQueueToken !== token,
+      onError: error => {
+        console.error(error);
+        if (!voiceErrorShown) {
+          showToast(`Voice Error: ${error.message}`, 'error');
+          voiceErrorShown = true;
+        }
       }
-      if (narrationQueueToken !== token) return;
-
-      await playAudioBlob(await response.blob());
-    }
-    voiceErrorShown = false;
-  } catch (error) {
-    console.error(error);
-    if (!voiceErrorShown) {
-      showToast(`Voice Error: ${error.message}`, 'error');
-      voiceErrorShown = true;
-    }
+    });
+    if (!result.hadError) voiceErrorShown = false;
   } finally {
     if (narrationQueueToken === token) {
       narrationQueueToken = null;
