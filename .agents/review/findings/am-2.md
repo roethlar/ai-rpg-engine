@@ -3,7 +3,7 @@
 **Severity**: HIGH — without bounded, authenticated discovery the admin must guess model ids, while
 an unsafe implementation could leak credentials or let stored/request endpoints bypass production
 network policy.
-**Status**: Verified (awaiting owner-gated merge)
+**Status**: Merged (`5103f46`)
 **Branch**: `feat/am-2-provider-catalogs`
 **Implementation commits**: `619b83821cc93f5f812b548cd1ebc65c9eaf39d0`,
 `05781156a5fed97f3f406d0e81204254a905d52d`
@@ -161,3 +161,6 @@ call.
 
 **Status → Verified.** The branch is ready for the owner-gated merge. Acceptance does not authorize
 merge, push, or history rewrite.
+
+Owner go merged the accepted branch into `master` at `5103f46`. Content arrival was verified with
+an empty branch-to-master diff, and `node test.js` passed on the merge result.
