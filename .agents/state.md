@@ -29,7 +29,7 @@ to `docs/history/state-archive.md`.
     silently drops the declaration.** Components survive only *internally* (the model emits
     them, `rpg-state.js` clamps them, the DB stores them) — `public/theme-vars.js` is the
     one boundary that turns them into colours.
-- **QUEUED, PLANNED, NOT STARTED:**
+- **ACTIVE IMPLEMENTATION QUEUE:**
   - **Phase V — Grok TTS.** Grok won a controlled listening test and is added *alongside*
     OpenAI (decisions.md). Its plan review returned **14 findings**: the design **did not
     function for the host at all** (only for seat players), the voice assignment was not
@@ -58,9 +58,11 @@ to `docs/history/state-archive.md`.
     standing authorization on 2026-07-15 to execute the queued Phase V slices serially through
     accepted merges without pausing; stop only for a genuine blocker. Review trail:
     `.agents/review/index.md` + `findings/v-2.md`.
-  - **v-3 ACTIVE** on `fix/v-3-canonical-voice-route`: canonical host/seat audio route and minimum
-    client cutover, active-provider profile resolution, bracket neutralization, capabilities, and
-    shared synthesis cache. Review trail: `.agents/review/index.md` + `findings/v-3.md`.
+  - **v-3 MERGED** (`bb5b9f0`, 2026-07-15): canonical host/seat audio route and minimum client
+    cutover, active-provider profile resolution, bracket neutralization, capabilities, and shared
+    synthesis cache. Claude accepted pinned head `9d23b3f` after independent base and mutation
+    proofs; the full suite passed again after merge. Review trail: `.agents/review/index.md` +
+    `findings/v-3.md`.
 - **bh-1 — the browser harness is MERGED** (`ea9ca9b`, 2026-07-14; branch deleted). codex
   implemented; Claude verified adversarially — roles swapped, since codex cannot review what codex
   wrote. Plan accepted after **seven review rounds**. Full trail:
@@ -171,11 +173,11 @@ to `docs/history/state-archive.md`.
 
 ## Next
 
-**THE IMMEDIATE NEXT ACTION: Phase V (Grok TTS) — implement and review v-3.**
-v-1 and v-2 are merged and post-merge green. v-3 owns the canonical host/seat route, minimum client
-cutover, provider capabilities, bracket neutralization, active-provider profile resolution, and
-shared in-flight/completed synthesis cache. Start from updated `master`; keep v-4 browser batching
-and control removal out of this slice.
+**THE IMMEDIATE NEXT ACTION: Phase V (Grok TTS) — implement and review v-4.**
+v-1 through v-3 are merged and post-merge green. v-4 owns the production browser queue helper,
+provider-aware adjacent-speaker batching, provider-race fallback, skip-and-continue playback,
+player voice/direction control removal, fallback text bounding, and README updates. Start from the
+updated `master`; this is the final planned Phase V code slice before the owner playtest gate.
 
 - **Carry the bh-1 lessons into it.** Both are now decisions (`.agents/decisions.md`): *do not reason
   about CSS in this repo — execute it*; and *a guard proof must fail if its mechanism is removed*
