@@ -3,7 +3,7 @@
 **Severity**: HIGH — without bounded, authenticated discovery the admin must guess model ids, while
 an unsafe implementation could leak credentials or let stored/request endpoints bypass production
 network policy.
-**Status**: In progress (first Claude Fable dispatch timed out; one fail-closed retry pending)
+**Status**: In progress (proxy-routed dispatches invalid; owner-authorized direct retry pending)
 **Branch**: `feat/am-2-provider-catalogs`
 **Implementation commit**: `619b83821cc93f5f812b548cd1ebc65c9eaf39d0`
 
@@ -101,3 +101,15 @@ partial result was interpreted as a verdict.
 
 Per the reviewloop's fail-closed contract, this is not acceptance. One fresh dispatch will restate
 the schema against the same pinned base and a new review-record head.
+
+### Attempt 2 — invalid proxy-routed retry (Claude Code 2.1.210 / Claude Fable 5)
+
+- **Timestamp**: 2026-07-15T20:10:52Z
+- **reviewed_sha**: `15bb377449654ce417411afae0d70339717ec35c` · **base_sha**:
+  `1a62848805ee56941365f73ecc55ee8fb0750361` · **guard_confirmed**: `false`
+- **verdict**: `invalid`
+
+The schema-restated retry also produced no envelope while its disposable worktree remained clean.
+The owner identified the request proxy as the cause, removed it from the loop, interrupted the stale
+proxy-routed process, and explicitly authorized a fresh retry. This infrastructure-invalid attempt
+is not a contested code verdict and cannot count as acceptance.
