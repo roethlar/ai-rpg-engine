@@ -3,7 +3,7 @@
 **Severity**: HIGH — without bounded, authenticated discovery the admin must guess model ids, while
 an unsafe implementation could leak credentials or let stored/request endpoints bypass production
 network policy.
-**Status**: In progress (proxy-routed dispatches invalid; owner-authorized direct retry pending)
+**Status**: In progress (direct review accepted; valid response-body timeout gap pending fix/re-review)
 **Branch**: `feat/am-2-provider-catalogs`
 **Implementation commit**: `619b83821cc93f5f812b548cd1ebc65c9eaf39d0`
 
@@ -113,3 +113,25 @@ The schema-restated retry also produced no envelope while its disposable worktre
 The owner identified the request proxy as the cause, removed it from the loop, interrupted the stale
 proxy-routed process, and explicitly authorized a fresh retry. This infrastructure-invalid attempt
 is not a contested code verdict and cannot count as acceptance.
+
+### Attempt 3 — accepted with one non-blocking gap (Claude Code 2.1.210 / Claude Fable 5)
+
+- **Timestamp**: 2026-07-15T20:17:55Z
+- **reviewed_sha**: `bcfe223667f2f103d45cf54ef3452843db966a9c` · **base_sha**:
+  `1a62848805ee56941365f73ecc55ee8fb0750361` · **guard_confirmed**: `true`
+- **verdict**: `accepted`
+
+The direct-route exact `--model claude-fable-5` dispatch ran the pristine full suite green and
+independently removed the cross-provider ownership predicate. The suite failed at `test.js:1750`
+with HTTP 200 instead of 400; Fable restored the exact bytes, reran green, and proved the worktree
+clean. It also forced non-production endpoint provenance in the shared helper and observed the
+existing production `baseUrl` guard fail. No real provider or Claude account was called.
+
+The reviewer confirmed the plan's pinned endpoints/headers, strict parsers, normalization,
+redaction, custom URL derivation, SSRF reuse, credential precedence, production endpoint policy,
+admin boundary, and five-field usage-free Claude Code status. It identified one concrete LOW gap:
+`model-catalog.js:150` clears the timeout immediately after response headers, before awaiting
+`response.json()`. An upstream that sends headers and stalls its body can therefore hang the admin
+request beyond the promised ten-second bound. Fable classified this as non-blocking and accepted;
+the coder accepts the finding and will close it within am-2 before requesting owner merge, then
+re-review the changed head.

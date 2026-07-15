@@ -48,10 +48,11 @@ to `docs/history/state-archive.md`.
   adds the isolated, subscription-authenticated Claude Code adapter and routes it through the
   existing AIClient/Council pipeline. Claude Fable independently confirmed the red/green guard
   proof. `.agents/review/findings/am-cc.md` owns the verdict trail.
-- **`am-2` is implemented at `619b838` and pending Claude Fable review.** It adds live provider
-  model catalogs, safe Claude Code account status, shared production endpoint provenance, and the
-  admin-authenticated catalog route. `.agents/review/findings/am-2.md` owns the guard proof and
-  review trail.
+- **`am-2` implementation commit `619b838` was accepted by direct-route Claude Fable at review head
+  `bcfe223`; one valid response-body timeout gap is being closed before merge.** The slice adds live
+  provider model catalogs, safe Claude Code account status, shared production endpoint provenance,
+  and the admin-authenticated catalog route. `.agents/review/findings/am-2.md` owns the guard proof
+  and review trail.
 - **The remote two-human multiplayer playtest remains pending.** App-side seat work is landed;
   connectivity is owner-handled and out of repo scope. The playtest is the scheduled close for open
   multiplayer feel gates. Seat isolation must be re-tested whenever a field crosses a seat payload,
@@ -64,9 +65,9 @@ to `docs/history/state-archive.md`.
 
 ## Next
 
-**THE IMMEDIATE NEXT ACTION: complete the Claude Fable review of `am-2`, then obtain its owner-gated
-merge.** Only after it is merged may `am-3` start from updated `master`; `am-3` owns the compact UI
-and v2 settings HTTP cutover.
+**THE IMMEDIATE NEXT ACTION: close and re-review am-2's response-body timeout gap, then obtain its
+owner-gated merge.** Only after it is merged may `am-3` start from updated `master`; `am-3` owns the
+compact UI and v2 settings HTTP cutover.
 
 - Phase V's owner playtest remains the pending feel gate after this explicitly selected repo work.
   Configure either OpenAI or Grok voice in `/admin`, enable Voice Narration, and play a real scene
