@@ -192,7 +192,8 @@ export function validateRegistryState(state) {
     if (!entry.legacyDefault && !clean(entry.model)) {
       return { anchor: `model-${entry.id}`, message: `Model row ${index + 1} needs a model id.` };
     }
-    if (entry.keySource === 'custom' && !clean(entry.apiKey) && !entry.apiKeySet) {
+    if (entry.keySource === 'custom' && !entry.legacyDefault
+      && !clean(entry.apiKey) && !entry.apiKeySet) {
       return { anchor: `model-${entry.id}`, message: `Model row ${index + 1} needs its custom API key.` };
     }
   }
@@ -225,14 +226,17 @@ export function buildRegistryPayload(state, { clearKeys = false } = {}) {
     configVersion: 2,
     providers,
     modelEntries: state.modelEntries.map(entry => {
-      const keySource = clearKeys && entry.keySource === 'custom' ? 'provider' : entry.keySource;
+      const preserveLegacyCustom = clearKeys && entry.legacyDefault && entry.keySource === 'custom';
+      const keySource = clearKeys && entry.keySource === 'custom' && !preserveLegacyCustom
+        ? 'provider'
+        : entry.keySource;
       return {
         id: entry.id,
         label: clean(entry.label),
         provider: entry.provider,
         model: clean(entry.model),
         keySource,
-        apiKey: keySource === 'custom' ? clean(entry.apiKey) : '',
+        apiKey: keySource === 'custom' ? (clearKeys ? null : clean(entry.apiKey)) : '',
         legacyDefault: entry.legacyDefault === true
       };
     }),

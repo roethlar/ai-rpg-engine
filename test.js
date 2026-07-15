@@ -745,6 +745,7 @@ async function testAdminModelRegistryV2() {
     loadAdminAiConfig,
     saveAdminAiConfigV2
   } = await import('./server-config.js');
+  const { createRegistryState, buildRegistryPayload } = await import('./admin/model-registry.js');
   const db = await import('./db.js');
 
   const legacy = {
@@ -837,6 +838,59 @@ async function testAdminModelRegistryV2() {
   assert.strictEqual(replacedSecrets.modelEntries.find(entry => entry.id === 'legacy_role_interaction').apiKey, 'replacement-entry-key');
   assert.deepStrictEqual(replacedSecrets.voiceApiKeys, { openai: '', grok: 'stored-grok-voice-key' });
   assert.strictEqual(replacedSecrets.imageApiKey, '');
+
+  const legacyForClear = structuredClone(legacy);
+  legacyForClear.roles.narration = {
+    provider: 'claude', model: 'complete-legacy-model', apiKey: 'complete-legacy-key'
+  };
+  const maskedForClear = maskAdminAiConfigV2(legacyForClear);
+  const clearRegistryPayload = buildRegistryPayload(createRegistryState(maskedForClear), { clearKeys: true });
+  const clearLegacyRequest = {
+    ...maskedForClear,
+    ...clearRegistryPayload,
+    voiceApiKeys: { openai: null, grok: null },
+    imageApiKey: null
+  };
+  const clearedLegacySecrets = prepareAdminAiConfigV2Save(clearLegacyRequest, legacyForClear);
+  const clearedPartial = clearedLegacySecrets.modelEntries.find(entry => entry.id === 'legacy_role_referee');
+  assert.deepStrictEqual(clearedPartial, {
+    id: 'legacy_role_referee',
+    label: 'Legacy referee',
+    provider: 'custom',
+    model: '',
+    keySource: 'custom',
+    apiKey: '',
+    legacyDefault: true
+  }, 'Clear removes a partial legacy override without declassifying or rejecting its row');
+  const clearedComplete = clearedLegacySecrets.modelEntries.find(entry => entry.id === 'legacy_role_narration');
+  assert.deepStrictEqual(
+    { keySource: clearedComplete.keySource, apiKey: clearedComplete.apiKey, legacyDefault: clearedComplete.legacyDefault },
+    { keySource: 'custom', apiKey: '', legacyDefault: true },
+    'Clear preserves complete legacy tuple precedence while removing its stored override'
+  );
+  assert.strictEqual(clearedLegacySecrets.providers.openai.apiKey, '');
+  assert.deepStrictEqual(clearedLegacySecrets.voiceApiKeys, { openai: '', grok: '' });
+  assert.strictEqual(clearedLegacySecrets.imageApiKey, '');
+  assert.deepStrictEqual(clearedLegacySecrets.roleAssignments, clearRegistryPayload.roleAssignments,
+    'Clear leaves legacy assignments unchanged');
+  const clearEnv = {
+    REFEREE_AI_MODEL: 'referee-env-model',
+    REFEREE_API_KEY: 'referee-env-key',
+    NARRATION_API_KEY: 'narration-env-key'
+  };
+  const clearRuntime = mergeAiConfig(clearedLegacySecrets, clearEnv);
+  const clearedRefereeResolved = resolveAgentConfig(clearRuntime, 'referee', clearEnv);
+  assert.deepStrictEqual(
+    {
+      provider: clearedRefereeResolved.provider,
+      model: clearedRefereeResolved.model,
+      apiKey: clearedRefereeResolved.apiKey
+    },
+    { provider: 'custom', model: 'referee-env-model', apiKey: 'referee-env-key' },
+    'A cleared partial legacy row continues through its role environment precedence'
+  );
+  assert.strictEqual(resolveAgentConfig(clearRuntime, 'narration', clearEnv).apiKey, 'narration-env-key',
+    'A cleared complete legacy row continues through ROLE_API_KEY precedence');
 
   const expectValidation = fn => assert.throws(fn, AdminConfigValidationError);
   const { adminSettingsErrorStatus } = await import('./server.js');
@@ -1093,6 +1147,15 @@ async function testAdminModelRegistryV2() {
     assert.strictEqual(rewritten.modelEntries.find(entry => entry.id === 'legacy_role_referee').apiKey, 'stored-role-key');
     assert.deepStrictEqual(rewritten.voiceApiKeys, legacy.voiceApiKeys);
     assert.strictEqual(rewritten.imageApiKey, 'stored-image-key');
+
+    await db.run(
+      `UPDATE server_settings SET value = ?, updated_at = CURRENT_TIMESTAMP WHERE key = 'ai_config'`,
+      [JSON.stringify(legacyForClear)]
+    );
+    await saveAdminAiConfigV2(clearLegacyRequest);
+    const persistedClear = await loadAdminAiConfig();
+    assert.deepStrictEqual(persistedClear, clearedLegacySecrets,
+      'The server save seam atomically persists the legacy-safe all-key clear');
   } finally {
     if (previousStored) {
       await db.run(
