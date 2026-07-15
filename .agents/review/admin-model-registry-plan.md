@@ -231,3 +231,34 @@ The finding is incorporated in the r5 draft:
   distinct competing secrets, so the precedence proof cannot pass accidentally.
 
 Round 5 must review the complete new shared SHA; prior results do not carry forward.
+
+### Round 5 — pinned `d57150c943cda8556889cb65e41120a81bbe7245`
+
+Base: `0dc4ca6fd451126bfaffff4a6c51f5e3914f63e4`.
+
+#### Claude Code 2.1.210 / Claude Opus 4.8 (high effort)
+
+Timestamp: 2026-07-15T16:29:38Z. Structured verdict valid and SHA-matched.
+`evidence_checked: true`; `cold_implementer_executable: true`; verdict: **accepted**, zero comments.
+
+#### Grok 0.2.101 / Grok 4.5 (high reasoning)
+
+Timestamp: 2026-07-15T16:29:38Z. The CLI's free-text envelope was again noisy, but its
+schema-enforced `structuredOutput` was valid and SHA-matched. `evidence_checked: true`;
+`cold_implementer_executable: false`; verdict: **reopened**.
+
+1. **HIGH — runtime intermediate drops the migration discriminator and key provenance.** The plan
+   requires normal, `legacyDefault`, and empty resolution branches but documents expanded entries as
+   only provider/model/key/endpoints. Eager provider-key expansion recreates the round-four bug;
+   leaving a blank without the marker makes normal and migrated entries indistinguishable. Require
+   explicit descriptors carrying the marker and unresolved key source through `mergeAiConfig`, and
+   make `normalizeFallbackConfig` branch-aware rather than unconditionally injecting `FALLBACK_*`.
+2. **HIGH — first canonical save has no projected secret-merge baseline.** Through `am-2`, the stored
+   row is v1 and has no provider map or entry ids. If the first v2 POST merges blank masked secrets by
+   provider name/id directly against that raw row, every projected provider/entry looks new and its
+   stored secret can be lost. Require POST to project the loaded row first, merge against that
+   deterministic v2 baseline, and guard distinct primary/role/fallback secrets through projection,
+   blank-key save, and reload.
+
+Convergence is not reached. Both findings are admitted; they identify missing executable state, not
+new product behavior.
