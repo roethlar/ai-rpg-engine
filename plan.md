@@ -1314,59 +1314,216 @@ Raised during planning but deliberately deferred. **Per project rule, nothing he
     **refuted**. This is the third round in which a reviewer's careful CSS reasoning was wrong —
     which is the whole argument for this harness existing.
 
-- **Model catalog in /admin (planned 2026-07-12, owner request; STATUS: APPROVED + QUEUED
-  by the owner 2026-07-12 — combo-box shape approved; not yet started, no branch cut).**
-  Problem: every model field in `/admin` is free text (`admin.html`: primary `#model`,
-  `#fb-model`, and five `#role-<key>-model`), so the operator must already know each
-  provider's model strings. Compounding it, the per-provider default models hardcoded in
-  `api-client.js` (`grok-3` at :283, `claude-3-5-sonnet-20241022` at :280) are stale —
-  the Anthropic one is retired — so a provider selected with the model left blank can
-  resolve to a dead string and fail at call time.
+- **Admin model registry + Council assignments — `am-*` (DRAFT 2026-07-15; owner-approved
+  direction, plan review pending; no implementation branch).**
 
-  Design (combo-box shape, owner-approved 2026-07-12: fetched names are *suggestions*
-  over a text input, never a strict select — a failed fetch must degrade to exactly
-  today's behavior):
+  **Problem.** `/admin` currently repeats a full provider/model/key form seven times: primary,
+  fallback, and the five Council roles. Credentials, reusable model choices, and role assignment are
+  one nested form even though they have different lifetimes. The result is oversized, makes a shared
+  provider key appear duplicated, and still requires the operator to know live model ids. The earlier
+  catalog-only plan would add datalists to that structure and is superseded by the 2026-07-15 owner
+  decision in `.agents/decisions.md`.
 
-  1. New `model-catalog.js` exporting `listModels(provider, {apiKey, ollamaUrl, baseUrl})`
-     → `string[]`. Per-provider pinned endpoints and response shapes:
-     - `gemini`: `GET generativelanguage.googleapis.com/v1beta/models?key=` — keep entries
-       whose `supportedGenerationMethods` includes `generateContent`; strip the `models/`
-       prefix.
-     - `openai`: `GET api.openai.com/v1/models`, Bearer → `data[].id`.
-     - `claude`: `GET api.anthropic.com/v1/models`, `x-api-key` + `anthropic-version:
-       2023-06-01` → `data[].id`.
-     - `grok`: `GET api.x.ai/v1/models`, Bearer → `data[].id`.
-     - `ollama`: `GET {ollamaUrl or http://localhost:11434}/api/tags` → `models[].name`.
-     - `custom`: OpenAI-shaped `GET {baseUrl}/models`, only when `baseUrl` passes the
-       existing SSRF validator.
-     Host policy: reuse `validateUrlForSsrfAsync` and the `trustedHosts` allowlist that
-     already live in `api-client.js` (api-client.js:82-90, 112-120). Do NOT introduce a
-     second allowlist — one canonical location for that rule.
-  2. New route `POST /api/admin/ai/models`, under the existing admin gate (`server.js:284`
-     mounts `authenticateAdmin` + `rateLimit(20, 60000)` on all of `/api/admin`). Body:
-     `{provider, apiKey?, ollamaUrl?, baseUrl?}`. Key precedence: request-supplied key when
-     non-empty (so a key can be tested before it is saved), else the stored admin key, else
-     the provider's env key. Errors return through `server-errors.js`; the route is
-     host-only and must never reach a seat.
-  3. `admin.html` / `admin.js`: each model input keeps `type="text"` and gains a `list=`
-     pointing at a `<datalist>`, plus a "Refresh models" control per provider-scoped group
-     (primary, fallback, each role). Results cached per provider in page memory for the
-     session.
+  **Settled product contract.** The page has three compact layers:
 
-  Non-goals (v1): the voice/TTS and image model fields (separate seams — `tts-providers.js`,
-  `image-providers.js`); server-side or persisted catalog caching; capability metadata beyond
-  the model id.
+  1. **Provider connections** — one row per supported LLM provider, with its shared/default API key
+     and endpoint only where the provider is operator-hosted (`custom`, `ollama`).
+  2. **Configured models** — reusable labeled entries with provider, exact model id, and key source:
+     the provider key or a custom per-model override. Several entries may share one provider key;
+     one entry may serve several roles.
+  3. **Council assignments** — Setup, Interaction, Continuity, Referee, and Narration each select a
+     primary entry and an optional fallback entry. No provider, model, endpoint, or secret fields
+     appear in this table.
 
-  Security note (load-bearing): the Gemini key travels in the query string, so a provider
-  error body or URL must never be logged or echoed to the client — sanitize before it
-  leaves `listModels`. The `ollama` and `custom` paths are the only ones touching
-  loopback/operator-supplied hosts and must route through the existing SSRF validator.
+  Live provider results are suggestions over an editable text input, never a strict select. Catalog
+  failure leaves manual entry fully usable. Voice and image configuration stay separate and retain
+  their Phase V contracts; this slice reorganizes text-model/Council configuration only.
 
-  Verification: `node test.js` green. New unit tests cover the pure per-provider response
-  parsers (captured payload → expected id list) — that is the guardable surface; the network
-  call itself is not unit-tested. Guard proof per AGENTS.md: revert a parser, confirm the
-  test goes red. Live: `/admin` → select provider → Refresh → list populates → pick a model
-  → Save → play a turn. No playtest gate (dev tooling, not a game phase).
+  **Canonical stored shape (`server_settings.ai_config`, version 2; no database migration).**
+
+  ```json
+  {
+    "configVersion": 2,
+    "providers": {
+      "gemini": { "apiKey": "" },
+      "openai": { "apiKey": "" },
+      "claude": { "apiKey": "" },
+      "grok": { "apiKey": "" },
+      "ollama": { "ollamaUrl": "" },
+      "custom": { "apiKey": "", "baseUrl": "" }
+    },
+    "modelEntries": [
+      {
+        "id": "model_opaque-id",
+        "label": "Fast interaction",
+        "provider": "openai",
+        "model": "gpt-example",
+        "keySource": "provider",
+        "apiKey": ""
+      }
+    ],
+    "roleAssignments": {
+      "setup": { "primary": "model_opaque-id", "fallback": "" },
+      "interaction": { "primary": "", "fallback": "" },
+      "continuity": { "primary": "", "fallback": "" },
+      "referee": { "primary": "", "fallback": "" },
+      "narration": { "primary": "", "fallback": "" }
+    }
+  }
+  ```
+
+  Existing voice/image fields remain beside this shape unchanged. `modelEntries` is bounded at 64.
+  Entry ids are stable opaque ids (client-generated UUIDs for new rows, validated server-side),
+  unique, and at most 80 characters. Labels are required, bounded to 80 characters, and need not be
+  unique; assignment options disambiguate with `label — provider/model — shared|custom key`. New
+  entries require a non-empty exact model id. The server rejects duplicate ids, invalid providers,
+  missing custom override secrets, and dangling assignment references with 400 rather than silently
+  changing the operator's intent. The UI blocks deletion of an assigned entry and names the roles
+  using it; the server independently rejects a crafted dangling save.
+
+  An empty primary assignment means the existing environment/default chain for that role. An empty
+  fallback means no stored per-role fallback; the existing `FALLBACK_*` environment tier may still
+  apply. This preserves environment-only installations without forcing them to create stored model
+  entries merely to edit voice or image settings.
+
+  **Secrets and credential inheritance.**
+
+  - A primary or fallback resolves its selected entry, then uses entry custom key (when
+    `keySource: custom`) → stored provider key → that provider's environment key. A key never crosses
+    provider boundaries.
+  - Provider and entry secrets keep the existing masked-form semantics independently: blank/missing
+    keeps the stored value, explicit `null` clears, non-empty replaces. `GET /api/admin/settings`
+    returns only `apiKeySet` booleans. A custom-key entry whose secret is cleared must be switched to
+    provider-key mode in the same valid save.
+  - Official provider endpoints remain pinned. `custom.baseUrl` and `ollama.ollamaUrl` retain the
+    existing environment/SSRF production policy. Model entries do not carry endpoints, so models on
+    one provider connection cannot silently route to different hosts.
+  - The existing "Clear stored keys" action clears every provider default, every model override,
+    and the separate voice/image keys only after confirmation; it never changes assignments.
+
+  **Legacy `ai_config` projection and canonical rewrite.** `server-config.js` accepts both the old
+  tuple shape and version 2. A legacy row is projected deterministically for display and runtime,
+  then written as version 2 on the next admin save:
+
+  - The legacy primary tuple becomes a provider default plus one configured entry used by every role
+    that had no explicit role tuple.
+  - Each explicit legacy role tuple becomes (or reuses) an entry. A role key equal to its provider
+    default uses shared-key mode; a distinct role key becomes a custom override.
+  - The one legacy global fallback becomes one configured entry and is assigned as fallback to all
+    five roles, per the owner decision.
+  - Identical provider/model/key-source tuples deduplicate; distinct keys never do. Voice/image data
+    is copied byte-for-byte through the projection. Environment secrets are never copied into the
+    stored JSON.
+  - A fixed-environment migration guard compares the effective primary and fallback config for all
+    five roles before and after a no-op canonical save. Legacy blank-model/provider defaults continue
+    to run until the operator selects an explicit entry; the UI marks such projected entries
+    "legacy provider default" rather than inventing a current model id.
+
+  **Runtime resolution.** `mergeAiConfig` expands version 2 into role-specific primary/fallback
+  configurations; `resolveAgentConfig` consumes an assigned primary first, otherwise keeps the
+  current role-env → primary-env/default chain. Each role's selected fallback replaces the old global
+  stored fallback. `FALLBACK_*` remains the fallback only for roles without a stored fallback.
+  Fallback configs now carry `baseUrl`/`ollamaUrl` as well as provider/model/key so a configured
+  custom or Ollama fallback actually reaches its selected connection. The `AIClient` failover path
+  forwards those fields to the backup client. Call sites in `rpg-engine.js` do not change.
+
+  **Live model catalog (`model-catalog.js`).** Export pure response parsers plus
+  `listModels(provider, { apiKey, baseUrl, ollamaUrl, fetchImpl })`. The endpoint contracts were
+  re-verified against official provider documentation on 2026-07-15:
+
+  - Gemini: `GET https://generativelanguage.googleapis.com/v1beta/models?pageSize=1000&key=...`;
+    keep `supportedGenerationMethods` containing `generateContent`; strip `models/`.
+  - OpenAI: `GET https://api.openai.com/v1/models`, Bearer; return unique `data[].id`. The endpoint
+    does not identify Council-suitable modalities, so do not invent a name-based filter.
+  - Claude: `GET https://api.anthropic.com/v1/models?limit=1000`, `x-api-key` plus
+    `anthropic-version: 2023-06-01`; return `data[].id`.
+  - Grok: `GET https://api.x.ai/v1/language-models`, Bearer; return each `models[].id` plus advertised
+    aliases, excluding image/video-only catalogs.
+  - Ollama: `GET {ollamaUrl}/api/tags`; return unique `models[].name`.
+  - Custom OpenAI-compatible: `GET {baseUrl}/models`; return unique `data[].id`.
+
+  Results are trimmed, deduplicated, and sorted; malformed success bodies fail closed rather than
+  returning an empty success. Catalog requests time out after 10 seconds. Official URLs are pinned.
+  `custom` and `ollama` reuse the existing SSRF validation functions/allowlist from `api-client.js`;
+  do not fork that policy into `model-catalog.js`. Provider error bodies, request URLs, and headers
+  are never returned or logged — especially Gemini, whose key is in the query string. The admin sees
+  only `Could not list <provider> models (<status>)`.
+
+  **Catalog route.** Add admin-authenticated `POST /api/admin/models/catalog` under the existing
+  `/api/admin` limiter. Body:
+  `{ provider, modelEntryId?, apiKey?, baseUrl?, ollamaUrl? }`. Resolution is non-empty request key
+  (test an unsaved value) → stored override for a matching entry id → stored provider key → provider
+  environment key. Endpoint fields follow the analogous request → stored provider connection → env
+  chain and then the existing SSRF policy. An entry id must exist and match the requested provider
+  before its stored override is eligible. The route returns `{ models: string[] }`, never config or
+  credential material. Seats/game authentication cannot reach it.
+
+  **Admin UI.** Replace the repeated text-model forms in `admin/admin.html` and `admin/admin.js`:
+
+  - Widen the admin main column to a restrained desktop table width (about 1080px) while keeping a
+    one-column mobile layout. Provider rows show Provider, shared-key input/state, endpoint when
+    applicable, and Refresh models/status. Fixed official providers remain visible even when unset.
+  - Configured-model rows show Label, Provider, editable Model combo box, Key source
+    (Provider/Custom), masked custom-key input/state, usage summary, and Remove. **Add model** creates
+    a UUID-backed row. A provider refresh updates the datalist for every row on that provider and is
+    cached only in page memory; changing key/endpoint invalidates that provider's cache.
+  - Council assignments are exactly five compact rows: Role, Primary, Fallback. Selectors list the
+    configured entries plus Environment/default (primary) or no stored fallback (fallback). The same
+    entry may be selected repeatedly. Role blurbs remain available as short secondary text.
+  - Voice and Scene Images remain below, unchanged except for inheriting the wider, consistent card
+    styling. Save is one atomic POST. Inline validation identifies the exact row/role; a catalog
+    failure stays local to its provider and does not clear an existing selection.
+  - Move reusable registry/assignment state operations into a browser-safe pure module imported by
+    `admin.js` and `test.js`; DOM rendering remains in `admin.js`. No framework is added.
+
+  **Verification and non-vacuous guards.**
+
+  - `AI_RETRY_BACKOFF_MS=10 node test.js` green. Tests cover v2 bounds/reference validation; every
+    independent secret keep/replace/clear path; provider-default versus custom key resolution;
+    same-provider sharing; per-role primary/fallback; cross-provider key isolation; custom/Ollama
+    fallback endpoints; legacy projection and effective no-op-save equivalence; and masking (raw
+    secrets absent from every admin response).
+  - Catalog parser fixtures cover all six providers, Grok language-only filtering/aliases, Gemini
+    method filtering, malformed success bodies, timeout/error sanitization, and custom/Ollama SSRF.
+    An HTTP-boundary test proves unsaved → entry override → provider stored → env precedence and
+    rejects cross-provider entry-id spoofing without making a provider call.
+  - Extend the committed Playwright harness to open `/admin` against a throwaway store, stub a live
+    catalog result, add two models sharing one provider key plus one custom override, assign primary
+    and fallback models to multiple roles, save/reload, and assert the compact rows and selections
+    survive while no secret appears in returned JSON/DOM. It also proves manual model entry remains
+    usable after a failed catalog request and assigned entries cannot be removed.
+  - Each implementation slice proves its guard red on the pre-slice code (or a focused mutation that
+    removes the new mechanism) and green restored. A test that only exercises a duplicate helper is
+    vacuous under `AGENTS.md` and must be replaced.
+  - Manual check after automation: desktop and narrow viewport; refresh one configured official
+    provider when credentials are available, select a returned model, save, reload, and run a turn.
+    If no credential is safely available, report the live call as not run; stubbed browser and route
+    tests remain mandatory. Dev tooling has no game-feel gate.
+
+  **Implementation slices and files.** All code follows `.agents/playbooks/reviewloop.md`; one slice
+  is accepted and owner-merged before the next starts from updated `master`.
+
+  1. `am-1` — canonical registry, legacy projection, masked save/load, role-specific primary/fallback
+     runtime resolution, and fallback endpoint forwarding. Files: `server-config.js`,
+     `api-client.js`, `test.js`, review/state docs. Observable failure: the current shape cannot
+     share provider credentials explicitly or assign distinct fallbacks per role.
+  2. `am-2` — provider catalog module and authenticated route with credential precedence, timeout,
+     error redaction, and SSRF reuse. Files: `model-catalog.js` (new), `api-client.js` (export shared
+     network policy only), `server.js`, `test.js`, review/state docs. Observable failure: the server
+     cannot discover any provider's live model ids.
+  3. `am-3` — compact provider/model/assignment UI, browser-safe state helper, Playwright guard, and
+     README operator flow. Files: `admin/admin.html`, `admin/admin.js`, `admin/model-registry.js`
+     (new), `test-browser.mjs`, `test.js`, `README.md`, review/state docs. Observable failure: the
+     operator must edit seven repeated provider/model/key forms and know model ids by hand.
+
+  **Plan-review convergence and implementation process.** Before `am-1`, dispatch the same pinned
+  plan snapshot independently to Claude (correctness/cold-implementer/migration-security lens) and
+  Grok (UX/runtime/data-model/adversarial lens). Record both structured verdicts in
+  `.agents/review/admin-model-registry-plan.md`. Revise and re-dispatch any reopened plan until both
+  reviewers return accepted against the same SHA; that shared-SHA dual acceptance is convergence.
+  Codex then implements. Each code slice gets a pinned independent implementation verdict from an
+  agent that did not author it, with guard proof executed in a disposable worktree. Accepted is not
+  merge authority; each merge remains owner-gated.
 
 **Review Process**: After completing each phase's implementation, test a full play session together,
 gather feedback, and only then mark the phase complete or move to the next. Review-accepted slices

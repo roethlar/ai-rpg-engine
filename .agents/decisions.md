@@ -20,6 +20,44 @@ Supersedes:
 <Optional prior decision, doc, or rule.>
 -->
 
+### 2026-07-15 - Admin AI configuration is a provider/model registry with per-role primary and fallback assignments
+
+Status: Active
+
+Decision:
+The `/admin` AI configuration surface is rebuilt around three separate concerns:
+
+1. A compact provider-connections table owns each provider's shared/default API key and its
+   operator-supplied endpoint where applicable.
+2. A reusable configured-model registry owns a label, provider, exact model id, and either the
+   provider's shared key or a model-specific key override. Multiple models from one provider may
+   share its key; the same configured model may serve multiple Council roles.
+3. A Council assignment table gives each of Setup, Interaction, Continuity, Referee, and Narration
+   one primary configured model and one optional fallback configured model. Secrets and provider
+   fields do not repeat in the role table.
+
+Model selectors are populated live from the selected provider where its API supports discovery, but
+remain editable combo boxes so a failed catalog request or an unlisted/custom model never blocks
+configuration. Existing environment-only operation remains supported.
+
+Owner wording (2026-07-15): **"there should be a table of providers w/ API key and model selector
+(populated live from the provider where possible). multiple models from single providers CAN share an
+API key, or they can take custom keys. Then, each configured model entry is assigned to a council role
+via a clean interface."** Follow-up decision: each role selects both a primary and an optional
+fallback; the old single global fallback is migrated across all five roles.
+
+Reason:
+The existing page repeats a full provider/model/key form for the primary tier, every Council role,
+and the global fallback. It conflates credentials, reusable model choices, and runtime assignment,
+making the page oversized and making shared credentials look like duplicated configuration. The
+registry makes those relationships explicit and keeps credential inheritance server-owned.
+
+Supersedes:
+The catalog-only `/admin` plan in `plan.md` (2026-07-12), which added datalists to the repeated forms
+without changing their structure, and the UI/storage shape of one global fallback tier. The runtime
+guarantees behind fallback-on-transient-error, provider-scoped key isolation, environment fallback,
+and server-owned configuration remain active.
+
 ### 2026-07-14 - The GM narrator is campaign-canonical; synthesis is shared across players
 
 Status: Active

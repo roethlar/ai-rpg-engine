@@ -30,11 +30,11 @@ to `docs/history/state-archive.md`.
 - The existing owner-approved reviewloop backlog remains unstarted as of `ca55b55`.
   `.agents/review/index.md` owns the exact findings and order; resume at `jt-1`, finish the remaining
   backlog, then enter the approved T2-s/T2 plan.
-- Queued, planned, owner-approved, not started as of `ca55b55`: the `/admin` model catalog
-  (plan.md → Dev Tooling). Fetches real model names from the selected provider so
-  the operator need not know them; combo-box shape (suggestions over a text input,
-  never a strict select). Motivated partly by hardcoded defaults in `api-client.js` that can age out
-  when a provider is selected with a blank model.
+- **The old `/admin` catalog-only plan is superseded by the admin model registry redesign.** Owner
+  direction 2026-07-15: compact provider connections with shared keys, reusable configured models
+  with optional custom key overrides and live editable catalogs, then primary + fallback assignment
+  per Council role. The `am-*` plan in plan.md is in dual independent review; no code starts until
+  Claude and Grok accept the same pinned plan SHA.
 - **The remote two-human multiplayer playtest remains pending.** App-side seat work is landed;
   connectivity is owner-handled and out of repo scope. The playtest is the scheduled close for open
   multiplayer feel gates. Seat isolation must be re-tested whenever a field crosses a seat payload,
@@ -47,15 +47,16 @@ to `docs/history/state-archive.md`.
 
 ## Next
 
-**THE IMMEDIATE NEXT ACTION: Phase V owner playtest.** All four code slices are merged, independently
-accepted, mutation-proven, and post-merge green. Configure either OpenAI or Grok voice in `/admin`,
-enable Voice Narration, and play a real scene with narrator plus multiple NPC lines. Confirm the GM
-and NPC identities are distinct/sticky, moods and per-line tones are audible, Skip works, and a host
-and seat hear the same campaign-canonical delivery. Phase V remains open until the owner says the
-voice experience is better in play.
+**THE IMMEDIATE NEXT ACTION: converge the `am-*` admin model-registry plan, then implement it.**
+Dispatch the pinned draft independently to Claude and Grok, revise until both accept the same SHA,
+then build the three reviewloop slices in plan.md (`am-1` config/runtime, `am-2` live catalogs,
+`am-3` compact UI), one accepted and owner-merged before the next starts.
 
-- If the owner chooses repo work before the playtest, `map-1` still needs an explicit go; the rules
-  track resumes with D1 when the owner is ready.
+- Phase V's owner playtest remains the pending feel gate after this explicitly selected repo work.
+  Configure either OpenAI or Grok voice in `/admin`, enable Voice Narration, and play a real scene
+  with narrator plus multiple NPC lines. Confirm distinct/sticky identities, audible moods and
+  per-line tones, Skip, and shared host/seat delivery.
+- `map-1` still needs an explicit go; the rules track resumes with D1 when the owner is ready.
 - For the combined host/seat playtest, set
   `ACCESS_SECRET` + `ADMIN_SECRET`, confirm an AI provider is configured
   there, expose the server, create the second character (party strip
