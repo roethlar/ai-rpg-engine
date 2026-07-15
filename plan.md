@@ -1314,7 +1314,7 @@ Raised during planning but deliberately deferred. **Per project rule, nothing he
     **refuted**. This is the third round in which a reviewer's careful CSS reasoning was wrong —
     which is the whole argument for this harness existing.
 
-- **Admin model registry + Council assignments — `am-*` (REVISED r4 2026-07-15; owner-approved
+- **Admin model registry + Council assignments — `am-*` (REVISED r5 2026-07-15; owner-approved
   direction, dual plan re-review pending; no implementation branch).**
 
   **Problem.** `/admin` currently repeats a full provider/model/key form seven times: primary,
@@ -1380,13 +1380,16 @@ Raised during planning but deliberately deferred. **Per project rule, nothing he
   unique; assignment options disambiguate with `label — provider/model — shared|custom key`. New
   entries require a non-empty provider and exact model id.
 
-  `legacyDefault: true` is the one migration-only exception: it preserves a projected v1 entry whose
-  provider and/or model was blank and therefore inherited environment/provider defaults. Projected
-  ids are deterministic (`legacy_primary`, `legacy_role_<role>`, `legacy_fallback`, with a stable
-  suffix only when deduplication requires it), never random per GET. A save may retain
+  `legacyDefault: true` is the one migration-only compatibility marker. It preserves v1's
+  field-by-field environment/default inheritance, including a blank role or fallback key even when
+  that tuple's provider and model were already explicit. Every projected v1 role or fallback entry
+  carries it; a projected top-level primary carries it when provider and/or model was blank.
+  Projected ids are deterministic (`legacy_primary`, `legacy_role_<role>`, `legacy_fallback`, with a
+  stable suffix only when deduplication requires it), never random per GET. A save may retain
   `legacyDefault: true` only for an id the server itself projected from the existing v1 row or an id
-  already stored with that flag in v2; a crafted new legacy entry is rejected. Selecting an explicit
-  provider and model clears the flag permanently. This is the discriminator used by validation,
+  already stored with that flag in v2; a crafted new legacy entry is rejected. A no-op save retains
+  the marker. A deliberate provider, model, key-source, or custom-key change to that row clears it
+  permanently; changing only its label does not. This is the discriminator used by validation,
   runtime resolution, the UI warning, and the migration guard.
 
   The server rejects duplicate ids, invalid providers, missing custom override secrets, illegal
@@ -1413,9 +1416,13 @@ Raised during planning but deliberately deferred. **Per project rule, nothing he
 
   **Secrets and credential inheritance.**
 
-  - A primary or fallback resolves its selected entry, then uses entry custom key (when
-    `keySource: custom`) → stored provider key → that provider's environment key. A key never crosses
-    provider boundaries.
+  - A normal v2 primary or fallback resolves its selected entry, then uses entry custom key (when
+    `keySource: custom`) → stored provider key → that provider's environment key. A
+    `legacyDefault` primary instead preserves stored role key → matching `ROLE_API_KEY` →
+    provider-matched `defaultModel` key → that provider's environment key. A `legacyDefault`
+    fallback preserves stored fallback key → `FALLBACK_API_KEY` → that fallback provider's
+    environment key; it does not accidentally reuse the old primary's stored key. A key never
+    crosses provider boundaries.
   - Provider and entry secrets keep the existing masked-form semantics independently: blank/missing
     keeps the stored value, explicit `null` clears, non-empty replaces. A custom-key entry whose
     secret is cleared must be switched to provider-key mode in the same valid save.
@@ -1493,24 +1500,32 @@ Raised during planning but deliberately deferred. **Per project rule, nothing he
     `legacy_primary` entry as a custom key so it follows the same environment-selected provider as
     before; it is not guessed into a provider row.
   - An explicit legacy role tuple means **any** non-empty stored `provider`, `model`, or `apiKey`
-    field. It becomes (or reuses) a deterministic legacy entry preserving those raw partial fields.
-    Blank provider/model fields are not filled and pinned during storage migration: while
-    `legacyDefault` remains true, runtime applies the exact old precedence
+    field. It becomes (or reuses) a deterministic `legacyDefault` entry preserving those raw fields;
+    complete provider + model tuples remain marked because a blank key still inherited role/default
+    keys under v1. Blank provider/model fields are not filled and pinned during storage migration:
+    while `legacyDefault` remains true, runtime applies the exact old precedence
     (stored role field → matching `ROLE_*` environment field → stored primary field → global
-    environment/default). A stored role key remains the entry's custom key; if provider is explicit
-    and that key equals its stored provider default, it may safely use shared-key mode. Thus a
-    model-only, provider-only, or key-only old role survives without inventing a provider/model or
-    copying an environment secret.
-  - The one legacy global fallback becomes one configured entry and is assigned as fallback to all
-    five roles, per the owner decision.
-  - Identical provider/model/key-source tuples deduplicate; distinct keys never do. Voice/image data
-    is copied byte-for-byte through the projection. Environment secrets are never copied into the
-    stored JSON.
+    environment/default). A non-empty stored role key always remains the entry's custom key, even
+    when it equals the stored provider default: retaining that distinction is what keeps it above
+    `ROLE_API_KEY`. A blank stored role key uses provider-key mode only as a representation marker;
+    while `legacyDefault` remains true, runtime skips the stored provider key until after
+    `ROLE_API_KEY` and the provider-matched old primary tier. Thus a model-only, provider-only, or
+    key-only old role survives without inventing a provider/model or copying an environment secret.
+  - The one legacy global fallback becomes one `legacyDefault` configured entry and is assigned as
+    fallback to all five roles, per the owner decision. Its blank fields retain the current
+    `FALLBACK_*` then provider-environment chain rather than inheriting a stored primary/provider key;
+    a non-empty stored fallback key always remains an entry custom key.
+  - Identical provider/model/key-source tuples deduplicate only when their migration semantics also
+    match; distinct keys or different `legacyDefault` behavior never do. Voice/image data is copied
+    byte-for-byte through the projection. Environment secrets are never copied into the stored JSON.
   - A fixed-environment migration guard compares the effective primary and fallback config for all
     five roles before and after a no-op canonical save. Its fixture includes partial role tuples,
     populated stored primary plus `ROLE_AI_MODEL` / `ROLE_API_KEY` / `ROLE_AI_PROVIDER`,
-    `AI_MODEL`, `FALLBACK_AI_MODEL`, a custom full chat URL, and an Ollama URL; leaving those env
-    values blank would make the proof vacuous. Legacy blank
+    `AI_MODEL`, `FALLBACK_AI_MODEL`, `FALLBACK_API_KEY`, a custom full chat URL, and an Ollama URL;
+    leaving those env values blank would make the proof vacuous. It specifically includes a legacy
+    role and fallback with complete provider + model but blank key, with distinct role/fallback,
+    stored-primary, stored-provider, and provider-environment keys, and proves the role/fallback key
+    wins. Legacy blank
     provider/model entries keep consulting the same environment variables until the operator selects
     explicit values. The UI marks them "legacy inherited default" rather than inventing a current
     provider or model id.
@@ -1526,7 +1541,7 @@ Raised during planning but deliberately deferred. **Per project rule, nothing he
 
   1. A normal explicit role primary wins as admin intent; its entry custom/provider/env key and its
      provider connection endpoint travel together.
-  2. An explicit `legacyDefault` partial role entry applies each stored non-empty field first, then
+  2. An explicit `legacyDefault` role entry applies each stored non-empty field first, then
      the matching `ROLE_*` environment field, then `defaultPrimary`, then global env/provider default.
   3. An empty role primary applies `ROLE_*` env first, then `defaultPrimary`, then global
      env/provider default. This is how a filled old primary stays below role env after migration.
@@ -1541,8 +1556,10 @@ Raised during planning but deliberately deferred. **Per project rule, nothing he
   weakening the current role-endpoint precedence or cross-provider isolation boundary.
 
   Each role's selected fallback replaces the old global stored fallback. A normal explicit fallback
-  uses its complete expanded entry; a legacy blank fallback field consults its corresponding
-  `FALLBACK_*` variable; an empty assignment uses the environment fallback tier. Expansion attaches
+  uses its complete expanded entry. A `legacyDefault` fallback applies each stored non-empty field,
+  then its corresponding `FALLBACK_*` variable, then the selected provider's environment/default; it
+  never inherits the default primary's key. An empty assignment uses the environment fallback tier.
+  Expansion attaches
   `providers.custom.baseUrl` or `providers.ollama.ollamaUrl` to **both primary and fallback** entries.
   `normalizeFallbackConfig` retains both endpoint fields and the `AIClient` failover constructor
   forwards them to the backup client. Call sites in `rpg-engine.js` do not change.
@@ -1624,8 +1641,10 @@ Raised during planning but deliberately deferred. **Per project rule, nothing he
     independent secret keep/replace/clear path; provider-default versus custom key resolution;
     same-provider sharing; per-role primary/fallback; cross-provider model/key/endpoint isolation;
     role custom/Ollama endpoint env precedence over matching connection endpoints; custom/Ollama
-    **primary and fallback** endpoints; filled-primary `ROLE_*` precedence; deterministic legacy
-    ids/flag authorization; partial legacy tuples;
+    **primary and fallback** endpoints; filled-primary `ROLE_*` precedence; complete-provider/model
+    legacy role `ROLE_API_KEY` precedence; complete legacy fallback `FALLBACK_API_KEY` precedence;
+    no-op marker retention and edit-triggered clearing; deterministic legacy ids/flag authorization;
+    partial legacy tuples;
     custom/Ollama endpoint migration; populated-env effective no-op-save equivalence; the exact
     masked/save DTO; typed 400 versus unexpected 500; and masking (raw secrets absent from every
     admin response).

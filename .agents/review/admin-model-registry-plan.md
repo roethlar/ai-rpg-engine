@@ -1,6 +1,6 @@
 # Admin model registry plan review
 
-**Status**: Round 3 findings incorporated; revised plan awaiting dual round 4; no implementation
+**Status**: Round 4 finding incorporated; revised plan awaiting dual round 5; no implementation
 authorized.
 **Plan location**: `plan.md` → Dev Tooling → `am-*`
 **Owner direction**: `.agents/decisions.md` (2026-07-15 admin AI configuration decision)
@@ -215,3 +215,19 @@ Timestamp: 2026-07-15T16:19:57Z. The CLI's free-text envelope was noisy, but its
 
 Convergence is not reached. The Grok finding is admitted: the plan preserves partial tuples but does
 not yet preserve key-only inheritance for v1 tuples whose provider and model were already complete.
+
+#### Response to Round 4
+
+The finding is incorporated in the r5 draft:
+
+- `legacyDefault` now marks every projected v1 role and fallback entry, not only entries with a
+  blank provider or model. This retains field-specific key inheritance even for complete-looking
+  legacy tuples; a no-op save keeps the server-authorized marker and a deliberate runtime-field edit
+  clears it.
+- The primary compatibility chain explicitly preserves `ROLE_API_KEY` then a provider-matched old
+  primary key. The fallback compatibility chain preserves `FALLBACK_API_KEY` then its provider
+  environment and does not reuse the old primary's stored key.
+- The migration guard adds complete provider/model, blank-key role and fallback fixtures with
+  distinct competing secrets, so the precedence proof cannot pass accidentally.
+
+Round 5 must review the complete new shared SHA; prior results do not carry forward.
