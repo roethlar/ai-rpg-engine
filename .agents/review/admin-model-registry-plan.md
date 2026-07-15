@@ -1,6 +1,6 @@
 # Admin model registry plan review
 
-**Status**: Round 1 findings incorporated; revised plan awaiting dual round 2; no implementation
+**Status**: Round 2 findings incorporated; revised plan awaiting dual round 3; no implementation
 authorized.
 **Plan location**: `plan.md` → Dev Tooling → `am-*`
 **Owner direction**: `.agents/decisions.md` (2026-07-15 admin AI configuration decision)
@@ -132,3 +132,20 @@ valid, SHA-matched structured verdict. `evidence_checked: true`;
 Convergence is not reached: both verdicts are valid, but the shared-SHA contract requires both to
 accept. The Grok findings are admitted; Claude's first note is resolved as the same root issue as
 Grok finding 2 rather than left as accepted risk.
+
+### Round 2 response — revision committed after verdict record
+
+All four Grok findings and both Claude notes are addressed in the r3 draft:
+
+- Canonical v2 gains `defaultModel`. V1 roles without explicit tuples remain unassigned and resolve
+  `ROLE_*` before the old primary; the migration proof now pairs a filled stored primary with filled
+  role provider/model/key variables.
+- `am-1`/`am-2` keep the v1 HTTP DTO/save active. `am-3` switches the new UI, v2 wire, and first
+  canonical rewrite atomically, eliminating an incoherent merged-master interval.
+- The `mergeAiConfig` intermediate role contract and all three primary/fallback resolution cases are
+  explicit. Provider connection endpoints attach to primary and fallback entries and are guarded in
+  both positions.
+- One endpoint-policy helper gives runtime and catalog identical production behavior, including
+  Ollama's `http://localhost:11434` default when `OLLAMA_URL` is absent.
+
+Round 3 must review the complete new shared SHA; prior results do not carry forward.
