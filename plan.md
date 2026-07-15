@@ -1314,7 +1314,7 @@ Raised during planning but deliberately deferred. **Per project rule, nothing he
     **refuted**. This is the third round in which a reviewer's careful CSS reasoning was wrong —
     which is the whole argument for this harness existing.
 
-- **Admin model registry + Council assignments — `am-*` (REVISED r5 2026-07-15; owner-approved
+- **Admin model registry + Council assignments — `am-*` (REVISED r6 2026-07-15; owner-approved
   direction, dual plan re-review pending; no implementation branch).**
 
   **Problem.** `/admin` currently repeats a full provider/model/key form seven times: primary,
@@ -1468,9 +1468,14 @@ Raised during planning but deliberately deferred. **Per project rule, nothing he
   introduces the v2 storage/runtime functions but deliberately keeps the existing v1 HTTP DTO and
   legacy save path, so merged master remains operable between owner-gated slices. The POST body has
   the same structure but sends secret `apiKey` fields instead of trusting
-  `apiKeySet`. Provider secrets merge by provider name. Entry secrets merge by stable entry id: blank
-  or absent keeps that id's stored secret, `null` clears, non-empty replaces. New `keySource: custom`
-  entries require a non-empty submitted secret. Switching an existing entry to
+  `apiKeySet`. Every v2 POST first loads the raw stored row and obtains a canonical merge baseline by
+  running the same secret-preserving deterministic v1→v2 projection used by GET (or by validating a
+  row already at v2). The projection runs before any incoming blank-key merge; it never reads or
+  copies environment secrets. Provider secrets then merge by provider name against that baseline.
+  Entry secrets merge by stable entry id against the baseline's deterministic projected ids: blank
+  or absent keeps that id's projected/stored secret, `null` clears, non-empty replaces. The baseline
+  also authorizes which incoming ids may retain `legacyDefault`. New `keySource: custom` entries
+  require a non-empty submitted secret. Switching an existing entry to
   `keySource: provider` writes `apiKey: ''` regardless of a blank masked input, so an obsolete
   override cannot linger. Removing an unassigned entry drops its secret. `apiKeySet` values in a
   POST are ignored. Non-secret fields and the complete five-role assignment map are replaced by the
@@ -1530,39 +1535,67 @@ Raised during planning but deliberately deferred. **Per project rule, nothing he
     explicit values. The UI marks them "legacy inherited default" rather than inventing a current
     provider or model id.
 
-  **Runtime resolution.** `mergeAiConfig` retains the full current top-level server AI config. Its
-  Council-text subshape is `{ defaultPrimary, roles: { <role>: { primary, fallback } } }`, where each
-  non-null expanded entry contains provider, model, apiKey, `baseUrl`, and `ollamaUrl` after
-  provider-connection resolution. The unchanged `voiceApiKey`, `voiceModel`, `voiceProvider`,
-  `imageProvider`, `imageModel`, `imageApiKey`, and `imageEndpoint` fields remain top-level siblings;
-  so do the v1 compatibility fields required while `am-1` and `am-2` still serve the old admin wire
-  format. The Council migration must not narrow the object returned to `voice-narration.js`,
-  `rpg-engine.js`, or existing callers. `resolveAgentConfig` applies exactly three primary cases:
+  **Runtime resolution.** `mergeAiConfig` retains the full current top-level server AI config and adds
+  a collision-free internal Council descriptor:
 
-  1. A normal explicit role primary wins as admin intent; its entry custom/provider/env key and its
-     provider connection endpoint travel together.
-  2. An explicit `legacyDefault` role entry applies each stored non-empty field first, then
-     the matching `ROLE_*` environment field, then `defaultPrimary`, then global env/provider default.
-  3. An empty role primary applies `ROLE_*` env first, then `defaultPrimary`, then global
-     env/provider default. This is how a filled old primary stays below role env after migration.
+  ```js
+  council: {
+    connections: { <provider>: { apiKey, baseUrl, ollamaUrl } },
+    defaultPrimary: EntryDescriptor | null,
+    roles: { <role>: { primary: EntryDescriptor | null, fallback: EntryDescriptor | null } }
+  }
+  // EntryDescriptor (internal, never returned by an admin route):
+  { id, legacyDefault, provider, model, keySource, customApiKey }
+  ```
+
+  Descriptors preserve stored provenance: `provider` and `model` remain blank when v1 left them
+  blank; `customApiKey` contains only an entry's stored custom secret; provider keys and endpoints
+  stay in `connections`. In particular, `mergeAiConfig` must not eagerly copy a connection key into
+  a `legacyDefault` descriptor whose old role/fallback key was blank. The unchanged `voiceApiKey`,
+  `voiceModel`, `voiceProvider`, `imageProvider`, `imageModel`, `imageApiKey`, and `imageEndpoint`
+  fields remain top-level siblings. So do the current v1 runtime fields (`provider`, `model`,
+  `apiKey`, `baseUrl`, `ollamaUrl`, `fallback`, and the legacy top-level `roles`) while compatibility
+  is required; the new assignment map exists only at `council.roles`, avoiding a shape collision.
+  The Council migration must not narrow the object returned to `voice-narration.js`, `rpg-engine.js`,
+  or existing callers.
+
+  `resolveAgentConfig` uses `council` when present and otherwise retains its current v1 path. It is
+  the only function that turns descriptors and connections into the final
+  `{ provider, model, apiKey, baseUrl, ollamaUrl, fallback }`. It applies exactly three primary cases:
+
+  1. A normal explicit role primary wins as admin intent. Its required provider/model come from the
+     descriptor; key resolution is custom entry → stored connection → provider environment.
+  2. A `legacyDefault` role descriptor applies each non-empty raw stored field first. Its key is
+     custom entry → matching `ROLE_API_KEY` → provider-matched resolved `defaultPrimary` key →
+     provider environment. A blank legacy provider/model similarly consults its matching `ROLE_*`
+     field and then a provider-matched `defaultPrimary` field.
+  3. A null role primary applies `ROLE_*` env first, then provider-matched `defaultPrimary`, then
+     global env/provider default. This is how a filled old primary stays below role env after
+     migration.
 
   Provider resolution happens before model, key, or endpoint inheritance. In cases 2 and 3, a field
   may inherit from `defaultPrimary` only when the effective role provider equals
-  `defaultPrimary.provider`; a provider mismatch skips every default-primary model, key, `baseUrl`,
-  and `ollamaUrl` field so `AIClient` can resolve the selected provider's own environment/defaults.
+  the effective resolved `defaultPrimary.provider`; a provider mismatch skips every default-primary
+  model, key, `baseUrl`, and `ollamaUrl` field so `AIClient` can resolve the selected provider's own
+  environment/defaults. A legacy blank key never consults `connections[provider].apiKey` directly;
+  it reaches a stored old-primary key only through the provider-matched `defaultPrimary` tier.
   For every primary case, `${ROLE}_CUSTOM_ENDPOINT_URL` or `${ROLE}_OLLAMA_URL` wins for its matching
   effective provider, followed by that provider connection's endpoint; an endpoint for a different
   provider never travels. Thus an explicit stored model assignment remains admin intent without
   weakening the current role-endpoint precedence or cross-provider isolation boundary.
 
-  Each role's selected fallback replaces the old global stored fallback. A normal explicit fallback
-  uses its complete expanded entry. A `legacyDefault` fallback applies each stored non-empty field,
-  then its corresponding `FALLBACK_*` variable, then the selected provider's environment/default; it
-  never inherits the default primary's key. An empty assignment uses the environment fallback tier.
-  Expansion attaches
-  `providers.custom.baseUrl` or `providers.ollama.ollamaUrl` to **both primary and fallback** entries.
-  `normalizeFallbackConfig` retains both endpoint fields and the `AIClient` failover constructor
-  forwards them to the backup client. Call sites in `rpg-engine.js` do not change.
+  Each role's selected fallback replaces the old global stored fallback. A normal descriptor uses
+  custom entry → stored connection → provider environment. A `legacyDefault` descriptor applies its
+  non-empty raw stored fields, then corresponding `FALLBACK_*`, then the selected provider's
+  environment/default; it never consults the connection key or default primary. A null assignment
+  uses the environment fallback tier. The selected custom/Ollama connection endpoint attaches to
+  both normal and legacy primary/fallback results after provider resolution.
+
+  On the `council` path, `resolveAgentConfig` supplies the already selected fallback (or null), and
+  `normalizeFallbackConfig` only validates/copies provider, model, apiKey, `baseUrl`, and
+  `ollamaUrl`; it must not inject `FALLBACK_*` a second time. Its old unconditional environment
+  behavior remains only for callers without `council`. The `AIClient` failover constructor forwards
+  both endpoint fields to the backup client. Call sites in `rpg-engine.js` do not change.
 
   **Live model catalog (`model-catalog.js`).** Export pure response parsers plus
   `listModels(provider, { apiKey, baseUrl, ollamaUrl, fetchImpl })`. The endpoint contracts were
@@ -1643,8 +1676,10 @@ Raised during planning but deliberately deferred. **Per project rule, nothing he
     role custom/Ollama endpoint env precedence over matching connection endpoints; custom/Ollama
     **primary and fallback** endpoints; filled-primary `ROLE_*` precedence; complete-provider/model
     legacy role `ROLE_API_KEY` precedence; complete legacy fallback `FALLBACK_API_KEY` precedence;
-    no-op marker retention and edit-triggered clearing; deterministic legacy ids/flag authorization;
-    partial legacy tuples;
+    no-op marker retention and edit-triggered clearing; descriptor provenance and all normal /
+    legacy / null primary and fallback branches; deterministic legacy ids/flag authorization;
+    partial legacy tuples; first-save projection-baseline preservation for distinct stored primary,
+    role, and fallback secrets through projected GET → blank-key v2 POST → raw reload;
     custom/Ollama endpoint migration; populated-env effective no-op-save equivalence; the exact
     masked/save DTO; typed 400 versus unexpected 500; and masking (raw secrets absent from every
     admin response).

@@ -1,6 +1,6 @@
 # Admin model registry plan review
 
-**Status**: Round 4 finding incorporated; revised plan awaiting dual round 5; no implementation
+**Status**: Round 5 findings incorporated; revised plan awaiting dual round 6; no implementation
 authorized.
 **Plan location**: `plan.md` → Dev Tooling → `am-*`
 **Owner direction**: `.agents/decisions.md` (2026-07-15 admin AI configuration decision)
@@ -262,3 +262,20 @@ schema-enforced `structuredOutput` was valid and SHA-matched. `evidence_checked:
 
 Convergence is not reached. Both findings are admitted; they identify missing executable state, not
 new product behavior.
+
+#### Response to Round 5
+
+Both findings are incorporated in the r6 draft:
+
+- `mergeAiConfig` now carries a named internal `council` descriptor with provider connections and
+  raw entry descriptors. Each descriptor retains `legacyDefault`, `keySource`, and only its stored
+  custom key; provider keys are not eagerly expanded. `resolveAgentConfig` owns the three exclusive
+  branches, and `normalizeFallbackConfig` does not re-inject environment values on the Council path.
+- The first v2 POST must project the loaded v1 row into the same deterministic, secret-preserving v2
+  baseline used by GET before applying blank/missing/replace/clear semantics. The guard follows
+  distinct stored primary, role, and fallback secrets through projected GET, blank-key POST, and raw
+  reload.
+- The new descriptor is nested at `council`, so it cannot collide with the temporary legacy
+  top-level `roles` object; voice/image and every old runtime sibling remain intact.
+
+Round 6 must review the complete new shared SHA; prior results do not carry forward.
