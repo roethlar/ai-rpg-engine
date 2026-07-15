@@ -1423,6 +1423,14 @@ Existing campaigns already persist OpenAI voice names in `npcs.voice_json` and
 > paid for once per listener** (`.agents/decisions.md`, 2026-07-14). The contract below is the r3
 > correction and is not implementation-authorizing until an independent review accepts it.
 
+> **r3 independent review: REOPENED.** Claude accepted the pinned r3 plan, but its own
+> "non-blocking" note identified the v3-route/v4-client compatibility break. The owner-provided
+> manual Grok review (`.agents/review/findings/phase-v-plan-r3-review.json`) independently graded that
+> break HIGH and found four more executable-contract gaps: preview identity, exact bracket
+> neutralization, capabilities failure/provider-race handling, and numeric `voiceSeed` import rules.
+> All five are admitted. The r4 corrections below govern; the conflicting acceptance is not a license
+> to code.
+
 1. **Per-provider voice registries** (`tts-providers.js`). Replace the single `TTS_VOICES` /
    `NPC_VOICE_POOL` with a registry keyed by provider. **Pin Grok's voice ids as a literal, ORDERED
    list** — a network call inside the validation path would be a new failure mode on every turn.
@@ -1493,10 +1501,13 @@ Existing campaigns already persist OpenAI voice names in `npcs.voice_json` and
    - New NPC profiles contain only the public enum mood; `assignNpcVoiceProfile` no longer derives
      synthesis instructions from private `personality` or `quirks`. Retain bounded legacy
      `instructions` only for reading existing OpenAI profiles; never turn them into Grok tags.
-   - **Neutralize bracket syntax in the spoken text.** Strip/escape `[`…`]` from `line.text` before
-     it is sent to Grok, so narration the model wrote cannot smuggle its own controls
-     (`server.js:124-132`). The ONLY tag Grok ever receives is the one the server composed from the
-     enum.
+   - **Neutralize bracket syntax in the spoken text, with one exact algorithm.** Run the existing
+     narration cleanup first (so Markdown links become their visible label), then delete every
+     `/\[[^\]]*\]/g` span **including its interior text**, delete any unmatched `[` or `]`, collapse
+     whitespace, and only then compose server tags. Fixture:
+     `The [angry] guard says [open the vault] now. A stray ] remains.` →
+     `The guard says now. A stray remains.` The ONLY brackets Grok receives are the enum tag the
+     server adds after this cleanup.
    - Rendered form: `[<mood>, <tone>] <text>` — omit `neutral` parts and omit the tag when both are
      neutral. Only the server composes it.
    - **OpenAI keeps its provider-native steering field**: the same two enum values fold into a
@@ -1523,11 +1534,17 @@ Existing campaigns already persist OpenAI voice names in `npcs.voice_json` and
    **Resolve the voice profile SERVER-SIDE for BOTH host and seat.** The seat path already does
    exactly this (`server.js:749-767`) precisely so NPC personality never leaves the server. Extend it
    to the host with this pinned request shape:
-   - The client sends `{ campaignId, speaker, segments: [{ text, tone }] }`. For a seat,
+   - Campaign narration sends `{ campaignId, speaker, segments: [{ text, tone }] }`. For a seat,
      `req.auth.campaignId` is authoritative and a body `campaignId` is ignored. For a host,
      authentication carries only `{ kind: 'host' }`, so `campaignId` is required, parsed as a
      positive integer, and verified by loading the campaign. The earlier "available from the
      authenticated session" claim was false.
+   - Preview is an explicit second shape: `{ preview: true, segments: [{ text, tone }] }`. It accepts
+     exactly one segment, resolves the active provider's reserved narrator, never performs NPC or
+     campaign lookup, and uses the cache's distinct `preview` scope. `preview: true` with a
+     `campaignId` or non-narrator `speaker` is 400. A campaign request missing `campaignId` is 400;
+     an absent id is **not** implicitly preview. A provided non-positive/malformed id is 400 and a
+     well-formed missing campaign is 404.
    - Each segment is bounded to 2,000 characters, each request to 40 segments and 15,000 characters
      after narration cleanup. OpenAI accepts exactly one segment per request; Grok accepts a
      same-speaker run and preserves each segment's enum tone in server-composed inline tags.
@@ -1593,7 +1610,14 @@ Existing campaigns already persist OpenAI voice names in `npcs.voice_json` and
     There is no player narrator selector after the campaign-canonical decision. Add authenticated
     `GET /api/audio/capabilities`, returning `{ provider, maxSegmentsPerRequest }` from the active
     registry (`1` for OpenAI, `40` for Grok). The client fetches it at the start of each narration,
-    so an admin provider switch cannot leave a stale batching decision.
+    so an admin provider switch cannot leave a stale batching decision. On fetch error, timeout, or
+    malformed payload the client uses the fail-closed value `1` for that turn. Batched requests carry
+    the capability response's provider as `expectedProvider`; one-segment requests may omit it. If
+    the active provider no longer matches, the route returns 409 `VOICE_PROVIDER_CHANGED` before
+    synthesis. The client re-fetches once and rebuilds the unplayed queue; if that fetch fails it
+    rebuilds as one segment per request. This structural recovery is not a provider retry. The route
+    also enforces the active provider's maximum and returns 400 without synthesis when
+    `segments.length > maxSegmentsPerRequest`; it never flattens an oversized OpenAI request.
 
     Add admin-authenticated `GET /api/admin/voice-catalog`, returning each registered provider's
     voice ids, reserved narrator, and whether it has a model field. `/admin` populates its provider
@@ -1605,7 +1629,11 @@ Existing campaigns already persist OpenAI voice names in `npcs.voice_json` and
     - `rpg-state.js:1037` — the campaign-import `bundleVoice` whitelist keeps only
       `provider`/`voice`/`instructions`, so an exported campaign would **lose `voiceSeed` and
       `mood`** on import, breaking the portability this design claims. Add both to the whitelist and
-      to the round-trip test.
+      to the round-trip test. `voiceSeed` is valid only when its raw value is a JavaScript number,
+      finite, and non-negative; store `Math.floor(raw.voiceSeed)`. Strings, infinities, negatives,
+      and other types become `null` (legacy-ordinal resolution), never `0`. `mood` must be exact enum
+      membership or `neutral`. The round-trip guard asserts numeric seed equality and type, not only
+      key presence.
     - `rpg-engine.js:2634` — **fork creates fresh profiles** via `assignNpcVoiceProfile` instead of
       copying `voice_json`, so a forked campaign loses every NPC's mood and may reassign its voice.
       Copy the stored profile on fork.
@@ -1706,20 +1734,30 @@ This is an in-memory cost/coordination cache, not durable game state. Restarting
   **route**, for **host and seat**: a Grok narrator voice survives; a seeded NPC resolves to its Grok
   pool voice; a legacy OpenAI-profile NPC switched to Grok and **back** keeps a stable voice; an
   invalid voice is rejected/defaulted rather than forwarded.
-- **Campaign identity contract:** a host request without `campaignId` is 400; a valid host campaign
-  resolves its NPC; a seat body that spoofs another `campaignId` is ignored and still resolves only
-  `req.auth.campaignId`.
+- **Campaign identity contract:** a campaign request from a host without `campaignId` is 400; a valid
+  host campaign resolves its NPC; a seat body that spoofs another `campaignId` is ignored and still
+  resolves only `req.auth.campaignId`. Explicit `preview: true` with no id uses the reserved narrator;
+  preview plus id/speaker is 400; malformed id is 400; well-formed unknown campaign is 404.
 - **Batching and failure guards execute the browser's production helper:** Grok groups only adjacent
   same-speaker lines and preserves each segment's tone; OpenAI emits one request per line; removing
   grouping makes the Grok guard fail. A first-run fetch failure still attempts and plays the second
   run and reports one debounced error; restoring throw-on-first-failure makes the guard fail.
+- **Capabilities fail closed:** error, timeout, and malformed response reduce the client to one
+  segment per request. In a Grok→OpenAI race, a batched request carrying stale `expectedProvider`
+  receives 409 with zero provider calls; the client re-fetches/rebuilds once, and a failed re-fetch
+  rebuilds the remaining queue as singletons. The server separately returns 400 with zero provider
+  calls when the request exceeds the matching provider's maximum.
+- **Bracket oracle:** the pinned hostile fixture becomes exactly
+  `The guard says now. A stray remains.` before server enum tags are added; asserting only "no
+  brackets" is insufficient because an implementation that speaks the hostile interior would pass.
 - **Shared-cost guard:** simultaneous host + seat requests for the same canonical narration cause
   exactly one mocked provider call; a later request hits completed cache; different campaign,
   provider, voice, tone, or text misses; failures do not poison the cache. Removing either in-flight
   or completed deduplication makes its corresponding assertion fail.
 - **Legacy/config guards:** a flat stored `voiceApiKey` is usable only as OpenAI, survives a no-op
   admin save into `voiceApiKeys.openai`, and is never selected for Grok. Legacy NPC seeds are the
-  zero-based campaign ordinal even when global ids contain gaps.
+  zero-based campaign ordinal even when global ids contain gaps. Import/export preserves a numeric
+  `voiceSeed`; strings/negative/non-finite values become `null`, and invalid mood becomes `neutral`.
 - **Seat boundary re-tested — AND THE AUDIO BOUNDARY, NOT JUST THE PAYLOAD** *(r1, and this is the
   subtle one)*. `.agents/state.md` requires a seat re-test whenever a field enters a seat payload.
   But scanning the JSON for `mood` proves only that it was not *serialized* — **the mood is spoken
@@ -1785,8 +1823,11 @@ guard red→green, receives a pinned external verdict, then stops for the owner'
    fork, export, and import. Observable failure: current profiles are OpenAI-only and narrator state
    is absent/lost.
 3. `v-3` — canonical host/seat audio route, capabilities/admin catalog, key isolation, bracket
-   neutralization, MP3 validation, and shared synthesis cache. Observable failure: host resolution
-   collapses, Grok voices 404, and identical listeners currently multiply upstream calls.
+   neutralization, MP3 validation, shared synthesis cache, **and the minimum client cutover**:
+   `public/app.js` sends `campaignId` plus a one-element `segments` array for every campaign line and
+   uses explicit `preview: true` for preview. It may leave the old controls visible/inert until v-4,
+   but merged master must narrate correctly through the new-only route. Observable failure: host
+   resolution collapses, Grok voices 404, and identical listeners currently multiply upstream calls.
 4. `v-4` — player-control removal, provider-aware Grok batching, OpenAI single-line path,
    skip-and-continue queue, preview, README. Observable failure: the current browser aborts after one
    error, cannot express multi-tone runs, and lets each player override the GM identity.

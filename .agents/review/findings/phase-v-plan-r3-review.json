@@ -1,0 +1,44 @@
+{
+  "verdict": "reopened",
+  "reviewed_sha": "f5300cc4a8a73fbe07f16ac34746adb76fa58be4",
+  "base_sha": "2693a4b66ebf8e056ad48cac6d60902a39eaf385",
+  "cold_implementer_executable": false,
+  "findings": [
+    {
+      "severity": "HIGH",
+      "evidence": "Design §6 pins host campaignId as required (parse positive integer, load campaign). Success metrics pin “host request without campaignId is 400”. Design §7 and the shared-cache section require preview without an active campaign (reserved narrator; cache scope `preview`). Code confirms host auth is only `{ kind: 'host' }` (server.js:209-222) and today’s preview posts to `/api/audio/narrate` with no campaign identity (public/app.js:613-626).",
+      "observable_failure": "A cold implementer who follows the 400 metric makes settings-menu voice preview without a loaded campaign always fail. One who allows missing campaignId for preview violates the stated campaign-identity success metric and leaves host campaign resolution underspecified.",
+      "required_correction": "Pin one host rule covering both cases: e.g. missing/null campaignId ⇒ preview scope + active provider’s reserved narrator (no NPC resolution); present campaignId ⇒ load-or-404 and full profile resolution. Update the success metric to match (400 only for malformed non-positive campaignId, not for intentional preview)."
+    },
+    {
+      "severity": "HIGH",
+      "evidence": "Process requires v-1…v-4 each start from updated master and merge independently. v-3 owns the canonical route/request shape `{ campaignId, speaker, segments }` and host/seat resolution; v-4 owns client batching, player-control removal, preview, and the production queue helper. Current production client still posts `{ text, audioConfig, speaker?, tone? }` (public/app.js:1524-1541; server.js:728-731). No dual-shape acceptance or interim compatibility is specified.",
+      "observable_failure": "After v-3 merges and before v-4, every live narration and preview call 400s/500s: master voice is broken between owner-gated merges, so slices are not independently shippable.",
+      "required_correction": "Either (a) move the minimum client cutover into v-3 (send campaignId + single-segment `segments` for host and seat; keep batching/UI removal in v-4), (b) require the route to accept the old `{ text, speaker, tone, audioConfig }` shape until v-4 removes it, with tests for both, or (c) explicitly fuse v-3+v-4 into one merge unit and stop claiming independent master-based slices."
+    },
+    {
+      "severity": "HIGH",
+      "evidence": "Design §4 requires neutralizing bracket syntax in spoken text so model free text cannot become Grok tags, and states the only tag is server-composed from enums. The rule is written “Strip/escape `[`…`]`” with no algorithm. Current `stripNarrationText` preserves bare tags (server.js:124-132; e.g. `[angry] Hello` survives).",
+      "observable_failure": "Different implementers either leave model tags live (open-vocabulary steering; defeats the r1 injection fix and the seat audio-boundary oracle) or over-delete speech. Guard tests cannot share a single oracle and risk being vacuous.",
+      "required_correction": "Pin the neutralization algorithm after narration cleanup and before tag composition, e.g. delete every `[`…`]` span including interior text, then assert no remaining `[` or `]` in the spoken body; server-composed enum tags are applied only after that. State the exact before/after fixture the suite must use."
+    },
+    {
+      "severity": "MEDIUM",
+      "evidence": "Client must fetch `GET /api/audio/capabilities` each narration to learn `maxSegmentsPerRequest` (1 OpenAI / 40 Grok) so batching stays provider-correct. No failure/fallback rule is pinned. Server statement “OpenAI accepts exactly one segment per request” is not tied to a 400/truncate policy if the client over-sends.",
+      "observable_failure": "On a capabilities fetch failure or race after an admin switch Grok→OpenAI, a client that keeps max=40 merges OpenAI lines into one request and loses per-line tone (or invents another unsafe fallback). A server that silently flattens multi-segment OpenAI input makes the failure invisible to tests.",
+      "required_correction": "Pin fail-closed client fallback: capabilities error/timeout ⇒ treat `maxSegmentsPerRequest` as 1 for that turn. Pin server enforcement: `segments.length` above the active provider max ⇒ 400 (do not synthesize). Add those oracles to the batching guards."
+    },
+    {
+      "severity": "MEDIUM",
+      "evidence": "Portability requires adding `voiceSeed` and `mood` to `bundleVoice` (plan §11; rpg-state.js:1037-1045 today only string-cleans `provider`/`voice`/`instructions`). Seed is a numeric creation ordinal used as `pool[voiceSeed % pool.length]`; the plan never pins integer sanitization on export/import.",
+      "observable_failure": "A cold implementer mirroring `cleanText` drops or stringifies `voiceSeed`. Import round-trips lose seeds; provider switches reshuffle NPC voices, falsifying the portability and legacy-ordinal claims.",
+      "required_correction": "Pin `bundleVoice`/`validateVoiceProfile` rules: `voiceSeed` is a finite non-negative integer (floor; reject/omit non-numeric); `mood` is exact enum membership else `neutral`. Round-trip test must assert numeric seed equality, not merely key presence."
+    }
+  ],
+  "comments": [
+    "Host auth truly carries no campaignId; seat spoof resistance and server-side profile resolution are correctly diagnosed against server.js/authenticate and the seat narrate path.",
+    "Grok 26-id ordered registry, reserved leo/marin, nested voiceApiKeys + legacy flat-key migration, shared in-flight/LRU cache bounds, MP3 magic check, and public/voice-narration.js DI queue are executable enough once the findings above are closed.",
+    "v-1 and v-2 can land alone; the independence break is specifically the v-3 route shape vs v-4 client cutover.",
+    "OpenAI enum→instructions wording is still free-form; acceptable if seat audio guards only forbid private personality text and do not require a fixed phrase."
+  ]
+}
