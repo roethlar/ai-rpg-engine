@@ -48,10 +48,10 @@ to `docs/history/state-archive.md`.
     executable. Implementation starts with owner-gated reviewloop slice v-1. Grok's verified
     capabilities are in decisions.md — **26 voices, delivery tags work, accents do not.**
     Do not re-derive them from vendor docs or by asking a model; both were wrong.
-  - **v-1 ACTIVE** on `fix/v-1-grok-provider-config`: provider registry/request contract,
-    provider-isolated key/config compatibility, admin storage, and guards are **ACCEPTED** by Claude
-    at pinned head `0371e35` with independent red→green confirmation. Awaiting the owner's explicit
-    merge go. Status and verdict trail: `.agents/review/index.md` + `findings/v-1.md`.
+  - **v-1 MERGED** (`7d55b77`, 2026-07-15): provider registry/request contract,
+    provider-isolated key/config compatibility, admin storage, and guards. Claude accepted pinned
+    head `0371e35` with independent red→green confirmation; the full suite passed again after merge.
+    Status and verdict trail: `.agents/review/index.md` + `findings/v-1.md`.
 - **bh-1 — the browser harness is MERGED** (`ea9ca9b`, 2026-07-14; branch deleted). codex
   implemented; Claude verified adversarially — roles swapped, since codex cannot review what codex
   wrote. Plan accepted after **seven review rounds**. Full trail:
@@ -162,13 +162,11 @@ to `docs/history/state-archive.md`.
 
 ## Next
 
-**THE IMMEDIATE NEXT ACTION: Phase V (Grok TTS) — implement and review v-1.**
-It is the one the owner actually cares about, and bh-1 (the housekeeping that was in front of it) is
-now merged. The r2 cold-implementer pass reopened the first redesign; r3 then split its reviewers —
-Claude accepted, while manual Grok correctly reopened five gaps now closed in r4. Claude then
-independently accepted r4 at pinned head `43879bd` with all five closures verified and no new
-finding. Codex now implements one owner-gated slice at a time and Claude or Grok reviews each pinned
-result, as the owner directed 2026-07-14.
+**THE IMMEDIATE NEXT ACTION: Phase V (Grok TTS) — implement and review v-2.**
+v-1 is merged and post-merge green. Start v-2 from updated `master`; it owns the finite delivery
+schema plus portable NPC/narrator profiles across create, legacy read, fork, export, and import. Keep
+the existing `/api/audio/narrate` contract operational until v-3 lands the route and minimum client
+cutover together. Each slice remains owner-gated and independently reviewed by Claude or Grok.
 
 - **Carry the bh-1 lessons into it.** Both are now decisions (`.agents/decisions.md`): *do not reason
   about CSS in this repo — execute it*; and *a guard proof must fail if its mechanism is removed*
