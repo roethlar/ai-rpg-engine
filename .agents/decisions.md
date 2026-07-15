@@ -40,11 +40,22 @@ Model selectors are populated live from the selected provider where its API supp
 remain editable combo boxes so a failed catalog request or an unlisted/custom model never blocks
 configuration. Existing environment-only operation remains supported.
 
+`claude-code` is also a supported text provider. It authenticates only through the Claude Code
+login available to the server process; it has no provider API-key field and no per-model custom-key
+override. Its model field accepts any alias or full model id available to that logged-in plan. When
+Claude Code does not expose a documented machine-readable model catalog, the field remains plain
+editable text and the provider row reports install/login/plan status instead of pretending that a
+hard-coded list is live. Selecting this provider changes only the transport used by `AIClient`; the
+Setup and Council pipelines, role assignments, retry, and fallback behavior remain unchanged.
+
 Owner wording (2026-07-15): **"there should be a table of providers w/ API key and model selector
 (populated live from the provider where possible). multiple models from single providers CAN share an
 API key, or they can take custom keys. Then, each configured model entry is assigned to a council role
 via a clean interface."** Follow-up decision: each role selects both a primary and an optional
-fallback; the old single global fallback is migrated across all five roles.
+fallback; the old single global fallback is migrated across all five roles. Claude Code extension
+wording (2026-07-15): **"what I want is a claude-code provider as an option. model selection is
+whatever's available to the logged-in plan or plain text entry if that's not possible. don't
+restrict it to fable."**
 
 Reason:
 The existing page repeats a full provider/model/key form for the primary tier, every Council role,

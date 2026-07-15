@@ -1314,9 +1314,9 @@ Raised during planning but deliberately deferred. **Per project rule, nothing he
     **refuted**. This is the third round in which a reviewer's careful CSS reasoning was wrong —
     which is the whole argument for this harness existing.
 
-- **Admin model registry + Council assignments — `am-*` (ACCEPTED r8 2026-07-15 at
-  `5f0261375f9b97f464f54ee406d5bafca7f3ea8d`; owner-approved direction; implementation may begin
-  with `am-1`).**
+- **Admin model registry + Council assignments — `am-*` (BASE ACCEPTED r8 2026-07-15 at
+  `5f0261375f9b97f464f54ee406d5bafca7f3ea8d`; `claude-code` provider extension review pending;
+  accepted `am-1` scope is unchanged).**
 
   **Problem.** `/admin` currently repeats a full provider/model/key form seven times: primary,
   fallback, and the five Council roles. Credentials, reusable model choices, and role assignment are
@@ -1328,7 +1328,9 @@ Raised during planning but deliberately deferred. **Per project rule, nothing he
   **Settled product contract.** The page has three compact layers:
 
   1. **Provider connections** — one row per supported LLM provider, with its shared/default API key
-     and endpoint only where the provider is operator-hosted (`custom`, `ollama`).
+     and endpoint only where the provider is operator-hosted (`custom`, `ollama`). `claude-code` is
+     the no-key exception: its connection is the Claude Code installation and Claude.ai login owned
+     by the server process.
   2. **Configured models** — reusable labeled entries with provider, exact model id, and key source:
      the provider key or a custom per-model override. Several entries may share one provider key;
      one entry may serve several roles.
@@ -1350,6 +1352,7 @@ Raised during planning but deliberately deferred. **Per project rule, nothing he
       "openai": { "apiKey": "" },
       "claude": { "apiKey": "" },
       "grok": { "apiKey": "" },
+      "claude-code": {},
       "ollama": { "ollamaUrl": "" },
       "custom": { "apiKey": "", "baseUrl": "" }
     },
@@ -1379,7 +1382,10 @@ Raised during planning but deliberately deferred. **Per project rule, nothing he
   Entry ids are stable opaque ids (client-generated UUIDs for new rows, validated server-side),
   unique, and at most 80 characters. Labels are required, bounded to 80 characters, and need not be
   unique; assignment options disambiguate with `label — provider/model — shared|custom key`. New
-  entries require a non-empty provider and exact model id.
+  entries require a non-empty provider and model id. For `claude-code`, the model is an editable
+  Claude Code alias or full id; the reserved value `default` omits `--model` and uses that login's
+  configured/default model. `claude-code` entries must use provider authentication and may not carry
+  a custom API key. Their assignment label reads `Claude Code login`, not `shared key`.
 
   `legacyDefault: true` is the one migration-only compatibility marker. It preserves v1's
   field-by-field environment/default inheritance, including a blank role or fallback key even when
@@ -1430,6 +1436,12 @@ Raised during planning but deliberately deferred. **Per project rule, nothing he
   - Official provider endpoints remain pinned. `custom.baseUrl` and `ollama.ollamaUrl` retain the
     existing environment/SSRF production policy. Model entries do not carry endpoints, so models on
     one provider connection cannot silently route to different hosts.
+  - `claude-code` never reads a stored key, custom entry key, `ANTHROPIC_API_KEY`, or cloud-provider
+    routing variable. Before every status/generation subprocess, the adapter removes API-key and
+    Bedrock/Vertex/Foundry routing variables and requires `claude auth status --json` to report a
+    logged-in `claude.ai` authentication method. `CLAUDE_CODE_OAUTH_TOKEN` remains eligible because
+    it is subscription authentication. A Console/API-key login fails closed with an actionable
+    admin error instead of silently billing API usage.
   - The existing "Clear stored keys" action clears every provider default, every model override,
     and the separate voice/image keys only after confirmation; it never changes assignments.
 
@@ -1444,6 +1456,7 @@ Raised during planning but deliberately deferred. **Per project rule, nothing he
       "openai": { "apiKeySet": false },
       "claude": { "apiKeySet": false },
       "grok": { "apiKeySet": false },
+      "claude-code": {},
       "ollama": { "ollamaUrl": "" },
       "custom": { "apiKeySet": false, "baseUrl": "" }
     },
@@ -1608,8 +1621,42 @@ Raised during planning but deliberately deferred. **Per project rule, nothing he
   not stored or returned by an admin route. The `AIClient` failover constructor forwards both
   endpoint fields to the backup client. Call sites in `rpg-engine.js` do not change.
 
+  **Claude Code subscription transport (`claude-code-provider.js`).** `claude-code` is an
+  `AIClient` provider, not a parallel campaign path. `AIClient.generateContent` dispatches to the
+  adapter and returns the same text contract consumed by Setup and every Council role; existing
+  role resolution, transient retry, and configured fallback selection remain unchanged. The
+  adapter has no HTTP API key and never calls Anthropic's Messages API directly.
+
+  Resolve the executable from an absolute `CLAUDE_CODE_PATH` when set, otherwise `claude` on the
+  server process's `PATH`. Launch it with Node child-process argument arrays and `shell: false`; the
+  model is one opaque argument and the prompt is written to stdin, so neither can become a shell
+  command. Run the auth preflight and generation with the same sanitized child environment. The
+  preflight is `claude auth status --json`; accept only `loggedIn: true` plus
+  `authMethod: "claude.ai"`, and expose only safe status fields. Strip `ANTHROPIC_API_KEY`,
+  `ANTHROPIC_AUTH_TOKEN`, `ANTHROPIC_BASE_URL`, and Claude Code's Bedrock, Vertex, and Foundry routing
+  variables before both commands. Do not strip `CLAUDE_CODE_OAUTH_TOKEN`.
+
+  Generation uses print mode with `--output-format json`, `--no-session-persistence`,
+  `--max-turns 1`, `--tools ""`, `--disable-slash-commands`, `--setting-sources ""`,
+  `--strict-mcp-config` plus an empty MCP config, `--no-chrome`, `--permission-mode dontAsk`, and a
+  replacement `--system-prompt` carrying the engine's existing system instruction. It runs from an
+  empty temporary working directory so project instructions cannot leak into campaign output. Do
+  not use `--bare`: current Claude Code documents that it skips keychain reads, which would break
+  the logged-in-plan contract. A configured model other than the reserved `default` is passed
+  verbatim with `--model`; no fallback model is supplied, so an unavailable model is reported rather
+  than silently changed. Parse only a successful JSON envelope with a string `result`; bound runtime
+  and captured output, terminate on timeout, and redact prompts, email/org identifiers, child
+  environment, and raw stderr from operator-facing errors.
+
+  Child-process construction, auth-status parsing, output-envelope parsing, and timeout/error
+  mapping are exported or dependency-injectable so the automated suite never consumes Claude usage.
+  The adapter may cache a successful sanitized auth status briefly, but a failed/mismatched status
+  is never cached as success and generation still fails closed when the CLI exits non-zero.
+
   **Live model catalog (`model-catalog.js`).** Export pure response parsers plus
-  `listModels(provider, { apiKey, baseUrl, ollamaUrl, fetchImpl })`. The endpoint contracts were
+  `listModels(provider, { apiKey, baseUrl, ollamaUrl, fetchImpl, claudeCodeStatusImpl })`. The
+  injected Claude Code status seam is used only by that provider and makes route tests usage-free.
+  The endpoint contracts were
   re-verified against official provider documentation on 2026-07-15:
 
   - Gemini: `GET https://generativelanguage.googleapis.com/v1beta/models?pageSize=1000&key=...`;
@@ -1620,6 +1667,11 @@ Raised during planning but deliberately deferred. **Per project rule, nothing he
     `anthropic-version: 2023-06-01`; return `data[].id`.
   - Grok: `GET https://api.x.ai/v1/language-models`, Bearer; return each `models[].id` plus advertised
     aliases, excluding image/video-only catalogs.
+  - Claude Code: do not scrape the interactive `/model` picker, parse changing `--help` prose, or
+    spend usage probing candidate models. Claude Code 2.1.210 exposes no documented machine-readable
+    model-list command, so discovery returns no suggestions plus `manualEntry: true` and the safe
+    install/login/plan status from `claude auth status --json`. A future documented list command can
+    replace this branch without changing the stored model-entry contract.
   - Ollama: `GET {ollamaUrl}/api/tags`; return unique `models[].name`.
   - Custom OpenAI-compatible: preserve the existing contract that `baseUrl` / `CUSTOM_ENDPOINT_URL`
     is the **full chat-completions URL** consumed directly by `callCustomOpenAI`. Derive the catalog
@@ -1654,18 +1706,25 @@ Raised during planning but deliberately deferred. **Per project rule, nothing he
   fetches, proves a custom env-pinned URL is the only custom URL fetched, and proves an unset Ollama
   env uses exactly the same localhost default as `AIClient`. An entry id must exist and match
   the requested provider before its stored override is eligible. The route returns
-  `{ models: string[] }`, never config or credential material. Seats/game authentication cannot
-  reach it.
+  `{ models: string[], manualEntry: true, status?: { installed, loggedIn, authMethod,
+  subscriptionType, version } }`, never config or credential material. `status` is present only for
+  `claude-code`; email, org identifiers, executable paths, environment values, and raw CLI output are
+  omitted. Its request ignores key/endpoint fields and runs the subscription-auth preflight instead
+  of a model call. Seats/game authentication cannot reach the route.
 
   **Admin UI.** Replace the repeated text-model forms in `admin/admin.html` and `admin/admin.js`:
 
   - Widen the admin main column to a restrained desktop table width (about 1080px) while keeping a
     one-column mobile layout. Provider rows show Provider, shared-key input/state, endpoint when
     applicable, and Refresh models/status. Fixed official providers remain visible even when unset.
+    The `claude-code` row has no key or endpoint control; it shows installed/logged-in/plan status
+    and explains that model ids are entered manually when live discovery is unavailable.
   - Configured-model rows show Label, Provider, editable Model combo box, Key source
     (Provider/Custom), masked custom-key input/state, usage summary, and Remove. **Add model** creates
     a UUID-backed row. A provider refresh updates the datalist for every row on that provider and is
-    cached only in page memory; changing key/endpoint invalidates that provider's cache.
+    cached only in page memory; changing key/endpoint invalidates that provider's cache. Selecting
+    `claude-code` fixes key source to `Claude Code login`, removes the custom-key control, and keeps
+    the Model field editable even when its suggestion list is empty.
   - Council assignments are exactly five compact rows: Role, Primary, Fallback. Selectors list the
     configured entries plus Environment/default (primary) or no stored fallback (fallback). The same
     entry may be selected repeatedly. Role blurbs remain available as short secondary text.
@@ -1702,24 +1761,41 @@ Raised during planning but deliberately deferred. **Per project rule, nothing he
     client can perform its provider lookup. A separate guard resolves no fallback with the
     environment tier empty, changes `FALLBACK_*` before constructing `AIClient`, and proves the
     explicit resolved null is not revived. Reverting the `fallbackResolved` branch makes both fail.
-  - Catalog parser fixtures cover all six providers, Grok language-only filtering/aliases, Gemini
+  - Claude Code adapter tests use an injected child runner, never the real account. They cover
+    executable selection, subscription-only auth gating, environment stripping, no-shell argv and
+    stdin prompt transport, `default` versus explicit model arguments, empty tools/settings/MCP,
+    replacement system prompt, temporary cwd, JSON-envelope parsing, bounded output, timeout kill,
+    non-zero/malformed output redaction, and `AIClient` retry/fallback handoff. A discriminating
+    guard gives the fake child an `ANTHROPIC_API_KEY` and makes it report API authentication unless
+    the adapter strips that variable; removing the strip must turn the test red before any fake
+    generation runs. Another mutation removes the provider dispatch and must make the AIClient
+    integration guard red.
+  - Catalog parser fixtures cover all seven providers, Grok language-only filtering/aliases, Gemini
     method filtering, malformed success bodies, timeout/error sanitization, and custom/Ollama SSRF.
     An HTTP-boundary test proves unsaved → entry override → provider stored → env precedence and
     rejects cross-provider entry-id spoofing without making a provider call. Custom fixtures prove
     the full-chat → models URL derivation and reject a non-derivable full URL without fetching;
     production fixtures prove request/stored endpoints are ignored and env-pinned endpoints work.
+    Claude Code fixtures prove safe installed/login/plan status, absence of email/org/raw output,
+    no generation call during refresh, and an empty manual-entry result when model listing is not
+    available.
   - Extend the committed Playwright harness to open `/admin` against a throwaway store, stub a live
     catalog result, add two models sharing one provider key plus one custom override, assign primary
     and fallback models to multiple roles, save/reload, and assert the compact rows and selections
     survive while no secret appears in returned JSON/DOM. It also proves manual model entry remains
-    usable after a failed catalog request and assigned entries cannot be removed.
+    usable after a failed catalog request and assigned entries cannot be removed. A separate row
+    configures `claude-code`, shows no key controls, accepts a manual model id, assigns it to Setup,
+    and preserves it across save/reload using only stubbed status/runtime seams.
   - Each implementation slice proves its guard red on the pre-slice code (or a focused mutation that
     removes the new mechanism) and green restored. A test that only exercises a duplicate helper is
     vacuous under `AGENTS.md` and must be replaced.
   - Manual check after automation: desktop and narrow viewport; refresh one configured official
     provider when credentials are available, select a returned model, save, reload, and run a turn.
-    If no credential is safely available, report the live call as not run; stubbed browser and route
-    tests remain mandatory. Dev tooling has no game-feel gate.
+    Also refresh `claude-code` on a host with a logged-in subscription, enter an available model id,
+    assign it to Setup, and generate a throwaway campaign. This live smoke is usage-bearing and is
+    run only when the owner has authorized account use; otherwise report it as not run. If no API
+    credential is safely available, report the official-provider call as not run; stubbed browser
+    and route tests remain mandatory. Dev tooling has no game-feel gate.
 
   **Implementation slices and files.** All code follows `.agents/playbooks/reviewloop.md`; one slice
   is accepted and owner-merged before the next starts from updated `master`.
@@ -1730,11 +1806,18 @@ Raised during planning but deliberately deferred. **Per project rule, nothing he
      `api-client.js`, `server.js` (typed validation 400), `test.js`, review/state docs. Observable
      failure: the current shape cannot share provider credentials explicitly or assign distinct
      fallbacks per role.
-  2. `am-2` — provider catalog module and authenticated route with credential precedence, timeout,
+  2. `am-cc` — add `claude-code` to v2 provider validation/resolution, implement the
+     subscription-authenticated child-process adapter, and dispatch it through `AIClient` without
+     changing Setup/Council call sites. Files: `claude-code-provider.js` (new), `server-config.js`,
+     `api-client.js`, `test.js`, README/review/state docs. Observable failure: a logged-in Claude Code
+     plan cannot be selected as a model transport, while an unsafe naive adapter could silently use
+     API credentials or repository tools.
+  3. `am-2` — provider catalog module and authenticated route with credential precedence, timeout,
      error redaction, and SSRF reuse. Files: `model-catalog.js` (new), `api-client.js` (export shared
-     network policy only), `server.js`, `test.js`, review/state docs. Observable failure: the server
-     cannot discover any provider's live model ids.
-  3. `am-3` — atomically activate the v2 settings GET/POST + canonical rewrite, compact
+     network policy only), `claude-code-provider.js` (safe status seam), `server.js`, `test.js`,
+     review/state docs. Observable failure: the server cannot discover provider model ids or report
+     whether the no-catalog Claude Code transport is installed and subscription-authenticated.
+  4. `am-3` — atomically activate the v2 settings GET/POST + canonical rewrite, compact
      provider/model/assignment UI, browser-safe state helper, Playwright guard, and README operator
      flow. Files: `server-config.js`, `server.js`, `admin/admin.html`, `admin/admin.js`,
      `admin/model-registry.js` (new), `test-browser.mjs`, `test.js`, `README.md`, review/state docs.
@@ -1746,7 +1829,10 @@ Raised during planning but deliberately deferred. **Per project rule, nothing he
   Grok (UX/runtime/data-model/adversarial lens). Record both structured verdicts in
   `.agents/review/admin-model-registry-plan.md`. Revise and re-dispatch any reopened plan until both
   reviewers return accepted against the same SHA; that shared-SHA dual acceptance is convergence.
-  Codex then implements. Each code slice gets a pinned independent implementation verdict from an
+  The r8 acceptance remains authoritative for `am-1`. Before `am-cc`, independently dispatch the
+  complete amended plan and decision snapshot to Claude and Grok under the same convergence
+  contract; both must accept one shared SHA, and an earlier r8 verdict does not approve the new
+  provider. Codex then implements. Each code slice gets a pinned independent implementation verdict from an
   agent that did not author it, with guard proof executed in a disposable worktree. Accepted is not
   merge authority; each merge remains owner-gated.
 

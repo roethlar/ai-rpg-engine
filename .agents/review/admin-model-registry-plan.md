@@ -1,7 +1,8 @@
 # Admin model registry plan review
 
-**Status**: **Accepted** at r8 / `5f0261375f9b97f464f54ee406d5bafca7f3ea8d`; implementation
-authorized in the ordered `am-1` → `am-2` → `am-3` reviewloop slices.
+**Status**: Base registry **Accepted** at r8 / `5f0261375f9b97f464f54ee406d5bafca7f3ea8d`;
+`am-1` remains authorized and unchanged. The owner-added `claude-code` provider extension is
+pending a new shared-SHA Claude + Grok acceptance before `am-cc` or later slices begin.
 **Plan location**: `plan.md` → Dev Tooling → `am-*`
 **Owner direction**: `.agents/decisions.md` (2026-07-15 admin AI configuration decision)
 
@@ -16,6 +17,11 @@ material comments against the same SHA.
 Any reopen is recorded below before the plan changes. The revised plan is committed and both
 reviewers are dispatched again against the new shared SHA; an earlier acceptance does not carry
 forward to a changed snapshot.
+
+The 2026-07-15 `claude-code` extension reuses this contract. Reviewers must additionally examine
+subscription-versus-API auth isolation, child-process injection/tool isolation, failure redaction,
+manual model entry when no catalog exists, and preservation of the existing Setup/Council pipeline.
+The r8 verdict continues to cover `am-1` only and does not carry forward to this extension.
 
 ## Review rounds
 
