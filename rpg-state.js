@@ -1,17 +1,13 @@
 /**
  * RPG State Management Submodule
  */
+import { validateVoiceDelivery } from './tts-providers.js';
 
 /**
- * Bounds for a narration line's speaker and tone (sv-5). These are the
- * canonical caps: `validateTurnData` produces values within them, and the
- * narrate route — which a seat client hands them back to — must accept
- * everything this validator emits. Exported so the two sites cannot drift
- * apart; a stricter bound downstream rejects valid data and kills the rest
- * of the turn's narration queue.
+ * Bound for a narration line's speaker (sv-5). Delivery is no longer free
+ * text: validateVoiceDelivery owns its finite server-safe vocabulary.
  */
 export const MAX_SPEAKER_LENGTH = 80;
-export const MAX_TONE_LENGTH = 120;
 
 /**
  * Utility to clean markdown formatting from LLM JSON responses.
@@ -297,7 +293,7 @@ export function validateTurnData(raw, currentAct = 1, tableStyle = null) {
         speaker: typeof line.speaker === 'string' && line.speaker.trim() !== ''
           ? line.speaker.trim().slice(0, MAX_SPEAKER_LENGTH)
           : 'narrator',
-        tone: typeof line.tone === 'string' ? line.tone.trim().slice(0, MAX_TONE_LENGTH) : '',
+        tone: validateVoiceDelivery(line.tone),
         text: text.slice(0, 2000)
       });
     });
@@ -785,7 +781,7 @@ export function buildVoiceScript(narrationLines, npcs = []) {
     return {
       speaker: line.speaker,
       text: line.text,
-      tone: line.tone || null,
+      tone: validateVoiceDelivery(line.tone),
       ...resolveSpeakerVoice(npc ? npc.voice_json : null, line.tone)
     };
   });
@@ -812,7 +808,7 @@ export function buildVoiceScript(narrationLines, npcs = []) {
 export function boundVoiceDirective(speaker, tone) {
   return {
     speaker: typeof speaker === 'string' ? speaker.trim().slice(0, MAX_SPEAKER_LENGTH) : '',
-    tone: typeof tone === 'string' ? tone.trim().slice(0, MAX_TONE_LENGTH) : ''
+    tone: validateVoiceDelivery(tone)
   };
 }
 
@@ -824,12 +820,17 @@ export function resolveSpeakerVoice(voiceJson, tone) {
       if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) profile = parsed;
     } catch (e) {}
   }
-  const toneSuffix = tone ? `Tone: ${tone}.` : '';
+  const mood = validateVoiceDelivery(profile?.mood);
+  const resolvedTone = validateVoiceDelivery(tone);
+  const delivery = [
+    mood !== 'neutral' ? `Mood: ${mood}.` : '',
+    resolvedTone !== 'neutral' ? `Tone: ${resolvedTone}.` : ''
+  ].filter(Boolean).join(' ');
   return {
     voice: profile?.voice || null,
     instructions: profile
-      ? [profile.instructions || '', toneSuffix].filter(Boolean).join(' ')
-      : (toneSuffix || null)
+      ? [profile.instructions || '', delivery].filter(Boolean).join(' ') || null
+      : (delivery || null)
   };
 }
 
@@ -1034,14 +1035,19 @@ function bundleBoundedObject(value, maxBytes, fallback = {}) {
   return obj && JSON.stringify(obj).length <= maxBytes ? obj : fallback;
 }
 
-/** Voice profile shape: bounded strings only (mirrors validateVoiceProfile). */
+/** Portable voice profile shape (mirrors validateVoiceProfile). */
 function bundleVoice(value) {
   const raw = bundleJsonObject(value);
   if (!raw) return null;
+  const voiceSeed = typeof raw.voiceSeed === 'number' && Number.isFinite(raw.voiceSeed) && raw.voiceSeed >= 0
+    ? Math.floor(raw.voiceSeed)
+    : null;
   return {
     provider: cleanText(raw.provider, 40) || 'openai',
     voice: cleanText(raw.voice, 40),
-    instructions: cleanText(raw.instructions, 600)
+    instructions: cleanText(raw.instructions, 600),
+    voiceSeed,
+    mood: validateVoiceDelivery(raw.mood)
   };
 }
 
@@ -1514,12 +1520,16 @@ export function validateOutlineData(raw) {
         name: String(npc.name).trim(),
         role: typeof npc.role === 'string' ? npc.role.trim() : 'Supporting character',
         personality: typeof npc.personality === 'string' ? npc.personality.trim() : 'Mysterious and quiet.',
-        quirks: typeof npc.quirks === 'string' ? npc.quirks.trim() : 'None visible.'
+        quirks: typeof npc.quirks === 'string' ? npc.quirks.trim() : 'None visible.',
+        voice_mood: validateVoiceDelivery(npc.voice_mood)
       });
     });
   }
   if (validated.key_npcs.length === 0) {
-    validated.key_npcs = [{ name: 'Mysterious Stranger', role: 'Guide', personality: 'Shy but helpful', quirks: 'Stutters occasionally' }];
+    validated.key_npcs = [{
+      name: 'Mysterious Stranger', role: 'Guide', personality: 'Shy but helpful',
+      quirks: 'Stutters occasionally', voice_mood: 'neutral'
+    }];
   }
   
   // Starting quest

@@ -13,12 +13,17 @@ export const GROK_TTS_VOICES = Object.freeze([
   'orion', 'perseus', 'rex', 'rigel', 'sal', 'sirius', 'zagan', 'zenith',
   'ara', 'carina', 'celeste', 'eve', 'iris', 'luna', 'ursa'
 ]);
+export const VOICE_DELIVERY_VALUES = Object.freeze([
+  'neutral', 'warm', 'bright', 'gruff', 'whispers', 'cold',
+  'weary', 'tense', 'menacing', 'angry', 'manic'
+]);
 
 export const TTS_MODELS = new Set(OPENAI_TTS_MODELS);
 // Compatibility exports used by the current OpenAI-shaped audio route. v3
 // replaces those gates together with the client request cutover.
 export const TTS_VOICES = new Set(OPENAI_TTS_VOICES);
 const MAX_INSTRUCTIONS_LENGTH = 600;
+const VOICE_DELIVERY_SET = new Set(VOICE_DELIVERY_VALUES);
 
 const OPENAI_NPC_POOL = Object.freeze(['cedar', 'ash', 'onyx', 'coral', 'sage', 'ballad', 'verse', 'nova', 'echo', 'shimmer', 'alloy', 'fable']);
 const GROK_NPC_POOL = Object.freeze(GROK_TTS_VOICES.filter(voice => voice !== 'leo'));
@@ -46,9 +51,30 @@ const TTS_PROVIDER_REGISTRY = Object.freeze({
   })
 });
 
-function providerId(value) {
+export function normalizeTtsProvider(value) {
   const normalized = typeof value === 'string' ? value.trim().toLowerCase() : '';
   return Object.hasOwn(TTS_PROVIDER_REGISTRY, normalized) ? normalized : 'openai';
+}
+
+export function validateVoiceDelivery(value) {
+  return typeof value === 'string' && VOICE_DELIVERY_SET.has(value) ? value : 'neutral';
+}
+
+function sanitizeVoiceSeed(value) {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0
+    ? Math.floor(value)
+    : null;
+}
+
+function voiceProfileData(raw) {
+  if (raw && typeof raw === 'object' && !Array.isArray(raw)) return raw;
+  if (typeof raw !== 'string' || !raw.trim()) return {};
+  try {
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
 }
 
 export function getTtsProviderCatalog() {
@@ -63,7 +89,7 @@ export function getTtsProviderCatalog() {
 }
 
 export function validateTtsVoice(voice, provider = 'openai') {
-  const config = TTS_PROVIDER_REGISTRY[providerId(provider)];
+  const config = TTS_PROVIDER_REGISTRY[normalizeTtsProvider(provider)];
   return config.voiceSet.has(voice) ? voice : config.narratorVoice;
 }
 
@@ -75,29 +101,68 @@ export function validateTtsVoice(voice, provider = 'openai') {
  * speakers (Phase 2); the plumbing exists now so profiles can be recorded.
  */
 export function validateVoiceProfile(raw, activeProvider) {
-  const data = raw && typeof raw === 'object' ? raw : {};
-  const provider = providerId(activeProvider || data.provider);
-  return {
+  const data = voiceProfileData(raw);
+  const storedProvider = normalizeTtsProvider(data.provider);
+  const provider = normalizeTtsProvider(activeProvider || storedProvider);
+  const config = TTS_PROVIDER_REGISTRY[provider];
+  const voiceSeed = sanitizeVoiceSeed(data.voiceSeed);
+  const storedVoice = storedProvider === provider && config.voiceSet.has(data.voice)
+    ? data.voice
+    : null;
+  const profile = {
     provider,
-    voice: validateTtsVoice(data.voice, provider),
-    instructions: typeof data.instructions === 'string' ? data.instructions.trim().slice(0, MAX_INSTRUCTIONS_LENGTH) : ''
+    voice: storedVoice || (voiceSeed !== null
+      ? config.npcPool[voiceSeed % config.npcPool.length]
+      : config.narratorVoice),
+    voiceSeed,
+    mood: validateVoiceDelivery(data.mood)
+  };
+  // Legacy OpenAI profiles may contain bounded private direction. New
+  // profiles never create it, and Grok rendering must never consume it.
+  if (typeof data.instructions === 'string' && data.instructions.trim()) {
+    profile.instructions = data.instructions.trim().slice(0, MAX_INSTRUCTIONS_LENGTH);
+  }
+  return profile;
+}
+
+export function resolveNpcVoiceProfile(raw, activeProvider, legacyOrdinal = 0) {
+  const data = voiceProfileData(raw);
+  const seed = sanitizeVoiceSeed(data.voiceSeed) ?? sanitizeVoiceSeed(legacyOrdinal) ?? 0;
+  return validateVoiceProfile({ ...data, voiceSeed: seed }, activeProvider);
+}
+
+export function createNarratorVoiceProfile(provider = 'openai') {
+  const normalized = normalizeTtsProvider(provider);
+  return {
+    provider: normalized,
+    voice: TTS_PROVIDER_REGISTRY[normalized].narratorVoice,
+    voiceSeed: null,
+    mood: 'neutral'
   };
 }
 
+export function resolveNarratorVoiceProfile(raw, activeProvider = 'openai') {
+  const data = voiceProfileData(raw);
+  return validateVoiceProfile({ ...data, voiceSeed: null }, activeProvider);
+}
+
 /**
- * NPC voice assignment (Phase 2): deterministic pool pick + character
- * direction derived from the NPC's recorded personality/quirks. Assigned once
- * at NPC creation and stored in npcs.voice_json — sticky by construction.
- * 'marin' is excluded so NPCs are distinct from the default narrator voice.
+ * NPC voice assignment: the campaign-scoped creation index is the portable
+ * identity. Provider names are a same-provider cache; switching providers
+ * re-resolves from voiceSeed without exposing private personality text.
  */
 export const NPC_VOICE_POOL = [...OPENAI_NPC_POOL];
 
-export function assignNpcVoiceProfile(npc, index) {
-  const voice = NPC_VOICE_POOL[Math.abs(index) % NPC_VOICE_POOL.length];
-  const parts = [`Character voice for ${npc.name}.`];
-  if (npc.personality) parts.push(`Personality: ${npc.personality}.`);
-  if (npc.quirks) parts.push(`Speech habits: ${npc.quirks}.`);
-  return validateVoiceProfile({ provider: 'openai', voice, instructions: parts.join(' ') }, 'openai');
+export function assignNpcVoiceProfile(npc, index, provider = 'openai') {
+  const normalized = normalizeTtsProvider(provider);
+  const seed = sanitizeVoiceSeed(index) ?? 0;
+  const config = TTS_PROVIDER_REGISTRY[normalized];
+  return {
+    provider: normalized,
+    voice: config.npcPool[seed % config.npcPool.length],
+    voiceSeed: seed,
+    mood: validateVoiceDelivery(npc?.voice_mood ?? npc?.mood)
+  };
 }
 
 async function synthesizeOpenAI({ apiKey, model, voice, instructions, text }) {

@@ -2,6 +2,7 @@
  * RPG Prompt Compilation Submodule
  */
 import { THEME_FONT_OPTIONS } from './rpg-state.js';
+import { VOICE_DELIVERY_VALUES } from './tts-providers.js';
 
 /**
  * System Instruction Compiler for the campaign-outline Setup call.
@@ -41,7 +42,8 @@ You MUST return a JSON object ONLY matching this schema, with no additional text
       "name": "NPC Name",
       "role": "Their role in the plot (e.g., local blacksmith, rebel spy)",
       "personality": "Fleshed-out persistent personality traits, values, and flaws",
-      "quirks": "Speech patterns, dialogue habits, physical ticks, or obsessions"
+      "quirks": "Speech patterns, dialogue habits, physical ticks, or obsessions",
+      "voice_mood": "One habitual public delivery value: ${VOICE_DELIVERY_VALUES.join(' | ')}"
     }
   ],
   "starting_quest": {
@@ -178,12 +180,13 @@ ${rulesetSection}${locationSection}${partySection}${styleSection}
   "narration_lines": [
     // Voice-acting script: mirror the narrative above, in order, split into segments.
     // Each NPC's spoken dialogue is its own line with speaker set to their EXACT name;
-    // all description and unspoken text uses speaker "narrator". tone is a brief vocal direction.
+    // all description and unspoken text uses speaker "narrator". tone MUST be exactly one of:
+    // ${VOICE_DELIVERY_VALUES.join(' | ')}
     // NEVER voice the player's own words: omit any segment that re-quotes what the player
     // said or typed — the player heard themselves. Sole exception: an NPC deliberately
     // quoting or mimicking the player speaks those words as that NPC's line.
-    { "speaker": "narrator", "tone": "hushed, building tension", "text": "Verbatim narrative segment." },
-    { "speaker": "Exact NPC Name", "tone": "amused contempt", "text": "Only the words the NPC speaks aloud." }
+    { "speaker": "narrator", "tone": "tense", "text": "Verbatim narrative segment." },
+    { "speaker": "Exact NPC Name", "tone": "menacing", "text": "Only the words the NPC speaks aloud." }
   ],
   "scene_grounding": "A concise but specific description of the immediate physical situation the player character can perceive right now. Include positions and distances of visible creatures or objects, lighting, cover, exits, sounds/smells, and immediate tactical details. Always provide this, but make it especially detailed and useful on clarification turns. Example: 'The two goblins are 15 feet away near the broken cart. The larger one has a rusty axe and is slightly closer. There is a stack of crates to your left you could duck behind. The alley continues north into darkness.'",
   "suggested_choices": [
