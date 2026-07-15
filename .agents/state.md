@@ -53,6 +53,10 @@ to `docs/history/state-archive.md`.
   endpoint provenance, a bounded response-body timeout, and the admin-authenticated catalog route.
   Fable independently confirmed the red/green timeout guard and found no remaining material issue.
   `.agents/review/findings/am-2.md` owns the verdict trail.
+- **`am-3` implementation is committed and pending exact Claude Fable review.** Commit `93a91e8`
+  atomically activates the v2 admin settings wire and replaces repeated forms with compact provider
+  connections, reusable configured models, and five primary/fallback Council assignments.
+  `.agents/review/findings/am-3.md` owns the guard proof, review status, and known gaps.
 - **The remote two-human multiplayer playtest remains pending.** App-side seat work is landed;
   connectivity is owner-handled and out of repo scope. The playtest is the scheduled close for open
   multiplayer feel gates. Seat isolation must be re-tested whenever a field crosses a seat payload,
@@ -65,8 +69,8 @@ to `docs/history/state-archive.md`.
 
 ## Next
 
-**THE IMMEDIATE NEXT ACTION: obtain the owner's go to start `am-3` from updated `master`.** `am-3`
-owns the compact provider/model/role UI and v2 settings HTTP cutover.
+**THE IMMEDIATE NEXT ACTION: run the exact `--model claude-fable-5` reviewloop for `am-3`.** Leave
+the accepted branch unmerged until the owner gives a separate merge go.
 
 - Phase V's owner playtest remains the pending feel gate after this explicitly selected repo work.
   Configure either OpenAI or Grok voice in `/admin`, enable Voice Narration, and play a real scene
