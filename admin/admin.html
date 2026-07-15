@@ -7,174 +7,210 @@
   <title>Aetheria GM — Server Administration</title>
   <style>
     :root {
-      /* Render native widgets (selects, their popup lists, scrollbars) dark —
-         WebKitGTK otherwise paints selects with the light system theme. */
       color-scheme: dark;
       --bg: hsl(220, 25%, 8%);
       --panel: hsl(220, 25%, 12%);
+      --panel-2: hsl(220, 23%, 10%);
       --text: hsl(210, 20%, 95%);
       --dim: hsl(210, 10%, 65%);
-      --border: hsl(220, 20%, 20%);
+      --border: hsl(220, 20%, 22%);
       --accent: hsl(210, 100%, 55%);
-      --danger: hsl(0, 80%, 55%);
-      --ok: hsl(150, 60%, 45%);
+      --danger: hsl(0, 80%, 60%);
+      --ok: hsl(150, 60%, 48%);
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      background: var(--bg); color: var(--text);
-      font-family: 'Inter', system-ui, sans-serif;
-      min-height: 100vh; display: flex; justify-content: center; padding: 40px 16px;
+      background: var(--bg); color: var(--text); font-family: Inter, system-ui, sans-serif;
+      min-height: 100vh; display: flex; justify-content: center; padding: 34px 16px 64px;
     }
-    main { width: 100%; max-width: 640px; }
-    h1 { font-size: 20px; letter-spacing: 1px; margin-bottom: 4px; }
-    .subtitle { color: var(--dim); font-size: 12px; margin-bottom: 24px; }
+    main { width: 100%; max-width: 1080px; }
+    h1 { font-size: 21px; letter-spacing: .04em; margin-bottom: 5px; }
+    .subtitle { color: var(--dim); font-size: 12px; line-height: 1.5; margin-bottom: 24px; max-width: 850px; }
     section {
       background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
       padding: 20px; margin-bottom: 16px;
     }
-    section h2 { font-size: 13px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--accent); margin-bottom: 14px; }
-    label { display: block; font-size: 12px; color: var(--dim); margin: 10px 0 4px; }
+    section h2 {
+      font-size: 13px; text-transform: uppercase; letter-spacing: .12em;
+      color: var(--accent); margin-bottom: 6px;
+    }
+    .section-copy { color: var(--dim); font-size: 11px; line-height: 1.45; margin-bottom: 15px; }
+    label { display: block; font-size: 11px; color: var(--dim); margin: 8px 0 4px; }
     input, select {
-      width: 100%; padding: 8px 10px; border-radius: 6px; font-size: 13px;
+      width: 100%; min-width: 0; padding: 8px 10px; border-radius: 6px; font-size: 13px;
       background: var(--bg); color: var(--text); border: 1px solid var(--border);
     }
     select {
-      -webkit-appearance: none;
-      appearance: none;
-      padding-right: 30px;
-      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%239b8daa' stroke-width='1.6'/%3E%3C/svg%3E");
-      background-repeat: no-repeat;
+      appearance: none; padding-right: 30px; background-repeat: no-repeat;
       background-position: right 10px center;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%239b8daa' stroke-width='1.6'/%3E%3C/svg%3E");
     }
-    input:focus, select:focus { outline: 1px solid var(--accent); }
-    .hint { font-size: 11px; color: var(--dim); margin-top: 3px; }
-    .secret-state { font-size: 11px; margin-top: 3px; }
-    .secret-state.set { color: var(--ok); }
+    input:focus, select:focus, button:focus-visible { outline: 1px solid var(--accent); outline-offset: 1px; }
+    input:disabled, select:disabled, button:disabled { opacity: .55; cursor: not-allowed; }
     button {
-      margin-top: 16px; padding: 9px 18px; border: none; border-radius: 6px;
-      background: var(--accent); color: #fff; font-size: 13px; font-weight: 600; cursor: pointer;
+      padding: 9px 15px; border: 0; border-radius: 6px; background: var(--accent); color: white;
+      font-size: 12px; font-weight: 650; cursor: pointer;
     }
-    button:hover { filter: brightness(1.15); }
-    button.link { background: transparent; color: var(--dim); font-weight: 400; padding: 4px; }
-    #status { margin-top: 12px; font-size: 12px; min-height: 16px; }
+    button:hover:not(:disabled) { filter: brightness(1.13); }
+    button.secondary { background: hsl(220, 18%, 24%); }
+    button.link { background: transparent; color: var(--dim); font-weight: 450; padding: 7px 5px; }
+    button.danger { background: transparent; color: var(--danger); border: 1px solid var(--border); }
+    .hint, .secret-state, .row-error, .catalog-state { font-size: 10px; line-height: 1.35; margin-top: 4px; color: var(--dim); }
+    .secret-state.set, .catalog-state.ok { color: var(--ok); }
+    .row-error, .catalog-state.error { color: var(--danger); min-height: 14px; }
+    .table-head, .provider-row, .model-row, .assignment-row {
+      display: grid; gap: 10px; align-items: start;
+    }
+    .table-head {
+      color: var(--dim); font-size: 10px; text-transform: uppercase; letter-spacing: .08em;
+      padding: 0 10px 7px;
+    }
+    .provider-table .table-head, .provider-row { grid-template-columns: 1.1fr 1.5fr 1.7fr 1fr; }
+    .model-table .table-head, .model-row { grid-template-columns: 1.15fr .9fr 1.35fr .9fr 1.15fr .85fr; }
+    .assignment-table .table-head, .assignment-row { grid-template-columns: 1.3fr 1fr 1fr; }
+    .provider-row, .model-row, .assignment-row {
+      border-top: 1px solid var(--border); padding: 12px 10px;
+    }
+    .provider-row:first-of-type, .model-row:first-of-type, .assignment-row:first-of-type { border-top: 0; }
+    .provider-name, .role-name { font-size: 12px; font-weight: 700; padding-top: 7px; }
+    .provider-note, .role-blurb, .usage { color: var(--dim); font-size: 10px; line-height: 1.35; margin-top: 3px; }
+    .provider-actions { display: flex; flex-direction: column; align-items: stretch; gap: 4px; }
+    .model-actions { display: flex; flex-direction: column; gap: 5px; padding-top: 22px; }
+    .legacy-badge {
+      display: inline-block; color: hsl(40, 85%, 68%); border: 1px solid hsl(40, 40%, 35%);
+      border-radius: 999px; font-size: 9px; padding: 2px 6px; margin-top: 5px;
+    }
+    .section-actions, .save-bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .section-actions { margin-top: 13px; }
+    .save-bar {
+      position: sticky; bottom: 12px; z-index: 2; background: color-mix(in srgb, var(--panel) 94%, transparent);
+      border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px;
+      backdrop-filter: blur(12px);
+    }
+    #status { font-size: 12px; min-height: 16px; flex: 1; }
     #status.ok { color: var(--ok); }
-    #status.error { color: var(--danger); }
+    #status.error, #login-status.error { color: var(--danger); }
     #login-view, #panel-view { display: none; }
-    body.show-login #login-view { display: block; }
+    body.show-login #login-view { display: block; max-width: 480px; }
     body.show-panel #panel-view { display: block; }
+    .media-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 18px; }
+    .wide { grid-column: 1 / -1; }
+    @media (max-width: 760px) {
+      body { padding: 22px 10px 48px; }
+      section { padding: 16px 12px; }
+      .table-head { display: none; }
+      .provider-row, .model-row, .assignment-row { grid-template-columns: 1fr; gap: 4px; padding: 14px 4px; }
+      .provider-actions, .model-actions { padding-top: 5px; }
+      .media-grid { grid-template-columns: 1fr; }
+      .wide { grid-column: auto; }
+      .save-bar { bottom: 6px; }
+    }
   </style>
 </head>
 <body>
   <main>
     <h1>Aetheria GM — Server Administration</h1>
-    <p class="subtitle">Operator-only settings. This page is not linked from the game UI. AI configuration set here is authoritative over environment variables; players cannot supply or override it.</p>
+    <p class="subtitle">Configure provider connections once, reuse models across the Council, and choose a primary and fallback per role. These operator settings remain server-owned and are never available to players.</p>
 
     <div id="login-view">
       <section>
         <h2>Admin Login</h2>
         <label for="admin-password">Master password (ADMIN_SECRET)</label>
         <input type="password" id="admin-password" autocomplete="current-password">
-        <button id="btn-login">Unlock</button>
-        <div id="login-status"></div>
+        <div class="section-actions"><button id="btn-login">Unlock</button></div>
+        <div id="login-status" aria-live="polite"></div>
       </section>
     </div>
 
     <div id="panel-view">
-      <section>
-        <h2>Primary AI Provider</h2>
-        <label for="provider">Provider</label>
-        <select id="provider">
-          <option value="">(use server environment)</option>
-          <option value="gemini">Google Gemini</option>
-          <option value="openai">OpenAI</option>
-          <option value="claude">Anthropic Claude</option>
-          <option value="grok">xAI Grok</option>
-          <option value="ollama">Ollama (local)</option>
-          <option value="custom">Custom OpenAI-compatible</option>
-        </select>
-        <label for="model">Model</label>
-        <input type="text" id="model" placeholder="blank = provider default">
-        <label for="api-key">API key</label>
-        <input type="password" id="api-key" placeholder="blank = keep current" autocomplete="off">
-        <div class="secret-state" id="api-key-state"></div>
-        <label for="base-url">Custom endpoint URL (custom provider)</label>
-        <input type="text" id="base-url" placeholder="https://...">
-        <div class="hint">In production, custom endpoints must be set via CUSTOM_ENDPOINT_URL env (SSRF guard).</div>
-        <label for="ollama-url">Ollama URL</label>
-        <input type="text" id="ollama-url" placeholder="http://localhost:11434">
+      <section id="provider-section">
+        <h2>Provider connections</h2>
+        <p class="section-copy">One shared key per provider. Models below reuse it unless a row explicitly supplies its own key. Refresh fetches the current catalog where the provider supports it.</p>
+        <div class="provider-table">
+          <div class="table-head"><span>Provider</span><span>Shared credential</span><span>Endpoint</span><span>Catalog</span></div>
+          <div id="provider-rows"></div>
+        </div>
       </section>
 
-      <section>
-        <h2>AI Roles (per-role model tiering)</h2>
-        <div class="hint" style="margin-bottom:6px">Each role can run its own provider/model/key. Blank fields inherit: role env vars first, then the primary provider above (key and model inherit only when the provider matches — a role on a different provider uses that provider's own key).</div>
-        <div id="roles-grid"></div>
+      <section id="models-section">
+        <h2>Configured models</h2>
+        <p class="section-copy">Give each reusable model a clear label. Model ids remain editable even after a catalog refresh fails or a provider has no machine-readable catalog.</p>
+        <div class="model-table">
+          <div class="table-head"><span>Label</span><span>Provider</span><span>Model</span><span>Key source</span><span>Custom credential</span><span>Usage</span></div>
+          <div id="model-rows"></div>
+        </div>
+        <div class="section-actions"><button class="secondary" id="btn-add-model">Add model</button></div>
       </section>
 
-      <section>
-        <h2>Fallback Tier (transient-error failover)</h2>
-        <label for="fb-provider">Backup provider</label>
-        <select id="fb-provider">
-          <option value="">(none — retry only)</option>
-          <option value="gemini">Google Gemini</option>
-          <option value="openai">OpenAI</option>
-          <option value="claude">Anthropic Claude</option>
-          <option value="grok">xAI Grok</option>
-          <option value="ollama">Ollama (local)</option>
-          <option value="custom">Custom OpenAI-compatible</option>
-        </select>
-        <label for="fb-model">Backup model</label>
-        <input type="text" id="fb-model" placeholder="blank = provider default">
-        <label for="fb-api-key">Backup API key</label>
-        <input type="password" id="fb-api-key" placeholder="blank = keep current" autocomplete="off">
-        <div class="secret-state" id="fb-api-key-state"></div>
-      </section>
-
-      <section>
-        <h2>Voice Narration (server side)</h2>
-        <label for="voice-provider">Voice provider</label>
-        <select id="voice-provider">
-          <option value="">(default: OpenAI)</option>
-          <option value="openai">OpenAI</option>
-          <option value="grok">xAI Grok</option>
-        </select>
-        <div class="hint">OpenAI and Grok credentials are stored separately; switching providers never reuses the other vendor's key.</div>
-        <label for="voice-api-key-openai">OpenAI voice API key</label>
-        <input type="password" id="voice-api-key-openai" placeholder="blank = keep current" autocomplete="off">
-        <div class="secret-state" id="voice-api-key-openai-state"></div>
-        <label for="voice-api-key-grok">xAI Grok voice API key</label>
-        <input type="password" id="voice-api-key-grok" placeholder="blank = keep current" autocomplete="off">
-        <div class="secret-state" id="voice-api-key-grok-state"></div>
-        <div id="voice-model-group">
-          <label for="voice-model">OpenAI TTS model</label>
-          <input type="text" id="voice-model" placeholder="gpt-4o-mini-tts">
-          <div class="hint">OpenAI models: gpt-4o-mini-tts, tts-1, or tts-1-hd. Grok has no model field.</div>
+      <section id="assignments-section">
+        <h2>Council assignments</h2>
+        <p class="section-copy">Choose a primary and fallback for each role. Blank primary uses the environment/default chain; blank fallback stores no fallback.</p>
+        <div class="assignment-table">
+          <div class="table-head"><span>Role</span><span>Primary</span><span>Fallback</span></div>
+          <div id="assignment-rows"></div>
         </div>
       </section>
 
       <section>
-        <h2>Scene Images (server side)</h2>
-        <label for="image-provider">Image provider</label>
-        <select id="image-provider">
-          <option value="">(none — image generation off)</option>
-          <option value="openai">OpenAI Images (hosted)</option>
-          <option value="sdwebui">Stable Diffusion WebUI (local endpoint)</option>
-        </select>
-        <div class="hint">Heroic/scene renders go through a provider seam (image-providers.js). No provider configured = the engine generates no images and the SVG visualizer path is untouched.</div>
-        <label for="image-model">Model</label>
-        <input type="text" id="image-model" placeholder="blank = provider default (OpenAI: gpt-image-1; SD-WebUI: current checkpoint)">
-        <label for="image-api-key">Image API key (OpenAI)</label>
-        <input type="password" id="image-api-key" placeholder="blank = keep current" autocomplete="off">
-        <div class="secret-state" id="image-api-key-state"></div>
-        <label for="image-endpoint">SD-WebUI endpoint URL</label>
-        <input type="text" id="image-endpoint" placeholder="http://localhost:7860">
-        <div class="hint">Local endpoints never receive the API key. Only loopback URLs (http://localhost:7860) are honored here; any other host — and all production deployments — must be pinned via IMAGE_ENDPOINT_URL env (same SSRF posture as custom LLM endpoints).</div>
+        <h2>Voice Narration</h2>
+        <div class="media-grid">
+          <div>
+            <label for="voice-provider">Voice provider</label>
+            <select id="voice-provider"></select>
+            <div class="hint">OpenAI and Grok credentials remain separate.</div>
+          </div>
+          <div id="voice-model-group">
+            <label for="voice-model">OpenAI TTS model</label>
+            <input type="text" id="voice-model" placeholder="gpt-4o-mini-tts">
+          </div>
+          <div>
+            <label for="voice-api-key-openai">OpenAI voice API key</label>
+            <input type="password" id="voice-api-key-openai" placeholder="blank = keep current" autocomplete="off">
+            <div class="secret-state" id="voice-api-key-openai-state"></div>
+          </div>
+          <div>
+            <label for="voice-api-key-grok">xAI Grok voice API key</label>
+            <input type="password" id="voice-api-key-grok" placeholder="blank = keep current" autocomplete="off">
+            <div class="secret-state" id="voice-api-key-grok-state"></div>
+          </div>
+        </div>
       </section>
 
-      <button id="btn-save">Save Settings</button>
-      <button class="link" id="btn-clear-keys">Clear stored keys</button>
-      <div id="status"></div>
+      <section>
+        <h2>Scene Images</h2>
+        <div class="media-grid">
+          <div>
+            <label for="image-provider">Image provider</label>
+            <select id="image-provider">
+              <option value="">(none — image generation off)</option>
+              <option value="openai">OpenAI Images</option>
+              <option value="sdwebui">Stable Diffusion WebUI</option>
+            </select>
+          </div>
+          <div>
+            <label for="image-model">Model</label>
+            <input type="text" id="image-model" placeholder="blank = provider default">
+          </div>
+          <div>
+            <label for="image-api-key">Image API key (OpenAI)</label>
+            <input type="password" id="image-api-key" placeholder="blank = keep current" autocomplete="off">
+            <div class="secret-state" id="image-api-key-state"></div>
+          </div>
+          <div>
+            <label for="image-endpoint">SD-WebUI endpoint URL</label>
+            <input type="text" id="image-endpoint" placeholder="http://localhost:7860">
+          </div>
+          <p class="hint wide">Local image endpoints remain loopback-only outside production; production endpoints must be pinned through the server environment.</p>
+        </div>
+      </section>
+
+      <div class="save-bar">
+        <button id="btn-save">Save settings</button>
+        <button class="link" id="btn-clear-keys">Clear stored keys</button>
+        <div id="status" aria-live="polite"></div>
+      </div>
     </div>
   </main>
-  <script src="/admin/admin.js"></script>
+  <script type="module" src="/admin/admin.js"></script>
 </body>
 </html>

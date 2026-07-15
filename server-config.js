@@ -645,10 +645,7 @@ export async function saveAdminAiConfig(raw) {
   return merged;
 }
 
-/**
- * Canonical v2 save seam. am-1 exposes it for direct verification only; the
- * HTTP settings route remains on saveAdminAiConfig until the am-3 UI cutover.
- */
+/** Canonical v2 save seam used by the admin settings route. */
 export async function saveAdminAiConfigV2(raw) {
   const merged = prepareAdminAiConfigV2Save(raw, await loadAdminAiConfig());
   await db.run(

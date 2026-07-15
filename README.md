@@ -69,9 +69,12 @@ npx playwright install chromium
 AI configuration belongs to the server operator — players never supply keys or
 model choices. Configure it either way:
 
-- **Admin panel**: open **`/admin`** (not linked from the game UI) and set the
-  provider, model, keys, optional fallback tier, and OpenAI/Grok voice provider keys. Settings persist
-  in the server database and take precedence over environment variables. Gate the
+- **Admin panel**: open **`/admin`** (not linked from the game UI). Add each provider connection once,
+  refresh its live model catalog where available, create reusable model entries (with an optional
+  per-model custom key), then assign a primary and fallback to each Council role. Catalog suggestions
+  are editable and manual entry remains available. Voice and image credentials stay in their
+  separate sections. Settings persist in the server database and take precedence over environment
+  variables. Gate the
   panel with `ADMIN_SECRET` in `.env`; if unset, `/admin` is open for
   single-operator localhost use (production refuses to serve it without the secret).
 - **Environment**: create a `.env` from the template (`cp .env.example .env`) and
@@ -85,12 +88,13 @@ configured default. If `claude` is not on the server's `PATH`, set `CLAUDE_CODE_
 path. `CLAUDE_CODE_TIMEOUT_MS` may override the 240-second request limit from 1,000 through 900,000
 milliseconds. This transport deliberately ignores API-key/cloud-provider authentication and runs
 Claude Code without repository tools, settings, MCP servers, browser access, or session persistence.
-The compact `/admin` controls for this provider arrive with the model-registry UI; until that slice
-lands, configure it through the environment.
+In `/admin`, the Claude Code provider row reports safe install/login/plan status without making a
+generation call. It has no API-key control and accepts a manually entered model id because Claude
+Code does not expose a documented machine-readable account model catalog.
 
-**Fallback tier**: transient provider errors (overload, rate limit, timeout) retry
-once, then fail over per-call to a backup model if configured — via `/admin` or
-`FALLBACK_AI_PROVIDER` / `FALLBACK_AI_MODEL` / `FALLBACK_API_KEY`.
+**Fallback tier**: transient provider errors (overload, rate limit, timeout) retry once, then fail
+over per-call to the fallback assigned to that Council role. A blank stored fallback retains the
+environment fallback tier (`FALLBACK_AI_PROVIDER` / `FALLBACK_AI_MODEL` / `FALLBACK_API_KEY`).
 
 #### Setting Up Access Authentication (Optional)
 To lock the server endpoints from unauthorized third-party users, add a secret token in your `.env` file:
@@ -211,7 +215,7 @@ Player turns use the **Council GM Pipeline**. It presents as one GM to the playe
 * **Continuity final check** verifies the ruling and prepares archive notes.
 * **Interaction narration** relays the final result in in-world terms as a single GM response.
 
-The engine has five first-class AI roles, each independently configurable in `/admin` (or via `SETUP_*`, `INTERACTION_*`, `CONTINUITY_*`, `REFEREE_*`, `NARRATION_*` env variables; admin settings win): **Setup** designs the campaign outline and opening scene (once per campaign — use your strongest model), **Interaction** classifies player input every turn (fast/cheap wins), **Continuity** grounds everything against the campaign record, **Referee** adjudicates actions and dice, and **Narration** writes the final player-facing prose (your best stylist). Unconfigured roles inherit the primary config. Council turns make 2 model calls for table talk and 5 for committed actions.
+The engine has five first-class AI roles, each independently configurable in `/admin` (or via `SETUP_*`, `INTERACTION_*`, `CONTINUITY_*`, `REFEREE_*`, `NARRATION_*` env variables): **Setup** designs the campaign outline and opening scene (once per campaign — use your strongest model), **Interaction** classifies player input every turn (fast/cheap wins), **Continuity** grounds everything against the campaign record, **Referee** adjudicates actions and dice, and **Narration** writes the final player-facing prose (your best stylist). A blank primary uses the role environment/default chain; configured entries are reusable across roles and may share a provider key. Council turns make 2 model calls for table talk and 5 for committed actions.
 
 ## Voice Narration
 

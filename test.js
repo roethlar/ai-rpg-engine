@@ -1107,6 +1107,99 @@ async function testAdminModelRegistryV2() {
 }
 
 // -------------------------------------------------------------
+// Test: am-3 browser-safe registry state and assignment operations
+// -------------------------------------------------------------
+async function testAdminModelRegistryUiState() {
+  console.log(' - Running admin model registry UI state tests...');
+  const {
+    createRegistryState,
+    updateProviderDraft,
+    setProviderCatalog,
+    createModelEntry,
+    addModelEntry,
+    updateModelEntry,
+    setRoleAssignment,
+    modelUsage,
+    removeModelEntry,
+    validateRegistryState,
+    buildRegistryPayload,
+    catalogRequestFor
+  } = await import('./admin/model-registry.js');
+
+  const roles = Object.fromEntries(
+    ['setup', 'interaction', 'continuity', 'referee', 'narration']
+      .map(role => [role, { primary: '', fallback: '' }])
+  );
+  let state = createRegistryState({
+    configVersion: 2,
+    providers: {
+      gemini: { apiKeySet: false },
+      openai: { apiKeySet: true },
+      claude: { apiKeySet: false },
+      grok: { apiKeySet: false },
+      custom: { apiKeySet: false, baseUrl: '' },
+      ollama: { ollamaUrl: '' },
+      'claude-code': {}
+    },
+    modelEntries: [
+      {
+        id: 'shared_a', label: 'Shared A', provider: 'openai', model: 'gpt-a',
+        keySource: 'provider', apiKeySet: false, legacyDefault: false
+      },
+      {
+        id: 'override', label: 'Override', provider: 'openai', model: 'gpt-b',
+        keySource: 'custom', apiKeySet: true, legacyDefault: false
+      }
+    ],
+    defaultModel: '',
+    roleAssignments: roles
+  });
+
+  state = setProviderCatalog(state, 'openai', { models: [' z-model ', 'a-model', 'a-model'] });
+  assert.deepStrictEqual(state.catalogs.openai.models, ['a-model', 'z-model']);
+  state = updateProviderDraft(state, 'openai', { apiKey: 'unsaved-provider-key' });
+  assert.deepStrictEqual(state.catalogs.openai.models, [], 'Changing a connection invalidates its page cache');
+  assert.strictEqual(state.catalogs.openai.loaded, false);
+  assert.deepStrictEqual(catalogRequestFor(state, 'openai'), {
+    provider: 'openai', apiKey: 'unsaved-provider-key', baseUrl: '', ollamaUrl: ''
+  });
+
+  state = addModelEntry(state, createModelEntry('model_new', 'openai'));
+  state = updateModelEntry(state, 'model_new', { label: 'Second shared', model: 'gpt-c' });
+  assert.strictEqual(validateRegistryState(state), null);
+  state = setRoleAssignment(state, 'setup', 'primary', 'shared_a');
+  state = setRoleAssignment(state, 'narration', 'fallback', 'shared_a');
+  assert.deepStrictEqual(modelUsage(state, 'shared_a'), ['Setup primary', 'Narration fallback']);
+  const blockedRemoval = removeModelEntry(state, 'shared_a');
+  assert.strictEqual(blockedRemoval.state, state, 'Assigned entries are not removed');
+  assert.match(blockedRemoval.error, /Assigned model cannot be removed/);
+
+  state = updateModelEntry(state, 'override', {
+    provider: 'claude-code', keySource: 'custom', apiKey: 'must-not-survive', apiKeySet: true
+  });
+  const codeEntry = state.modelEntries.find(entry => entry.id === 'override');
+  assert.deepStrictEqual(
+    { keySource: codeEntry.keySource, apiKey: codeEntry.apiKey, apiKeySet: codeEntry.apiKeySet },
+    { keySource: 'provider', apiKey: '', apiKeySet: false },
+    'Claude Code rows cannot retain custom-key state'
+  );
+
+  state = updateModelEntry(state, 'model_new', { label: '' });
+  assert.deepStrictEqual(validateRegistryState(state), {
+    anchor: 'model-model_new', message: 'Model row 3 needs a label.'
+  }, 'Inline validation identifies the exact model row');
+  state = updateModelEntry(state, 'model_new', { label: 'Second shared' });
+
+  const beforeClearAssignments = structuredClone(state.roleAssignments);
+  const cleared = buildRegistryPayload(state, { clearKeys: true });
+  assert.strictEqual(cleared.configVersion, 2, 'The browser payload uses the v2 settings wire');
+  assert.strictEqual(cleared.providers.openai.apiKey, null, 'Clear action clears provider keys');
+  assert.strictEqual(cleared.modelEntries.find(entry => entry.id === 'override').keySource, 'provider');
+  assert.deepStrictEqual(cleared.roleAssignments, beforeClearAssignments, 'Clear action never changes assignments');
+  assert.strictEqual(JSON.stringify(cleared).includes('must-not-survive'), false);
+}
+
+// -------------------------------------------------------------
 // Test: am-cc Claude Code subscription transport
 // -------------------------------------------------------------
 async function testClaudeCodeProvider() {
@@ -1729,11 +1822,56 @@ async function testModelCatalogs() {
       req.on('error', reject);
       req.end(payload);
     });
+    const settingsRequest = (method, body, token = 'catalog-admin') => new Promise((resolve, reject) => {
+      const payload = body === undefined ? null : Buffer.from(JSON.stringify(body));
+      const req = http.request({
+        host: '127.0.0.1',
+        port,
+        path: '/api/admin/settings',
+        method,
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          ...(payload ? {
+            'Content-Type': 'application/json',
+            'Content-Length': payload.length
+          } : {})
+        }
+      }, response => {
+        const chunks = [];
+        response.on('data', chunk => chunks.push(chunk));
+        response.on('end', () => resolve({
+          status: response.statusCode,
+          json: JSON.parse(Buffer.concat(chunks).toString('utf8'))
+        }));
+      });
+      req.on('error', reject);
+      req.end(payload || undefined);
+    });
 
     assert.strictEqual((await request({ provider: 'openai' }, null)).status, 401,
       'Catalog requires the admin credential');
     assert.strictEqual((await request({ provider: 'openai' }, 'catalog-host')).status, 401,
       'Game host credentials cannot reach admin catalogs');
+
+    let settingsResult = await settingsRequest('GET');
+    assert.strictEqual(settingsResult.status, 200);
+    assert.strictEqual(settingsResult.json.configVersion, 2, 'Admin GET atomically activates the v2 DTO');
+    assert.strictEqual(settingsResult.json.providers.openai.apiKeySet, true);
+    assert.strictEqual(settingsResult.json.modelEntries.find(entry => entry.id === 'openai_override').apiKeySet, true);
+    assert.strictEqual(JSON.stringify(settingsResult.json).includes('provider-stored-key'), false);
+    assert.strictEqual(JSON.stringify(settingsResult.json).includes('entry-override-key'), false);
+
+    settingsResult = await settingsRequest('POST', settingsResult.json);
+    assert.strictEqual(settingsResult.status, 200, 'A projected masked DTO performs the canonical v2 rewrite');
+    const rewrittenSettings = await loadAdminAiConfig();
+    assert.strictEqual(rewrittenSettings.configVersion, 2);
+    assert.strictEqual(rewrittenSettings.providers.openai.apiKey, 'provider-stored-key');
+    assert.strictEqual(rewrittenSettings.modelEntries.find(entry => entry.id === 'openai_override').apiKey,
+      'entry-override-key');
+    assert.strictEqual(JSON.stringify(settingsResult.json).includes('stored-key'), false,
+      'Admin save responses never contain credentials');
+    settingsResult = await settingsRequest('POST', { configVersion: 1 });
+    assert.strictEqual(settingsResult.status, 400, 'Invalid v2 settings receive a typed 400');
 
     let result = await request({
       provider: 'openai', modelEntryId: 'openai_override', apiKey: 'unsaved-request-key'
@@ -3998,6 +4136,7 @@ async function runAll() {
     await testImageProviderSeam();
     await testServerConfigResolution();
     await testAdminModelRegistryV2();
+    await testAdminModelRegistryUiState();
     await testClaudeCodeProvider();
     await testFallbackTiering();
     await testProviderEndpointPin();
