@@ -9,8 +9,8 @@ import * as rpg from './rpg-engine.js';
 import {
   getServerAiConfig,
   loadAdminAiConfig,
-  saveAdminAiConfig,
-  maskAiConfig,
+  saveAdminAiConfigV2,
+  maskAdminAiConfigV2,
   AdminConfigValidationError,
   AI_PROVIDERS,
   projectAdminAiConfigV2
@@ -370,6 +370,10 @@ app.get('/admin/admin.js', (req, res) => {
   res.sendFile(path.join(__dirname, 'admin', 'admin.js'));
 });
 
+app.get('/admin/model-registry.js', (req, res) => {
+  res.sendFile(path.join(__dirname, 'admin', 'model-registry.js'));
+});
+
 // Login probe: 200 iff the presented password is valid (or auth is disabled).
 app.post('/api/admin/verify', (req, res) => {
   res.json({ ok: true, authRequired: !!process.env.ADMIN_SECRET });
@@ -377,7 +381,7 @@ app.post('/api/admin/verify', (req, res) => {
 
 app.get('/api/admin/settings', async (req, res) => {
   try {
-    res.json(maskAiConfig(await loadAdminAiConfig()));
+    res.json(maskAdminAiConfigV2(await loadAdminAiConfig()));
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -407,8 +411,8 @@ app.post('/api/admin/models/catalog', async (req, res) => {
 
 app.post('/api/admin/settings', async (req, res) => {
   try {
-    const saved = await saveAdminAiConfig(req.body);
-    res.json(maskAiConfig(saved));
+    const saved = await saveAdminAiConfigV2(req.body);
+    res.json(maskAdminAiConfigV2(saved));
   } catch (error) {
     res.status(adminSettingsErrorStatus(error)).json({ error: error.message });
   }

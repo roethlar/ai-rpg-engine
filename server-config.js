@@ -236,7 +236,12 @@ function normalizeProviderConnections(raw) {
   return providers;
 }
 
-function normalizeModelEntries(raw, legacyBaseline = null, trustStoredLegacy = false) {
+function normalizeModelEntries(
+  raw,
+  legacyBaseline = null,
+  trustStoredLegacy = false,
+  legacySecretClearIds = new Set()
+) {
   if (!Array.isArray(raw)) validationFailure('modelEntries must be an array.');
   if (raw.length > MAX_MODEL_ENTRIES) {
     validationFailure(`modelEntries cannot contain more than ${MAX_MODEL_ENTRIES} entries.`);
@@ -282,14 +287,16 @@ function normalizeModelEntries(raw, legacyBaseline = null, trustStoredLegacy = f
       const runtimeFieldChanged = provider !== baseline.provider
         || model !== baseline.model
         || keySource !== baseline.keySource
-        || apiKey !== baseline.apiKey;
+        || (apiKey !== baseline.apiKey && !legacySecretClearIds.has(id));
       if (runtimeFieldChanged) legacyDefault = false;
     }
 
     if (!legacyDefault && (!provider || !model)) {
       validationFailure(`modelEntries[${index}] requires provider and model.`);
     }
-    if (keySource === 'custom' && !apiKey) {
+    // A cleared legacy override keeps custom mode as a provenance marker so
+    // role/fallback environment-key precedence remains identical to v1.
+    if (keySource === 'custom' && !apiKey && !legacyDefault) {
       validationFailure(`modelEntries[${index}] requires a custom API key.`);
     }
 
@@ -319,12 +326,21 @@ function normalizeRoleAssignments(raw, entryIds) {
   return assignments;
 }
 
-function normalizeAdminAiConfigV2(raw, { legacyBaseline = null, trustStoredLegacy = false } = {}) {
+function normalizeAdminAiConfigV2(raw, {
+  legacyBaseline = null,
+  trustStoredLegacy = false,
+  legacySecretClearIds = new Set()
+} = {}) {
   if (!isPlainObject(raw) || raw.configVersion !== 2) {
     validationFailure('configVersion must be 2.');
   }
   const providers = normalizeProviderConnections(raw.providers);
-  const modelEntries = normalizeModelEntries(raw.modelEntries, legacyBaseline, trustStoredLegacy);
+  const modelEntries = normalizeModelEntries(
+    raw.modelEntries,
+    legacyBaseline,
+    trustStoredLegacy,
+    legacySecretClearIds
+  );
   const entryIds = new Set(modelEntries.map(entry => entry.id));
   const roleAssignments = normalizeRoleAssignments(raw.roleAssignments, entryIds);
   let defaultModel = typeof raw.defaultModel === 'string' ? raw.defaultModel.trim() : '';
@@ -381,11 +397,18 @@ export function prepareAdminAiConfigV2Save(raw, existingRaw = null) {
 
   if (!Array.isArray(raw.modelEntries)) validationFailure('modelEntries must be an array.');
   const baselineEntries = new Map(baseline.modelEntries.map(entry => [entry.id, entry]));
+  const legacySecretClearIds = new Set();
   const modelEntries = raw.modelEntries.map(value => {
     const entry = isPlainObject(value) ? value : {};
     const id = cleanLimitedField(entry.id, MAX_ENTRY_ID_LENGTH);
     const existing = baselineEntries.get(id);
     const keySource = entry.keySource === 'provider' ? 'provider' : entry.keySource;
+    // Only the save seam can authorize a secret-only legacy transition. The
+    // normal validator still declassifies any client-forged or runtime edit.
+    if (entry.apiKey === null && entry.legacyDefault === true && existing?.legacyDefault
+      && keySource === existing.keySource) {
+      legacySecretClearIds.add(id);
+    }
     return {
       ...entry,
       apiKey: keySource === 'provider'
@@ -406,7 +429,7 @@ export function prepareAdminAiConfigV2Save(raw, existingRaw = null) {
     imageApiKey: resolveSecretField(raw.imageApiKey, baseline.imageApiKey)
   };
 
-  return normalizeAdminAiConfigV2(candidate, { legacyBaseline: baseline });
+  return normalizeAdminAiConfigV2(candidate, { legacyBaseline: baseline, legacySecretClearIds });
 }
 
 /** Display-safe canonical v2 DTO. */
@@ -645,10 +668,7 @@ export async function saveAdminAiConfig(raw) {
   return merged;
 }
 
-/**
- * Canonical v2 save seam. am-1 exposes it for direct verification only; the
- * HTTP settings route remains on saveAdminAiConfig until the am-3 UI cutover.
- */
+/** Canonical v2 save seam used by the admin settings route. */
 export async function saveAdminAiConfigV2(raw) {
   const merged = prepareAdminAiConfigV2Save(raw, await loadAdminAiConfig());
   await db.run(

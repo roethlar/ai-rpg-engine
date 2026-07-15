@@ -533,6 +533,144 @@ function assessResult(result, external) {
   console.log('Browser harness passed.');
 }
 
+function browserAssert(condition, message) {
+  if (!condition) throw new Error('Admin registry browser guard failed: ' + message);
+}
+
+async function addConfiguredModel(page, { label, provider = 'openai', model, keySource = 'provider', apiKey = '' }) {
+  await page.locator('#btn-add-model').click();
+  let row = page.locator('[data-model-row]').last();
+  const id = await row.getAttribute('data-model-row');
+  await row.locator('[data-field="label"]').fill(label);
+  if (provider !== 'openai') {
+    await row.locator('[data-field="provider"]').selectOption(provider);
+    row = page.locator(`[data-model-row="${id}"]`);
+  }
+  await row.locator('[data-field="model"]').fill(model);
+  if (keySource === 'custom') {
+    await row.locator('[data-field="key-source"]').selectOption('custom');
+    row = page.locator(`[data-model-row="${id}"]`);
+    await row.locator('[data-field="custom-key"]').fill(apiKey);
+  }
+  return id;
+}
+
+async function runAdminRegistryGuard(page, origin, settingsResponseReads, settingsPosts) {
+  const sharedSecret = 'BROWSER_SHARED_SECRET';
+  const overrideSecret = 'BROWSER_OVERRIDE_SECRET';
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto(origin + '/admin');
+  await page.locator('body.show-panel').waitFor();
+
+  browserAssert(await page.locator('[data-provider-row]').count() === 7, 'all seven providers are visible');
+  browserAssert(await page.locator('[data-role-row]').count() === 5, 'exactly five Council roles are visible');
+  const mainWidth = await page.locator('main').evaluate(node => node.getBoundingClientRect().width);
+  browserAssert(mainWidth > 900 && mainWidth <= 1080, 'desktop admin column is compact and table-sized');
+
+  const codeProvider = page.locator('[data-provider-row="claude-code"]');
+  browserAssert(await codeProvider.locator('input').count() === 0, 'Claude Code provider has no key or endpoint input');
+  await codeProvider.locator('[data-refresh-provider="claude-code"]').click();
+  await codeProvider.locator('[data-catalog-state="claude-code"]').filter({ hasText: 'Logged in' }).waitFor();
+
+  await page.locator('#provider-openai-key').fill(sharedSecret);
+  await page.locator('[data-refresh-provider="openai"]').click();
+  await page.locator('[data-catalog-state="openai"]').filter({ hasText: '2 models loaded' }).waitFor();
+
+  const sharedA = await addConfiguredModel(page, {
+    label: 'Shared fast', model: 'gpt-live-a'
+  });
+  const sharedB = await addConfiguredModel(page, {
+    label: 'Shared prose', model: 'gpt-live-b'
+  });
+  const override = await addConfiguredModel(page, {
+    label: 'Custom override', model: 'gpt-override', keySource: 'custom', apiKey: overrideSecret
+  });
+  const claudeCode = await addConfiguredModel(page, {
+    label: 'Claude setup', provider: 'claude-code', model: 'claude-fable-5'
+  });
+
+  browserAssert(
+    await page.locator(`[data-model-row="${claudeCode}"] [data-field="custom-key"]`).count() === 0,
+    'Claude Code model row has no custom-key control'
+  );
+  browserAssert(
+    await page.locator(`[data-model-row="${sharedA}"] [data-field="model"]`).getAttribute('list') === 'catalog-openai',
+    'provider refresh supplies a datalist to every matching model row'
+  );
+  browserAssert(await page.locator('#catalog-openai option').count() === 2, 'live suggestions remain page-local');
+
+  await page.locator('[data-role-row="setup"] [data-tier="primary"]').selectOption(claudeCode);
+  await page.locator('[data-role-row="setup"] [data-tier="fallback"]').selectOption(sharedA);
+  await page.locator('[data-role-row="interaction"] [data-tier="primary"]').selectOption(sharedA);
+  await page.locator('[data-role-row="interaction"] [data-tier="fallback"]').selectOption(sharedB);
+  await page.locator('[data-role-row="narration"] [data-tier="primary"]').selectOption(sharedB);
+  await page.locator('[data-role-row="narration"] [data-tier="fallback"]').selectOption(override);
+  browserAssert(
+    await page.locator(`[data-remove-model="${sharedA}"]`).isDisabled(),
+    'assigned entries cannot be removed'
+  );
+
+  await page.locator('#btn-save').click();
+  await page.locator('#status.ok').filter({ hasText: 'Settings saved' }).waitFor();
+  browserAssert(
+    await page.locator('#catalog-openai option').count() === 2,
+    'a normal save preserves the page-memory catalog'
+  );
+  await page.reload();
+  await page.locator('body.show-panel').waitFor();
+  browserAssert(await page.locator('[data-model-row]').count() === 4, 'configured model rows survive save/reload');
+  browserAssert(
+    await page.locator('[data-role-row="setup"] [data-tier="primary"]').inputValue() === claudeCode,
+    'Claude Code Setup assignment survives save/reload'
+  );
+  browserAssert(
+    await page.locator('[data-role-row="interaction"] [data-tier="primary"]').inputValue() === sharedA
+      && await page.locator('[data-role-row="interaction"] [data-tier="fallback"]').inputValue() === sharedB,
+    'shared provider-key primary/fallback assignments survive save/reload'
+  );
+  browserAssert(
+    await page.locator(`[data-model-row="${override}"] [data-field="custom-key"]`).inputValue() === '',
+    'stored custom secrets are never rendered back into password inputs'
+  );
+
+  await page.locator('[data-refresh-provider="openai"]').click();
+  await page.locator('[data-catalog-state="openai"]').filter({ hasText: 'catalog offline' }).waitFor();
+  const manualModel = page.locator(`[data-model-row="${sharedA}"] [data-field="model"]`);
+  browserAssert(await manualModel.inputValue() === 'gpt-live-a', 'failed refresh does not clear a model selection');
+  await manualModel.fill('manual-after-failure');
+  await page.locator('#btn-save').click();
+  await page.locator('#status.ok').filter({ hasText: 'Settings saved' }).waitFor();
+  await page.reload();
+  await page.locator('body.show-panel').waitFor();
+  browserAssert(
+    await page.locator(`[data-model-row="${sharedA}"] [data-field="model"]`).inputValue() === 'manual-after-failure',
+    'manual model entry remains usable after catalog failure'
+  );
+
+  const responseBodies = await Promise.all(settingsResponseReads);
+  for (const secret of [sharedSecret, overrideSecret]) {
+    browserAssert(responseBodies.every(body => !body.includes(secret)), 'settings responses do not expose ' + secret);
+    browserAssert(!(await page.locator('body').innerText()).includes(secret), 'DOM does not expose ' + secret);
+  }
+  browserAssert(settingsPosts.length >= 2, 'the UI performs atomic v2 settings saves');
+  const firstSave = settingsPosts[0];
+  browserAssert(firstSave.configVersion === 2, 'the browser sends the v2 wire contract');
+  browserAssert(firstSave.providers.openai.apiKey === sharedSecret, 'one provider key is shared explicitly');
+  browserAssert(
+    firstSave.modelEntries.filter(entry => entry.provider === 'openai' && entry.keySource === 'provider').length === 2,
+    'two OpenAI entries share the provider credential'
+  );
+  browserAssert(
+    firstSave.modelEntries.find(entry => entry.id === override).apiKey === overrideSecret,
+    'the custom override is isolated to its model entry'
+  );
+
+  await page.setViewportSize({ width: 500, height: 900 });
+  const columns = await page.locator('[data-provider-row="openai"]').evaluate(node => getComputedStyle(node).gridTemplateColumns);
+  browserAssert(columns.split(' ').length === 1, 'narrow viewport collapses provider rows to one column');
+  console.log('Admin model registry browser guard passed.');
+}
+
 async function main() {
   const dbPath = path.join(
     os.tmpdir(),
@@ -542,9 +680,12 @@ async function main() {
   const origin = 'http://127.0.0.1:' + port;
   const probeUrl = origin + '/__bh1__';
   const external = [];
+  const settingsResponseReads = [];
+  const settingsPosts = [];
+  let openAiCatalogCalls = 0;
   const childEnv = { ...process.env, PORT: String(port), RPG_DB_PATH: dbPath, NODE_ENV: 'test' };
-  delete childEnv.ACCESS_SECRET;
-  delete childEnv.ADMIN_SECRET;
+  childEnv.ACCESS_SECRET = '';
+  childEnv.ADMIN_SECRET = '';
 
   let child;
   let exited;
@@ -579,10 +720,53 @@ async function main() {
     }
 
     const page = await browser.newPage();
+    page.on('response', response => {
+      const request = response.request();
+      if (request.url() === origin + '/api/admin/settings') settingsResponseReads.push(response.text());
+    });
+    page.on('request', request => {
+      if (request.url() === origin + '/api/admin/settings' && request.method() === 'POST') {
+        settingsPosts.push(request.postDataJSON());
+      }
+    });
     await page.route('**/*', route => {
       const url = route.request().url();
       if (url === probeUrl) {
         return route.fulfill({ contentType: 'text/html', body: PROBE_HTML });
+      }
+      if (url === origin + '/api/admin/models/catalog') {
+        const body = route.request().postDataJSON();
+        if (body.provider === 'openai') {
+          openAiCatalogCalls += 1;
+          if (openAiCatalogCalls === 1) {
+            return route.fulfill({
+              contentType: 'application/json',
+              body: JSON.stringify({ models: ['gpt-live-a', 'gpt-live-b'], manualEntry: true })
+            });
+          }
+          return route.fulfill({
+            status: 502,
+            contentType: 'application/json',
+            body: JSON.stringify({ error: 'OpenAI catalog offline; manual entry remains available.' })
+          });
+        }
+        if (body.provider === 'claude-code') {
+          return route.fulfill({
+            contentType: 'application/json',
+            body: JSON.stringify({
+              models: [],
+              manualEntry: true,
+              status: {
+                installed: true,
+                loggedIn: true,
+                authMethod: 'claude.ai',
+                subscriptionType: 'max',
+                version: '2.1.210'
+              }
+            })
+          });
+        }
+        return route.fulfill({ contentType: 'application/json', body: JSON.stringify({ models: [], manualEntry: true }) });
       }
       if (url.startsWith(origin + '/')) return route.continue();
       external.push(url);
@@ -592,6 +776,7 @@ async function main() {
     await page.goto(probeUrl);
     const result = await runOracle(page);
     assessResult(result, external);
+    await runAdminRegistryGuard(page, origin, settingsResponseReads, settingsPosts);
   } catch (error) {
     runError = error;
   } finally {
