@@ -201,7 +201,11 @@ async function synthesizeOpenAI({ apiKey, model, voice, instructions, text }) {
     throw error;
   }
 
-  return Buffer.from(await response.arrayBuffer());
+  const audio = Buffer.from(await response.arrayBuffer());
+  if (!isMp3(audio)) {
+    throw new Error('OpenAI speech response was not MP3 audio.');
+  }
+  return audio;
 }
 
 function isMp3(buffer) {
