@@ -1,9 +1,12 @@
 # Aetheria House Ruleset — Chapter 2: Effects
 
-**Status**: DRAFT r9 — rounds r1–r8 were each reopened by both independent reviewers; every
+**Status**: DRAFT r10 — rounds r1–r8 were reopened by both independent reviewers; at r9 one
+reviewer **accepted** (zero findings, cold-implementer-executable) and one reopened; every
 admitted finding is addressed in place (trail and the two recorded disputes:
 `.agents/review/effect-catalog-review.md`). Not yet owner-signed. Implementation of Chapter 1's
-edge bands is gated on **this chapter's acceptance only**: pre-D7, license pricing follows §3's
+edge bands is gated on **this chapter's acceptance** — and, per campaign, on a pinned
+`catalog_version` (campaigns without one are pre-catalog legacy and fail closed pending D13,
+§1.1): pre-D7, license pricing follows §3's
 conservative rule (the encounter-active input is constantly false), and each gated operation
 activates with its own dependency — there is no separate D7 shipping gate.
 **Declared Chapter 1 refinements (enacted at this chapter's sign-off, mirroring Chapter 1's own
@@ -189,12 +192,26 @@ license rule); each gated form activates with its feature. A form whose *numeric
 shape* is gated is gated end-to-end: there is no "live seam" without a legal write.
 
 **Versioning (storage contract declared here; freeform/legacy disposition is D13's)**: the
-catalog is versioned chassis config, pinned per campaign in a declared required field —
-`catalog_version` on the campaign record, initial value `effects-1`, carried through export
-bundles and forks, changed only by explicit owner-approved migrations (never silently
-reweighted by an engine upgrade). Adding, removing, or re-weighting operations is a version
-change; models never see two catalogs at once. Every ledgered effect records the version it
-executed under (Status refinement 1).
+catalog is versioned chassis config, pinned per campaign in `catalog_version` on the campaign
+record. **New campaigns** are stamped `effects-1` at creation. **Campaigns without the field
+are pre-catalog legacy**: absence *is* the sentinel (no null-vs-missing distinction), catalog
+execution is disabled for them **fail-closed** pending D13's disposition, and creation,
+import, export, and fork all carry the field — or its absence — verbatim (a fork of a legacy
+bundle is still legacy; nothing auto-migrates). Versions change only by explicit
+owner-approved migration (never silently reweighted by an engine upgrade); adding, removing,
+or re-weighting operations is a version change; models never see two catalogs at once. Every
+ledgered effect records the version it executed under (Status refinement 1).
+
+**Persistence and identity (binding on the implementation, not restated per-op)**: a
+committed effect persists with exactly {op, resolved params as engine reference tokens,
+catalog version, weight class, point cost, effective valence, pricing prestate};
+`affirmedOpposed` persists on the annotation as an array of `npc:<id>` tokens. Every
+persisted reference is an engine-issued typed token (Status refinement 2) naming a row in
+*this* store — ids are store-local, so **export, import, and fork MUST remap every persisted
+token under the same entity mapping the bundle applies to the rows themselves**, and an
+import that cannot map a token fails whole (no dangling refs, no silent drops). Today's
+import path copies turn state verbatim; that is legal only while no ledgered effects exist —
+token remapping is part of the edge-band implementation gate.
 
 ## 2. The operations
 
@@ -226,7 +243,7 @@ scope: `harm` writes a number, never removes an actor.
 | Operation | Schema | State written | Weight | Direction | Availability |
 |---|---|---|---|---|---|
 | `item_lose` | **Two forms, one op.** Legacy mundane-stack form (LIVE): `{op, owner: character ref, item: item key}` — the resolved stack's quantity decrements by one, entry removed **only at zero**; mundane gates below apply. Durable-record form (GATED:D16): `{op, item: item-record ref}` — the record's holder must be an **actor** on the tentative state (scene-held records reject: no frame to compose valence from — destroying scene-held loot is §6), owner derived and validated from the record | one unit leaves play; durable records persist with holder `lost` and full provenance (the looted saber falls into the chasm *from the looter's hands*) | by item class (§3) | hurts the holder | legacy form LIVE; record form GATED:D16 |
-| `item_gain` | `{op, owner: **character ref** (an npc-typed owner rejects at schema shape), name: licensed string}` — **mundane mint/stack only**, matching totalized: **zero** comparison-key matches in `owner`'s inventory → mint; **exactly one** match that is *fully* mundane (no `stats`, no `effect`, name gate passes) → increment its quantity by one ("you scavenge another coil of rope"); one match that is non-mundane or effect-bearing → **reject** (stacking would mint mechanics); **more than one** match → reject as ambiguous, before any mutation | mint: one new mundane item, stored as `{name: <display form>, type: "general", description: "No description.", quantity: 1}`, every other property ignored — the model supplies the name and nothing else. Post-D16: a fresh engine-minted record id, classified mundane, provenance stamped | minor (mundane by construction) | helps `owner` | LIVE — there is no NPC *mint* form in any version: recorded items reach NPCs via `item_transfer` or `item_pickup`, and an NPC producing a previously unrecorded object is §6-inexpressible |
+| `item_gain` | `{op, owner: **character ref** (an npc-typed owner rejects at schema shape), name: licensed string}` — **mundane mint/stack only**, matching totalized: **zero** comparison-key matches in `owner`'s inventory → mint; **exactly one** match that is **stack-eligible** (shape totalized in the prose below) → increment its quantity by one ("you scavenge another coil of rope"); one match that is not stack-eligible → **reject** (stacking would mint mechanics, or the shape is untrusted); **more than one** match → reject as ambiguous, before any mutation | mint: one new mundane item, stored as `{name: <display form>, type: "general", description: "No description.", quantity: 1}`, every other property ignored — the model supplies the name and nothing else. Post-D16: a fresh engine-minted record id, classified mundane, provenance stamped | minor (mundane by construction) | helps `owner` | LIVE — there is no NPC *mint* form in any version: recorded items reach NPCs via `item_transfer` or `item_pickup`, and an NPC producing a previously unrecorded object is §6-inexpressible |
 | `item_transfer` | `{op, item: item-record ref, from: actor ref, to: actor ref}` — the record's holder must be `from` on the tentative state; `from ≠ to`; **each non-party endpoint must be in `affirmedOpposed`**, else `allegiance-unknown` (§3) | the same record changes holders — identity, condition, and provenance preserved | by item class (§3), **charged once** | net party effect (§3; nets are defined only over party/affirmed-opposed endpoints) | GATED:D16 |
 | `item_drop` | `{op, item: item-record ref, area: area id}` — the record's holder must be an actor on the tentative state | the record's holder becomes the scene (that area); identity/condition/provenance preserved | by item class (§3) | hurts the former holder | GATED:D16 |
 | `item_pickup` | `{op, owner: actor ref, item: item-record ref}` — the record's current holder must be the current location (scene-held), on the tentative state | the record's holder becomes `owner` | by item class (§3) | helps `owner` | GATED:D16 |
@@ -245,11 +262,29 @@ LIVE inventory entry additionally passes Continuity's mundane gate (the same §1
 rejects pending D16 classification; a legacy artifact cannot be destroyed for one point as
 "mundane". **The mundane gates are two, both required (pre-D16)**: the Continuity semantic gate
 on the name/description (§1), and a **deterministic engine rule** — an inventory entry carrying
-`stats` is non-mundane *by construction* and rejects pending D16 classification. **The
+`stats` is non-mundane *by construction* and rejects pending D16 classification.
+**Stack eligibility (totalized over every legacy shape, fail-closed)**: the matched entry
+stacks only if its keys are a subset of {`name`, `type`, `description`, `quantity`,
+`equipped`} (so no `stats`/`effect` by construction and **any unknown key rejects** — an
+unrecognized property may be latent mechanics), its `quantity` is either absent (read as 1
+and normalized on write) or a positive safe integer (zero, negative, fractional, or
+non-numeric rejects), and the Continuity mundane gate passes over the entry's **stored**
+name, type, and description — not merely the proposed name (a stored description reading as
+plot-weighted blocks stacking even under an innocuous name). Every other same-key shape
+rejects the op before any mutation; there is no "add a second line" fallback, because a
+same-name duplicate would make the stack unresolvable for `item_lose`'s unique-match rule. **The
 consumable carve (loss only, asymmetric by design)**: an entry carrying `effect` but no `stats`
-MAY be `item_lose`'d as a minor loss — the unit is wasted, gone from play, its effect never fires
-("the recovery patch tumbles into the canal") — but may NOT be stacked onto by `item_gain`,
-because minting a unit whose use fires mechanics would be mechanical gain outside D1b. The
+MAY be `item_lose`'d as a minor loss — in the bare form the unit is wasted, gone from play, its
+effect never fires ("the recovery patch tumbles into the canal") — but may NOT be stacked onto
+by `item_gain`, because minting a unit whose use fires mechanics would be mechanical gain
+outside D1b. **Intentional use is expressible only as a composed pair**: the same annotation
+array carries the fired effect as its own first-class entry *plus* the `item_lose` — each
+validates, prices, and ledgers independently at full freestanding cost, so nothing fires
+unrecorded and consumption is never cheaper than the spontaneous effect (the same conservative
+stance as the pre-D7 license rule; item-sourced discounted pricing is §6). The engine never
+parses legacy `effect` strings — it does not verify the fired entry "matches" the item; the
+pair is licensed by Continuity like any annotation, and the conservative pricing makes a
+mismatch unprofitable rather than dangerous. The
 Continuity name gate still applies to the carve (a "Phoenix Elixir" rejects regardless). The
 legacy `equipped` field is declared **display-only, never mechanical state** (readiness is §6).
 **No minting significance**:
@@ -559,6 +594,9 @@ No operation exists for — and no annotation or ability may assert as mechanica
 - **mechanical-consumable acquisition** — restocking effect-bearing items ("you scavenge
   another recovery patch"): gaining a unit whose use fires mechanics is mechanical gain outside
   D1b; the expressible footprint today is discrete inert units (**D1b/D16**);
+- **item-sourced effect pricing** — a dedicated `item_use` op that consumes a unit and fires
+  its recorded effect at item-sourced (potentially discounted) cost: future, **D1b/D16**; the
+  LIVE interim is §2.3's composed pair, deliberately priced at full freestanding cost;
 - **item resource state** — charges, ammunition, fuel, batteries on durable items: no
   per-item resource meters exist; the canonical current representation is discrete consumable
   units (a "power cell" as its own stack), and metered resources arrive with **D1b/D16**;

@@ -524,3 +524,36 @@ restock (with the discrete-unit representation noted as the expressible footprin
 resource state (charges/ammo/fuel → D1b/D16) [grok 4/5, codex 7]; **third declared Chapter 1
 refinement** — the valence domain becomes beneficial|adverse|neutral, neutral illegal in
 edge-band authorization [grok 6].
+
+### Round 9 — SPLIT (pin `dfd2ab3`)
+
+**grok: ACCEPTED** — zero findings, evidence-checked, and the first
+cold-implementer-executable TRUE of the loop. **codex: reopened, 4 HIGH.**
+
+1. HIGH — the r8 `catalog_version` contract silently depends on pending D13: every existing
+   campaign lacks the field, and no rule said what happens to them.
+2. HIGH — executed-effect metadata had no serialization or identity-remapping contract;
+   ledgered target ids are store-local autoincrements, while import/fork copy turn state
+   verbatim → dangling refs by construction.
+3. HIGH — intentional use of an effect-bearing consumable was inexpressible (`item_lose`
+   required "effect never fires"), yet live data mints a Recovery Patch with `effect: heal_20`.
+4. HIGH — the `item_gain` stacking predicate was not total over legacy inventory shapes
+   (unknown keys, arbitrary `type`, malformed `quantity`).
+
+#### Coder triage → r10
+
+All 4 ADMITTED. r10 changes: **legacy sentinel rule** — new campaigns stamped `effects-1` at
+creation; field absence *is* the pre-catalog sentinel; catalog execution fail-closed for
+legacy campaigns pending D13; creation/import/export/fork carry the field or its absence
+verbatim (fork never auto-migrates) [codex 1]; **persistence & identity contract** — exact
+committed-effect field set, `affirmedOpposed` as an `npc:<id>` token array, all persisted refs
+engine-issued typed tokens, and export/import/fork MUST remap every token under the bundle's
+entity mapping, failing whole on unmappable tokens; the verbatim-copy import path is legal
+only while no ledgered effects exist [codex 2]; **composed-pair consumable use** — the fired
+effect rides the same annotation as its own first-class entry plus the `item_lose`, each
+priced independently at full freestanding cost (conservative, mirrors the pre-D7 license
+rule); the engine never parses legacy `effect` strings; dedicated item-sourced `item_use`
+pricing added to §6 (D1b/D16) [codex 3]; **stack eligibility totalized fail-closed** — key
+whitelist {name, type, description, quantity, equipped}, unknown keys reject, quantity absent
+(=1, normalized) or positive safe integer, mundane gate over *stored* name/type/description;
+no second-line fallback (would break `item_lose` unique-match) [codex 4].
