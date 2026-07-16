@@ -33,12 +33,14 @@ to `docs/history/state-archive.md`.
   finding has an open branch.
 - **The rules system is the next big feature.** D0 and D1 are decided (fixed house chassis;
   d20 meet-or-beat — with d20-specific clauses pending supersession by the reviewed chapter below).
-  **Chapter 1 (Resolution) is drafted at `docs/rules/resolution.md` and REVIEW-CONVERGED**: codex
-  and grok both accepted pinned `f14593c` with zero findings after 5 rounds
-  (`.agents/review/resolution-ruleset-review.md`; d100, hard floors at raw 1/100, five-face edge
-  texture, enum deltas, code-owned ladder). **Owner sign-off is pending** — it enacts the chapter's
-  supersession declaration and two flagged trades (enum delta magnitudes replacing free "+3%";
-  annotation effects empty until D2). The canonical queue remains
+  **Chapter 1 (Resolution) is drafted at `docs/rules/resolution.md` and REVIEW-CONVERGED at
+  `8f7862d`** — codex and grok both accepted with zero findings after 9 rounds, including two
+  post-r5 owner amendments: complications are mechanical via the D2 effect catalog (now a hard
+  prerequisite for implementing the edge bands), and discretion is licensed + ledgered (tunable
+  stakes license; bidirectional text–effect coherence kills ghost consequences)
+  (`.agents/review/resolution-ruleset-review.md`). **Owner sign-off is pending** — it enacts the
+  chapter's supersession declaration and the one remaining flagged trade (enum delta magnitudes
+  replacing free "+3%" integers). The canonical queue remains
   `.agents/review/rules-system-plan-intake.md` (next decisions: D2, D4, D6, D11, D12, D14 — one at
   a time). No rules code before a concrete phase and an accepted plan review.
 - The existing owner-approved reviewloop backlog remains unstarted as of `ca55b55`.

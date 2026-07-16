@@ -1,6 +1,6 @@
 # Resolution ruleset review (docs/rules/resolution.md)
 
-**Status**: r8 — grok ACCEPTED; codex REOPENED (1 HIGH: one-directional coherence / ghost consequences). r9 makes coherence bidirectional — round 9 dispatched.
+**Status**: **CONVERGED (2nd, incl. owner amendments)** — r9 `8f7862d8f6577c3859778bb8b6cc3b639576bdf9` ACCEPTED by codex AND grok, zero findings, both cold-implementer-executable. Awaiting owner sign-off.
 **Artifact**: `docs/rules/resolution.md` (Chapter 1: Resolution — d100 tail-texture hybrid).
 **Owner direction**: 2026-07-16 — "turn this into a coherent ruleset then run it by codex and grok
 reviewloops." For THIS loop the owner's explicit wording reinstates the dual codex+grok contract,
@@ -282,4 +282,21 @@ Admitted. r9 change (surgical): coherence is now bidirectional — every mechani
 text asserts must have its matching `effects` entry; flavor-only is legal precisely because flavor
 means mechanically inert text; under a `flavor_only` license the text may assert no mechanical
 consequence at all. §6 may-not gains the matching prohibition for annotation text and narration.
+
+
+### Round 9 — pinned `8f7862d8f6577c3859778bb8b6cc3b639576bdf9` (base `1c35397`)
+
+#### codex-cli 0.144.4 — 2026-07-16T13:26:52Z. Valid, SHA-matched; `evidence_checked: true`;
+`cold_implementer_executable: true`; verdict: **ACCEPTED** — zero findings.
+
+#### grok 0.2.101 / grok-4.5 (read-only allowlist) — 2026-07-16T13:26:52Z. Valid, SHA-matched;
+`evidence_checked: true`; `cold_implementer_executable: true`; verdict: **ACCEPTED** — zero
+findings.
+
+**SECOND CONVERGENCE REACHED**, now including both owner amendments. Full trajectory:
+r1 13 → r2 8 → r3 4 → r4 1 → r5 0/0 (first convergence) → owner amendments (mechanical
+complications; licensed discretion) → r6 5 → r7 2 → r8 1 → r9 0/0. Owner sign-off remains the
+final gate; it enacts the supersession declaration and the one remaining flagged trade
+(enumerated delta magnitudes replacing free "+3%" integers — the effects-empty trade was
+superseded by the owner's mechanical-complications ruling).
 

@@ -1,10 +1,10 @@
 # Aetheria House Ruleset — Chapter 1: Resolution
 
-**Status**: DRAFT r9 — round 8: grok ACCEPTED; codex reopened with 1 HIGH (text–effect coherence
-was one-directional: text asserting a mechanical event with empty `effects` passed vacuously and
-canonized an unledgered consequence). This revision makes coherence bidirectional — flavor-only
-means mechanically inert text; narrated mechanics require their ledgered effect. Pending round-9
-re-review, then owner sign-off.
+**Status**: REVIEW-CONVERGED (second convergence, now including both owner amendments) — accepted
+by codex-cli 0.144.4 AND grok-4.5 at pinned commit `8f7862d` with zero findings after nine rounds
+(trail: `.agents/review/resolution-ruleset-review.md`). Awaiting owner sign-off, which enacts the
+Supersession declaration below. Substantive sections are unchanged from the accepted pin; only
+this status block differs.
 **Provenance**: D0 (2026-07-12, fixed house chassis + flavor skins); D1 (2026-07-16, as amended);
 owner brainstorm adopted for drafting 2026-07-16 (`.agents/review/dice-bakeoff.md`, addenda 3–4).
 
