@@ -63,7 +63,7 @@ owner-approved wording in `.agents/decisions.md` and the eventual plan status.
 | ID | Decision | Reviewer recommendation | Status |
 |---|---|---|---|
 | D0 | Overall frame | Bespoke fixed chassis plus campaign flavor skins | **DECIDED 2026-07-12** — fixed house chassis + generated flavor skins; see `.agents/decisions.md`. Unblocks D1, D2, D4, D6, D11, D12, D14. |
-| D1 | Dice engine | Keep d20, but prove the curve before wiring | **Pending — next owner decision** |
+| D1 | Dice engine | Keep d20, but prove the curve before wiring | **DECIDED 2026-07-16** — d20 meet-or-beat, DC-only difficulty; margin-band grammar rejected. See `.agents/decisions.md` + `.agents/review/dice-bakeoff.md`. Unblocks D8. |
 | D2 | Ability representation | Fixed effect catalog, genre-spread prototype first | Pending owner decision |
 | D3 | Archetype boundary | Stable chassis archetypes, flavor-skinned | Pending D2 |
 | D4 | Attribute count | Keep STR/AGI/INT/WIL | Pending owner decision |
@@ -112,3 +112,4 @@ UI, seat-boundary, tactical-map, export/fork, guard-proof, and playtest work.
 - Exact currency values, tier numbers, archetype list, death options, and
   action-economy depth are game-design hypotheses until simulated and
   playtested; reviewer agreement is not evidence of feel.
+

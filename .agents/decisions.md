@@ -1039,3 +1039,18 @@ Supports richer back-and-forth without world mutation on questions; anti-halluci
 
 Supersedes:
 Any prior single-model toggle or default path assumptions (now unreachable per plan).
+
+### 2026-07-16 - Rules D1: checks resolve on d20, meet-or-beat vs DC (rules track, owner decision)
+
+Status: Active
+
+Decision:
+The house rules system resolves checks as d20 + modifier vs DC; meeting or beating the DC succeeds. Difficulty has exactly one knob: the DC. Failure chances for stronger characters are created by raising the DC, never by graded-margin mechanics — the margin-band grammar recommended by the dice bake-off (clean/mixed/miss graded by beat-margin) is REJECTED as the universal check grammar. The DC ladder must be code-owned: the engine derives the numeric DC from an authored difficulty tier; the model may select a tier but never invents a number. Value derivation (damage and other non-check quantities) is deliberately NOT decided here — reserved as decision D1b. Nat 20 is always a success and nat 1 is always a failure, on any d20 check (owner, 2026-07-16). To preserve the standing requirement that trivial tasks are near-impossible to fail for competent characters, the engine applies the standard D&D no-roll gate: when success is certain for the acting character (per the code-owned tier ladder), no roll is called and nat 1 cannot fire — dice only hit the table when the outcome is uncertain. Rider (b) "success at a cost" is REJECTED: check outcomes are strictly binary. The GM never offers the player an alternate reality — the GM council decides the reality of the game. If the DC is met it is a success; if it is not, it is a failure. The GM's liberty is descriptive only: narrate the success or the failure to fit the situation. If binary outcomes prove too vague for the model to narrate well, that is a prompting/spec gap to address (GM narration instructions), never a mechanics change. D1 is fully closed; only D1b (value derivation) remains open. Unblocks D8 (opposition stats derived from an authored curve) and tier/DC-ladder design.
+
+Reason:
+Owner 2026-07-16: "D20 is fine. I don't actually care about the die. but the margin band idea I do not like... if the GM wants failure to be a real possibility for a higher level character, then the GM needs to raise the difficulty class. I'm just describing how D&D does it. that's natural to everyone." Evidence: `.agents/review/dice-bakeoff.md` — 2d6 and d6-pool spines eliminated on pacing-independent math (failure-band collapse at L9/L8, lumpy progression, opposition/CC0 costs); d20 retained on evidence, satisfying intake finding F7 (die not kept by inertia). Rider (a) closed by owner same day: "20 is always a success in DnD, and 1 is always a failure. any check on a D20." The no-roll gate is the agent-derived reconciliation with the owner's trivial-task requirement and is standard 5e practice (roll only when the outcome is uncertain); flagged for owner veto. Rider (b) rejected by owner 2026-07-16: "the GM doesn't offer the player a different reality. the GM council decides the reality of the game. if a DC is met, it's a success. if a DC is not, it's a failure. the GM has the liberty to describe the success and failure to fit the situation."
+
+Supersedes:
+The dice bake-off memo's margin-band recommendation (memo Addendum 2 records the rejection); the rules intake D1 row status (was: Pending — next owner decision).
+
+
