@@ -159,3 +159,80 @@ the tentative state [grok 5, codex 6]; **`wealth_shift` restricted to NPCs** (PC
 (reinforcements/summons: D7/D8/D16), opposition vitals/injury (D8/D16), creature references
 (D8), PC wealth [grok 7, codex 7]; **§8 example 3 rewritten to fail the intent** and the example
 set restructured into LIVE cases plus explicit gate-rejection cases [grok 1].
+
+### Round 3 — pinned `2a57edd757186c69e4447be17a7d2e2b78d5ad79` (draft r3)
+
+#### codex (same incantation)
+
+Valid, SHA-matched, `evidence_checked: true`, `cold_implementer_executable: false`: **reopened**
+(3 CRITICAL / 5 HIGH / 2 MEDIUM).
+
+1. CRITICAL — the draft itself reclassifies mechanical assertions as inert color: the
+   "crate of 100 grenades → decoration" line, and §8 case 7's "saber skitters away" flavor after
+   a gate rejection (an unledgered disarm).
+2. CRITICAL — the valence frame misclassifies allied NPCs (hurting an ally computes beneficial)
+   and cannot classify same-side transfers (PC→PC, NPC→NPC).
+3. CRITICAL — the no-bypass claim omits ordinary rulings that are not §6 exceptions: no
+   encounter-ending op, no item-to-scene custody, no mutual/both-sides features.
+4. HIGH — validation order unreachable/conflicting: gates sit behind reference resolution that
+   cannot resolve pre-gate state; Continuity's position contradicts Chapter 1 §5's fixed handoff.
+5. HIGH — LIVE item/area references are not uniquely resolvable (duplicate names/ids are legal
+   in current validators; only occupancy had a duplicate rule).
+6. HIGH — `item_lose` is incompatible with D16 durable items (legacy uniques destroyable as
+   "mundane" for 1 pt; no drop/abandon/destroy semantics for records).
+7. HIGH — condition/feature token semantics are never defined, so the semantic gate has no
+   boundary to enforce.
+8. HIGH — `fact_learn` is an unbounded canon-write priced minor (whole annotation text as
+   summary; no single-fact rule; top-8 retrieval contradicts "later checks honor it").
+9. MEDIUM — suggestion assembler: active deltas missing from sources; de-scope from acceptance
+   should carry recorded owner approval.
+10. MEDIUM — `value_reduce`/`value_enhance` need a shared conflict key; net-zero arrays.
+
+#### grok (same incantation)
+
+Valid, SHA-matched, `evidence_checked: true`, `cold_implementer_executable: false`: **reopened**
+(2 HIGH / 3 MEDIUM).
+
+1. HIGH — `item_transfer` net valence undefined for same-frame endpoints (PC→PC, NPC→NPC).
+2. MEDIUM — `item_transfer` never says the item key resolves against `from`.
+3. MEDIUM — `fact_learn`'s LIVE write is not implementable (keyword algorithm unstated;
+   multi-effect annotation text pollutes the summary).
+4. MEDIUM — LIVE `item_gain` doesn't specify the stored inventory record shape (type,
+   description, quantity fields exist today).
+5. HIGH — forced exit from the scene has no op and is only half-covered by §6 ("the brigand
+   flees" desyncs occupancy or free-form-edits it).
+
+#### Coder triage → r4
+
+ADMITTED: all except one partial dispute. **Partial dispute (codex 9)**: the assembler's
+exclusion from cold-implementation acceptance is itself the accepted resolution of codex's own r2
+finding 9 (its stated option b); the de-scope stands, the missing **active-deltas source is
+added**, and the advisory-MAY reading (from the D2 decision wording "complication SUGGESTIONS,
+maybe") is **flagged in §4 for explicit owner sign-off**. r4 changes: **string gate hardened** —
+names asserting counts, contents, quantities, or properties are rejected (the grenade example
+inverted to a rejection case), and §8 case 7's flavor rewritten possession-neutral, with new
+rejection cases for unledgered-disarm prose [codex 1]; **frame fixed** — frame-composed ops may
+target an NPC only when Continuity affirms the target is presently opposed in the established
+fiction (allegiance-unknown → reject), helping allied NPCs moves to §6 pending recorded
+allegiance (D8/D16); same-side nets defined (PC→PC = neutral, and neutral effects are illegal in
+edge-band annotations; NPC→NPC rejected pending allegiance); `item_transfer` resolves `item`
+against `from` on the tentative state, `from ≠ to` [codex 2, grok 1/2]; **new operations** —
+`encounter_end` (GATED:D7, fixed beneficial, rationale stated), `item_drop`/`item_pickup`
+(scene-held custody, GATED:D16), `scene_exit` (NPC refs, LIVE over occupancy with the reposition
+binding rule; party-member exit → §6) [codex 3, grok 5]; **features gain
+`works_against: both`** (adverse by rule: a mutual hazard always costs the party) [codex 3];
+**validation pipeline rewritten to instantiate Chapter 1 §5's handoff** (Continuity first;
+engine: catalog membership → availability gate before any dependency-owned lookup → schema →
+reference resolution → evaluator → license/valence) [codex 4]; **exactly-one-match rule** for
+item names and area ids (ambiguity rejects, mirroring occupancy) [codex 5]; **`item_lose`
+re-scoped** — pre-D16 a Continuity mundane-check applies (unique/powerful legacy items reject
+pending D16); post-D16 it is custody loss (records persist with provenance; destruction is a
+future op) [codex 6]; **§7 token semantics table** (canonical meaning + must-not-assert boundary
+per condition/feature token; absent tokens — blinded, silenced, poisoned, restrained — named in
+§6) [codex 7]; **`fact_learn` redesigned** — `{op, fact: licensed string}`: one verifiable fact,
+Continuity-checked for singularity/novelty/expressed-in-text, summary = the fact string, keywords
+engine-default empty (out of acceptance), retrieval boundedness honestly stated with binding
+force living in the ledger [codex 8, grok 3]; **LIVE `item_gain` write shape specified** onto
+today's inventory fields (engine constructs name/type/description/quantity; model supplies name
+only) [grok 4]; **shared conflict key for value ops** + array-level net-zero rejection
+[codex 10].
