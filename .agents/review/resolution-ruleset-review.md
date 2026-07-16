@@ -1,6 +1,6 @@
 # Resolution ruleset review (docs/rules/resolution.md)
 
-**Status**: r7 — grok ACCEPTED; codex REOPENED (2 findings: band-valence coherence, weight aggregation). r8 closes both — round 8 dispatched.
+**Status**: r8 — grok ACCEPTED; codex REOPENED (1 HIGH: one-directional coherence / ghost consequences). r9 makes coherence bidirectional — round 9 dispatched.
 **Artifact**: `docs/rules/resolution.md` (Chapter 1: Resolution — d100 tail-texture hybrid).
 **Owner direction**: 2026-07-16 — "turn this into a coherent ruleset then run it by codex and grok
 reviewloops." For THIS loop the owner's explicit wording reinstates the dual codex+grok contract,
@@ -261,4 +261,25 @@ annotation text does not describe is rejected); (2) aggregation defined by engin
 minor = 1, significant = 2, license budgets flavor_only/minor/significant = 0/1/2, summed cost ≤
 budget (one minor under minor; one significant or two minors under significant). D2 queue row
 updated with valence tags and point costs as deliverables.
+
+
+### Round 8 — pinned `1c353978639540cbaf199332337aa053648aeb98` (base `ca958a4`)
+
+#### grok 0.2.101 / grok-4.5 (read-only allowlist) — 2026-07-16T13:19:51Z. Valid, SHA-matched;
+`evidence_checked: true`; `cold_implementer_executable: true`; verdict: **ACCEPTED** — zero
+findings (both round-7 closures verified).
+
+#### codex-cli 0.144.4 — 2026-07-16T13:19:51Z. Valid, SHA-matched; `evidence_checked: true`;
+`cold_implementer_executable: false`; verdict: **reopened** (1 HIGH):
+1. HIGH — text–effect coherence was one-directional: it rejected effects absent from the text but
+   not mechanically consequential text with empty `effects` — `{text: "the pick snaps and is
+   lost", effects: []}` passed all validators vacuously and became binding canon without touching
+   inventory (the ghost-consequence class, re-entering through the flavor door).
+
+#### Coder triage → r9
+
+Admitted. r9 change (surgical): coherence is now bidirectional — every mechanical consequence the
+text asserts must have its matching `effects` entry; flavor-only is legal precisely because flavor
+means mechanically inert text; under a `flavor_only` license the text may assert no mechanical
+consequence at all. §6 may-not gains the matching prohibition for annotation text and narration.
 

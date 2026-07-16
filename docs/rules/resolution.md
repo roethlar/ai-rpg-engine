@@ -1,11 +1,10 @@
 # Aetheria House Ruleset — Chapter 1: Resolution
 
-**Status**: DRAFT r8 — round 7: grok ACCEPTED; codex reopened with 2 findings (no band-valence /
-text–effect coherence check, letting an adverse effect ride a `crit_success`; ambiguous weight
-aggregation over the `effects` array). This revision closes both: catalog valence tags make band
-valence engine-checkable, Continuity gains text–effect coherence, and license aggregation is
-defined by engine-owned points with a stated budget. Pending round-8 re-review, then owner
-sign-off.
+**Status**: DRAFT r9 — round 8: grok ACCEPTED; codex reopened with 1 HIGH (text–effect coherence
+was one-directional: text asserting a mechanical event with empty `effects` passed vacuously and
+canonized an unledgered consequence). This revision makes coherence bidirectional — flavor-only
+means mechanically inert text; narrated mechanics require their ledgered effect. Pending round-9
+re-review, then owner sign-off.
 **Provenance**: D0 (2026-07-12, fixed house chassis + flavor skins); D1 (2026-07-16, as amended);
 owner brainstorm adopted for drafting 2026-07-16 (`.agents/review/dice-bakeoff.md`, addenda 3–4).
 
@@ -117,8 +116,14 @@ A **check** resolves one uncertain, consequential action by the current turn's a
    extra/complication as a structured **annotation**: `{ text, effects }`. Continuity validates it
    against established fiction, the non-negation rule (an annotation on a success cannot remove,
    undo, or conditionalize the succeeded intent; on a failure it cannot grant the goal), and
-   **text–effect coherence**: every `effects` entry must be the mechanical expression of the
-   annotation's `text` — an effect the text does not describe is rejected.
+   **text–effect coherence, in both directions**: every `effects` entry must be the mechanical
+   expression of the annotation's `text`, and every mechanical consequence the text asserts — a
+   resource lost, harm taken, an NPC's disposition changed, an encounter begun, anything with
+   state weight — must have its matching `effects` entry. An effect the text does not describe is
+   rejected; so is text that narrates an unledgered mechanical event. Flavor-only annotations
+   remain legal precisely because flavor means mechanically inert color ("the picks slip once,
+   loudly" passes; "the pick snaps and is lost" requires the inventory effect or must be
+   reworded); under a `flavor_only` license the text may assert no mechanical consequence at all.
    - **On rejection**: the Referee may revise **once**. If the revision is also rejected, the
      engine commits `annotation: null` with the rejection reason in `annotationRejected`, and
      narration proceeds on the bare band — the band's mechanical meaning stands, and **no
@@ -287,7 +292,8 @@ id and callSeq, and neither enters game arithmetic); apply arithmetic; select wh
 actor); count one underlying fact in more than one place (tierBasis and deltas combined); request
 a second roll for a resolved logical key; upgrade, downgrade, or conditionalize a band in prose;
 attach effects outside the D2 catalog, beyond the stakes license, or with model-chosen
-quantities; offer the player an alternate outcome for a resolved check.
+quantities; assert a mechanical consequence in annotation text or narration without its matching
+ledgered effect; offer the player an alternate outcome for a resolved check.
 
 ## 7. Explicit non-scope (tracked elsewhere)
 
