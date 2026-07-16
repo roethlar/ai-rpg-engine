@@ -172,3 +172,27 @@ in `map-render.js` — master rewrote theme-var syntax `hsl(var(--x, …))` →
 master's syntax. Rebased commits: `5b9898e` (original fix, was `b178222`) +
 `a4d1c0b` (fix-ups, was `6060561`). Full suite green post-rebase (`node --test
 test.js`: pass 1, fail 0). Awaiting r2 verdict.
+
+---
+
+## Round-2 verdict (2026-07-15) — APPROVED — CLOSED
+
+Reviewer: codex (workspace-write sandbox, full-diff re-review of
+`fix/map-label-overflow` vs `master` @ `207f27e`). Log: `/tmp/map1-r2-verdict.log`.
+
+- **defect-1: FIXED, guard confirmed** — restoring UTF-16 `text.slice` made
+  "Ellipsizing never emits a lone surrogate" fail (`true !== false`).
+- **defect-2: FIXED, guard confirmed** — removing the area-index qualifier made
+  the colliding-slug uniqueness guard fail (`1 !== 2`).
+- **defect-3: FIXED, guard confirmed** — restoring independent position clamps
+  made "Area x+w is clamped to the canvas width" fail (`false !== true`).
+
+NEW findings: none. Edge probes passed: one-character emoji capacity,
+whitespace before ellipsis, empty-slug IDs, oversized and negative
+coordinates, escaping after truncation. `node --test test.js`: pass 1, fail 0
+after mutation restoration; `map-render.js` has no `hsl(var(` occurrences;
+working tree verified clean (all counterfactual mutations reverted, confirmed
+independently by the coder post-review: `git status` empty, both fixed lines
+present).
+
+**Coder's assessment: verdict accepted. Finding closed; landing to master.**
