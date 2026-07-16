@@ -656,6 +656,242 @@ function closeCampaignWizard() {
   campaignWizardModal.style.display = 'none';
 }
 
+// === In-app confirm/prompt dialogs =========================================
+// Native confirm()/prompt() are no-ops inside the Tauri (WKWebView) desktop
+// shell — confirm() silently returns false and prompt() silently returns
+// null there, which would abort destructive and input flows without ever
+// showing the user anything. These reuse the same .modal / .modal-content /
+// .modal-header / .modal-body / .form-actions structure as the settings and
+// campaign wizard modals above, so they share the app's existing look.
+function uiDialogShell(titleText) {
+  const previouslyFocused = document.activeElement;
+  const overlay = document.createElement('div');
+  overlay.className = 'modal';
+
+  const content = document.createElement('div');
+  content.className = 'modal-content glass-card';
+  content.style.maxWidth = '440px';
+  overlay.appendChild(content);
+
+  const header = document.createElement('div');
+  header.className = 'modal-header';
+  content.appendChild(header);
+  const heading = document.createElement('h2');
+  heading.textContent = titleText;
+  header.appendChild(heading);
+  const closeBtn = document.createElement('button');
+  closeBtn.type = 'button';
+  closeBtn.className = 'btn-close';
+  closeBtn.innerHTML = '<i class="fa-solid fa-xmark"></i>';
+  header.appendChild(closeBtn);
+
+  const body = document.createElement('div');
+  body.className = 'modal-body';
+  content.appendChild(body);
+
+  document.body.appendChild(overlay);
+  return { overlay, body, closeBtn, previouslyFocused };
+}
+
+// Ask a yes/no question. Resolves true on confirm, false on cancel/Escape —
+// same polarity as window.confirm() so call sites convert with `await`.
+function uiConfirm(message, opts = {}) {
+  const { danger = false, confirmLabel = 'Confirm', cancelLabel = 'Cancel' } = opts;
+  return new Promise((resolve) => {
+    const { overlay, body, closeBtn, previouslyFocused } = uiDialogShell(danger ? 'Are you sure?' : 'Confirm');
+
+    const form = document.createElement('form');
+    body.appendChild(form);
+
+    const msg = document.createElement('p');
+    msg.style.whiteSpace = 'pre-line';
+    msg.textContent = message;
+    form.appendChild(msg);
+
+    const actions = document.createElement('div');
+    actions.className = 'form-actions';
+    form.appendChild(actions);
+
+    const cancelBtn = document.createElement('button');
+    cancelBtn.type = 'button';
+    cancelBtn.className = 'btn btn-secondary';
+    cancelBtn.textContent = cancelLabel;
+    actions.appendChild(cancelBtn);
+
+    const confirmBtn = document.createElement('button');
+    confirmBtn.type = 'submit';
+    confirmBtn.className = danger ? 'btn btn-danger' : 'btn btn-primary';
+    confirmBtn.textContent = confirmLabel;
+    actions.appendChild(confirmBtn);
+
+    let settled = false;
+    const finish = (result) => {
+      if (settled) return;
+      settled = true;
+      document.removeEventListener('keydown', onKeydown, true);
+      overlay.remove();
+      if (previouslyFocused && typeof previouslyFocused.focus === 'function') previouslyFocused.focus();
+      resolve(result);
+    };
+    const onKeydown = (e) => {
+      if (e.key === 'Escape') { e.preventDefault(); finish(false); }
+    };
+    document.addEventListener('keydown', onKeydown, true);
+
+    form.addEventListener('submit', (e) => { e.preventDefault(); finish(true); });
+    cancelBtn.addEventListener('click', () => finish(false));
+    closeBtn.addEventListener('click', () => finish(false));
+
+    confirmBtn.focus();
+  });
+}
+
+// Ask for a line of text. Resolves the entered string, or null on
+// cancel/Escape — same polarity as window.prompt().
+function uiPrompt(message, opts = {}) {
+  const { placeholder = '', defaultValue = '', confirmLabel = 'OK' } = opts;
+  return new Promise((resolve) => {
+    const { overlay, body, closeBtn, previouslyFocused } = uiDialogShell('Input Needed');
+
+    const form = document.createElement('form');
+    body.appendChild(form);
+
+    const msg = document.createElement('p');
+    msg.style.whiteSpace = 'pre-line';
+    msg.textContent = message;
+    form.appendChild(msg);
+
+    const fieldGroup = document.createElement('div');
+    fieldGroup.className = 'form-group';
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.placeholder = placeholder;
+    input.value = defaultValue;
+    fieldGroup.appendChild(input);
+    form.appendChild(fieldGroup);
+
+    const actions = document.createElement('div');
+    actions.className = 'form-actions';
+    form.appendChild(actions);
+
+    const cancelBtn = document.createElement('button');
+    cancelBtn.type = 'button';
+    cancelBtn.className = 'btn btn-secondary';
+    cancelBtn.textContent = 'Cancel';
+    actions.appendChild(cancelBtn);
+
+    const confirmBtn = document.createElement('button');
+    confirmBtn.type = 'submit';
+    confirmBtn.className = 'btn btn-primary';
+    confirmBtn.textContent = confirmLabel;
+    actions.appendChild(confirmBtn);
+
+    let settled = false;
+    const finish = (result) => {
+      if (settled) return;
+      settled = true;
+      document.removeEventListener('keydown', onKeydown, true);
+      overlay.remove();
+      if (previouslyFocused && typeof previouslyFocused.focus === 'function') previouslyFocused.focus();
+      resolve(result);
+    };
+    const onKeydown = (e) => {
+      if (e.key === 'Escape') { e.preventDefault(); finish(null); }
+    };
+    document.addEventListener('keydown', onKeydown, true);
+
+    form.addEventListener('submit', (e) => { e.preventDefault(); finish(input.value); });
+    cancelBtn.addEventListener('click', () => finish(null));
+    closeBtn.addEventListener('click', () => finish(null));
+
+    input.focus();
+    input.select();
+  });
+}
+
+// Read-only "copy this value" dialog. For prompt() calls that only ever
+// displayed a value (e.g. a freshly minted seat token) rather than
+// collecting input — a real uiPrompt would let the value be edited or
+// cleared by accident before it's copied.
+function uiShowCopyDialog(message, value, opts = {}) {
+  const { confirmLabel = 'Done' } = opts;
+  return new Promise((resolve) => {
+    const { overlay, body, closeBtn, previouslyFocused } = uiDialogShell('Copy This Value');
+
+    const msg = document.createElement('p');
+    msg.style.whiteSpace = 'pre-line';
+    msg.textContent = message;
+    body.appendChild(msg);
+
+    const fieldGroup = document.createElement('div');
+    fieldGroup.className = 'form-group';
+    const row = document.createElement('div');
+    row.style.display = 'flex';
+    row.style.gap = '8px';
+
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.readOnly = true;
+    input.value = value;
+    input.style.flex = '1';
+    row.appendChild(input);
+
+    const copyBtn = document.createElement('button');
+    copyBtn.type = 'button';
+    copyBtn.className = 'btn btn-secondary';
+    copyBtn.textContent = 'Copy';
+    row.appendChild(copyBtn);
+    fieldGroup.appendChild(row);
+    body.appendChild(fieldGroup);
+
+    copyBtn.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(value);
+        copyBtn.textContent = 'Copied!';
+      } catch (err) {
+        input.focus();
+        input.select();
+        try {
+          document.execCommand('copy');
+          copyBtn.textContent = 'Copied!';
+        } catch (fallbackErr) {
+          copyBtn.textContent = 'Copy failed';
+        }
+      }
+      setTimeout(() => { copyBtn.textContent = 'Copy'; }, 1500);
+    });
+
+    const actions = document.createElement('div');
+    actions.className = 'form-actions';
+    body.appendChild(actions);
+    const doneBtn = document.createElement('button');
+    doneBtn.type = 'button';
+    doneBtn.className = 'btn btn-primary';
+    doneBtn.textContent = confirmLabel;
+    actions.appendChild(doneBtn);
+
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      document.removeEventListener('keydown', onKeydown, true);
+      overlay.remove();
+      if (previouslyFocused && typeof previouslyFocused.focus === 'function') previouslyFocused.focus();
+      resolve();
+    };
+    const onKeydown = (e) => {
+      if (e.key === 'Escape' || e.key === 'Enter') { e.preventDefault(); finish(); }
+    };
+    document.addEventListener('keydown', onKeydown, true);
+
+    doneBtn.addEventListener('click', finish);
+    closeBtn.addEventListener('click', finish);
+
+    input.focus();
+    input.select();
+  });
+}
+
 async function loadCharactersForWizard() {
   savedCharacterSummary.textContent = '';
   if (selectCharacterMode.value !== 'new') {
@@ -944,7 +1180,8 @@ async function loadCampaign(campaignId) {
 
 // Delete campaign
 window.deleteCampaign = async function (campaignId) {
-  if (!confirm('Are you sure you want to delete this campaign? All history will be lost.')) return;
+  const confirmed = await uiConfirm('Are you sure you want to delete this campaign? All history will be lost.', { danger: true, confirmLabel: 'Delete' });
+  if (!confirmed) return;
 
   try {
     const response = await fetchWithTimeout(`/api/campaigns/${campaignId}`, {
@@ -959,7 +1196,8 @@ window.deleteCampaign = async function (campaignId) {
 };
 
 window.releaseCampaignCharacter = async function (campaignId) {
-  if (!confirm('Release this campaign character profile for use in new campaigns? The current campaign keeps a local snapshot.')) return;
+  const confirmed = await uiConfirm('Release this campaign character profile for use in new campaigns? The current campaign keeps a local snapshot.', { confirmLabel: 'Release' });
+  if (!confirmed) return;
 
   try {
     const response = await fetchWithTimeout(`/api/campaigns/${campaignId}/release-character`, {
@@ -1278,14 +1516,15 @@ function renderParty(gameState) {
 // (S1 route, S3 flow). The token is shown exactly once; minting again
 // replaces it, which is also the recovery path for a leaked token.
 async function mintSeatFlow(characterId, characterName) {
-  if (!confirm(`Mint a seat token for ${characterName}?\n\nAny previous token for this character stops working immediately.`)) return;
+  const confirmed = await uiConfirm(`Mint a seat token for ${characterName}?\n\nAny previous token for this character stops working immediately.`, { danger: true, confirmLabel: 'Mint Token' });
+  if (!confirmed) return;
   try {
     const response = await fetchWithTimeout(`/api/campaigns/${currentCampaignId}/characters/${characterId}/seat`, {
       method: 'POST'
     });
     if (!response.ok) throw new Error(await getResponseErrorMessage(response, 'Failed to mint seat token'));
     const seat = await response.json();
-    window.prompt(
+    await uiShowCopyDialog(
       `Seat token for ${seat.characterName} — shown ONCE. Copy it and send it to that player only; they paste it as their access token in Settings:`,
       seat.seatToken
     );
@@ -1295,9 +1534,9 @@ async function mintSeatFlow(characterId, characterName) {
 }
 
 async function joinTableFlow() {
-  const name = window.prompt('Character name for this table:');
+  const name = await uiPrompt('Character name for this table:');
   if (!name || !name.trim()) return;
-  const concept = window.prompt('Character concept (e.g. "Wry salvage pilot", "Disgraced court mage"):') || '';
+  const concept = (await uiPrompt('Character concept (e.g. "Wry salvage pilot", "Disgraced court mage"):')) || '';
   try {
     showLoadingOverlay('Joining the table...');
     const response = await fetchWithTimeout(`/api/campaigns/${currentCampaignId}/join`, {
@@ -2260,9 +2499,9 @@ let forkInFlight = false;
 window.forkCampaignTimeline = async function(turnNumber) {
   if (forkInFlight) return;
   forkInFlight = true;
-  const newTitle = prompt(
+  const newTitle = await uiPrompt(
     `Branch timeline from Turn ${turnNumber}?\nThis creates a new campaign fork without modifying the current run.\n\nEnter new campaign name:`,
-    `${currentCampaignTitle} [Fork - Turn ${turnNumber}]`
+    { defaultValue: `${currentCampaignTitle} [Fork - Turn ${turnNumber}]` }
   );
   if (!newTitle) {
     forkInFlight = false;
