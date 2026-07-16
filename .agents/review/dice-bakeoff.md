@@ -155,3 +155,21 @@ axis — the math is equivalent, d20 reads as D&D-level-land, percentile as skil
 whichever players see rendered in the UI is the real identity choice. The no-roll gate's only
 engine-relevant function is as a floor patch; it dies if floors shrink or are accepted. No decision;
 D1 stands until superseded.
+
+## Addendum 4 — brainstorm continued: tail-texture hybrid on d100 (2026-07-16, NO DECISION)
+
+Owner sketch: uniform d100; a roll of 100 always succeeds and 1 always fails (hard floors); the
+near-extreme zone (2-n, mirrored at the top) carries margin-style texture — level 1 vs dragon:
+100 = clean hit, 99 = "probably also a hit, but X happens" — while the middle of the range stays
+strictly binary meet-or-beat. Situational modifiers (e.g., +3% for rain) are explicitly GM-council
+contextual rulings — "part of the reason this is AI at all" — and they interact with tail outcomes.
+Reconciliation with D1's code-owned ladder: code owns the base DC; the GM council owns logged
+situational deltas (the D&D-DM / GURPS-modifier split). Owner design principle, verbatim: "the
+rules should get out of the way when they're not needed and be there when they are" — this
+dissolves the no-roll gate into GM judgment (no coded gate; the council simply doesn't call for
+dice when nothing is at stake). Owner system touchstones: GURPS and D&D 1e-5e, NOT RuneQuest/CoC —
+drop the RQ/CoC flavor framing from Addendum 3; the sketch is structurally a generalized
+GURPS-style crit-tail system on a percentile chassis. Open fork to name at decision time: is the
+texture zone raw die value (fixed crit-range feel) or margin from the modified target (texture
+follows difficulty)? The rain example implies modified-roll-vs-target. Still NO DECISION; D1
+stands until superseded.
