@@ -138,3 +138,20 @@ recommendation is superseded. Rider (b) is closed — REJECTED by owner: outcome
 Recorded in `.agents/decisions.md` (2026-07-16 entry).
 
 
+
+## Addendum 3 — open brainstorm: d100 percentile variant (2026-07-16, NO DECISION)
+
+Owner floated d100 roll-over as an alternative spine: auto success/fail floors shrink 5% -> 1%,
+modifiers/DCs gain 1-point (=1%) granularity, and bonuses read directly as percentages. Analytic
+comparison (no sim needed — both dice are uniform): identical curve shape at 5x resolution, so all
+bake-off eliminations of 2d6/pool transfer unchanged. D1's committed core (binary outcomes, DC-only
+difficulty, code-owned ladder, descriptive-only GM latitude) is die-agnostic; only the literal "d20"
+and "nat 20/1" clauses would need superseding. Open design levers identified in discussion:
+(1) check-call discipline — when a check is rolled at all must be code/spec-owned in an agent-run
+game (rolling is free, so unmanaged agents inflate roll count, dragging pacing and multiplying
+floor events); (2) floor size is authored policy in a computed engine, not a die-face artifact
+(nat-1/nat-20 conventions are physical-table artifacts); (3) presentation/flavor is the deciding
+axis — the math is equivalent, d20 reads as D&D-level-land, percentile as skill-% land, and
+whichever players see rendered in the UI is the real identity choice. The no-roll gate's only
+engine-relevant function is as a floor patch; it dies if floors shrink or are accepted. No decision;
+D1 stands until superseded.
