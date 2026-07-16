@@ -43,10 +43,14 @@ to `docs/history/state-archive.md`.
   stakes license; bidirectional text–effect coherence kills ghost consequences)
   (`.agents/review/resolution-ruleset-review.md`). **SIGNED OFF by the owner 2026-07-16** — the
   superseding decision is recorded in `.agents/decisions.md`; the chapter is the active resolution
-  spec. Next queue decision: **D2 (effect catalog)**, whose deliverables row gates edge-band
+  spec. **D2 is DECIDED 2026-07-16** (free-text complications with contextual suggestions over a
+  deliberately wide engine verb set; trust tuned by the ledgered stakes license, never unledgered
+  effects — `.agents/decisions.md`). The next rules-track artifact is the **D2 catalog document**
+  (verb set + recorded deliverables), drafted through the reviewloop; it still gates edge-band
   implementation. The canonical queue remains
-  `.agents/review/rules-system-plan-intake.md` (next decisions: D2, D4, D6, D11, D12, D14 — one at
-  a time). No rules code before a concrete phase and an accepted plan review.
+  `.agents/review/rules-system-plan-intake.md` (next decisions: D4, D6, D11, D12, D14 — one at
+  a time; D3/D5/D13 are unblocked by D2). No rules code before a concrete phase and an accepted
+  plan review.
 - The existing owner-approved reviewloop backlog remains unstarted as of `ca55b55`.
   `.agents/review/index.md` owns the exact findings and order; resume at `jt-1`, finish the remaining
   backlog, then enter the approved T2-s/T2 plan.
@@ -104,16 +108,18 @@ to `docs/history/state-archive.md`.
 
 ## Next
 
-**THE RESOLUTION CHAPTER IS SIGNED OFF (2026-07-16).** The immediate product gate remains Phase V's
-owner voice playtest; the rules track's next owner decision is D2 (effect catalog), which also
-gates edge-band implementation. The admin model-registry track is complete.
+**THE RESOLUTION CHAPTER IS SIGNED OFF AND D2 IS DECIDED (2026-07-16).** The immediate product
+gate remains Phase V's owner voice playtest; the rules track's next deliverable is the D2 effect
+verb-catalog document (reviewloop), and the next owner decisions in the queue are D4, D6, D11,
+D12, D14. The admin model-registry track is complete.
 
 - Phase V's owner playtest remains the pending feel gate after this explicitly selected repo work.
   Configure either OpenAI or Grok voice in `/admin`, enable Voice Narration, and play a real scene
   with narrator plus multiple NPC lines. Confirm distinct/sticky identities, audible moods and
   per-line tones, Skip, and shared host/seat delivery.
-- `map-1` is landed and closed (merge `dd59c27`); the rules track's next owner move is D2 (effect
-  catalog), presented one item at a time from the intake queue.
+- `map-1` is landed and closed (merge `dd59c27`); the rules track's next moves are the D2 catalog
+  document (reviewloop) and the remaining queue decisions (D4, D6, D11, D12, D14), presented one
+  item at a time from the intake queue.
 - For the combined host/seat playtest, set
   `ACCESS_SECRET` + `ADMIN_SECRET`, confirm an AI provider is configured
   there, expose the server, create the second character (party strip

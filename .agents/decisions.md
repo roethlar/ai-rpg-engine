@@ -1102,3 +1102,52 @@ The die-specific clauses (list above) of the 2026-07-16 "Rules D1" entry. D1's d
 stands unchanged: difficulty lives only in the target; the ladder is code-owned; models never
 invent numbers; GM latitude on clean bands is descriptive only.
 
+### 2026-07-16 - Rules D2: complications are free text over an engine verb set; trust is tuned by the license, never by unledgered effects
+
+Status: Active
+
+Decision:
+Complications are never a fixed table of pre-written outcomes. They stay free text the model
+writes fresh each time, optionally supported by **contextual suggestions** — engine/council-
+generated, scene-derived complication candidates grounded in live state (carried items, present
+NPCs, active deltas) offered to the Referee, which remains free to write something else within the
+stakes license. Suggestions are advisory; they never become a menu constraint on the text.
+
+Any **mechanical** consequence a complication asserts must map to an engine verb — a state
+operation from the D2 catalog — with the verb set deliberately kept **wide enough to say yes to
+almost anything a GM would rule**. The D2 artifact is therefore an effect **verb** catalog (a
+state-operation vocabulary, the API to engine state), not complication content; narrative variety
+lives in the free text, not in the vocabulary.
+
+Model trust is tuned by widening or narrowing the ledgered stakes license (code-owned config,
+resolution chapter §1.5), **never by permitting unledgered effects**. The bidirectional
+text–effect coherence rule stands: narrated mechanics require ledgered effects. The trust
+experiment the owner wants — see the model fail in order to iterate — reads the ledger after real
+play; failure stays observable without unfalsifiable state drift.
+
+The previously recorded D2 scope deliverables stand unchanged: complication-effect classes
+(resource/inventory loss, NPC disposition shifts, encounter initiation, outcome-value modulation
+with D1b), effect weight classes (minor/significant), per-operation point costs, and per-operation
+valence tags. Next deliverable: the catalog document, drafted and run through the reviewloop like
+the resolution chapter. The accepted catalog document still gates edge-band implementation; no
+rules code before a concrete phase and an accepted plan review. The D2 decision unblocks the D3,
+D5, and D13 queue discussions.
+
+Reason:
+Owner 2026-07-16, rejecting the fixed-catalog-as-complication-table framing: "complication tables
+are too limiting. complication SUGGESTIONS, maybe. but we need to put a stake in the ground on
+model trust. we can't engineer a better model in this repo, so if it's going to fail, we need to
+see it fail to iterate. a static table will ultimately make encounters feel repetitive. unless the
+table is contextual." The owner then accepted this sharpened wording verbatim ("agreed"):
+"Complications stay free text with contextual suggestions, never a fixed table — but any
+mechanical consequence must map to an engine verb, with the verb set deliberately kept wide enough
+to say yes to almost anything a GM would rule. Trust is tuned by widening the license, not by
+unledgered effects."
+
+Supersedes:
+The intake D2 row's reviewer-recommendation reading of "fixed effect catalog" as fixed complication
+content. It refines — does not supersede — resolution chapter §1.5: catalog membership, valence,
+and point-budget validation stand, with the catalog understood as a wide state-verb vocabulary.
+The genre-spread coverage proof carries forward as a drafting-stage obligation on the verb set
+(reviewer recommendation; not separately owner-ruled).
+
