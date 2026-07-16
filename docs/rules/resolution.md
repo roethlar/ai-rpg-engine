@@ -1,8 +1,9 @@
 # Aetheria House Ruleset — Chapter 1: Resolution
 
-**Status**: DRAFT r4 — r3: grok ACCEPTED, codex reopened (4 findings; trail:
-`.agents/review/resolution-ruleset-review.md`); this revision addresses all four. Pending codex +
-grok re-review, then owner sign-off.
+**Status**: DRAFT r5 — r4: grok ACCEPTED (3rd consecutive), codex reopened (1 MEDIUM: numeric
+carve-out named callSeq as the sole model-emitted numeric token while calls also carry the integer
+actor id; trail: `.agents/review/resolution-ruleset-review.md`). This revision fixes that wording
+only. Pending codex + grok re-review, then owner sign-off.
 **Provenance**: D0 (2026-07-12, fixed house chassis + flavor skins); D1 (2026-07-16, as amended);
 owner brainstorm adopted for drafting 2026-07-16 (`.agents/review/dice-bakeoff.md`, addenda 3–4).
 
@@ -26,8 +27,9 @@ On owner acceptance, this chapter supersedes the following clauses of the 2026-0
    identifiers (direction + magnitude + reason, §3), the `tierBasis` statement, the `callSeq`
    protocol ordinal, and edge-band annotation proposals (§1.5). Every **game-mechanical number**
    remains engine-owned: models never emit, see pre-commit, or alter any value that enters game
-   arithmetic. The sole numeric token a model emits is `callSeq` — an idempotency identifier that
-   enters no game arithmetic.
+   arithmetic. Models emit exactly two numeric protocol identifiers, neither of which enters game
+   arithmetic: the acting-character id (a cross-check the engine independently binds and verifies,
+   §1.2) and the `callSeq` idempotency ordinal.
 
 Carried forward unchanged from D1: difficulty lives only in the target (no graded difficulty
 mechanics in the mid-range); the ladder is code-owned; models never invent numbers; GM latitude on
@@ -233,12 +235,12 @@ commit with `annotationRejected`) → Narration.
 ## 6. What models may and may not do
 
 **May:** call for a check (P1 judgment); name a tier token with its tierBasis; rule deltas as
-direction + magnitude + reason identifiers; emit the callSeq protocol ordinal; propose edge-band
+direction + magnitude + reason identifiers; emit the protocol identifiers (actor-id cross-check, callSeq ordinal); propose edge-band
 annotations (text-only canon in v1); narrate the computed band; describe success and failure to
 fit the situation.
 **May not:** roll dice; emit, invent, or alter any game-mechanical number (targets, bonuses, delta
-values, results — the callSeq protocol ordinal is the sole permitted numeric token and enters no
-game arithmetic); apply arithmetic; select whose competence a check uses (the engine binds the
+values, results — the only model-emitted numeric tokens are the two protocol identifiers, actor
+id and callSeq, and neither enters game arithmetic); apply arithmetic; select whose competence a check uses (the engine binds the
 actor); count one underlying fact in more than one place (tierBasis and deltas combined); request
 a second roll for a resolved logical key; upgrade, downgrade, or conditionalize a band in prose;
 attach state effects at all in v1 (`effects` is required-empty until the D2 catalog); offer the
@@ -274,3 +276,4 @@ addition, 2026-07-16).
   marginal-failure faces; rule 2 consumed raw 1, exactly as §1.4 states). Raw 2–6:
   `marginal_success` (raw−2 ≤ 4). Raw 7–99: `clean_success`. Raw 100: `crit_success`. Failure is
   nearly impossible — exactly 1% — and the game still gets its drama at the edge.
+

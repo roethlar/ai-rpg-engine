@@ -1,6 +1,6 @@
 # Resolution ruleset review (docs/rules/resolution.md)
 
-**Status**: r3 — grok ACCEPTED (2nd consecutive); codex REOPENED (4 findings). r4 revision in progress; both re-review r4.
+**Status**: r4 — grok ACCEPTED (3rd consecutive); codex REOPENED (1 MEDIUM). r5 revision in progress; both re-review r5.
 **Artifact**: `docs/rules/resolution.md` (Chapter 1: Resolution — d100 tail-texture hybrid).
 **Owner direction**: 2026-07-16 — "turn this into a coherent ruleset then run it by codex and grok
 reviewloops." For THIS loop the owner's explicit wording reinstates the dual codex+grok contract,
@@ -151,4 +151,23 @@ narrative canon with no mechanical mutation until the D2 catalog defines the onl
 vocabulary (#2); one-fact-one-home made explicitly semantic, Continuity rejects same-fact
 rewordings among deltas (#3); the numeric boundary reworded to game-mechanical numbers, with
 callSeq carved out as the sole protocol ordinal, excluded from all game arithmetic (#4).
+
+
+### Round 4 — pinned `3820e5a03faf46d6de4c75ead141b73f6f1bdb97` (base `79efb9f`)
+
+#### grok 0.2.101 / grok-4.5 — 2026-07-16T06:58:46Z. Valid, SHA-matched; `evidence_checked: true`;
+`cold_implementer_executable: true`; verdict: **ACCEPTED** — zero findings (third consecutive).
+
+#### codex-cli 0.144.4 — 2026-07-16T06:58:46Z. Valid, SHA-matched; `evidence_checked: true`;
+`cold_implementer_executable: false`; verdict: **reopened** (1 MEDIUM):
+
+1. MEDIUM — numeric carve-out inconsistent: §1.1 requires the Referee to emit the integer actor id
+   and §5 types `actor` as integer, so `callSeq` is not the "sole" model-emitted numeric token; a
+   literal item-5 validator rejects valid calls.
+
+#### Coder triage → r5
+
+Admitted. r5 change (surgical): supersession item 5 and §6 reworded — models emit exactly TWO
+numeric protocol identifiers, the actor-id cross-check (engine-bound and verified independently)
+and the callSeq idempotency ordinal; neither enters game arithmetic. No other text changes.
 
