@@ -1,6 +1,6 @@
 # Resolution ruleset review (docs/rules/resolution.md)
 
-**Status**: **CONVERGED** — r5 `f14593c79c7a1c608fda4546581bf09a2704849e` ACCEPTED by codex AND grok (zero findings, both cold-implementer-executable). Awaiting owner sign-off, which enacts the supersession declaration and the two flagged trades.
+**Status**: r6 — owner-directed amendments (mechanical catalog effects; licensed discretion) applied after r5 convergence; round 6 re-review dispatched to both reviewers.
 **Artifact**: `docs/rules/resolution.md` (Chapter 1: Resolution — d100 tail-texture hybrid).
 **Owner direction**: 2026-07-16 — "turn this into a coherent ruleset then run it by codex and grok
 reviewloops." For THIS loop the owner's explicit wording reinstates the dual codex+grok contract,
@@ -186,3 +186,20 @@ Owner sign-off remains the final gate; it enacts the chapter's supersession decl
 explicitly flagged trades (enumerated delta magnitudes replacing free "+3%" integers; annotation
 `effects` required-empty until D2).
 
+
+### Owner-directed amendments after r5 convergence (2026-07-16) → round 6
+
+The owner ruled post-convergence: (1) **complication effects are mechanical, not narrative-only**
+("A snapped pick reduces the player's pick count by 1. A spilled drink angers a patron and starts
+an encounter. A glancing blow does less damage.") — the r3-era effects-empty stopgap is deleted;
+effects execute exclusively through the D2 catalog, which becomes a hard prerequisite for
+implementing the edge bands, with its required scope recorded on the D2 queue row. (2) After the
+GM-discretion discussion (predictable-vs-contextual, the hard decision point), the owner approved
+**licensed discretion** ("Sure, let's try it."): bands license rather than require complications;
+an engine-computed stakes license (encounter state + tier + band) caps effect weight; license
+width is playtest-tunable config in both directions; every edge ruling is ledgered with its
+license (`stakesLicense`) so model discretion is auditable in real play. Per the convergence
+contract, these amendments invalidate the r5 acceptance; round 6 dispatched to both reviewers.
+
+Also queued from the same discussion: D15 (outline divergence & re-planning) added to the intake
+queue — campaign-structure scope, not this chapter.

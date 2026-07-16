@@ -1,10 +1,12 @@
 # Aetheria House Ruleset — Chapter 1: Resolution
 
-**Status**: REVIEW-CONVERGED — accepted by codex-cli 0.144.4 AND grok-4.5 at pinned commit
-`f14593c` with zero findings after five rounds (trail:
-`.agents/review/resolution-ruleset-review.md`). Awaiting owner sign-off, which enacts the
-Supersession declaration below. Substantive sections are unchanged from the accepted pin; only this
-status block differs.
+**Status**: DRAFT r6 — two owner-directed amendments to the r5-converged text (owner, 2026-07-16):
+(1) complication effects are mechanical, executed through the D2 catalog ("a snapped pick reduces
+the player's pick count by 1…"); (2) discretion is licensed and ledgered — bands license rather
+than require, an engine-computed stakes license caps effect weight, and the license width is
+playtest-tunable config in both directions (owner: "Sure, let's try it."). r5 `f14593c` was
+accepted by codex AND grok with zero findings; per the convergence contract these amendments
+require round-6 re-review. Pending that, then owner sign-off.
 **Provenance**: D0 (2026-07-12, fixed house chassis + flavor skins); D1 (2026-07-16, as amended);
 owner brainstorm adopted for drafting 2026-07-16 (`.agents/review/dice-bakeoff.md`, addenda 3–4).
 
@@ -99,8 +101,8 @@ A **check** resolves one uncertain, consequential action by the current turn's a
    | Order | Condition | Band token | Meaning |
    |---|---|---|---|
    | 1 | raw = 100 | `crit_success` | The intent succeeds cleanly, plus the best plausible extra the fiction supports. |
-   | 2 | raw = 1 | `crit_failure` | The intent fails, plus a GM-chosen complication. |
-   | 3 | raw ≥ T and raw − T ≤ N−1 | `marginal_success` | The intent **succeeds** — and a GM-chosen complication X also happens. X may cost, expose, or entangle; it must never negate the success. |
+   | 2 | raw = 1 | `crit_failure` | The intent fails, plus a GM-chosen complication within the stakes license (§1.5). |
+   | 3 | raw ≥ T and raw − T ≤ N−1 | `marginal_success` | The intent **succeeds** — and the GM may attach a complication X within the stakes license (§1.5). X may cost, expose, or entangle; it must never negate the success. |
    | 4 | raw ≥ T | `clean_success` | The intent succeeds; narrate to fit. |
    | 5 | T − raw ≤ N | `marginal_failure` | The intent **fails**; the GM narrates a near-miss. No partial achievement of the goal. |
    | 6 | otherwise | `clean_failure` | The intent fails; narrate to fit. |
@@ -123,13 +125,29 @@ A **check** resolves one uncertain, consequential action by the current turn's a
      narration in an undefined state.
    - **Atomicity and idempotency**: the annotation append is **one transaction**, committed at
      most once per `checkId`; a retry returns the committed result.
-   - **Effects are deferred to D2 — `effects` MUST be `[]` in v1.** The engine's current
-     state-change surface accepts concrete numeric mutations, and models must never feed numbers
-     into canon; no compliant enum-only effect vocabulary exists until the D2 effect catalog is
-     accepted. Until then, an annotation is **binding narrative canon** — recorded text that
-     narration and every later continuity check must honor — with no mechanical state mutation.
-     When D2 lands, its catalog becomes the only legal non-empty `effects` vocabulary, and effects
-     may never modify a check's outcome fields.
+   - **Complication effects are mechanical — executed exclusively through the D2 effect catalog.**
+     Complications carry real state consequences by design (owner ruling, 2026-07-16): a snapped
+     pick reduces the pick count by one; a spilled drink angers the patron and can start an
+     encounter; a glancing blow deals reduced damage. What models supply remains identifiers only:
+     each `effects` entry is a D2 catalog selection — an operation token whose quantities are fixed
+     or tiered and engine-owned — never a model-chosen number. Because that vocabulary does not
+     exist yet, **the D2 effect catalog is a hard prerequisite for implementing this chapter's edge
+     bands**: no implementation may ship annotations whose complications lack their mechanical
+     weight, and none may execute effects outside the catalog. Effects may never modify a check's
+     outcome fields. The annotation text is additionally binding narrative canon for narration and
+     every later continuity check.
+   - **Discretion is licensed, never required, and always ledgered (playtest-tunable).** A band
+     *licenses* a complication; it never mandates one — flavor-only is always a legal ruling, the
+     way a human GM lets a near-miss ride when the moment is light. How hard a complication may
+     bite is capped by an engine-computed **stakes license** derived from engine-known context
+     (active-encounter state, the check's tier, and whether the band is critical or marginal),
+     which maps to a maximum effect weight from the D2 catalog (the weight classes are D2 scope).
+     The Referee chooses *within* the license and may always choose less; it can never reach above
+     it. The license width — from flavor-only to fully open — is **code-owned config, explicitly
+     playtest-tunable in both directions**; the shipped default is a playtest question, not a
+     design commitment. Every edge-band ruling is ledgered together with the license it was made
+     under (`stakesLicense`, §5), so the model's discretion is auditable after real play: widen it
+     if it rules like a GM, tighten it if it rules like a slot machine — by config, not redesign.
    The check's outcome fields (`T`, `raw`, `band`, and everything in §5 except the one-time
    annotation transaction) are immutable from the moment of commit.
 6. **Narrate.** Narration receives the completed record and describes it. The band is binding:
@@ -221,8 +239,9 @@ Every check appends exactly one record; field types are the contract:
 | `raw` | integer 1–100 |
 | `sides` | literal `100` (roll-record contract, intake F7) |
 | `band` | band token (§1.4 enum) |
-| `annotation` | `{text: string ≤300, effects: []}` or `null` — `effects` is required-empty until D2 (§1.5); one atomic transaction, edge bands only |
+| `annotation` | `{text: string ≤300, effects: [...]}` or `null` — every `effects` entry is a D2 catalog selection, no model-chosen quantities (§1.5); one atomic transaction, edge bands only |
 | `annotationRejected` | string ≤200 or `null` — set when both annotation proposals failed validation (§1.5) |
+| `stakesLicense` | license token, engine-computed from encounter state + tier + band (§1.5) — recorded on edge-band checks, `null` otherwise |
 | `timestamp` | ISO-8601 UTC, engine clock, stamped at commit |
 
 Commit of everything except the annotation transaction is atomic with the roll (§1.3). Players see
@@ -230,27 +249,30 @@ the honest arithmetic ("rolled 82, needed 65"). Narration consumes the record; n
 may rewrite it. **Handoff order, fixed**: Referee call → engine structural validation + actor
 binding + idempotency check → Continuity pre-roll validation (every call) → engine assemble + roll
 + atomic commit → (edge bands) Referee annotation proposal → Continuity annotation validation (one
-revision allowed) → engine atomic annotation append, `effects` empty until D2 (or null-annotation
+revision allowed) → engine atomic annotation append + catalog-effect execution (or null-annotation
 commit with `annotationRejected`) → Narration.
 
 ## 6. What models may and may not do
 
 **May:** call for a check (P1 judgment); name a tier token with its tierBasis; rule deltas as
 direction + magnitude + reason identifiers; emit the protocol identifiers (actor-id cross-check, callSeq ordinal); propose edge-band
-annotations (text-only canon in v1); narrate the computed band; describe success and failure to
-fit the situation.
+annotations (text plus D2 catalog effect selections, within the stakes license — or nothing but
+flavor); narrate the computed band; describe success and failure to fit the situation.
 **May not:** roll dice; emit, invent, or alter any game-mechanical number (targets, bonuses, delta
 values, results — the only model-emitted numeric tokens are the two protocol identifiers, actor
 id and callSeq, and neither enters game arithmetic); apply arithmetic; select whose competence a check uses (the engine binds the
 actor); count one underlying fact in more than one place (tierBasis and deltas combined); request
 a second roll for a resolved logical key; upgrade, downgrade, or conditionalize a band in prose;
-attach state effects at all in v1 (`effects` is required-empty until the D2 catalog); offer the
-player an alternate outcome for a resolved check.
+attach effects outside the D2 catalog, beyond the stakes license, or with model-chosen
+quantities; offer the player an alternate outcome for a resolved check.
 
 ## 7. Explicit non-scope (tracked elsewhere)
 
-Value derivation for damage/effects (**D1b**); the effect catalog (**D2**, which also unlocks
-non-empty annotation `effects`); archetypes (**D3**); attributes and SkillBonus derivation
+Value derivation for damage/effects (**D1b**); the effect catalog (**D2** — a hard prerequisite for
+implementing this chapter's edge bands; its required scope includes the complication-effect
+classes: resource/inventory loss, NPC disposition shifts, encounter initiation, and outcome-value
+modulation jointly with D1b — plus the effect-weight classes the stakes license maps to);
+archetypes (**D3**); attributes and SkillBonus derivation
 (**D4**); spend economy (**D5**); zones/tactical space (**D6**); initiative (**D7**); the
 opposition curve and final ladder values (**D8**); dying/death (**D9**); recovery (**D10**);
 mid-resolution choices (**D11**); the parked lantern-holder character's rules treatment (intake

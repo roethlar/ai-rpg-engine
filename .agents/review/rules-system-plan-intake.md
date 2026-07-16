@@ -64,7 +64,7 @@ owner-approved wording in `.agents/decisions.md` and the eventual plan status.
 |---|---|---|---|
 | D0 | Overall frame | Bespoke fixed chassis plus campaign flavor skins | **DECIDED 2026-07-12** — fixed house chassis + generated flavor skins; see `.agents/decisions.md`. Unblocks D1, D2, D4, D6, D11, D12, D14. |
 | D1 | Dice engine | Keep d20, but prove the curve before wiring | **DECIDED 2026-07-16** — d20 meet-or-beat, DC-only difficulty; margin-band grammar rejected. See `.agents/decisions.md` + `.agents/review/dice-bakeoff.md`. Unblocks D8. |
-| D2 | Ability representation | Fixed effect catalog, genre-spread prototype first | Pending owner decision |
+| D2 | Ability representation | Fixed effect catalog, genre-spread prototype first | Pending owner decision — **scope requirement recorded (owner 2026-07-16)**: the catalog must also express check-complication effects (resource/inventory loss, NPC disposition shifts, encounter initiation, outcome-value modulation with D1b) and is a hard prerequisite for implementing the resolution chapter's edge bands (`docs/rules/resolution.md` §1.5) |
 | D3 | Archetype boundary | Stable chassis archetypes, flavor-skinned | Pending D2 |
 | D4 | Attribute count | Keep STR/AGI/INT/WIL | Pending owner decision |
 | D5 | Player spend economy | One Strain/Effort pool plus HP and XP | Pending D2 |
@@ -77,6 +77,7 @@ owner-approved wording in `.agents/decisions.md` and the eventual plan status.
 | D12 | GM threat currency | Defer until a feel experiment | Pending owner decision |
 | D13 | Legacy/versioning/freeform | Legacy tier, pinned chassis, explicit `rules_mode` decision | Pending D2 |
 | D14 | CC0 balance shortcut | Allow WWN/CWN CC0 reference data | Pending owner decision |
+| D15 | Outline divergence & re-planning | Owner-raised 2026-07-16 (F&F evidence: the GM refused an off-path attack on an "ally", then ended the encounter rather than adapt — the 3-act outline risks the same failure at campaign timescale). Required shape: split world-facts (canon) from plot-intentions (GM prep, never canon, injected as revisable); an invalidation-triggered forward re-outline step (played acts immutable, future acts regenerated from actual state, amendments ledgered); world momentum for wandering players (re-plan on invalidation, never on slowness) | Pending — interacts with D2 (disposition/encounter effects) and the pacing dials |
 
 ## Candidate implementation order from intake
 
