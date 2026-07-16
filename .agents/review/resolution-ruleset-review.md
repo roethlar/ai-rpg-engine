@@ -1,6 +1,6 @@
 # Resolution ruleset review (docs/rules/resolution.md)
 
-**Status**: r2 — grok ACCEPTED; codex REOPENED (8 findings). r3 revision in progress; both re-review r3.
+**Status**: r3 — grok ACCEPTED (2nd consecutive); codex REOPENED (4 findings). r4 revision in progress; both re-review r4.
 **Artifact**: `docs/rules/resolution.md` (Chapter 1: Resolution — d100 tail-texture hybrid).
 **Owner direction**: 2026-07-16 — "turn this into a coherent ruleset then run it by codex and grok
 reviewloops." For THIS loop the owner's explicit wording reinstates the dual codex+grok contract,
@@ -118,4 +118,37 @@ supersession item 5 disclosing the model-authority expansion (#5); `tierBasis` f
 one-home rule enforced by the pre-roll check (#6); calibration note recomputed at the true +75
 top (#7); symmetry claim qualified as mid-range shape with the ordered evaluator normative (#8).
 Grok re-reviews r3 as well — acceptance does not carry forward across a text change.
+
+
+### Round 3 — pinned `79efb9f54a73c24f7e5d10e9d2e0eadf7730e96d` (base `56df9d3`)
+
+#### grok 0.2.101 / grok-4.5 (high reasoning, isolated worktree, schema-enforced)
+
+2026-07-16T06:45:18Z. Structured verdict valid and SHA-matched. `evidence_checked: true`;
+`cold_implementer_executable: true`; verdict: **ACCEPTED** — zero findings (second consecutive
+grok acceptance; re-reviewed because acceptance does not carry across a text change).
+
+#### codex-cli 0.144.4 (read-only sandbox, schema-enforced output)
+
+2026-07-16T06:45:18Z. Structured verdict valid and SHA-matched. `evidence_checked: true`;
+`cold_implementer_executable: false`; verdict: **reopened** (2 HIGH / 2 MEDIUM).
+
+1. HIGH — Continuity pre-roll check runs only on delta-bearing calls, yet it is the sole component
+   that rejects a transient-circumstance tierBasis; a no-delta `hard`+rain-basis call commits a
+   rain-inflated target unreviewed.
+2. HIGH — `annotation.effects[]` has no type/domain; the delegated state-change surface accepts
+   concrete numeric mutations, so no enum-only compliant execution path exists before D2.
+3. MEDIUM — duplicate-delta protection is lexical (reason strings); semantic duplicates ("driving
+   rain" / "heavy rainfall") can stack one fact twice.
+4. MEDIUM — supersession item 5 / §6 say models never emit ANY number, but callSeq is a required
+   model-emitted integer (schema implementers must violate the stated boundary or reject calls).
+
+#### Coder triage → r4
+
+All 4 admitted. r4 changes: Continuity pre-roll check runs on EVERY call, validating tierBasis
+always and deltas when present (#1); `effects` is REQUIRED-EMPTY in v1 — annotations are binding
+narrative canon with no mechanical mutation until the D2 catalog defines the only legal non-empty
+vocabulary (#2); one-fact-one-home made explicitly semantic, Continuity rejects same-fact
+rewordings among deltas (#3); the numeric boundary reworded to game-mechanical numbers, with
+callSeq carved out as the sole protocol ordinal, excluded from all game arithmetic (#4).
 

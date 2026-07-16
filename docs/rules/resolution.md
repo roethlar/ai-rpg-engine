@@ -1,8 +1,8 @@
 # Aetheria House Ruleset — Chapter 1: Resolution
 
-**Status**: DRAFT r3 — r2 was accepted by grok and reopened by codex (8 findings; trail:
-`.agents/review/resolution-ruleset-review.md`); this revision addresses all eight. Pending codex +
-grok re-review of this text, then owner sign-off.
+**Status**: DRAFT r4 — r3: grok ACCEPTED, codex reopened (4 findings; trail:
+`.agents/review/resolution-ruleset-review.md`); this revision addresses all four. Pending codex +
+grok re-review, then owner sign-off.
 **Provenance**: D0 (2026-07-12, fixed house chassis + flavor skins); D1 (2026-07-16, as amended);
 owner brainstorm adopted for drafting 2026-07-16 (`.agents/review/dice-bakeoff.md`, addenda 3–4).
 
@@ -24,8 +24,10 @@ On owner acceptance, this chapter supersedes the following clauses of the 2026-0
 5. **Model authority expands, disclosed.** D1 allowed models to select a difficulty tier by name
    and nothing else numeric-adjacent. This chapter additionally grants: situational-delta
    identifiers (direction + magnitude + reason, §3), the `tierBasis` statement, the `callSeq`
-   ordinal, and edge-band annotation proposals (§1.5). Every number remains engine-owned; models
-   still never emit, see pre-commit, or alter a numeric value.
+   protocol ordinal, and edge-band annotation proposals (§1.5). Every **game-mechanical number**
+   remains engine-owned: models never emit, see pre-commit, or alter any value that enters game
+   arithmetic. The sole numeric token a model emits is `callSeq` — an idempotency identifier that
+   enters no game arithmetic.
 
 Carried forward unchanged from D1: difficulty lives only in the target (no graded difficulty
 mechanics in the mid-range); the ladder is code-owned; models never invent numbers; GM latitude on
@@ -59,7 +61,8 @@ A **check** resolves one uncertain, consequential action by the current turn's a
    identifiers: the acting character id (cross-check only — see step 2), the intent (one line of
    text), the **difficulty tier** (enum, §2), a **tierBasis** (≤120 chars: the ordinary-conditions
    basis for that tier choice, §3), zero to three **situational deltas** (enum + reason, §3), and a
-   **callSeq** — an ordinal (1, 2, 3, …) unique within this turn's adjudication.
+   **callSeq** — a protocol ordinal (1, 2, 3, …) unique within this turn's adjudication, used only
+   for idempotency and never in game arithmetic.
 2. **Validation (engine + Continuity, all before any roll).**
    - The engine **binds the actor**: the check resolves for the engine-known acting character of
      the current turn; a call whose actor field names anyone else is rejected. Models cannot select
@@ -69,10 +72,13 @@ A **check** resolves one uncertain, consequential action by the current turn's a
    - **Idempotency**: the logical key `(turn, actor, callSeq)` maps to at most one check, forever.
      If the key already has a committed record, the engine returns that record — a retried or
      replayed call can never produce a second roll.
-   - **Continuity pre-roll check (delta-bearing calls only)**: Continuity verifies each delta's
-     reason against the established record, and enforces the one-fact-one-home rule (§3) using the
-     tierBasis. A rejected delta rejects the whole call back to the Referee — nothing has been
-     rolled or committed, so revision is clean. Calls with no deltas skip this step.
+   - **Continuity pre-roll check (every call)**: Continuity validates the `tierBasis` on every
+     call — a basis that bakes in a transient circumstance is rejected (those belong in deltas).
+     When deltas are present it additionally verifies each delta's reason against the established
+     record, enforces the one-fact-one-home rule (§3), and rejects **semantic** duplicates: two
+     deltas citing the same underlying fact under different wordings count as one fact. Any
+     rejection bounces the whole call back to the Referee — nothing has been rolled or committed,
+     so revision is clean.
 3. **Assembly and roll (engine, atomic).** The engine computes the target:
 
    `netDelta = clamp(Σ delta values, −20, +20)`
@@ -104,19 +110,23 @@ A **check** resolves one uncertain, consequential action by the current turn's a
    Probability tests must follow the ordered evaluator, not the mid-range shape.
 5. **Annotation (edge bands only; validated, atomic, one-shot).** For `crit_success`,
    `crit_failure`, `marginal_success`, and `marginal_failure`, the Referee proposes the
-   extra/complication as a structured **annotation**: `{ text, effects[] }`. Continuity validates
-   it against established fiction and the non-negation rule (an annotation on a success cannot
+   extra/complication as a structured **annotation**: `{ text, effects }`. Continuity validates it
+   against established fiction and the non-negation rule (an annotation on a success cannot
    remove, undo, or conditionalize the succeeded intent; on a failure it cannot grant the goal).
    - **On rejection**: the Referee may revise **once**. If the revision is also rejected, the
      engine commits `annotation: null` with the rejection reason in `annotationRejected`, and
      narration proceeds on the bare band — the band's mechanical meaning stands; any complication
-     coloring is descriptive only and carries no state effects. An edge-band check therefore never
-     stalls and never reaches narration in an undefined state.
-   - **Atomicity and idempotency**: annotation append and effect execution are **one transaction**,
-     committed at most once per `checkId`; a retry returns the committed result. Effects execute
-     only through the engine's existing validated state-change operations (until the D2 effect
-     catalog lands, that surface is the entire legal effect vocabulary) and cannot modify the
-     check's outcome fields.
+     coloring is descriptive only. An edge-band check therefore never stalls and never reaches
+     narration in an undefined state.
+   - **Atomicity and idempotency**: the annotation append is **one transaction**, committed at
+     most once per `checkId`; a retry returns the committed result.
+   - **Effects are deferred to D2 — `effects` MUST be `[]` in v1.** The engine's current
+     state-change surface accepts concrete numeric mutations, and models must never feed numbers
+     into canon; no compliant enum-only effect vocabulary exists until the D2 effect catalog is
+     accepted. Until then, an annotation is **binding narrative canon** — recorded text that
+     narration and every later continuity check must honor — with no mechanical state mutation.
+     When D2 lands, its catalog becomes the only legal non-empty `effects` vocabulary, and effects
+     may never modify a check's outcome fields.
    The check's outcome fields (`T`, `raw`, `band`, and everything in §5 except the one-time
    annotation transaction) are immutable from the moment of commit.
 6. **Narrate.** Narration receives the completed record and describes it. The band is binding:
@@ -153,7 +163,7 @@ is a D8 tuning decision; the tier *grammar* in this chapter does not depend on t
 ## 3. Situational deltas (GM-ruled identifiers, engine-owned numbers)
 
 Contextual judgment is why the GM is an AI at all (owner, 2026-07-16) — but per the D0/intake
-invariant, models emit **validated identifiers, never numbers**. Both hold:
+invariant, models emit **validated identifiers, never game-mechanical numbers**. Both hold:
 
 - A delta is `{ direction, magnitude, reason }`: `direction` ∈ {`favors`, `hinders`};
   `magnitude` ∈ {`slight`, `moderate`, `major`}; `reason` is a string (≤120 chars) naming an
@@ -162,13 +172,15 @@ invariant, models emit **validated identifiers, never numbers**. Both hold:
   (code-owned config) — signs them by direction, sums, and clamps the net to ±20 (§1.3).
 - Hard limits, engine-enforced: at most **3** deltas per check; duplicate or empty reasons
   rejected; a rejected delta rejects the whole call back to the Referee (no silent dropping).
-- **One fact, one home (anti-double-counting).** The tier prices the task's *intrinsic* difficulty
-  under the ordinary conditions stated in `tierBasis`; every departure from those conditions enters
-  the check **only** as a delta. The same fact may not appear in both: Continuity's pre-roll check
-  (§1.2) rejects a delta whose fact is already part of the stated tierBasis, and rejects a
-  tierBasis that bakes in a transient circumstance (those belong in deltas).
-- All delta validation happens **before the roll** (§1.2); no invented circumstance can reach a
-  committed record.
+- **One fact, one home (anti-double-counting, semantic).** The tier prices the task's *intrinsic*
+  difficulty under the ordinary conditions stated in `tierBasis`; every departure from those
+  conditions enters the check **only** as a delta. One underlying fact may be counted once,
+  anywhere: Continuity's pre-roll check (§1.2) rejects a delta whose fact is already part of the
+  stated tierBasis, rejects a tierBasis that bakes in a transient circumstance, and rejects a
+  second delta that cites the same underlying fact under different wording ("driving rain" /
+  "heavy rainfall" are one fact). The rule is semantic, not string-matching.
+- All delta and tierBasis validation happens **before the roll** (§1.2), on every call; no
+  invented or double-counted circumstance can reach a committed record.
 - Deltas are GM rulings, not negotiations (2026-06-11 GM-authority decision). Character competence
   (SkillBonus) is sheet state applied by the engine — never expressed as a delta.
 
@@ -194,7 +206,7 @@ Every check appends exactly one record; field types are the contract:
 | `checkId` | UUID v4, engine-generated, registered to the logical key below |
 | `turn` | integer — the committed turn number the check belongs to |
 | `actor` | integer — character id, engine-bound to the turn's acting character (§1.2) |
-| `callSeq` | integer ≥ 1 — Referee-emitted ordinal; `(turn, actor, callSeq)` is the idempotency key |
+| `callSeq` | integer ≥ 1 — Referee-emitted protocol ordinal; `(turn, actor, callSeq)` is the idempotency key; never used in game arithmetic |
 | `intent` | string ≤200 |
 | `tier` | tier token (§2 enum) |
 | `tierBasis` | string ≤120 — ordinary-conditions basis for the tier choice (§3) |
@@ -206,38 +218,42 @@ Every check appends exactly one record; field types are the contract:
 | `raw` | integer 1–100 |
 | `sides` | literal `100` (roll-record contract, intake F7) |
 | `band` | band token (§1.4 enum) |
-| `annotation` | `{text: string ≤300, effects: [...]}` or `null` — one atomic transaction per §1.5, edge bands only |
+| `annotation` | `{text: string ≤300, effects: []}` or `null` — `effects` is required-empty until D2 (§1.5); one atomic transaction, edge bands only |
 | `annotationRejected` | string ≤200 or `null` — set when both annotation proposals failed validation (§1.5) |
 | `timestamp` | ISO-8601 UTC, engine clock, stamped at commit |
 
 Commit of everything except the annotation transaction is atomic with the roll (§1.3). Players see
 the honest arithmetic ("rolled 82, needed 65"). Narration consumes the record; nothing downstream
 may rewrite it. **Handoff order, fixed**: Referee call → engine structural validation + actor
-binding + idempotency check → Continuity pre-roll validation (delta-bearing calls) → engine
-assemble + roll + atomic commit → (edge bands) Referee annotation proposal → Continuity annotation
-validation (one revision allowed) → engine atomic annotation append + effect execution (or
-null-annotation commit with `annotationRejected`) → Narration.
+binding + idempotency check → Continuity pre-roll validation (every call) → engine assemble + roll
++ atomic commit → (edge bands) Referee annotation proposal → Continuity annotation validation (one
+revision allowed) → engine atomic annotation append, `effects` empty until D2 (or null-annotation
+commit with `annotationRejected`) → Narration.
 
 ## 6. What models may and may not do
 
 **May:** call for a check (P1 judgment); name a tier token with its tierBasis; rule deltas as
-direction + magnitude + reason identifiers; emit the callSeq ordinal; propose edge-band
-annotations; narrate the computed band; describe success and failure to fit the situation.
-**May not:** roll dice; emit, invent, or alter any number (targets, bonuses, delta values,
-results); apply arithmetic; select whose competence a check uses (the engine binds the actor);
-count one fact in both tierBasis and a delta; request a second roll for a resolved logical key;
-upgrade, downgrade, or conditionalize a band in prose; attach state effects outside the validated
-annotation transaction; offer the player an alternate outcome for a resolved check.
+direction + magnitude + reason identifiers; emit the callSeq protocol ordinal; propose edge-band
+annotations (text-only canon in v1); narrate the computed band; describe success and failure to
+fit the situation.
+**May not:** roll dice; emit, invent, or alter any game-mechanical number (targets, bonuses, delta
+values, results — the callSeq protocol ordinal is the sole permitted numeric token and enters no
+game arithmetic); apply arithmetic; select whose competence a check uses (the engine binds the
+actor); count one underlying fact in more than one place (tierBasis and deltas combined); request
+a second roll for a resolved logical key; upgrade, downgrade, or conditionalize a band in prose;
+attach state effects at all in v1 (`effects` is required-empty until the D2 catalog); offer the
+player an alternate outcome for a resolved check.
 
 ## 7. Explicit non-scope (tracked elsewhere)
 
-Value derivation for damage/effects (**D1b**); the effect catalog (**D2**); archetypes (**D3**);
-attributes and SkillBonus derivation (**D4**); spend economy (**D5**); zones/tactical space
-(**D6**); initiative (**D7**); the opposition curve and final ladder values (**D8**); dying/death
-(**D9**); recovery (**D10**); mid-resolution choices (**D11**); the parked lantern-holder
-character's rules treatment (intake addition, 2026-07-16).
+Value derivation for damage/effects (**D1b**); the effect catalog (**D2**, which also unlocks
+non-empty annotation `effects`); archetypes (**D3**); attributes and SkillBonus derivation
+(**D4**); spend economy (**D5**); zones/tactical space (**D6**); initiative (**D7**); the
+opposition curve and final ladder values (**D8**); dying/death (**D9**); recovery (**D10**);
+mid-resolution choices (**D11**); the parked lantern-holder character's rules treatment (intake
+addition, 2026-07-16).
 
-## 8. Worked examples (r2 band boundaries; unchanged by r3 — verified against §1.4's ordered evaluator)
+## 8. Worked examples (verified against §1.4's ordered evaluator)
 
 - **Master thief, mundane lock, no pressure.** No check (P1). Narrated success; no ledger entry.
 - **Level-1 fighter swings at a dragon.** `legendary` (98), SkillBonus 5, no deltas → T = 93.
@@ -250,7 +266,8 @@ character's rules treatment (intake addition, 2026-07-16).
   netDelta +3 → T = 23. Raw 25: `marginal_success` (25−23 = 2 ≤ 4) — it opens as the picks slip
   once, loudly. Dry, the same raw 25 is a `clean_success` (25−20 = 5). Raw 21: dry
   `marginal_success` (1 ≤ 4); in rain `marginal_failure` (23−21 = 2 ≤ 5). Texture follows the
-  modified target. The rain may not also justify choosing `hard` — one fact, one home (§3).
+  modified target. The rain may not also justify choosing `hard`, nor appear twice as "driving
+  rain" and "heavy rainfall" — one fact, one home (§3).
 - **Certain-but-consequential.** Master climber (SkillBonus 60) on an `easy` face (25): raw
   T = 25 − 60 = −35, clamps to 2. The council still called the check because a storm makes a
   stumble costly. Raw 1: `crit_failure` — the 1% catastrophe (at this clamp there are no
