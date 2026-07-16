@@ -25,9 +25,12 @@ to `docs/history/state-archive.md`.
   reverified 2026-07-15, is absent from the canonical remotes; it must never be merged or revived.
   `.agents/machines.md` owns the machine-local cleanup blocker. The durable post-mortem is
   `docs/history/css-2-abandoned-scanner.md`.
-- **map-1 is REOPENED and PARKED** at `fix/map-label-overflow` / `b178222`; as of `ca55b55`, it is
-  the only unmerged review finding with a branch. `.agents/review/findings/map-1.md` owns the defect
-  enumeration and verdict. Fix-ups require an explicit go or park decision.
+- **map-1 is CLOSED — landed on `master`** via merge `dd59c27` (2026-07-15) on the owner's
+  explicit go, after a codex r2 APPROVED verdict (3/3 defects fixed, guards confirmed, no new
+  findings). Content verified on master (both fixed lines present, no `hsl(var(`, suite green:
+  pass 1 / fail 0) and `fix/map-label-overflow` deleted after verification.
+  `.agents/review/findings/map-1.md` owns the defect enumeration and both verdicts. No review
+  finding has an open branch.
 - **The rules system is the next big feature.** D0 is decided: one fixed house chassis with
   generated campaign flavor. D1 (the die) is the next owner decision. The canonical queue is
   `.agents/review/rules-system-plan-intake.md`; present it one item at a time. No rules code before
@@ -84,7 +87,8 @@ Phase V's owner voice playtest; the rules track resumes with D1 when the owner c
   Configure either OpenAI or Grok voice in `/admin`, enable Voice Narration, and play a real scene
   with narrator plus multiple NPC lines. Confirm distinct/sticky identities, audible moods and
   per-line tones, Skip, and shared host/seat delivery.
-- `map-1` still needs an explicit go; the rules track resumes with D1 when the owner is ready.
+- `map-1` is landed and closed (merge `dd59c27`); the rules track resumes with D1 when the owner
+  is ready.
 - For the combined host/seat playtest, set
   `ACCESS_SECRET` + `ADMIN_SECRET`, confirm an AI provider is configured
   there, expose the server, create the second character (party strip
@@ -97,7 +101,7 @@ Phase V's owner voice playtest; the rules track resumes with D1 when the owner c
   a repo task.
 - Phase V's code gates are closed; its feel verdict requires the owner's real-session voice
   playtest described under `## Next`.
-- `map-1` fix-ups need an explicit go or park decision.
+- `map-1` is closed; no review-finding branches remain open.
 - A machine-local css-2 cleanup is blocked on explicit destructive go; see `.agents/machines.md`.
 
 ## Verification
