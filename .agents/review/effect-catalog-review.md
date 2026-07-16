@@ -96,3 +96,66 @@ mechanical consequence must map to an engine verb") [codex 4]; **§8 examples re
 executable acceptance cases** (full payloads, coherent text, starting states, crit-success
 foe-directed case) [codex 8]; **suggestion assembler de-scoped from determinism** (advisory,
 implementation-defined, cap + pre-validation only) [codex 9].
+
+### Round 2 — pinned `594c4240385484ab0a7f35fbec8bb4c477f47c11` (draft r2)
+
+#### grok (same incantation)
+
+Valid, SHA-matched, `evidence_checked: true`, `cold_implementer_executable: false`: **reopened**
+(3 HIGH / 4 MEDIUM).
+
+1. HIGH — §8 example 3 grants the goal on `marginal_failure` ("the node yields"), teaching the
+   exact non-negation violation Chapter 1 forbids.
+2. HIGH — scene features claim LIVE but the occupancy layer cannot hold kind/duration
+   (`{name, kind, area, note}` only); note-smuggling would parse strings for mechanics.
+3. HIGH — significant `item_gain` is unresolvable: an item being gained is by definition not yet
+   in the owner's inventory, so the item-key rule rejects all D16 loot.
+4. MEDIUM — `fact_learn` overclaims: memories have no checkId column; importance is numeric and
+   model-emittable today.
+5. MEDIUM — one-write-per-(target, property) has no per-operation key definition.
+6. MEDIUM — `reposition` has no actor→occupancy binding rule (no ids; duplicate names).
+7. MEDIUM — coverage: on-scene actor arrival (reinforcements/summons) and opposition injury are
+   neither ops nor §6 entries.
+
+#### codex (same incantation)
+
+Valid, SHA-matched, `evidence_checked: true`, `cold_implementer_executable: false`: **reopened**
+(2 CRITICAL / 4 HIGH / 1 MEDIUM).
+
+1. CRITICAL — licensed strings can smuggle semantics past the budget: a "mundane" master key,
+   paralysis inside a `hindered` detail, a catastrophic named hazard priced by duration only.
+2. CRITICAL — the recorded-item grammar cannot transfer D16 loot (no source holder; a
+   lose+gain pair double-prices to 4 points, over every license).
+3. HIGH — LIVE claims without executable identity/lifecycle state: reposition (no occupancy ids,
+   duplicate names, absent-NPC pull-in), features (fields don't exist), fact_learn (no check
+   linkage).
+4. HIGH — fixed scene-feature valence is contextually wrong (crit-success cover impossible;
+   clearing party cover on a failure tagged beneficial).
+5. HIGH — `wealth_shift` accepts character targets but D16 records wealth for NPCs only.
+6. MEDIUM — no canonical conflict-key definition for the one-write rule.
+7. HIGH — creatures and actor arrivals are unaddressable (creature occupants have no stable
+   reference; `encounter_start` needs participants already present) and not on §6.
+
+#### Coder triage → r3
+
+All findings ADMITTED; overlaps merged. r3 changes: **licensed strings become subordinate to
+their token** — a semantic contract per string (item `name`: genre-plausible mundane object,
+no rarity/power/plot weight; condition `detail`: cause/color only, never mechanics beyond the
+token; feature `name`: color only), enforced by Continuity as the same semantic gate as delta
+reasons, with downstream prompts required to treat string content as color [codex 1];
+**`item_transfer`** (atomic, priced once by item class, preserves record/condition/provenance,
+GATED:D16) replaces recorded-item `item_gain`, which keeps only the mundane licensed-string form
+[codex 2, grok 3]; **scene features gated on a declared feature record**
+({id, location, area, kind, name, duration, works_against, source, appliedTurn}) with
+**`works_against: party|opposition`** composing valence through the party frame (place validated
+by Continuity; clear computed from the stored field) [grok 2, codex 3/4]; **reposition binding
+rule** — exact unique (name, kind) match required among current occupants, zero/multiple/absent →
+reject [grok 6, codex 3]; **`fact_learn` mapping made honest** — idempotency inherited from the
+one-atomic-annotation-per-check transaction (no new column; ledger holds the authoritative
+check linkage; importance is an engine config default) [grok 4, codex 3]; **normative
+conflict-key table** for every op incl. targetless singletons; reference resolution runs against
+the tentative state [grok 5, codex 6]; **`wealth_shift` restricted to NPCs** (PC wealth named in
+§6/§9 as requiring its own decision) [codex 5]; **§6 additions** — actor arrival
+(reinforcements/summons: D7/D8/D16), opposition vitals/injury (D8/D16), creature references
+(D8), PC wealth [grok 7, codex 7]; **§8 example 3 rewritten to fail the intent** and the example
+set restructured into LIVE cases plus explicit gate-rejection cases [grok 1].
