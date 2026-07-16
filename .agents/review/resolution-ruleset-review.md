@@ -1,6 +1,6 @@
 # Resolution ruleset review (docs/rules/resolution.md)
 
-**Status**: r6 — owner-directed amendments (mechanical catalog effects; licensed discretion) applied after r5 convergence; round 6 re-review dispatched to both reviewers.
+**Status**: r6 REOPENED by both reviewers (5 distinct findings, all on amendment sites); r7 revision closes them — round 7 dispatched.
 **Artifact**: `docs/rules/resolution.md` (Chapter 1: Resolution — d100 tail-texture hybrid).
 **Owner direction**: 2026-07-16 — "turn this into a coherent ruleset then run it by codex and grok
 reviewloops." For THIS loop the owner's explicit wording reinstates the dual codex+grok contract,
@@ -203,3 +203,36 @@ contract, these amendments invalidate the r5 acceptance; round 6 dispatched to b
 
 Also queued from the same discussion: D15 (outline divergence & re-planning) added to the intake
 queue — campaign-structure scope, not this chapter.
+
+### Round 6 — pinned `55838527dcc19ec1f1471f4ba8d6985b01eafb1c` (base `f14593c`, the two owner amendments)
+
+#### grok 0.2.101 / grok-4.5 (read-only allowlist — the classifier rejected --always-approve on
+native Bash; blanket auto-approval replaced by explicit read-only tool allows) — 2026-07-16T13:04:18Z.
+Valid, SHA-matched; `evidence_checked: true`; `cold_implementer_executable: false`;
+verdict: **reopened** (1 HIGH):
+1. HIGH — licensed discretion half-applied to the band table: marginal_success says "may", but
+   crit_failure still mandates a complication and crit_success mandates an extra, contradicting
+   §1.5's "a band never mandates".
+
+#### codex-cli 0.144.4 — 2026-07-16T13:04:18Z. Valid, SHA-matched; `evidence_checked: true`;
+`cold_implementer_executable: false`; verdict: **reopened** (3 HIGH / 1 MEDIUM):
+1. HIGH — same band-table inconsistency as grok, plus missing license semantics on crit_success
+   and marginal_failure (which edge bands accept effects is ambiguous).
+2. HIGH — the twice-rejected fallback kept the r5 "complication coloring is descriptive only"
+   remnant, contradicting mechanical-only complications (narration could canonize an unledgered
+   snapped pick).
+3. HIGH — no engine-owned validation of effects (catalog membership, quantity legality, weight vs
+   stakesLicense) before append/execution; no recovery path for overweight selections.
+4. MEDIUM — license contract not executable: no token domain, context mapping, config shape, or
+   shipped default; D2 row lacked the license artifacts.
+
+#### Coder triage → r7
+
+All admitted (grok 1 ≡ codex 1). r7 changes: all four edge-band meanings license uniformly —
+"may attach within the stakes license; flavor-only always legal" (incl. marginal_failure);
+double-rejection fallback now forbids narrating ANY complication (unledgered complications do not
+exist); new engine effects-validation step (catalog membership, quantities, weight ≤ license)
+sharing the single-revision allowance, in the fixed handoff before append/execution; executable
+license contract — ordered enum flavor_only < minor < significant, shipped default mapping
+(encounter state sets base, critical band +1 step, extreme/legendary tier +1 step, capped),
+weight classes and per-op weights recorded as D2 deliverables on the queue row.

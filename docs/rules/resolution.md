@@ -1,12 +1,11 @@
 # Aetheria House Ruleset — Chapter 1: Resolution
 
-**Status**: DRAFT r6 — two owner-directed amendments to the r5-converged text (owner, 2026-07-16):
-(1) complication effects are mechanical, executed through the D2 catalog ("a snapped pick reduces
-the player's pick count by 1…"); (2) discretion is licensed and ledgered — bands license rather
-than require, an engine-computed stakes license caps effect weight, and the license width is
-playtest-tunable config in both directions (owner: "Sure, let's try it."). r5 `f14593c` was
-accepted by codex AND grok with zero findings; per the convergence contract these amendments
-require round-6 re-review. Pending that, then owner sign-off.
+**Status**: DRAFT r7 — round 6 (the two owner amendments: mechanical catalog effects; licensed
+discretion) was REOPENED by both reviewers, all findings on the amendment sites: half-applied
+license semantics in the band table (grok+codex), a stale descriptive-only fallback contradicting
+mechanical complications, no engine validation of effects against catalog/license, and an
+inexecutable license contract. This revision closes all of them. Pending round-7 re-review, then
+owner sign-off.
 **Provenance**: D0 (2026-07-12, fixed house chassis + flavor skins); D1 (2026-07-16, as amended);
 owner brainstorm adopted for drafting 2026-07-16 (`.agents/review/dice-bakeoff.md`, addenda 3–4).
 
@@ -100,11 +99,11 @@ A **check** resolves one uncertain, consequential action by the current turn's a
 
    | Order | Condition | Band token | Meaning |
    |---|---|---|---|
-   | 1 | raw = 100 | `crit_success` | The intent succeeds cleanly, plus the best plausible extra the fiction supports. |
-   | 2 | raw = 1 | `crit_failure` | The intent fails, plus a GM-chosen complication within the stakes license (§1.5). |
-   | 3 | raw ≥ T and raw − T ≤ N−1 | `marginal_success` | The intent **succeeds** — and the GM may attach a complication X within the stakes license (§1.5). X may cost, expose, or entangle; it must never negate the success. |
+   | 1 | raw = 100 | `crit_success` | The intent succeeds cleanly. The GM may add the best plausible boon within the stakes license (§1.5); flavor-only is always legal. |
+   | 2 | raw = 1 | `crit_failure` | The intent fails. The GM may attach a complication within the stakes license (§1.5); flavor-only is always legal. |
+   | 3 | raw ≥ T and raw − T ≤ N−1 | `marginal_success` | The intent **succeeds**. The GM may attach a complication X within the stakes license (§1.5); X may cost, expose, or entangle, and must never negate the success. |
    | 4 | raw ≥ T | `clean_success` | The intent succeeds; narrate to fit. |
-   | 5 | T − raw ≤ N | `marginal_failure` | The intent **fails**; the GM narrates a near-miss. No partial achievement of the goal. |
+   | 5 | T − raw ≤ N | `marginal_failure` | The intent **fails** — a near-miss. The GM may attach a complication within the stakes license (§1.5); no partial achievement of the goal. |
    | 6 | otherwise | `clean_failure` | The intent fails; narrate to fit. |
 
    In the mid-range this yields five faces of texture on each side of T: `marginal_success` on
@@ -120,9 +119,16 @@ A **check** resolves one uncertain, consequential action by the current turn's a
    remove, undo, or conditionalize the succeeded intent; on a failure it cannot grant the goal).
    - **On rejection**: the Referee may revise **once**. If the revision is also rejected, the
      engine commits `annotation: null` with the rejection reason in `annotationRejected`, and
-     narration proceeds on the bare band — the band's mechanical meaning stands; any complication
-     coloring is descriptive only. An edge-band check therefore never stalls and never reaches
-     narration in an undefined state.
+     narration proceeds on the bare band — the band's mechanical meaning stands, and **no
+     complication may be narrated at all**: a complication that is not ledgered does not exist,
+     and narration must never canonize a snapped pick whose mechanical effect never happened. An
+     edge-band check therefore never stalls and never reaches narration in an undefined state.
+   - **Engine validation of effects (after Continuity, before any commit or execution)**: the
+     engine validates every `effects` entry — D2 catalog membership, quantity legality per the
+     catalog's fixed/tiered definitions, and total effect weight within the check's
+     `stakesLicense`. An annotation failing engine validation counts against the same
+     single-revision allowance as a Continuity rejection; two failures of any mix commit the null
+     annotation. Nothing executes before validation passes.
    - **Atomicity and idempotency**: the annotation append is **one transaction**, committed at
      most once per `checkId`; a retry returns the committed result.
    - **Complication effects are mechanical — executed exclusively through the D2 effect catalog.**
@@ -148,6 +154,13 @@ A **check** resolves one uncertain, consequential action by the current turn's a
      design commitment. Every edge-band ruling is ledgered together with the license it was made
      under (`stakesLicense`, §5), so the model's discretion is auditable after real play: widen it
      if it rules like a GM, tighten it if it rules like a slot machine — by config, not redesign.
+     **Executable contract**: license tokens are the ordered enum `flavor_only` < `minor` <
+     `significant` (names provisional; `flavor_only` permits no effects). Shipped default mapping,
+     code-owned config: the base license is `flavor_only` when no encounter is active and `minor`
+     during an active encounter; a critical band raises it one step; tier `extreme` or `legendary`
+     raises it one step; capped at `significant`. Which catalog operations qualify as `minor`
+     versus `significant` — the effect weight classes and per-operation weights — are D2
+     deliverables.
    The check's outcome fields (`T`, `raw`, `band`, and everything in §5 except the one-time
    annotation transaction) are immutable from the moment of commit.
 6. **Narrate.** Narration receives the completed record and describes it. The band is binding:
@@ -249,8 +262,9 @@ the honest arithmetic ("rolled 82, needed 65"). Narration consumes the record; n
 may rewrite it. **Handoff order, fixed**: Referee call → engine structural validation + actor
 binding + idempotency check → Continuity pre-roll validation (every call) → engine assemble + roll
 + atomic commit → (edge bands) Referee annotation proposal → Continuity annotation validation (one
-revision allowed) → engine atomic annotation append + catalog-effect execution (or null-annotation
-commit with `annotationRejected`) → Narration.
+revision allowed across both validators) → engine effects validation (catalog membership,
+quantities, weight ≤ license) → engine atomic annotation append + catalog-effect execution (or
+null-annotation commit with `annotationRejected`) → Narration.
 
 ## 6. What models may and may not do
 
@@ -271,8 +285,8 @@ quantities; offer the player an alternate outcome for a resolved check.
 Value derivation for damage/effects (**D1b**); the effect catalog (**D2** — a hard prerequisite for
 implementing this chapter's edge bands; its required scope includes the complication-effect
 classes: resource/inventory loss, NPC disposition shifts, encounter initiation, and outcome-value
-modulation jointly with D1b — plus the effect-weight classes the stakes license maps to);
-archetypes (**D3**); attributes and SkillBonus derivation
+modulation jointly with D1b — plus the effect-weight classes (`minor`/`significant`) and
+per-operation weights the stakes license maps to); archetypes (**D3**); attributes and SkillBonus derivation
 (**D4**); spend economy (**D5**); zones/tactical space (**D6**); initiative (**D7**); the
 opposition curve and final ladder values (**D8**); dying/death (**D9**); recovery (**D10**);
 mid-resolution choices (**D11**); the parked lantern-holder character's rules treatment (intake
