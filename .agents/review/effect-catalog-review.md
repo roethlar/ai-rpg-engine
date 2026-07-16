@@ -236,3 +236,69 @@ force living in the ledger [codex 8, grok 3]; **LIVE `item_gain` write shape spe
 today's inventory fields (engine constructs name/type/description/quantity; model supplies name
 only) [grok 4]; **shared conflict key for value ops** + array-level net-zero rejection
 [codex 10].
+
+### Round 4 — pinned `1db5be433780a1a54e10146f6eaa6a31577603cb` (draft r4)
+
+#### codex — valid, SHA-matched, evidence-checked: **reopened** (2 CRITICAL / 5 HIGH / 2 MEDIUM)
+
+1. CRITICAL — encounter lifecycle valences contextually false (a party-costing ending can't be
+   ledgered; a party-favored start can't either).
+2. CRITICAL — recorded scene objects (crates, consoles, hatches) have no verbs and aren't on §6.
+3. HIGH — LIVE `item_gain` has no collision rule against existing (possibly special) same-name
+   entries, and no conflict-key identity.
+4. HIGH — the ordinary-action consumer cannot encode neutral changes (a no-check walk must be
+   falsely valenced).
+5. HIGH — validation is inseparable from the edge license; abilities/ordinary consumers can't
+   reuse it as written.
+6. HIGH — the LIVE edge subset cannot price licenses: Chapter 1's base license needs
+   active-encounter state that doesn't exist (cadence enum is not a lifecycle).
+7. HIGH — gated ops lack full schemas (`item_pickup`'s ref type undefined; `encounter_start`
+   participants unbounded/unbound).
+8. MEDIUM — §8 case 8 demonstrates evaluator behavior with gated ops, contradicting
+   availability-first precedence.
+9. MEDIUM — the suggestion assembler's sign-off flag is unresolved (empty-list implementations
+   conform).
+
+#### grok — valid, SHA-matched, evidence-checked: **reopened** (2 HIGH / 5 MEDIUM)
+
+1. HIGH — `item_pickup` invents a field type outside §1's closed grammar.
+2. HIGH — §7 never partitions condition tokens into boon vs hindrance sets (r3's table dropped
+   the explicit enums; `condition_clear` valence becomes a guess).
+3. MEDIUM — `item_gain` conflict key undefined (mint-by-name has no holder-resolved entry).
+4. MEDIUM — no Continuity→engine handoff artifact for affirmed opposition (engine coders will
+   re-implement fiction or assume every NPC is opposed).
+5. MEDIUM — `encounter_start` "present" has no binding rule (reuse §2.5's).
+6. MEDIUM — adverse encounter conclusion (surrender, capture) is neither expressible nor a §6
+   exception.
+7. MEDIUM — NPC/world intelligence state (cover blown, password burned) is a say-yes hole
+   outside §6.
+
+#### Coder triage → r5
+
+ADMITTED: all except one recorded dispute. **Dispute (codex 9)**: the §4 owner flag is a
+deliberate open sign-off question following Chapter 1's accepted "Flag for owner sign-off"
+precedent (its §3 delta-magnitude flag), not a drafting defect; it resolves at owner sign-off,
+which is already the acceptance gate. r5 changes, deliberately favoring §6 growth over new
+mechanisms: **encounter lifecycle verbs gain a Continuity-validated `outcome:
+party_favored|party_costing` param** with composed valence (fixes both directions; adverse
+endings expressible) [codex 1, grok 6]; **recorded scene objects and NPC/world intelligence
+state added to §6** with named future homes; E2's coverage claim narrowed to recorded *actors
+and held items* [codex 2, grok 7]; **`item_gain` collision + identity rules** (pre-D16: reject
+on any normalized-name match in the owner's inventory; conflict key = (owner, normalized name);
+post-D16: fresh engine-minted record id) [codex 3, grok 3]; **valence classes gain `neutral`** —
+quality enums accept it, neutral rejects in edge-band annotations and becomes legal only under
+ordinary authorization; the full directional-op audit is assigned to the ordinary-action chapter
+(§9) [codex 4]; **pipeline factored into a consumer-independent core** (Continuity gates →
+catalog/availability/schema/reference/evaluator → computed cost + valence) **plus per-consumer
+authorizers** (edge-band license here; abilities D3/D5; ordinary future) [codex 5]; **pre-D7
+license input defined conservatively** — the encounter-active input to Chapter 1's license map
+is constantly false until D7 ships a real lifecycle (never wider, only narrower; cadence enum
+explicitly disclaimed as a proxy; feel consequence flagged for the owner) [codex 6]; **closed
+field type `item-record ref` added** and `item_pickup` rewritten onto it; `encounter_start`
+participants: unique, 1..cap, each bound via §2.5's occupancy rule, cost fixed regardless of
+cardinality [codex 7, grok 1/5]; **§7 splits normative enums** — hindrances {hindered, exposed,
+dazed, pinned, winded}, boons {steadied, inspired, concealed}, feature kinds §2.7-only [grok 2];
+**Continuity emits an engine-readable `affirmedOpposed` set** recorded with the annotation;
+engine composes frame valence only from it [grok 4]; **§8 case 7/8 split** into current-version
+LIVE rejection cases (disposition conflict, gain-collision, no-op reposition) and explicitly
+labeled post-dependency cases [codex 8].
