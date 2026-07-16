@@ -46,9 +46,13 @@ function fitAreaLabel(name, boxWidth) {
   const maxChars = Math.floor(available / (AREA_LABEL.fontSize * AREA_LABEL.glyphRatio));
   if (maxChars < 1) return '';
   const text = String(name).trim();
-  if (text.length <= maxChars) return text;
+  // Measure and cut in code points, not UTF-16 units — String#slice on a
+  // unit boundary would emit a lone surrogate (renders as U+FFFD) for names
+  // containing emoji or other astral glyphs.
+  const glyphs = Array.from(text);
+  if (glyphs.length <= maxChars) return text;
   if (maxChars === 1) return '…';
-  return text.slice(0, maxChars - 1).trimEnd() + '…';
+  return glyphs.slice(0, maxChars - 1).join('').trimEnd() + '…';
 }
 
 /** Stable, collision-free clip-path id — the render must stay deterministic. */
@@ -94,16 +98,18 @@ export function renderLocationMap(layout, occupancy = []) {
   }
 
   const clipPrefix = `am-${slugify(layout.name)}`;
-  for (const area of layout.areas) {
+  layout.areas.forEach((area, areaIndex) => {
     parts.push(`<rect x="${area.x}" y="${area.y}" width="${area.w}" height="${area.h}" rx="1.5" fill="var(--theme-panel, hsl(220 25% 12%))" stroke="var(--theme-border, hsl(220 20% 20%))" stroke-width="0.5" />`);
     const label = fitAreaLabel(area.name, area.w);
-    if (!label) continue;
+    if (!label) return;
     // Ellipsis fits the common case; the clip is the backstop, so a glyph-width
     // underestimate still cannot bleed a label into the next area.
-    const clipId = `${clipPrefix}-${slugify(area.id)}`;
+    // Index-qualified: slugify is lossy ('east wing' and 'east-wing' collide),
+    // and duplicate ids would make every later <text> clip to the first rect.
+    const clipId = `${clipPrefix}-a${areaIndex}-${slugify(area.id)}`;
     parts.push(`<clipPath id="${clipId}"><rect x="${area.x}" y="${area.y}" width="${area.w}" height="${area.h}" rx="1.5" /></clipPath>`);
     parts.push(`<text clip-path="url(#${clipId})" x="${area.x + AREA_LABEL.padding}" y="${area.y + 3.4}" font-size="${AREA_LABEL.fontSize}" fill="var(--theme-text-dim, hsl(210 10% 65%))" font-family="inherit">${escapeXml(label)}</text>`);
-  }
+  });
 
   // Fixed features: small diamonds along the top of their area.
   const featureCounts = new Map();

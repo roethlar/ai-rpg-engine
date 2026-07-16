@@ -458,13 +458,18 @@ export function validateLocationLayout(raw) {
       if (!name) return;
       const clampNum = (value, min, max, fallback) =>
         typeof value === 'number' && !isNaN(value) ? Math.max(min, Math.min(max, Math.round(value))) : fallback;
+      const w = clampNum(area.w, 8, LOCATION_CANVAS.width, 20);
+      const h = clampNum(area.h, 8, LOCATION_CANVAS.height, 15);
       areas.push({
         id: cleanText(area.id, 40) || `area-${index + 1}`,
         name,
-        x: clampNum(area.x, 0, LOCATION_CANVAS.width - 8, (index * 20) % 80),
-        y: clampNum(area.y, 0, LOCATION_CANVAS.height - 8, 10),
-        w: clampNum(area.w, 8, LOCATION_CANVAS.width, 20),
-        h: clampNum(area.h, 8, LOCATION_CANVAS.height, 15)
+        // Position is clamped against the *clamped* size so x+w / y+h can
+        // never run off the canvas (clamping them independently allowed
+        // x+w up to width+92). Fallbacks get the same cap.
+        x: clampNum(area.x, 0, LOCATION_CANVAS.width - w, Math.min((index * 20) % 80, LOCATION_CANVAS.width - w)),
+        y: clampNum(area.y, 0, LOCATION_CANVAS.height - h, Math.min(10, LOCATION_CANVAS.height - h)),
+        w,
+        h
       });
     });
   }

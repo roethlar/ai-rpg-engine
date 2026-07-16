@@ -2658,6 +2658,39 @@ async function testStructuredLocations() {
   assert.strictEqual(roomy.includes('Cracked Plaza'), true, 'A label that fits its box is drawn in full');
   assert.strictEqual(roomy.includes('…'), false, 'A label that fits is not ellipsized');
 
+  // map-1 review guards.
+  // (1) Ellipsizing cuts on code points — never mid-surrogate (U+FFFD in the UI).
+  const emoji = renderLocationMap(
+    validateLocationLayout({ name: 'Dusthaven', areas: [{ id: 'shrine', name: '😀😀😀😀😀😀😀😀', x: 0, y: 0, w: 8, h: 20 }] }),
+    []
+  );
+  assert.strictEqual(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])/u.test(emoji), false, 'Ellipsizing never emits a lone surrogate');
+  assert.strictEqual(emoji.includes('😀…'), true, 'The cut lands after a whole glyph');
+
+  // (2) Clip ids stay unique even when distinct area ids slugify identically.
+  const twins = renderLocationMap(
+    validateLocationLayout({
+      name: 'Dusthaven',
+      areas: [
+        { id: 'east wing', name: 'East Wing', x: 0, y: 0, w: 20, h: 20 },
+        { id: 'east-wing', name: 'East Wing Annex', x: 22, y: 0, w: 20, h: 20 }
+      ]
+    }),
+    []
+  );
+  const clipIds = [...twins.matchAll(/<clipPath id="([^"]+)"/g)].map(m => m[1]);
+  assert.strictEqual(clipIds.length, 2, 'Both colliding-slug areas get a clipPath');
+  assert.strictEqual(new Set(clipIds).size, clipIds.length, 'Clip-path ids are unique when slugs collide');
+
+  // (3) The validator clamps position against the clamped size: x+w and y+h
+  // stay inside the 100×70 canvas instead of overhanging by up to 92 units.
+  const tower = validateLocationLayout({
+    name: 'X',
+    areas: [{ id: 't', name: 'Leaning Tower', x: 92, y: 66, w: 20, h: 15 }]
+  }).areas[0];
+  assert.strictEqual(tower.x + tower.w <= 100, true, 'Area x+w is clamped to the canvas width');
+  assert.strictEqual(tower.y + tower.h <= 70, true, 'Area y+h is clamped to the canvas height');
+
   // Canon injection: the GM sees the structured record (omniscience)
   const outline = { title: 'T', setting: 'S', acts: [], major_locations: [{ name: 'L', description: 'D' }], key_npcs: [{ name: 'N', role: 'R', personality: 'P' }], starting_quest: { title: 'Q', description: 'D' }, theme_colors: {} };
   const character = { name: 'Vex', class: 'Diver', attributes: {}, health: 100, max_health: 100, mana: 50, max_mana: 50, xp: 0, level: 1, inventory: [], abilities: [] };
