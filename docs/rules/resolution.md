@@ -1,10 +1,10 @@
 # Aetheria House Ruleset — Chapter 1: Resolution
 
-**Status**: REVIEW-CONVERGED (second convergence, now including both owner amendments) — accepted
-by codex-cli 0.144.4 AND grok-4.5 at pinned commit `8f7862d` with zero findings after nine rounds
-(trail: `.agents/review/resolution-ruleset-review.md`). Awaiting owner sign-off, which enacts the
-Supersession declaration below. Substantive sections are unchanged from the accepted pin; only
-this status block differs.
+**Status**: ACTIVE — signed off by the owner 2026-07-16 at review-converged pin `8f7862d` (nine
+rounds, codex + grok dual acceptance; trail: `.agents/review/resolution-ruleset-review.md`). The
+Supersession declaration below is enacted and recorded in `.agents/decisions.md`. This chapter is
+the canonical check-resolution specification; implementation of the edge bands is gated on the D2
+effect catalog.
 **Provenance**: D0 (2026-07-12, fixed house chassis + flavor skins); D1 (2026-07-16, as amended);
 owner brainstorm adopted for drafting 2026-07-16 (`.agents/review/dice-bakeoff.md`, addenda 3–4).
 

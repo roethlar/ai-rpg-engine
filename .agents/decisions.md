@@ -1042,7 +1042,7 @@ Any prior single-model toggle or default path assumptions (now unreachable per p
 
 ### 2026-07-16 - Rules D1: checks resolve on d20, meet-or-beat vs DC (rules track, owner decision)
 
-Status: Active
+Status: Active core (die-agnostic clauses); die-specific clauses superseded same day by the signed-off resolution chapter (see the sign-off entry in this file)
 
 Decision:
 The house rules system resolves checks as d20 + modifier vs DC; meeting or beating the DC succeeds. Difficulty has exactly one knob: the DC. Failure chances for stronger characters are created by raising the DC, never by graded-margin mechanics — the margin-band grammar recommended by the dice bake-off (clean/mixed/miss graded by beat-margin) is REJECTED as the universal check grammar. The DC ladder must be code-owned: the engine derives the numeric DC from an authored difficulty tier; the model may select a tier but never invents a number. Value derivation (damage and other non-check quantities) is deliberately NOT decided here — reserved as decision D1b. Nat 20 is always a success and nat 1 is always a failure, on any d20 check (owner, 2026-07-16). To preserve the standing requirement that trivial tasks are near-impossible to fail for competent characters, the engine applies the standard D&D no-roll gate: when success is certain for the acting character (per the code-owned tier ladder), no roll is called and nat 1 cannot fire — dice only hit the table when the outcome is uncertain. Rider (b) "success at a cost" is REJECTED: check outcomes are strictly binary. The GM never offers the player an alternate reality — the GM council decides the reality of the game. If the DC is met it is a success; if it is not, it is a failure. The GM's liberty is descriptive only: narrate the success or the failure to fit the situation. If binary outcomes prove too vague for the model to narrate well, that is a prompting/spec gap to address (GM narration instructions), never a mechanics change. D1 is fully closed; only D1b (value derivation) remains open. Unblocks D8 (opposition stats derived from an authored curve) and tier/DC-ladder design.
@@ -1053,4 +1053,52 @@ Owner 2026-07-16: "D20 is fine. I don't actually care about the die. but the mar
 Supersedes:
 The dice bake-off memo's margin-band recommendation (memo Addendum 2 records the rejection); the rules intake D1 row status (was: Pending — next owner decision).
 
+
+
+### 2026-07-16 - Rules resolution chapter signed off: d100 with licensed edge texture (supersedes D1's die clauses)
+
+Status: Active
+
+Decision:
+The owner signed off `docs/rules/resolution.md` (Chapter 1: Resolution) at review-converged pin
+`8f7862d8f6577c3859778bb8b6cc3b639576bdf9`, after nine review rounds with dual codex + grok
+acceptance (trail: `.agents/review/resolution-ruleset-review.md`; trajectory 13→8→4→1→0, owner
+amendments, then 5→2→1→0). Per the chapter's supersession declaration, the following clauses of
+the earlier 2026-07-16 "Rules D1" entry are superseded:
+
+1. Die: d20 → d100.
+2. Absolutes: nat 20 / nat 1 → raw 100 / raw 1.
+3. Strict binary everywhere → binary mid-range with GM-decided edge texture: the marginal and
+   critical bands LICENSE — never require — GM-chosen complications/extras; the GM never offers
+   the player a choice of outcomes.
+4. Coded no-roll gate → council judgment (P1: rules recede).
+5. Model authority expands, disclosed: tier tokens, tierBasis, enumerated situational deltas
+   (direction/magnitude/reason), the callSeq protocol ordinal, and edge-band annotation proposals.
+   Every game-mechanical number remains engine-owned; the only model-emitted numeric tokens are
+   the actor-id cross-check and callSeq, neither entering game arithmetic.
+
+Sign-off also accepts the flagged trade: situational deltas are enumerated magnitudes
+(slight/moderate/major = 3/7/12, engine-owned config), not free integers — preserving the intake's
+models-emit-identifiers-only invariant.
+
+The chapter is the canonical check-resolution specification: d100 meet-or-beat vs engine-computed
+T (clamped [2,99]); ordered outcome bands with five-face margins (N=5); an engine-computed,
+playtest-tunable stakes license over edge-band discretion; mechanical complications executed only
+through the D2 effect catalog with bidirectional text-effect coherence, valence tags, and
+point-budget aggregation; an immutable, table-public roll ledger; idempotent atomic rolls. The D2
+effect catalog is a hard prerequisite for implementing the edge bands; its deliverables
+(complication-effect classes, weight classes, per-operation point costs, valence tags) are
+recorded on the D2 queue row in `.agents/review/rules-system-plan-intake.md`.
+
+Reason:
+Owner 2026-07-16: "signed off", closing the loop the owner ordered ("turn this into a coherent
+ruleset then run it by codex and grok reviewloops" — which reinstated the dual codex+grok contract
+for this artifact). Design lineage: the dice bake-off evidence memo and owner brainstorm
+(`.agents/review/dice-bakeoff.md`, addenda 3-4), the owner's mechanical-complications ruling, and
+the licensed-discretion resolution of the GM-discretion question ("Sure, let's try it.").
+
+Supersedes:
+The die-specific clauses (list above) of the 2026-07-16 "Rules D1" entry. D1's die-agnostic core
+stands unchanged: difficulty lives only in the target; the ladder is code-owned; models never
+invent numbers; GM latitude on clean bands is descriptive only.
 

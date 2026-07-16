@@ -1,6 +1,6 @@
 # Resolution ruleset review (docs/rules/resolution.md)
 
-**Status**: **CONVERGED (2nd, incl. owner amendments)** — r9 `8f7862d8f6577c3859778bb8b6cc3b639576bdf9` ACCEPTED by codex AND grok, zero findings, both cold-implementer-executable. Awaiting owner sign-off.
+**Status**: **SIGNED OFF** (owner, 2026-07-16) at r9 pin `8f7862d8f6577c3859778bb8b6cc3b639576bdf9`. Loop CLOSED; the superseding decision is recorded in `.agents/decisions.md`; the chapter is the active resolution spec.
 **Artifact**: `docs/rules/resolution.md` (Chapter 1: Resolution — d100 tail-texture hybrid).
 **Owner direction**: 2026-07-16 — "turn this into a coherent ruleset then run it by codex and grok
 reviewloops." For THIS loop the owner's explicit wording reinstates the dual codex+grok contract,
@@ -299,4 +299,5 @@ complications; licensed discretion) → r6 5 → r7 2 → r8 1 → r9 0/0. Owner
 final gate; it enacts the supersession declaration and the one remaining flagged trade
 (enumerated delta magnitudes replacing free "+3%" integers — the effects-empty trade was
 superseded by the owner's mechanical-complications ruling).
+
 

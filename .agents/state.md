@@ -38,9 +38,10 @@ to `docs/history/state-archive.md`.
   post-r5 owner amendments: complications are mechanical via the D2 effect catalog (now a hard
   prerequisite for implementing the edge bands), and discretion is licensed + ledgered (tunable
   stakes license; bidirectional text–effect coherence kills ghost consequences)
-  (`.agents/review/resolution-ruleset-review.md`). **Owner sign-off is pending** — it enacts the
-  chapter's supersession declaration and the one remaining flagged trade (enum delta magnitudes
-  replacing free "+3%" integers). The canonical queue remains
+  (`.agents/review/resolution-ruleset-review.md`). **SIGNED OFF by the owner 2026-07-16** — the
+  superseding decision is recorded in `.agents/decisions.md`; the chapter is the active resolution
+  spec. Next queue decision: **D2 (effect catalog)**, whose deliverables row gates edge-band
+  implementation. The canonical queue remains
   `.agents/review/rules-system-plan-intake.md` (next decisions: D2, D4, D6, D11, D12, D14 — one at
   a time). No rules code before a concrete phase and an accepted plan review.
 - The existing owner-approved reviewloop backlog remains unstarted as of `ca55b55`.
@@ -95,8 +96,8 @@ Phase V's owner voice playtest; the rules track resumes with D1 when the owner c
   Configure either OpenAI or Grok voice in `/admin`, enable Voice Narration, and play a real scene
   with narrator plus multiple NPC lines. Confirm distinct/sticky identities, audible moods and
   per-line tones, Skip, and shared host/seat delivery.
-- `map-1` is landed and closed (merge `dd59c27`); the rules track's next owner move is sign-off on the
-  review-converged resolution chapter, then D2.
+- `map-1` is landed and closed (merge `dd59c27`); the rules track's next owner move is D2 (effect
+  catalog), presented one item at a time from the intake queue.
 - For the combined host/seat playtest, set
   `ACCESS_SECRET` + `ADMIN_SECRET`, confirm an AI provider is configured
   there, expose the server, create the second character (party strip

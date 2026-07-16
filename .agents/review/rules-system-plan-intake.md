@@ -63,7 +63,7 @@ owner-approved wording in `.agents/decisions.md` and the eventual plan status.
 | ID | Decision | Reviewer recommendation | Status |
 |---|---|---|---|
 | D0 | Overall frame | Bespoke fixed chassis plus campaign flavor skins | **DECIDED 2026-07-12** — fixed house chassis + generated flavor skins; see `.agents/decisions.md`. Unblocks D1, D2, D4, D6, D11, D12, D14. |
-| D1 | Dice engine | Keep d20, but prove the curve before wiring | **DECIDED 2026-07-16** — d20 meet-or-beat, DC-only difficulty; margin-band grammar rejected. See `.agents/decisions.md` + `.agents/review/dice-bakeoff.md`. Unblocks D8. |
+| D1 | Dice engine | Keep d20, but prove the curve before wiring | **DECIDED 2026-07-16, then superseded same day** by the signed-off resolution chapter (`docs/rules/resolution.md` @ `8f7862d`): d100 meet-or-beat with licensed edge texture; die-agnostic core carries forward. See `.agents/decisions.md` sign-off entry. Unblocks D8. |
 | D2 | Ability representation | Fixed effect catalog, genre-spread prototype first | Pending owner decision — **scope requirement recorded (owner 2026-07-16)**: the catalog must also express check-complication effects (resource/inventory loss, NPC disposition shifts, encounter initiation, outcome-value modulation with D1b) and is a hard prerequisite for implementing the resolution chapter's edge bands (`docs/rules/resolution.md` §1.5); deliverables include the effect weight classes (minor/significant), per-operation point costs consumed by the stakes-license budget, and per-operation valence tags (beneficial/adverse) consumed by the band-valence check |
 | D3 | Archetype boundary | Stable chassis archetypes, flavor-skinned | Pending D2 |
 | D4 | Attribute count | Keep STR/AGI/INT/WIL | Pending owner decision |
