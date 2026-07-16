@@ -1,15 +1,21 @@
 # Aetheria House Ruleset — Chapter 2: Effects
 
-**Status**: DRAFT r7 — rounds r1–r6 were each reopened by both independent reviewers; every
+**Status**: DRAFT r8 — rounds r1–r7 were each reopened by both independent reviewers; every
 admitted finding is addressed in place (trail and the two recorded disputes:
 `.agents/review/effect-catalog-review.md`). Not yet owner-signed. Implementation of Chapter 1's
 edge bands is gated on **this chapter's acceptance only**: pre-D7, license pricing follows §3's
 conservative rule (the encounter-active input is constantly false), and each gated operation
 activates with its own dependency — there is no separate D7 shipping gate.
-**Declared Chapter 1 refinement (enacted at this chapter's sign-off, mirroring Chapter 1's own
-supersession pattern)**: the §5 ledger `annotation` shape extends from `{text, effects}` to
-`{text, effects, affirmedOpposed}` — the Continuity-emitted set of NPC refs affirmed as presently
-opposed (§1/§3). The field is Continuity's alone: an annotation *proposal* carrying it rejects.
+**Declared Chapter 1 refinements (enacted at this chapter's sign-off, mirroring Chapter 1's own
+supersession pattern)**:
+1. The §5 ledger `annotation` shape extends from `{text, effects}` to `{text, effects,
+   affirmedOpposed}` — the Continuity-emitted set of NPC refs affirmed as presently opposed
+   (§1/§3). The field is Continuity's alone: an annotation *proposal* carrying it rejects.
+2. Chapter 1's "models emit exactly two numeric protocol identifiers" enumeration is refined to
+   cover annotation effects: the typed references this chapter defines (`character:<id>`,
+   `npc:<id>`, `item:<record id>`, feature ids) are **engine-issued reference tokens** — they
+   name recorded entities, never enter game arithmetic, and are validated by resolution, exactly
+   like the actor-id cross-check Chapter 1 already carves out.
 **Provenance**: D2 decision 2026-07-16 (`.agents/decisions.md`: complications are free text over
 an engine verb set; trust is tuned by the ledgered stakes license, never by unledgered effects);
 Chapter 1's executable contract (§1.5); the recorded D16 requirements (loot, wealth, movement) in
@@ -161,13 +167,16 @@ An annotation's `effects` array is validated and priced as one ordered pass:
    commits **atomically** with the annotation, under Chapter 1's one-transaction-per-`checkId`
    idempotency. Any failure rejects the whole array; nothing partial ever executes.
 
-**Availability**: `LIVE` operations execute against state and resolution rules that exist today;
-`GATED:<dep>` operations are part of the accepted vocabulary but may not be proposed, suggested,
-or executed until their gating feature ships — validation rejects them at the availability step
-with the gate named. Edge-band implementation may ship with the LIVE subset (subject to §3's
-pre-D7 license rule); each gated verb activates with its feature. An operation whose *numeric
-map* or *record shape* is gated is gated end-to-end: there is no "live seam" without a legal
-write.
+**Availability attaches to each documented schema form and enumerated parameter predicate, not
+to the bare op token.** `LIVE` forms execute against state and resolution rules that exist
+today; `GATED:<dep>` forms are part of the accepted vocabulary but may not be proposed,
+suggested, or executed until their gating feature ships — validation rejects them at the
+availability step with the *governing* gate named. One op may carry several forms with distinct
+gates: `item_lose`'s legacy name-key form is LIVE while its record-ref form is GATED:D16;
+`pool_drain{pool:"mana"}` is GATED:D1b while `pool_drain{pool:"strain"}` rejects `GATED:D5` even
+after D1b lifts. Edge-band implementation may ship with the LIVE subset (subject to §3's pre-D7
+license rule); each gated form activates with its feature. A form whose *numeric map* or *record
+shape* is gated is gated end-to-end: there is no "live seam" without a legal write.
 
 **Versioning**: the catalog is versioned chassis config, pinned per campaign (D12/D13 scope).
 Adding, removing, or re-weighting operations is a version change; models never see two catalogs
@@ -202,12 +211,12 @@ scope: `harm` writes a number, never removes an actor.
 
 | Operation | Schema | State written | Weight | Direction | Availability |
 |---|---|---|---|---|---|
-| `item_lose` | `{op, owner: actor ref, item: item key}` | one unit leaves play: the resolved stack's quantity decrements by one, and the entry is removed **only when quantity reaches zero**. Post-D16, durable records instead persist with holder `lost` and full provenance | by item class (§3) | hurts `owner` | LIVE for character owners **with the mundane gates below**; the NPC-owner form is GATED:D16 and takes `item: item-record ref` |
+| `item_lose` | **Two forms, one op.** Legacy mundane-stack form (LIVE): `{op, owner: character ref, item: item key}` — the resolved stack's quantity decrements by one, entry removed **only at zero**; mundane gates below apply. Durable-record form (GATED:D16): `{op, item: item-record ref}` — valid for **any** holder (character, NPC, or scene), owner derived and validated from the record | one unit leaves play; durable records persist with holder `lost` and full provenance (the looted saber can still fall into the chasm) | by item class (§3) | hurts the holder | legacy form LIVE; record form GATED:D16 |
 | `item_gain` | `{op, owner: actor ref, name: licensed string}` — **mundane mint/stack only**, matching totalized: **zero** comparison-key matches in `owner`'s inventory → mint; **exactly one** match that is *fully* mundane (no `stats`, no `effect`, name gate passes) → increment its quantity by one ("you scavenge another coil of rope"); one match that is non-mundane or effect-bearing → **reject** (stacking would mint mechanics); **more than one** match → reject as ambiguous, before any mutation | mint: one new mundane item, stored as `{name: <display form>, type: "general", description: "No description.", quantity: 1}`, every other property ignored — the model supplies the name and nothing else. Post-D16: a fresh engine-minted record id, classified mundane, provenance stamped | minor (mundane by construction) | helps `owner` | LIVE for **character owners only** — there is no NPC gain form in any version: recorded items reach NPCs solely via `item_transfer` |
 | `item_transfer` | `{op, item: item-record ref, from: actor ref, to: actor ref}` — the record's holder must be `from` on the tentative state; `from ≠ to`; **each non-party endpoint must be in `affirmedOpposed`**, else `allegiance-unknown` (§3) | the same record changes holders — identity, condition, and provenance preserved | by item class (§3), **charged once** | net party effect (§3; nets are defined only over party/affirmed-opposed endpoints) | GATED:D16 |
 | `item_drop` | `{op, item: item-record ref, area: area id}` — the record's holder must be an actor on the tentative state | the record's holder becomes the scene (that area); identity/condition/provenance preserved | by item class (§3) | hurts the former holder | GATED:D16 |
 | `item_pickup` | `{op, owner: actor ref, item: item-record ref}` — the record's current holder must be the current location (scene-held), on the tentative state | the record's holder becomes `owner` | by item class (§3) | helps `owner` | GATED:D16 |
-| `item_condition_shift` | `{op, item: item-record ref, direction: degrade\|improve}` | one step on `pristine`→`worn`→`damaged`→`broken` | step to `broken`: significant; else minor (priced on tentative state, §1.1) | degrade: hurts the record's holder; improve: helps them | GATED:D16 |
+| `item_condition_shift` | `{op, item: item-record ref, direction: degrade\|improve}` — the record's holder must be an **actor** on the tentative state (scene-held and `lost` records reject: no frame to compose valence from) | one step on `pristine`→`worn`→`damaged`→`broken` | step to `broken`: significant; else minor (priced on tentative state, §1.1) | degrade: hurts the holder; improve: helps them (actor-frame rules, §3) | GATED:D16 |
 | `wealth_shift` | `{op, who: **npc ref**, direction: up\|down}` | one step on the §7 wealth ladder | minor | up: helps `who`; down: hurts `who` | GATED:D16 (the per-NPC wealth field; player-character wealth has **no approved home** — §6) |
 
 **Stack rule**: every item entry moves **exactly one unit** — quantity is never a model input and
@@ -313,7 +322,7 @@ in §7; it carries no arithmetic of its own.
 
 | Operation | Schema | State written | Weight | Valence |
 |---|---|---|---|---|
-| `scene_feature_place` | `{op, area: area id, kind: obstruction\|hazard\|smoke\|darkness\|alarm\|cover, name: licensed string, duration: scene\|persistent, works_against: party\|opposition\|both}` | a scene-feature record | scene: minor; persistent: significant | composed from `works_against` (§3): `party` → adverse; `opposition` → beneficial; `both` → **adverse by rule** (a mutual hazard always costs the party; it can never be a pure boon) |
+| `scene_feature_place` | `{op, area: area id, kind: obstruction\|hazard\|smoke\|darkness\|alarm\|cover\|passage, name: licensed string, duration: scene\|persistent, works_against: party\|opposition\|both}` | a scene-feature record | scene: minor; persistent: significant | composed from `works_against` (§3): `party` → adverse; `opposition` → beneficial; `both` → **adverse by rule** (a mutual hazard always costs the party; it can never be a pure boon) |
 | `scene_feature_clear` | `{op, feature: feature ref}` | removes that record | **from the stored record's duration** (scene: minor; persistent: significant) | computed from the stored `works_against`: clearing `party`-hindering → beneficial; `opposition`-hindering → adverse; `both` → beneficial |
 
 **Required state addition (declared, not yet built) — the scene-feature record**:
@@ -332,8 +341,8 @@ trust.
 | Operation | Schema | State written | Weight | Valence | Availability |
 |---|---|---|---|---|---|
 | `encounter_start` | `{op, posture: hostile\|social_standoff, outcome: party_favored\|party_costing, participants: [1..cap unique npc refs, each bound to a current occupant via §2.5's binding rule]}` | the encounter state machine | significant | composed from `outcome` (Continuity-validated against the text): `party_favored` — the party forced the fight it wanted → beneficial; `party_costing` — trouble found the party → adverse | GATED:D7 (today only a per-turn pacing enum exists) |
-| `encounter_end` | `{op, outcome: party_favored\|party_costing}` | the encounter state machine — the active encounter concludes, **and nothing else**: its text may assert only the ceasing of hostilities plus consequences ledgered by accompanying entries | minor | composed from `outcome`: rout/de-escalation in the party's favor → beneficial; hostilities ending on unfavorable terms (driven off, the standoff hardens against you) → adverse | GATED:D7 |
-| `fact_learn` | `{op, fact: licensed string}` | one party-scope memory row: summary = the `fact` string, importance = engine config default (§7), keywords engine-default empty | minor | beneficial (fixed) | LIVE (campaign memories) |
+| `encounter_end` | `{op, outcome: party_favored\|party_costing}` | the encounter state machine — the active encounter concludes, **and nothing else**: its text may assert only the ceasing of hostilities plus consequences ledgered by accompanying entries. **Displacement wording rejects**: "you are driven from the field" asserts a position/location change no accompanying op can ledger for the party today (§6) | minor | composed from `outcome`: rout/de-escalation in the party's favor → beneficial; hostilities ending on unfavorable terms **with everyone still where they stand** (a forced truce on bad terms, the standoff hardens against you) → adverse | GATED:D7 |
+| `fact_learn` | `{op, fact: licensed string}` | one party-scope memory row, fields pinned: campaign from the transaction, `turn_number` = the check's ledger turn, summary = the `fact` string, importance = engine config default (§7), keywords engine-default empty; checkId linkage stays ledger-only | minor | beneficial (fixed) | LIVE (campaign memories) |
 
 Encounter lifecycle cost is **fixed regardless of participant count** — legality, not cost,
 bounds the list (unique, 1..cap per §7, every ref bound to a present occupant). **Participants
@@ -477,8 +486,11 @@ No operation exists for — and no annotation or ability may assert as mechanica
 - **introducing actors into the scene** — reinforcements, summons, arrivals: no ref exists for
   an unrecorded actor, `reposition`/`scene_exit` only touch current occupants, and
   `encounter_start` only names those present (**D7/D8/D16**);
-- **a party member leaving the scene involuntarily** — that is a campaign-location transition,
-  not a scene edit (`scene_exit` is NPC-only; the location system and **D15/D16** own it);
+- **party location transitions, voluntary or not** — ordinary travel ("you leave the tavern for
+  the docks") and involuntary exit alike: `current_location_id` is real state that today mutates
+  only through the free-form `location_update` seam; the location-transition verb belongs to the
+  ordinary-action chapter and the location system (**D15/D16**), and `scene_exit` stays
+  NPC-only;
 - **any frame-composed effect on a non-opposed NPC** — allies, neutrals, bystanders, whether
   helped or hurt: no recorded allegiance exists to compose valence from, and mis-affirming a
   bystander as opposed is a Continuity violation, not a workaround (**D8/D16**; §3);
@@ -545,7 +557,7 @@ playtest, and recalibration is config, not redesign.
 | Wealth ladder (tokens here; the per-NPC field is D16's) | `destitute` \| `struggling` \| `comfortable` \| `wealthy` \| `opulent` |
 | **Hindrance token set** (normative membership) | `hindered`, `exposed`, `dazed`, `pinned`, `winded` |
 | **Boon token set** (normative membership) | `steadied`, `inspired`, `concealed` |
-| Scene-feature kinds (§2.7 only — never condition tokens) | `obstruction`, `hazard`, `smoke`, `darkness`, `alarm`, `cover` |
+| Scene-feature kinds (§2.7 only — never condition tokens) | `obstruction`, `hazard`, `smoke`, `darkness`, `alarm`, `cover`, `passage` |
 | Feature sides | `works_against` ∈ `party` \| `opposition` \| `both` |
 | Encounter outcome tokens | `party_favored` \| `party_costing`; participants cap 6 |
 | Durations | `scene` (clears when the campaign's current-location pointer changes — v1 proxy, D7 may refine), `persistent` (until cleared) |
@@ -572,6 +584,7 @@ playtest, and recalibration is config, not redesign.
 | `smoke` / `darkness` | feature kind | sight into/within the area is impaired | total sensory loss for actors |
 | `alarm` | feature kind | attention has been drawn; the site is alerted | specific arrivals (§6) or clocks |
 | `cover` | feature kind | positions in the area shield their occupants | immunity, invisibility |
+| `passage` | feature kind | a temporary means of crossing or entry exists where none did (a force bridge, a pried-open way) | permanent layout change, new areas or destinations (§6) — the passage enables movement within the recorded layout, it never extends it |
 
 ## 8. Worked examples (executable acceptance cases)
 
@@ -631,10 +644,13 @@ annotation text and vice versa.
    **possession-neutral**: "her knuckles whiten — the blade nearly leaves her hand" passes; "the
    saber skitters away across the deck" does **not** (it asserts an unledgered
    possession/position change and Continuity rejects the text).
-8. **Gate behavior (current version)**: `{op:"item_transfer", item:"curved saber",
+8. **Gate behavior (current version)**: `{op:"item_transfer", item:"item:41",
    from:"npc:12", to:"character:7"}` → rejected at availability, `GATED:D16`, gate named,
    *before* any reference lookup; likewise `hindrance_apply` → `GATED:conditions-store`, `harm`
-   → `GATED:D1b`, `scene_feature_place` → `GATED:scene-state`, `encounter_end` → `GATED:D7`.
+   → `GATED:D1b`, `scene_feature_place` → `GATED:scene-state`, `encounter_end` → `GATED:D7`;
+   and per-form gating: post-D1b, `pool_drain{pool:"mana"}` is live while
+   `pool_drain{pool:"strain"}` still rejects `GATED:D5` — the governing gate, not the op token,
+   decides (§1.1).
    **[post-dependency]** evaluator cases (run once their gates lift): two
    `item_condition_shift(degrade)` entries on the same sword → conflict-key collision; `heal` on
    a full-health ally → no-op; a `value_reduce` + `value_enhance` pair → shared conflict key;
@@ -663,6 +679,9 @@ record** (declared required state additions, §2.6/§2.7); a **memory-retrieval 
 enough that committed facts reliably reach later council context (§2.8 names today's bounded
 window); and the **ordinary-action commit path** — the ledgered transaction through which
 clean-band and no-check state changes flow once rules-governed campaigns exist. That chapter
-reuses this catalog's vocabulary, §1 core validation, and §1.1 evaluator wholesale; it owns the
-neutral-valence audit of every directional operation and its own authorizer (resolved intent
-instead of an edge-band license).
+reuses this catalog's vocabulary, §1 core validation, and §1.1 evaluator — and **extends the
+catalog through versioning with the ordinary-only verbs this chapter deliberately lacks**
+(party location transitions foremost, §6); it owns the neutral-valence audit of every
+directional operation and its own authorizer (resolved intent instead of an edge-band license).
+"Reuse" means the core carries over unchanged, not that this vocabulary is already sufficient
+for ordinary play.

@@ -421,3 +421,52 @@ binding adopts the same NFC/case-fold key as items [grok 6]; **§6 additions** �
 changes (betrayal/defection → D8/D16) and quest/objective/act state (→ D15/outline + ordinary
 path), with `quest_update` named a migration-target seam beside the §2.4 note [codex 5,
 grok 5].
+
+### Round 7 — pinned `c5eb86554f7bcd5a3e0b563391b4eb7dbad8dcf7` (draft r7)
+
+#### grok — valid, SHA-matched, evidence-checked: **reopened** (2 HIGH / 2 MEDIUM)
+
+1. HIGH — post-D16 `item_lose`/`item_gain` identity model internally inconsistent (name-key
+   legacy forms vs record-id promises; hybrid LIVE/GATED availability by owner kind).
+2. HIGH — strain's extra D5 gate has no validation-pipeline rejection point (availability is
+   per-op only).
+3. MEDIUM — `encounter_end` valence gloss says "driven off", smuggling an unledgerable party
+   displacement.
+4. MEDIUM — `fact_learn`'s memory write omits `turn_number`/`campaign_id` binding.
+
+#### codex — valid, SHA-matched, evidence-checked: **reopened** (3 HIGH / 3 MEDIUM)
+
+1. HIGH — no verb can commit an *ordinary* party location transition; E1/§9's "reuses the
+   catalog wholesale" claim is therefore false as written.
+2. HIGH — post-D16 loss cannot address durable loot once a character holds it (same identity
+   inconsistency as grok 1).
+3. HIGH — `item_condition_shift` has no valence for scene-held or `lost` records.
+4. MEDIUM — temporary access-enabling scene changes (bridge, opened passage) neither expressible
+   nor excepted.
+5. MEDIUM — "driven off" contradiction (same as grok 3).
+6. MEDIUM — typed integer refs (`character:<id>`, item ids, `affirmedOpposed`) silently expand
+   Chapter 1's "exactly two numeric protocol identifiers" enumeration.
+
+#### Coder triage → r8
+
+All 10 ADMITTED (overlaps merged; zero criticals second round running). r8 changes: **one
+post-D16 identity rule** — a durable-record loss form `{op:"item_lose", item: item-record ref}`
+valid for any holder with the owner derived from the record; the name-key `{op, owner, item}`
+form is explicitly the *legacy mundane-stack* loss; availability is redefined to attach to
+**each documented schema form and enumerated parameter predicate**, not the bare op token — which
+also gives strain its rejection point (`pool:"strain"` → `GATED:D5` even after D1b lifts, with a
+§8 case) [grok 1/2, codex 2]; **ordinary party travel honestly scoped** — §6 gains "party
+location transitions (ordinary travel)" (→ the location system / ordinary-action chapter,
+D15/D16), and E1/§9 retract "wholesale reuse": the ordinary chapter reuses the vocabulary and
+validation core and *extends* the catalog with ordinary-only verbs through versioning [codex 1];
+**`item_condition_shift` restricted to actor-held records** (scene-held/`lost` reject) [codex
+3]; **`passage` feature kind added** (temporary access enabled — bridge, opened way; must not
+assert permanent layout or destinations; valence via the existing `works_against` composition,
+cover-precedent) [codex 4]; **"driven off" removed** — lifecycle-true examples only, plus an
+explicit rule that displacement wording rejects without an accompanying legal position/location
+op [grok 3, codex 5]; **`fact_learn` memory fields pinned** (campaign from the transaction,
+`turn_number` from the check's ledger turn; checkId linkage ledger-only) [grok 4]; **a second
+declared Chapter 1 refinement** — effect target references (typed actor/item ids,
+`affirmedOpposed`) are engine-issued reference tokens outside game arithmetic, refining Chapter
+1's two-identifier enumeration at sign-off exactly like the annotation-shape refinement
+[codex 6].
