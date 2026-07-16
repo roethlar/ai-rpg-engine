@@ -10,7 +10,10 @@ to `docs/history/state-archive.md`.
   (owner decisions 2026-07-12 and 2026-07-14, `.agents/decisions.md`). This is
   unconditional; docs-only changes are outside the rule. The current default division of labour is
   Codex implementation with independent Claude planning and adversarial verification, dispatched
-  with the exact `--model claude-fable-5` argument; Grok is not used. The roles may swap for the
+  with the exact `--model claude-fable-5` argument; Grok is not used by default. Exception on
+  explicit owner wording (2026-07-16, "run it by codex and grok reviewloops"): the resolution-
+  ruleset document loop ran dual codex+grok, recorded in
+  `.agents/review/resolution-ruleset-review.md`. The roles may swap for the
   nature of a slice, but an author never reviews their own code.
 - **PHASE V CODE IS COMPLETE; THE OWNER PLAYTEST IS PENDING.** All four implementation slices are
   merged and accepted; `.agents/review/index.md` owns their status and verdict trail. The live
@@ -81,6 +84,18 @@ to `docs/history/state-archive.md`.
   connectivity is owner-handled and out of repo scope. The playtest is the scheduled close for open
   multiplayer feel gates. Seat isolation must be re-tested whenever a field crosses a seat payload,
   audio, or error boundary; `.agents/repo-guidance.md` owns that rule.
+- **Two UI slices landed 2026-07-15 on owner request** (workflow-reviewed in-session): `8ade369`
+  replaced native confirm()/prompt() with in-app promise-based modals (Tauri/WKWebView no-ops broke
+  campaign delete and every input dialog in the desktop shell); `b984eb9` added save-once narration
+  audio (see the Phase V bullet). Both verified headless; suite green.
+- **Outline-leak report investigated 2026-07-15, no code defect found**: the owner-reported
+  "players can see the campaign outline" did not reproduce — every seat-reachable payload routes
+  through the `scopeStateForSeat`/`scopeJournalForSeat` allowlists, which never carry the outline,
+  and `testSeatVisibility` guards it with leak markers. Most likely cause: an unset `ACCESS_SECRET`
+  makes every tokenless request a HOST (full payload) — dev-mode by design. Open hardening
+  candidates (unscheduled, would need the loop): fail closed when binding non-loopback without
+  `ACCESS_SECRET`; scope the host-only `/fork` response; per-campaign ownership check on the MCP
+  `get_campaign_outline` tool.
 - Solo play with no seats minted behaves exactly as before, as it always has.
 - Known and unfixed as of `ca55b55`: `map-render.js:99`
   draws the location title as an unclipped SVG `<text>`, the same defect class the
@@ -89,8 +104,9 @@ to `docs/history/state-archive.md`.
 
 ## Next
 
-**THE ADMIN MODEL-REGISTRY IMPLEMENTATION TRACK IS COMPLETE.** The immediate product gate returns to
-Phase V's owner voice playtest; the rules track resumes with D1 when the owner chooses it.
+**THE RESOLUTION CHAPTER IS SIGNED OFF (2026-07-16).** The immediate product gate remains Phase V's
+owner voice playtest; the rules track's next owner decision is D2 (effect catalog), which also
+gates edge-band implementation. The admin model-registry track is complete.
 
 - Phase V's owner playtest remains the pending feel gate after this explicitly selected repo work.
   Configure either OpenAI or Grok voice in `/admin`, enable Voice Narration, and play a real scene
