@@ -1,6 +1,6 @@
 # Aetheria House Ruleset — Chapter 2: Effects
 
-**Status**: DRAFT r8 — rounds r1–r7 were each reopened by both independent reviewers; every
+**Status**: DRAFT r9 — rounds r1–r8 were each reopened by both independent reviewers; every
 admitted finding is addressed in place (trail and the two recorded disputes:
 `.agents/review/effect-catalog-review.md`). Not yet owner-signed. Implementation of Chapter 1's
 edge bands is gated on **this chapter's acceptance only**: pre-D7, license pricing follows §3's
@@ -10,12 +10,20 @@ activates with its own dependency — there is no separate D7 shipping gate.
 supersession pattern)**:
 1. The §5 ledger `annotation` shape extends from `{text, effects}` to `{text, effects,
    affirmedOpposed}` — the Continuity-emitted set of NPC refs affirmed as presently opposed
-   (§1/§3). The field is Continuity's alone: an annotation *proposal* carrying it rejects.
+   (§1/§3); the field is Continuity's alone (a proposal carrying it rejects). Additionally, each
+   *executed* effect is persisted with **engine-stamped resolved metadata** — catalog version,
+   weight class, point cost, effective valence, resolved target ids, and the pricing-relevant
+   prestate (a cleared record's duration, an item's class) — so every stakes ruling stays
+   auditable after the state it priced has changed. Model-emitted versions of these fields
+   reject; the *proposal* shape models emit is unchanged.
 2. Chapter 1's "models emit exactly two numeric protocol identifiers" enumeration is refined to
    cover annotation effects: the typed references this chapter defines (`character:<id>`,
    `npc:<id>`, `item:<record id>`, feature ids) are **engine-issued reference tokens** — they
    name recorded entities, never enter game arithmetic, and are validated by resolution, exactly
    like the actor-id cross-check Chapter 1 already carves out.
+3. Chapter 1's engine-checkable valence domain refines from {beneficial, adverse} to
+   {beneficial, adverse, **neutral**}: neutral remains illegal in edge-band authorization (the
+   band checks are unchanged) and exists for other consumers' authorizers (§3).
 **Provenance**: D2 decision 2026-07-16 (`.agents/decisions.md`: complications are free text over
 an engine verb set; trust is tuned by the ledgered stakes license, never by unledgered effects);
 Chapter 1's executable contract (§1.5); the recorded D16 requirements (loot, wealth, movement) in
@@ -162,7 +170,9 @@ An annotation's `effects` array is validated and priced as one ordered pass:
 
 4. Each entry's weight class and point cost are computed against the tentative state *at its
    position* (this makes state-dependent weights well-defined), and its effective valence per
-   §3. These are the core's outputs; §1's authorization step consumes them.
+   §3. These are the core's outputs; §1's authorization step consumes them, and on commit they
+   are persisted per effect as engine-stamped resolved metadata (Status refinement 1) — the
+   audit trail survives the state it priced.
 5. If every entry passes core validation and the consumer's authorization, the tentative state
    commits **atomically** with the annotation, under Chapter 1's one-transaction-per-`checkId`
    idempotency. Any failure rejects the whole array; nothing partial ever executes.
@@ -178,9 +188,13 @@ after D1b lifts. Edge-band implementation may ship with the LIVE subset (subject
 license rule); each gated form activates with its feature. A form whose *numeric map* or *record
 shape* is gated is gated end-to-end: there is no "live seam" without a legal write.
 
-**Versioning**: the catalog is versioned chassis config, pinned per campaign (D12/D13 scope).
-Adding, removing, or re-weighting operations is a version change; models never see two catalogs
-at once.
+**Versioning (storage contract declared here; freeform/legacy disposition is D13's)**: the
+catalog is versioned chassis config, pinned per campaign in a declared required field —
+`catalog_version` on the campaign record, initial value `effects-1`, carried through export
+bundles and forks, changed only by explicit owner-approved migrations (never silently
+reweighted by an engine upgrade). Adding, removing, or re-weighting operations is a version
+change; models never see two catalogs at once. Every ledgered effect records the version it
+executed under (Status refinement 1).
 
 ## 2. The operations
 
@@ -211,8 +225,8 @@ scope: `harm` writes a number, never removes an actor.
 
 | Operation | Schema | State written | Weight | Direction | Availability |
 |---|---|---|---|---|---|
-| `item_lose` | **Two forms, one op.** Legacy mundane-stack form (LIVE): `{op, owner: character ref, item: item key}` — the resolved stack's quantity decrements by one, entry removed **only at zero**; mundane gates below apply. Durable-record form (GATED:D16): `{op, item: item-record ref}` — valid for **any** holder (character, NPC, or scene), owner derived and validated from the record | one unit leaves play; durable records persist with holder `lost` and full provenance (the looted saber can still fall into the chasm) | by item class (§3) | hurts the holder | legacy form LIVE; record form GATED:D16 |
-| `item_gain` | `{op, owner: actor ref, name: licensed string}` — **mundane mint/stack only**, matching totalized: **zero** comparison-key matches in `owner`'s inventory → mint; **exactly one** match that is *fully* mundane (no `stats`, no `effect`, name gate passes) → increment its quantity by one ("you scavenge another coil of rope"); one match that is non-mundane or effect-bearing → **reject** (stacking would mint mechanics); **more than one** match → reject as ambiguous, before any mutation | mint: one new mundane item, stored as `{name: <display form>, type: "general", description: "No description.", quantity: 1}`, every other property ignored — the model supplies the name and nothing else. Post-D16: a fresh engine-minted record id, classified mundane, provenance stamped | minor (mundane by construction) | helps `owner` | LIVE for **character owners only** — there is no NPC gain form in any version: recorded items reach NPCs solely via `item_transfer` |
+| `item_lose` | **Two forms, one op.** Legacy mundane-stack form (LIVE): `{op, owner: character ref, item: item key}` — the resolved stack's quantity decrements by one, entry removed **only at zero**; mundane gates below apply. Durable-record form (GATED:D16): `{op, item: item-record ref}` — the record's holder must be an **actor** on the tentative state (scene-held records reject: no frame to compose valence from — destroying scene-held loot is §6), owner derived and validated from the record | one unit leaves play; durable records persist with holder `lost` and full provenance (the looted saber falls into the chasm *from the looter's hands*) | by item class (§3) | hurts the holder | legacy form LIVE; record form GATED:D16 |
+| `item_gain` | `{op, owner: **character ref** (an npc-typed owner rejects at schema shape), name: licensed string}` — **mundane mint/stack only**, matching totalized: **zero** comparison-key matches in `owner`'s inventory → mint; **exactly one** match that is *fully* mundane (no `stats`, no `effect`, name gate passes) → increment its quantity by one ("you scavenge another coil of rope"); one match that is non-mundane or effect-bearing → **reject** (stacking would mint mechanics); **more than one** match → reject as ambiguous, before any mutation | mint: one new mundane item, stored as `{name: <display form>, type: "general", description: "No description.", quantity: 1}`, every other property ignored — the model supplies the name and nothing else. Post-D16: a fresh engine-minted record id, classified mundane, provenance stamped | minor (mundane by construction) | helps `owner` | LIVE — there is no NPC *mint* form in any version: recorded items reach NPCs via `item_transfer` or `item_pickup`, and an NPC producing a previously unrecorded object is §6-inexpressible |
 | `item_transfer` | `{op, item: item-record ref, from: actor ref, to: actor ref}` — the record's holder must be `from` on the tentative state; `from ≠ to`; **each non-party endpoint must be in `affirmedOpposed`**, else `allegiance-unknown` (§3) | the same record changes holders — identity, condition, and provenance preserved | by item class (§3), **charged once** | net party effect (§3; nets are defined only over party/affirmed-opposed endpoints) | GATED:D16 |
 | `item_drop` | `{op, item: item-record ref, area: area id}` — the record's holder must be an actor on the tentative state | the record's holder becomes the scene (that area); identity/condition/provenance preserved | by item class (§3) | hurts the former holder | GATED:D16 |
 | `item_pickup` | `{op, owner: actor ref, item: item-record ref}` — the record's current holder must be the current location (scene-held), on the tentative state | the record's holder becomes `owner` | by item class (§3) | helps `owner` | GATED:D16 |
@@ -285,8 +299,11 @@ freeform/legacy behavior is D13 scope, not silently changed.
 name matches the recorded actor's name under §1's **comparison key** (never raw string equality —
 occupancy strings drift in case and spacing) and whose `kind` matches the ref type
 (`character:` → `player`, `npc:` → `npc`). The actor must already be a current occupant — these
-ops move or remove people *within* the scene, never into it (arrivals are §6). Zero matches or
-multiple matches → **reject**, stated reason; no silent creation. Stable occupancy identifiers
+ops move or remove people *within* the scene, never into it (arrivals are §6). **Uniqueness is
+required on both sides**: the (normalized name, kind) pair must identify exactly one recorded
+actor in the campaign AND exactly one occupancy row — either ambiguity rejects (two recorded
+NPCs sharing a name cannot be bound at all, so an absent twin can never alias a present one);
+no silent creation. Stable occupancy identifiers
 are a noted D16-adjacent improvement, not assumed. `quality` is a declared judgment the engine
 cannot compute; Continuity validates it against the annotation text ("shoved into the open
 courtyard" cannot be `favorable`) — the same semantic gate as delta reasons, and it is an
@@ -443,9 +460,13 @@ mismatch is impossible by construction.
 **A substantive suggestion assembler is explicitly NOT a deliverable of this chapter.** The
 normative contract is exactly two clauses, both executable:
 
-1. Any suggestion shown to the Referee MUST be a pre-validated legal effect array (license
-   budget, band valence, §1 core) — an illegal option may never appear; the list length is
-   capped (§7).
+1. Any suggestion shown to the Referee MUST be **mechanically eligible**: schema-valid,
+   reference-resolved on current state, availability-passing, within the license budget, with a
+   computable band-legal valence. (Text-dependent gates — coherence, licensed-string semantics,
+   declared-judgment affirmations — cannot run before text exists; the full §1 core validates
+   the annotation *after* the Referee adopts a suggestion and writes its text, and may still
+   reject it then.) An illegal-by-mechanics option may never appear; the list length is capped
+   (§7).
 2. Absence conforms: no suggestions, an empty list, or no assembler at all are all valid
    implementations. Suggestions are advisory — the Referee may take, combine within budget, or
    ignore them; nothing is ledgered unless chosen; flavor-only always remains legal.
@@ -469,8 +490,11 @@ Generated abilities are flavor text plus effect selections from this catalog —
 invariant made concrete. Ability **templates** use role placeholders where §2 schemas take
 concrete refs: `self`, `ally`, `foe`, `area`, `held-item`. Template legality (ops exist at the
 campaign's catalog version, enums valid) is checkable at generation time; placeholders bind to
-concrete recorded refs at execution time, where §1's full core validation runs — including the
-§3 opposition rule for `foe` bindings. Packaging — costs, targeting rules, cooldowns, archetype
+concrete recorded refs at execution time, where §1's full core validation runs. **The
+opposition-affirmation requirement is consumer-independent**: every frame-composed NPC target
+needs a Continuity-emitted affirmation whatever the consumer — the annotation's third field is
+merely the *edge-band carrier*; the ability-execution pass must define its own carrier for
+`foe` bindings (D3/D5 scope), and the engine never re-derives fiction for any consumer. Packaging — costs, targeting rules, cooldowns, archetype
 assignment, and the ability **authorizer** (§1) — is D3/D5 scope. Two rules bind now:
 
 1. No ability may carry an operation this catalog lacks. A gap found during ability design comes
@@ -526,8 +550,18 @@ No operation exists for — and no annotation or ability may assert as mechanica
 - attribute, skill, XP, level, or advancement changes (**D4/D5**);
 - act or plot-outline transitions (the outline system, **D15**);
 - **permanent layout or map edits** — scene features (§2.7) are temporary records, never layout;
-- minting significant items from nothing, and destroying durable item records (§2.3; registry
-  is **D16**);
+- minting significant items from nothing, destroying durable item records (including
+  scene-held ones — record-form `item_lose` requires an actor holder), and **any NPC producing
+  a previously unrecorded object** (§2.3; registry is **D16**);
+- **restraining or capturing an NPC** — "you bind the defeated thug", taking prisoners: no
+  custody/restraint state exists on either side of the table (the party-capture entry above has
+  the same missing homes — **D9/D11 + restraint/custody state**);
+- **mechanical-consumable acquisition** — restocking effect-bearing items ("you scavenge
+  another recovery patch"): gaining a unit whose use fires mechanics is mechanical gain outside
+  D1b; the expressible footprint today is discrete inert units (**D1b/D16**);
+- **item resource state** — charges, ammunition, fuel, batteries on durable items: no
+  per-item resource meters exist; the canonical current representation is discrete consumable
+  units (a "power cell" as its own stack), and metered resources arrive with **D1b/D16**;
 - **player-character wealth** — D16 records a coarse wealth category *for NPCs*; a PC-wealth
   subsystem would need its own owner decision;
 - **time pressure, countdowns, and clocks** — no world/scene clock exists; future home: the

@@ -470,3 +470,57 @@ declared Chapter 1 refinement** — effect target references (typed actor/item i
 `affirmedOpposed`) are engine-issued reference tokens outside game arithmetic, refining Chapter
 1's two-identifier enumeration at sign-off exactly like the annotation-shape refinement
 [codex 6].
+
+### Round 8 — pinned `de35fa574fc2bb33cd84f1401c3278ac93e38d29` (draft r8)
+
+#### grok — valid, SHA-matched, evidence-checked: **reopened** (2 HIGH / 4 MEDIUM)
+
+1. HIGH — scene-held durable `item_lose` has no frame valence (r8's "any holder" fix collided
+   with the condition-shift restriction's own rationale).
+2. HIGH — the shared validation core is annotation-bound: abilities have no `affirmedOpposed`
+   carrier, so "only authorization differs" forks the validator.
+3. MEDIUM — `item_gain` schema says `actor ref` while availability forbids NPC owners.
+4. MEDIUM — NPC restraint/capture ("bind the defeated thug") has no verb and no §6 home.
+5. MEDIUM — effect-bearing consumable *acquisition* (restock) is inexpressible and unexcepted.
+6. MEDIUM — `neutral` valence expands Chapter 1's beneficial/adverse contract without a declared
+   refinement.
+
+#### codex — valid, SHA-matched, evidence-checked: **reopened** (4 HIGH / 3 MEDIUM)
+
+1. HIGH — scene-held durable-item loss valence (same as grok 1).
+2. HIGH — name-bound occupancy can alias distinct same-named actor ids (no per-campaign NPC name
+   uniqueness).
+3. MEDIUM — suggestion "prevalidation" demands text-coherence checks against text that does not
+   exist yet.
+4. HIGH — catalog-version pinning is ungated and mislabeled (D12 is threat currency; only D13 is
+   versioning) with no storage contract.
+5. HIGH — the ledger omits state-dependent pricing/valence results, so cleared-record costs are
+   unauditable afterward — undermining the D2 trust-audit goal itself.
+6. MEDIUM — NPC acquisition contradictions (`item_pickup` accepts NPC owners; "solely via
+   transfer"; mundane NPC minting unexcepted).
+7. MEDIUM — held-item charges/ammo/fuel are neither expressible nor excepted.
+
+#### Coder triage → r9
+
+All 13 ADMITTED. r9 changes: **durable `item_lose` restricted to actor-held records**;
+scene-held destruction folds into §6's durable-destruction entry [grok 1, codex 1]; **the
+opposition-affirmation requirement declared consumer-independent** — every frame-composed NPC
+target needs a Continuity-emitted affirmation whatever the consumer; the annotation's third
+field is the edge-band carrier, and each other authorizer must define its own (assigned to
+D3/D5 / the ordinary chapter) [grok 2]; **`item_gain.owner` typed `character ref`** [grok 3];
+**binding uniqueness doubled** — (normalized name, kind) must identify exactly one campaign
+actor record AND exactly one occupancy row; either ambiguity rejects [codex 2]; **suggestion
+prevalidation redefined** as mechanical eligibility (state, budget, computable valence), with
+the full semantic core running after the Referee adopts and writes text [codex 3]; **catalog
+versioning corrected to D13 and given a storage contract here** — a declared `catalog_version`
+campaign field (required state addition), initial version `effects-1`, carried through
+bundles/forks, changed only by explicit migrations [codex 4]; **executed effects are ledgered
+with engine-stamped resolved metadata** — catalog version, weight class, point cost, effective
+valence, resolved target ids, and the pricing-relevant prestate (e.g. a cleared record's
+duration); model-emitted versions of those fields reject; recorded as part of Chapter 1
+refinement 1 [codex 5]; **NPC acquisition wording fixed** (transfer *or pickup*; mundane NPC
+minting → §6) [codex 6]; **§6 additions** — NPC restraint/custody, mechanical-consumable
+restock (with the discrete-unit representation noted as the expressible footprint), and item
+resource state (charges/ammo/fuel → D1b/D16) [grok 4/5, codex 7]; **third declared Chapter 1
+refinement** — the valence domain becomes beneficial|adverse|neutral, neutral illegal in
+edge-band authorization [grok 6].
