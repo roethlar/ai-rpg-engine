@@ -26,7 +26,9 @@ let savedCharacters = [];
 const DEFAULT_API_CONFIG = {
   accessToken: '', // Authentication token
   enableDiagnostics: false, // Dev mode flag
-  voiceNarration: false
+  voiceNarration: false,
+  // Auto-play new-turn narration; toggled from the gameplay area (Phase V4).
+  voiceAutoPlay: true
 };
 let apiConfig = { ...DEFAULT_API_CONFIG };
 
@@ -164,6 +166,7 @@ function loadSettings() {
   checkboxVoiceNarration.checked = !!apiConfig.voiceNarration;
 
   toggleVoiceSettings();
+  updateVoiceAutoPlayButton();
 }
 
 // Save config to localStorage
@@ -173,6 +176,7 @@ function saveSettings() {
   apiConfig.voiceNarration = checkboxVoiceNarration.checked;
 
   localStorage.setItem('aetheria_settings', JSON.stringify(apiConfig));
+  updateVoiceAutoPlayButton();
 
   if (currentCampaignId) {
     applyLayoutMode();
@@ -326,6 +330,7 @@ function setupEventListeners() {
   checkboxVoiceNarration.addEventListener('change', toggleVoiceSettings);
   document.getElementById('btn-voice-preview').addEventListener('click', previewVoice);
   document.getElementById('btn-skip-narration').addEventListener('click', stopNarration);
+  document.getElementById('btn-voice-autoplay').addEventListener('click', toggleVoiceAutoPlay);
 
   // Spotlight controls
   document.querySelectorAll('.spotlight-btn').forEach(btn => {
@@ -1773,8 +1778,123 @@ async function requestNarrationRun(run, expectedProvider) {
 // The production helper groups adjacent same-speaker lines for providers that
 // support it, preserves each tone, and skips failed runs instead of silencing
 // the remainder of the GM turn.
+// ---- Save-once turn audio (Phase V4) ----
+// The server synthesizes a turn at most once, persists it, and replays the
+// identical audio to every seat afterwards. These helpers drive both the
+// per-message play buttons and new-turn auto-play.
+
+let activeTurnAudio = null; // { turnNumber, button } while a saved turn plays
+
+function updateVoiceAutoPlayButton() {
+  const btn = document.getElementById('btn-voice-autoplay');
+  if (!btn) return;
+  btn.style.display = apiConfig.voiceNarration ? 'inline-flex' : 'none';
+  const on = apiConfig.voiceAutoPlay !== false;
+  btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+  btn.innerHTML = `<i class="fa-solid ${on ? 'fa-volume-high' : 'fa-volume-xmark'}"></i> Auto-play: ${on ? 'on' : 'off'}`;
+}
+
+function toggleVoiceAutoPlay() {
+  apiConfig.voiceAutoPlay = apiConfig.voiceAutoPlay === false ? true : false;
+  localStorage.setItem('aetheria_settings', JSON.stringify(apiConfig));
+  updateVoiceAutoPlayButton();
+}
+
+function setTurnAudioButtonState(button, playing) {
+  if (!button) return;
+  button.classList.toggle('playing', playing);
+  button.title = playing ? 'Stop narration' : 'Play narration';
+  button.innerHTML = playing
+    ? '<i class="fa-solid fa-stop"></i>'
+    : '<i class="fa-solid fa-volume-high"></i>';
+}
+
+// Fetches (materializing on first listen) and plays one turn's saved audio.
+async function playSavedTurnAudio(turnNumber, button = null) {
+  stopNarration();
+  const token = {};
+  narrationQueueToken = token;
+  activeTurnAudio = { turnNumber, button };
+  setTurnAudioButtonState(button, true);
+  const skipBtn = document.getElementById('btn-skip-narration');
+  skipBtn.style.display = 'inline-flex';
+  try {
+    // The first listen may synthesize server-side — allow generous time.
+    const manifestResponse = await fetchWithTimeout(
+      `/api/campaigns/${currentCampaignId}/audio/${turnNumber}`, {}, 180000
+    );
+    if (!manifestResponse.ok) {
+      const raw = await manifestResponse.text();
+      let payload = null;
+      try {
+        payload = raw ? JSON.parse(raw) : null;
+      } catch {
+        // Preserve a non-JSON server message below.
+      }
+      const error = new Error(payload?.error || 'Turn narration is unavailable.');
+      error.status = manifestResponse.status;
+      throw error;
+    }
+    const manifest = await manifestResponse.json();
+    const segments = Array.isArray(manifest.segments) ? manifest.segments : [];
+    for (const segment of segments) {
+      if (narrationQueueToken !== token) return { cancelled: true };
+      const segmentResponse = await fetchWithTimeout(
+        `/api/campaigns/${currentCampaignId}/audio/${turnNumber}/segments/${segment.id}`, {}, 60000
+      );
+      if (!segmentResponse.ok) throw new Error('Voice audio unavailable.');
+      const blob = await segmentResponse.blob();
+      if (narrationQueueToken !== token) return { cancelled: true };
+      await playAudioBlob(blob);
+    }
+    return { cancelled: false };
+  } finally {
+    setTurnAudioButtonState(button, false);
+    if (activeTurnAudio && activeTurnAudio.button === button) activeTurnAudio = null;
+    if (narrationQueueToken === token) {
+      narrationQueueToken = null;
+      skipBtn.style.display = 'none';
+    }
+  }
+}
+
+// Per-message play/stop (the on-demand path): gated only by the master
+// voice enable — the auto-play preference does not apply here.
+async function toggleTurnAudioPlayback(turnNumber, button) {
+  if (activeTurnAudio && activeTurnAudio.turnNumber === turnNumber && narrationQueueToken) {
+    stopNarration();
+    return;
+  }
+  if (!apiConfig.voiceNarration) {
+    showToast('Enable voice narration in AI Settings to play audio.', 'error');
+    return;
+  }
+  try {
+    await playSavedTurnAudio(turnNumber, button);
+  } catch (error) {
+    console.error(error);
+    showToast(`Voice Error: ${error.message}`, 'error');
+  }
+}
+
 async function narrateGmResponse(turn) {
   if (!apiConfig.voiceNarration) return;
+  // Auto-play is a gameplay-area preference (V4); the per-message play
+  // button stays available when it is off.
+  if (apiConfig.voiceAutoPlay === false) return;
+
+  // Prefer the saved (save-once) performance: every seat hears the same
+  // audio and a replay never pays for a second synthesis.
+  const savedTurnNumber = Number(turn?.number);
+  if (Number.isInteger(savedTurnNumber) && savedTurnNumber > 0) {
+    try {
+      await playSavedTurnAudio(savedTurnNumber);
+      return;
+    } catch (error) {
+      if (error?.status === 404) return; // nothing narratable this turn
+      console.warn('Saved narration unavailable; falling back to live synthesis.', error);
+    }
+  }
 
   stopNarration();
 
@@ -2134,6 +2254,17 @@ function appendGMDialogue(markdownText, turnNumber) {
     <div class="speaker"><i class="fa-solid fa-dice-d20"></i> Game Master</div>
     <div class="content">${cleanHtml}</div>
   `;
+  // Save-once narration (V4): every numbered GM turn is replayable on demand.
+  const numericTurn = Number(turnNumber);
+  if (Number.isInteger(numericTurn) && numericTurn > 0) {
+    const playBtn = document.createElement('button');
+    playBtn.type = 'button';
+    playBtn.className = 'btn-play-narration';
+    playBtn.setAttribute('aria-label', 'Play narration');
+    setTurnAudioButtonState(playBtn, false);
+    playBtn.addEventListener('click', () => toggleTurnAudioPlayback(numericTurn, playBtn));
+    el.querySelector('.speaker').appendChild(playBtn);
+  }
   placeLogEntry(el, turnNumber);
   scrollToBottom();
 }

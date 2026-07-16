@@ -26,6 +26,13 @@ import {
   getVoiceCapabilities,
   narrateVoiceRequest
 } from './voice-narration.js';
+import {
+  AudioStoreError,
+  deleteCampaignAudio,
+  ensureTurnAudio,
+  getTurnAudioSegment,
+  publicTurnAudioManifest
+} from './audio-store.js';
 
 dotenv.config();
 
@@ -538,6 +545,15 @@ app.post('/api/campaigns/:id/turn', rateLimit(10, 60000), requireSeatCampaign, a
     const state = await queueCampaignTask(campaignId, () =>
       rpg.takeTurn(campaignId, cleanPlayerAction, apiConfig, speakingCharacterId)
     );
+    // Save-once narration (Phase V4): with the operator's always-generate
+    // flag on, synthesize + persist this turn's audio in the background so
+    // every seat replays the identical performance. Strictly fire-and-forget:
+    // a voice failure must never delay or fail the committed turn.
+    if (apiConfig.voiceAlwaysGenerate && Number.isInteger(state?.turn?.number)) {
+      ensureTurnAudio(campaignId, state.turn.number).catch(error => {
+        console.error(`Turn audio generation failed (campaign ${campaignId}, turn ${state.turn.number}):`, error.message);
+      });
+    }
     // Phase S2: seats get the scoped view, never the host payload.
     res.json(req.auth?.kind === 'seat' ? scopeStateForSeat(state, req.auth.characterId) : state);
   } catch (error) {
@@ -768,6 +784,9 @@ app.delete('/api/campaigns/:id', requireHost, async (req, res) => {
     await queueCampaignTask(campaignId, async () => {
       await rpg.releaseCampaignCharacters(campaignId);
       await db.run(`DELETE FROM campaigns WHERE id = ?`, [campaignId]);
+      // Saved narration audio lives on disk (Phase V4) — ON DELETE CASCADE
+      // cannot reach it.
+      await deleteCampaignAudio(campaignId);
     });
     res.json({ success: true });
   } catch (error) {
@@ -823,6 +842,50 @@ app.get('/api/campaigns/:id/images/:imageId', requireSeatCampaign, async (req, r
     res.send(imageBytes);
   } catch (error) {
     res.status(500).json({ error: 'Image lookup failed.' });
+  }
+});
+
+// Save-once turn narration (Phase V4): the manifest request materializes the
+// audio on first demand — synthesized once, persisted under data/audio/, then
+// served from disk forever — so every seat replays the identical performance.
+app.get('/api/campaigns/:id/audio/:turnNumber', rateLimit(60, 60000), requireSeatCampaign, async (req, res) => {
+  try {
+    const campaignId = Number(req.params.id);
+    const turnNumber = Number(req.params.turnNumber);
+    if (!Number.isInteger(campaignId) || !Number.isInteger(turnNumber)) {
+      return res.status(400).json({ error: 'Invalid audio reference.' });
+    }
+    const manifest = await ensureTurnAudio(campaignId, turnNumber);
+    res.json(publicTurnAudioManifest(manifest));
+  } catch (error) {
+    if (error instanceof AudioStoreError || error instanceof VoiceRequestError) {
+      return res.status(error.status).json({
+        error: error.message,
+        ...(error.code ? { code: error.code } : {})
+      });
+    }
+    res.status(500).json(errorPayloadFor(req, error, 'Turn narration is unavailable.'));
+  }
+});
+
+app.get('/api/campaigns/:id/audio/:turnNumber/segments/:segmentId', rateLimit(240, 60000), requireSeatCampaign, async (req, res) => {
+  try {
+    const campaignId = Number(req.params.id);
+    const turnNumber = Number(req.params.turnNumber);
+    const segmentId = Number(req.params.segmentId);
+    if (!Number.isInteger(campaignId) || !Number.isInteger(turnNumber) || !Number.isInteger(segmentId)) {
+      return res.status(400).json({ error: 'Invalid audio reference.' });
+    }
+    const segment = await getTurnAudioSegment(campaignId, turnNumber, segmentId);
+    // Segments are immutable once their manifest exists.
+    res.setHeader('Content-Type', segment.mime);
+    res.setHeader('Cache-Control', 'private, max-age=31536000, immutable');
+    res.send(segment.buffer);
+  } catch (error) {
+    if (error instanceof AudioStoreError) {
+      return res.status(error.status).json({ error: error.message });
+    }
+    res.status(500).json({ error: 'Audio segment lookup failed.' });
   }
 });
 

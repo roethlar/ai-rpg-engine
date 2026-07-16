@@ -453,6 +453,7 @@ function renderVoiceProviderCatalog(providers) {
 function renderMedia(settings) {
   el('voice-model').value = settings.voiceModel || '';
   el('voice-provider').value = settings.voiceProvider || '';
+  el('voice-always-generate').checked = settings.voiceAlwaysGenerate === true;
   el('image-provider').value = settings.imageProvider || '';
   el('image-model').value = settings.imageModel || '';
   el('image-endpoint').value = settings.imageEndpoint || '';
@@ -501,6 +502,7 @@ function collectSettings(clearKeys = false) {
     },
     voiceModel: el('voice-model').value,
     voiceProvider: el('voice-provider').value,
+    voiceAlwaysGenerate: el('voice-always-generate').checked,
     imageProvider: el('image-provider').value,
     imageModel: el('image-model').value,
     imageApiKey: secretValue('image-api-key', clearKeys),

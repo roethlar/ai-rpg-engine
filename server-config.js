@@ -107,6 +107,9 @@ export function sanitizeAdminAiConfig(raw) {
     voiceApiKeys: sanitizeVoiceApiKeys(data),
     voiceModel: cleanField(data.voiceModel),
     voiceProvider: VOICE_PROVIDERS.includes(cleanField(data.voiceProvider)) ? cleanField(data.voiceProvider) : '',
+    // Save-once narration (Phase V4): when true, every committed turn's
+    // audio is generated + persisted server-side for shared replay.
+    voiceAlwaysGenerate: data.voiceAlwaysGenerate === true,
     imageProvider: IMAGE_PROVIDERS.includes(data.imageProvider) ? data.imageProvider : '',
     imageModel: cleanField(data.imageModel),
     imageApiKey: cleanField(data.imageApiKey),
@@ -128,6 +131,7 @@ function voiceAndImageFields(raw) {
     voiceApiKeys: { ...legacy.voiceApiKeys },
     voiceModel: legacy.voiceModel,
     voiceProvider: legacy.voiceProvider,
+    voiceAlwaysGenerate: legacy.voiceAlwaysGenerate,
     imageProvider: legacy.imageProvider,
     imageModel: legacy.imageModel,
     imageApiKey: legacy.imageApiKey,
@@ -459,6 +463,7 @@ export function maskAdminAiConfigV2(raw) {
     roleAssignments: config.roleAssignments,
     voiceModel: config.voiceModel,
     voiceProvider: config.voiceProvider,
+    voiceAlwaysGenerate: config.voiceAlwaysGenerate === true,
     voiceApiKeySet: {
       openai: !!config.voiceApiKeys.openai,
       grok: !!config.voiceApiKeys.grok
@@ -522,6 +527,8 @@ export function mergeAiConfig(adminConfig, env = process.env) {
     voiceApiKey: admin.voiceApiKeys[voiceProvider] || voiceEnvKey,
     voiceModel: voiceProvider === 'openai' ? (admin.voiceModel || env.TTS_MODEL || '') : '',
     voiceProvider,
+    // Save-once narration (Phase V4): operator-set at /admin only.
+    voiceAlwaysGenerate: admin.voiceAlwaysGenerate === true,
     // Image generation (Phase V1): no provider configured = feature inert.
     // Endpoint SSRF posture (mirrors the custom-LLM endpoint rule, and /admin
     // may run ungated in dev): an admin-set endpoint is honored only when it
