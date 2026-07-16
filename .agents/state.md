@@ -49,8 +49,8 @@ to `docs/history/state-archive.md`.
   (verb set + recorded deliverables), drafted through the reviewloop; it still gates edge-band
   implementation. The canonical queue remains
   `.agents/review/rules-system-plan-intake.md` (next decisions: D4, D6, D11, D12, D14 — one at
-  a time; D3/D5/D13 are unblocked by D2). No rules code before a concrete phase and an accepted
-  plan review.
+  a time; D3/D5/D13 are unblocked by D2; D15 and D16 are owner-raised with recorded required
+  shapes, pending). No rules code before a concrete phase and an accepted plan review.
 - The existing owner-approved reviewloop backlog remains unstarted as of `ca55b55`.
   `.agents/review/index.md` owns the exact findings and order; resume at `jt-1`, finish the remaining
   backlog, then enter the approved T2-s/T2 plan.
@@ -118,8 +118,8 @@ D12, D14. The admin model-registry track is complete.
   with narrator plus multiple NPC lines. Confirm distinct/sticky identities, audible moods and
   per-line tones, Skip, and shared host/seat delivery.
 - `map-1` is landed and closed (merge `dd59c27`); the rules track's next moves are the D2 catalog
-  document (reviewloop) and the remaining queue decisions (D4, D6, D11, D12, D14), presented one
-  item at a time from the intake queue.
+  document (reviewloop) and the remaining intake-queue decisions, presented one item at a time
+  from the intake queue.
 - For the combined host/seat playtest, set
   `ACCESS_SECRET` + `ADMIN_SECRET`, confirm an AI provider is configured
   there, expose the server, create the second character (party strip
