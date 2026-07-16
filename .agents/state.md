@@ -16,7 +16,11 @@ to `docs/history/state-archive.md`.
   merged and accepted; `.agents/review/index.md` owns their status and verdict trail. The live
   contract is one campaign-canonical narrator, server-resolved NPC voices, and shared host/seat
   synthesis. The phase remains open until the owner confirms that the voice experience is better in
-  a real session.
+  a real session. A follow-up save-once slice (the `voiceAlwaysGenerate` admin flag,
+  `audio-store.js` persistence, and on-demand `GET /api/campaigns/:id/audio/:turnNumber` replay)
+  was workflow-reviewed to APPROVED in-session, unit-green, and smoke-verified end-to-end
+  2026-07-15 — including flag persistence through the v2 settings save seam. It shares the
+  owner-playtest gate.
 - **css-2 is abandoned and replaced by Phase CT.** Its project branch was deleted and, as
   reverified 2026-07-15, is absent from the canonical remotes; it must never be merged or revived.
   `.agents/machines.md` owns the machine-local cleanup blocker. The durable post-mortem is
