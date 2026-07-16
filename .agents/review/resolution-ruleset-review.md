@@ -1,6 +1,6 @@
 # Resolution ruleset review (docs/rules/resolution.md)
 
-**Status**: r6 REOPENED by both reviewers (5 distinct findings, all on amendment sites); r7 revision closes them — round 7 dispatched.
+**Status**: r7 — grok ACCEPTED; codex REOPENED (2 findings: band-valence coherence, weight aggregation). r8 closes both — round 8 dispatched.
 **Artifact**: `docs/rules/resolution.md` (Chapter 1: Resolution — d100 tail-texture hybrid).
 **Owner direction**: 2026-07-16 — "turn this into a coherent ruleset then run it by codex and grok
 reviewloops." For THIS loop the owner's explicit wording reinstates the dual codex+grok contract,
@@ -236,3 +236,29 @@ sharing the single-revision allowance, in the fixed handoff before append/execut
 license contract — ordered enum flavor_only < minor < significant, shipped default mapping
 (encounter state sets base, critical band +1 step, extreme/legendary tier +1 step, capped),
 weight classes and per-op weights recorded as D2 deliverables on the queue row.
+
+### Round 7 — pinned `ca958a443e42f2d150af83505d648be630e7fdd9` (base `5583852`)
+
+#### grok 0.2.101 / grok-4.5 (read-only allowlist) — 2026-07-16T13:12:51Z. Valid, SHA-matched;
+`evidence_checked: true`; `cold_implementer_executable: true`; verdict: **ACCEPTED** — zero
+findings (all five round-6 closures verified).
+
+#### codex-cli 0.144.4 — 2026-07-16T13:12:51Z. Valid, SHA-matched; `evidence_checked: true`;
+`cold_implementer_executable: false`; verdict: **reopened** (1 HIGH / 1 MEDIUM):
+1. HIGH — no validator ties effects to the annotation text and resolved band's valence: a
+   catalog-valid adverse effect (inventory loss) could ride a `crit_success` without negating the
+   intent — a "boon-only" crit that destroys gear.
+2. MEDIUM — weight aggregation over the `effects` array undefined against an ordered license
+   token (two minors under a minor license? arbitrarily many?).
+
+#### Coder triage → r8
+
+Both admitted. r8 changes: (1) split coherence between the two validators deterministically —
+every D2 catalog operation gains an engine-checkable **valence tag** (`beneficial`/`adverse`, a D2
+deliverable); engine validation enforces band valence (`crit_success` beneficial-only, the other
+edge bands adverse-only) while Continuity enforces **text–effect coherence** (an effect the
+annotation text does not describe is rejected); (2) aggregation defined by engine-owned points —
+minor = 1, significant = 2, license budgets flavor_only/minor/significant = 0/1/2, summed cost ≤
+budget (one minor under minor; one significant or two minors under significant). D2 queue row
+updated with valence tags and point costs as deliverables.
+

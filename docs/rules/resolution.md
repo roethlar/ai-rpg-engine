@@ -1,11 +1,11 @@
 # Aetheria House Ruleset — Chapter 1: Resolution
 
-**Status**: DRAFT r7 — round 6 (the two owner amendments: mechanical catalog effects; licensed
-discretion) was REOPENED by both reviewers, all findings on the amendment sites: half-applied
-license semantics in the band table (grok+codex), a stale descriptive-only fallback contradicting
-mechanical complications, no engine validation of effects against catalog/license, and an
-inexecutable license contract. This revision closes all of them. Pending round-7 re-review, then
-owner sign-off.
+**Status**: DRAFT r8 — round 7: grok ACCEPTED; codex reopened with 2 findings (no band-valence /
+text–effect coherence check, letting an adverse effect ride a `crit_success`; ambiguous weight
+aggregation over the `effects` array). This revision closes both: catalog valence tags make band
+valence engine-checkable, Continuity gains text–effect coherence, and license aggregation is
+defined by engine-owned points with a stated budget. Pending round-8 re-review, then owner
+sign-off.
 **Provenance**: D0 (2026-07-12, fixed house chassis + flavor skins); D1 (2026-07-16, as amended);
 owner brainstorm adopted for drafting 2026-07-16 (`.agents/review/dice-bakeoff.md`, addenda 3–4).
 
@@ -115,8 +115,10 @@ A **check** resolves one uncertain, consequential action by the current turn's a
 5. **Annotation (edge bands only; validated, atomic, one-shot).** For `crit_success`,
    `crit_failure`, `marginal_success`, and `marginal_failure`, the Referee proposes the
    extra/complication as a structured **annotation**: `{ text, effects }`. Continuity validates it
-   against established fiction and the non-negation rule (an annotation on a success cannot
-   remove, undo, or conditionalize the succeeded intent; on a failure it cannot grant the goal).
+   against established fiction, the non-negation rule (an annotation on a success cannot remove,
+   undo, or conditionalize the succeeded intent; on a failure it cannot grant the goal), and
+   **text–effect coherence**: every `effects` entry must be the mechanical expression of the
+   annotation's `text` — an effect the text does not describe is rejected.
    - **On rejection**: the Referee may revise **once**. If the revision is also rejected, the
      engine commits `annotation: null` with the rejection reason in `annotationRejected`, and
      narration proceeds on the bare band — the band's mechanical meaning stands, and **no
@@ -124,11 +126,14 @@ A **check** resolves one uncertain, consequential action by the current turn's a
      and narration must never canonize a snapped pick whose mechanical effect never happened. An
      edge-band check therefore never stalls and never reaches narration in an undefined state.
    - **Engine validation of effects (after Continuity, before any commit or execution)**: the
-     engine validates every `effects` entry — D2 catalog membership, quantity legality per the
-     catalog's fixed/tiered definitions, and total effect weight within the check's
-     `stakesLicense`. An annotation failing engine validation counts against the same
-     single-revision allowance as a Continuity rejection; two failures of any mix commit the null
-     annotation. Nothing executes before validation passes.
+     engine validates every `effects` entry — D2 catalog membership; quantity legality per the
+     catalog's fixed/tiered definitions; **band-valence legality** (every catalog operation
+     carries an engine-checkable valence tag, `beneficial` or `adverse` — a D2 deliverable;
+     `crit_success` admits only `beneficial` effects, the other three edge bands only `adverse`);
+     and the **summed effect-point cost within the license budget** (see the executable contract
+     below). An annotation failing engine validation counts against the same single-revision
+     allowance as a Continuity rejection; two failures of any mix commit the null annotation.
+     Nothing executes before validation passes.
    - **Atomicity and idempotency**: the annotation append is **one transaction**, committed at
      most once per `checkId`; a retry returns the committed result.
    - **Complication effects are mechanical — executed exclusively through the D2 effect catalog.**
@@ -158,8 +163,12 @@ A **check** resolves one uncertain, consequential action by the current turn's a
      `significant` (names provisional; `flavor_only` permits no effects). Shipped default mapping,
      code-owned config: the base license is `flavor_only` when no encounter is active and `minor`
      during an active encounter; a critical band raises it one step; tier `extreme` or `legendary`
-     raises it one step; capped at `significant`. Which catalog operations qualify as `minor`
-     versus `significant` — the effect weight classes and per-operation weights — are D2
+     raises it one step; capped at `significant`. Aggregation over the `effects` array is by
+     engine-owned points: a `minor`-class effect costs 1 and a `significant`-class effect costs 2;
+     the license grants a budget (`flavor_only` = 0, `minor` = 1, `significant` = 2) and the summed
+     cost must not exceed it — a `minor` license admits exactly one minor effect; a `significant`
+     license admits one significant or two minors. Which catalog operations are `minor` versus
+     `significant`, their per-operation point costs, and each operation's valence tag are D2
      deliverables.
    The check's outcome fields (`T`, `raw`, `band`, and everything in §5 except the one-time
    annotation transaction) are immutable from the moment of commit.
@@ -263,8 +272,8 @@ may rewrite it. **Handoff order, fixed**: Referee call → engine structural val
 binding + idempotency check → Continuity pre-roll validation (every call) → engine assemble + roll
 + atomic commit → (edge bands) Referee annotation proposal → Continuity annotation validation (one
 revision allowed across both validators) → engine effects validation (catalog membership,
-quantities, weight ≤ license) → engine atomic annotation append + catalog-effect execution (or
-null-annotation commit with `annotationRejected`) → Narration.
+quantities, band valence, point cost ≤ license budget) → engine atomic annotation append +
+catalog-effect execution (or null-annotation commit with `annotationRejected`) → Narration.
 
 ## 6. What models may and may not do
 
@@ -285,8 +294,9 @@ quantities; offer the player an alternate outcome for a resolved check.
 Value derivation for damage/effects (**D1b**); the effect catalog (**D2** — a hard prerequisite for
 implementing this chapter's edge bands; its required scope includes the complication-effect
 classes: resource/inventory loss, NPC disposition shifts, encounter initiation, and outcome-value
-modulation jointly with D1b — plus the effect-weight classes (`minor`/`significant`) and
-per-operation weights the stakes license maps to); archetypes (**D3**); attributes and SkillBonus derivation
+modulation jointly with D1b — plus the effect-weight classes (`minor`/`significant`), per-operation
+point costs, and per-operation valence tags the stakes license and band-valence checks consume);
+archetypes (**D3**); attributes and SkillBonus derivation
 (**D4**); spend economy (**D5**); zones/tactical space (**D6**); initiative (**D7**); the
 opposition curve and final ladder values (**D8**); dying/death (**D9**); recovery (**D10**);
 mid-resolution choices (**D11**); the parked lantern-holder character's rules treatment (intake
