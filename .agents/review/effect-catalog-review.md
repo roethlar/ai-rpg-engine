@@ -302,3 +302,65 @@ dazed, pinned, winded}, boons {steadied, inspired, concealed}, feature kinds §2
 engine composes frame valence only from it [grok 4]; **§8 case 7/8 split** into current-version
 LIVE rejection cases (disposition conflict, gain-collision, no-op reposition) and explicitly
 labeled post-dependency cases [codex 8].
+
+### Round 5 — pinned `1ad84c79182547360584acf6031d7d863afbee89` (draft r5)
+
+#### codex — valid, SHA-matched, evidence-checked: **reopened** (1 CRITICAL / 7 HIGH)
+
+1. CRITICAL — `encounter_end(party_costing)` lets one minor point narrate party capture while
+   ledgering only a lifecycle flag (restraint/custody/position unchanged).
+2. HIGH — clear ops are always minor, so a minor license can remove persistent state that cost
+   a significant license to establish (trust bypass).
+3. HIGH — `affirmedOpposed` has no ledger home: Chapter 1 §5 fixes annotation as `{text,
+   effects}`.
+4. HIGH — D16 item ops mix name-key and record-ref schemas with no versioned transition.
+5. HIGH — the pre-D16 mundane gate ignores mechanical fields (`stats`, `effect`) already on
+   inventory records.
+6. HIGH — `pinned` semantics aren't enforced: `reposition`/`scene_exit` have no active-condition
+   precondition.
+7. HIGH — encounter participants go stale when an NPC exits (roster vs snapshot undefined).
+8. HIGH — item readiness/wielded state (draw, stow, disarm-in-hand) is neither an op nor a §6
+   exception, though D16's loot requirement depends on wielded-state.
+
+#### grok — valid, SHA-matched, evidence-checked: **reopened** (2 HIGH / 4 MEDIUM)
+
+1. HIGH — frame-composed ops reject *all* non-opposed NPCs (bystanders, neutrals — help or
+   hurt), but §6 names only allied boons.
+2. HIGH — `affirmedOpposed` unshaped against Chapter 1's annotation contract (same as codex 3).
+3. MEDIUM — no way to replenish an existing mundane stack ("another power cell" collides).
+4. MEDIUM — name normalization/matching underspecified (case, Unicode) across collision,
+   resolution, and conflict keys.
+5. MEDIUM — `fact_learn` beneficial-only leaves pure discoveries on failure bands homeless.
+6. MEDIUM — §3's "setting a pack down" neutral example contradicts `item_drop`'s fixed adverse
+   direction.
+
+#### Coder triage → r6
+
+All 14 ADMITTED. r6 changes: **`encounter_end` scope restricted to lifecycle-only
+consequences** — capture, surrender, and binding the party are named §6-inexpressible (restraint
+tokens and party-custody state don't exist) [codex 1]; **clear weights derive from the stored
+record** — clearing scene-duration state is minor, persistent state significant, priced on the
+tentative state [codex 2]; **the edge-band annotation shape is normatively extended to `{text,
+effects, affirmedOpposed}`** as a declared Chapter 1 §5 refinement enacted at this chapter's
+sign-off (Continuity-emitted only; a model-emitted field rejects) [codex 3, grok 2]; **versioned
+item schemas** — at D16 activation the catalog version bumps and every durable-item op takes
+`item:<record id>`; name keys remain only in the legacy LIVE shapes [codex 4]; **deterministic
+pre-D16 non-mundane rule** — any inventory entry carrying `stats` or `effect` fields rejects as
+non-mundane by construction, alongside the Continuity name gate [codex 5]; **`pinned`
+precondition** — `reposition`/`scene_exit` reject while the target's `pinned` is active on the
+tentative state unless cleared earlier in the array (ordering acceptance case added) [codex 6];
+**participants are a live roster** — post-D7 `scene_exit` atomically removes the exiter from the
+active roster (a declared cross-store write); last-opponent lifecycle consequences are D7-owned
+[codex 7]; **readiness retired as mechanical state** — the legacy `equipped` field is declared
+display-only; wielded-state becomes D16 item-record data with readiness ops as a future catalog
+version, recorded in §6 [codex 8]; **§6 generalizes the frame exception** — any frame-composed
+effect on an NPC outside `affirmedOpposed` (ally, neutral, bystander, help or hurt) is
+inexpressible pending allegiance records, and E2 is scoped to party + affirmed-opposed [grok 1];
+**mundane stack replenishment** — `item_gain` on a same-key match that passes the mundane gates
+increments quantity by exactly one instead of rejecting; non-mundane matches still reject
+[grok 3]; **one comparison key** — trim, collapse whitespace, NFC, Unicode case-fold — used for
+collision, resolution, and conflict keys, with display form preserved [grok 4]; **fact
+commitment scoped honestly** — among edge bands `fact_learn` is crit-success-only; discoveries
+on other bands are reword-or-flavor, and routine fact commitment belongs to the ordinary path
+(§6 entry) [grok 5]; **the neutral example fixed** and §2.3 notes the ordinary authorizer may
+treat self-directed custody ops as neutral per §9's audit [grok 6].
