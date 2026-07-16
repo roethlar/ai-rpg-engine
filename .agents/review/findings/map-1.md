@@ -145,3 +145,30 @@ Reviewer should grade these explicitly:
 **Coder's assessment of the verdict: all three findings are correct and I accept them.**
 Defect 3 is the one that matters most — it means the fix does not fully close the bug the owner
 reported. Fix-ups required on this branch, then re-dispatch.
+
+---
+
+## Round-1 fix-ups (2026-07-15) — `a4d1c0b` on `fix/map-label-overflow`
+
+All three r1 defects addressed in one commit, each with a regression guard:
+
+1. **Surrogate split** — `fitAreaLabel` now measures and cuts in code points
+   (`Array.from(text)`), so an emoji/astral-glyph name can never emit a lone
+   surrogate (U+FFFD) at the truncation boundary. Guard: emoji-name test asserts
+   the cut ends on a whole glyph + `…`.
+2. **Clip-id collision** — clip-path ids are index-qualified
+   (`am-<map>-a<areaIndex>-<slug>`): `slugify` is lossy (`east wing` and
+   `east-wing` collide), and duplicate ids made every later `<text>` clip to the
+   first rect. Guard: sibling areas with slug-colliding ids must emit distinct
+   `clipPath` ids.
+3. **Canvas overflow** — `validateLocationLayout` now clamps `x`/`y` against the
+   *clamped* `w`/`h` (not the raw values), so every area rect lies fully inside
+   the 100×70 `LOCATION_CANVAS`. Guard: oversized area is clamped to
+   `x + w <= width`, `y + h <= height`.
+
+Branch rebased onto `master` @ `207f27e` (was 148 commits behind). Two conflicts
+in `map-render.js` — master rewrote theme-var syntax `hsl(var(--x, …))` →
+`var(--x, hsl(…))` on the same lines; resolved keeping the fix structure with
+master's syntax. Rebased commits: `5b9898e` (original fix, was `b178222`) +
+`a4d1c0b` (fix-ups, was `6060561`). Full suite green post-rebase (`node --test
+test.js`: pass 1, fail 0). Awaiting r2 verdict.

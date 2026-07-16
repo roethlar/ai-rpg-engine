@@ -40,7 +40,7 @@ dated verdicts below retain the role actually used at the time.
 
 | ID | Severity | Impact (one line) | Status | Branch |
 |----|----------|-------------------|--------|--------|
-| map-1 | MEDIUM | Situation-panel area labels overrun their box: adjacent labels collide and the rightmost is clipped by the canvas edge | `[~]` REOPENED at r1 — 3 real defects (surrogate split, clip-id collision, canvas overflow still open); fix-ups pending | `fix/map-label-overflow` @ `b178222` |
+| map-1 | MEDIUM | Situation-panel area labels overrun their box: adjacent labels collide and the rightmost is clipped by the canvas edge | `[~]` r1 fix-ups landed (code-point cut, indexed clip ids, dependent x/y clamps), branch rebased onto master @ `207f27e`, suite green; awaiting r2 verdict | `fix/map-label-overflow` @ `a4d1c0b` |
 | css-1 | MEDIUM | Pre-existing: `rgba(var(--theme-*), α)` over HSL-triple vars is invalid CSS — header/glass/panel fills compute unpainted on every theme | `[x]` MERGED at `41e1938` (ACCEPTED r5); branch deleted | `09bb433` (was `fix/css-1-hsla-theme-vars`) |
 | css-2 | MEDIUM | The css-1 guard scanned only one authoring surface, but the attempted broader scanner crashed and rejected valid CSS | `[!]` **ABANDONED / REPLACED BY PHASE CT** — branch refs deleted; never merge or recreate it. See `docs/history/css-2-abandoned-scanner.md` | none (was `fix/css-2-scanner-scope` @ `0229679`) |
 | css-3 | LOW | `--theme-glow` was dead: defined 6× in `styles.css`, written on every theme apply, read nowhere | `[-]` **SUPERSEDED** — folded into Phase CT (plan.md). It was a *quadruple* (components + alpha), so it had no complete-colour form and CT deleted it. Never branched | none |
