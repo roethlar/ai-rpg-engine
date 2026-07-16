@@ -31,10 +31,16 @@ to `docs/history/state-archive.md`.
   pass 1 / fail 0) and `fix/map-label-overflow` deleted after verification.
   `.agents/review/findings/map-1.md` owns the defect enumeration and both verdicts. No review
   finding has an open branch.
-- **The rules system is the next big feature.** D0 is decided: one fixed house chassis with
-  generated campaign flavor. D1 (the die) is the next owner decision. The canonical queue is
-  `.agents/review/rules-system-plan-intake.md`; present it one item at a time. No rules code before
-  the remaining decisions, a concrete phase, and an accepted plan review.
+- **The rules system is the next big feature.** D0 and D1 are decided (fixed house chassis;
+  d20 meet-or-beat — with d20-specific clauses pending supersession by the reviewed chapter below).
+  **Chapter 1 (Resolution) is drafted at `docs/rules/resolution.md` and REVIEW-CONVERGED**: codex
+  and grok both accepted pinned `f14593c` with zero findings after 5 rounds
+  (`.agents/review/resolution-ruleset-review.md`; d100, hard floors at raw 1/100, five-face edge
+  texture, enum deltas, code-owned ladder). **Owner sign-off is pending** — it enacts the chapter's
+  supersession declaration and two flagged trades (enum delta magnitudes replacing free "+3%";
+  annotation effects empty until D2). The canonical queue remains
+  `.agents/review/rules-system-plan-intake.md` (next decisions: D2, D4, D6, D11, D12, D14 — one at
+  a time). No rules code before a concrete phase and an accepted plan review.
 - The existing owner-approved reviewloop backlog remains unstarted as of `ca55b55`.
   `.agents/review/index.md` owns the exact findings and order; resume at `jt-1`, finish the remaining
   backlog, then enter the approved T2-s/T2 plan.
@@ -87,8 +93,8 @@ Phase V's owner voice playtest; the rules track resumes with D1 when the owner c
   Configure either OpenAI or Grok voice in `/admin`, enable Voice Narration, and play a real scene
   with narrator plus multiple NPC lines. Confirm distinct/sticky identities, audible moods and
   per-line tones, Skip, and shared host/seat delivery.
-- `map-1` is landed and closed (merge `dd59c27`); the rules track resumes with D1 when the owner
-  is ready.
+- `map-1` is landed and closed (merge `dd59c27`); the rules track's next owner move is sign-off on the
+  review-converged resolution chapter, then D2.
 - For the combined host/seat playtest, set
   `ACCESS_SECRET` + `ADMIN_SECRET`, confirm an AI provider is configured
   there, expose the server, create the second character (party strip
@@ -129,3 +135,4 @@ Phase V's owner voice playtest; the rules track resumes with D1 when the owner c
 - `README.md` — current setup, hosting, seat, and voice flow.
 - `.agents/machines.md` — machine-local facts and cleanup blockers; never portable state.
 - `docs/history/state-archive.md` — rotated history; not current state.
+

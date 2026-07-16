@@ -1,6 +1,6 @@
 # Resolution ruleset review (docs/rules/resolution.md)
 
-**Status**: r4 — grok ACCEPTED (3rd consecutive); codex REOPENED (1 MEDIUM). r5 revision in progress; both re-review r5.
+**Status**: **CONVERGED** — r5 `f14593c79c7a1c608fda4546581bf09a2704849e` ACCEPTED by codex AND grok (zero findings, both cold-implementer-executable). Awaiting owner sign-off, which enacts the supersession declaration and the two flagged trades.
 **Artifact**: `docs/rules/resolution.md` (Chapter 1: Resolution — d100 tail-texture hybrid).
 **Owner direction**: 2026-07-16 — "turn this into a coherent ruleset then run it by codex and grok
 reviewloops." For THIS loop the owner's explicit wording reinstates the dual codex+grok contract,
@@ -170,4 +170,19 @@ callSeq carved out as the sole protocol ordinal, excluded from all game arithmet
 Admitted. r5 change (surgical): supersession item 5 and §6 reworded — models emit exactly TWO
 numeric protocol identifiers, the actor-id cross-check (engine-bound and verified independently)
 and the callSeq idempotency ordinal; neither enters game arithmetic. No other text changes.
+
+
+### Round 5 — pinned `f14593c79c7a1c608fda4546581bf09a2704849e` (base `3820e5a`)
+
+#### codex-cli 0.144.4 — 2026-07-16T07:10:07Z. Valid, SHA-matched; `evidence_checked: true`;
+`cold_implementer_executable: true`; verdict: **ACCEPTED** — zero findings.
+
+#### grok 0.2.101 / grok-4.5 — 2026-07-16T07:10:07Z. Valid, SHA-matched; `evidence_checked: true`;
+`cold_implementer_executable: true`; verdict: **ACCEPTED** — zero findings (fourth consecutive).
+
+**CONVERGENCE REACHED**: both reviewers accepted the same pinned SHA with no material comments,
+satisfying the contract. Finding trajectory: r1 13 (7 codex + 6 grok) → r2 8 → r3 4 → r4 1 → r5 0.
+Owner sign-off remains the final gate; it enacts the chapter's supersession declaration and the two
+explicitly flagged trades (enumerated delta magnitudes replacing free "+3%" integers; annotation
+`effects` required-empty until D2).
 

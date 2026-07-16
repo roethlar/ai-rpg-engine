@@ -1,9 +1,10 @@
 # Aetheria House Ruleset — Chapter 1: Resolution
 
-**Status**: DRAFT r5 — r4: grok ACCEPTED (3rd consecutive), codex reopened (1 MEDIUM: numeric
-carve-out named callSeq as the sole model-emitted numeric token while calls also carry the integer
-actor id; trail: `.agents/review/resolution-ruleset-review.md`). This revision fixes that wording
-only. Pending codex + grok re-review, then owner sign-off.
+**Status**: REVIEW-CONVERGED — accepted by codex-cli 0.144.4 AND grok-4.5 at pinned commit
+`f14593c` with zero findings after five rounds (trail:
+`.agents/review/resolution-ruleset-review.md`). Awaiting owner sign-off, which enacts the
+Supersession declaration below. Substantive sections are unchanged from the accepted pin; only this
+status block differs.
 **Provenance**: D0 (2026-07-12, fixed house chassis + flavor skins); D1 (2026-07-16, as amended);
 owner brainstorm adopted for drafting 2026-07-16 (`.agents/review/dice-bakeoff.md`, addenda 3–4).
 
@@ -276,4 +277,5 @@ addition, 2026-07-16).
   marginal-failure faces; rule 2 consumed raw 1, exactly as §1.4 states). Raw 2–6:
   `marginal_success` (raw−2 ≤ 4). Raw 7–99: `clean_success`. Raw 100: `crit_success`. Failure is
   nearly impossible — exactly 1% — and the game still gets its drama at the edge.
+
 
