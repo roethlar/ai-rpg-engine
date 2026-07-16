@@ -1,10 +1,11 @@
 # Aetheria House Ruleset — Chapter 2: Effects
 
-**Status**: DRAFT r6 — rounds r1–r5 were each reopened by both independent reviewers; every
+**Status**: DRAFT r7 — rounds r1–r6 were each reopened by both independent reviewers; every
 admitted finding is addressed in place (trail and the two recorded disputes:
-`.agents/review/effect-catalog-review.md`). Not yet owner-signed; implementation of Chapter 1's
-edge bands is gated on this chapter's acceptance **and on a real active-encounter lifecycle for
-license pricing (see §3 — pre-D7 the encounter input is conservatively false)**.
+`.agents/review/effect-catalog-review.md`). Not yet owner-signed. Implementation of Chapter 1's
+edge bands is gated on **this chapter's acceptance only**: pre-D7, license pricing follows §3's
+conservative rule (the encounter-active input is constantly false), and each gated operation
+activates with its own dependency — there is no separate D7 shipping gate.
 **Declared Chapter 1 refinement (enacted at this chapter's sign-off, mirroring Chapter 1's own
 supersession pattern)**: the §5 ledger `annotation` shape extends from `{text, effects}` to
 `{text, effects, affirmedOpposed}` — the Continuity-emitted set of NPC refs affirmed as presently
@@ -66,9 +67,10 @@ An effect entry is an object whose fields are fixed per operation by the §2 sch
   **exactly one** match — zero or multiple matching entries reject with a stated reason (current
   state does not enforce name uniqueness; implementations must reject, never guess).
 - **Comparison key (normative, one rule everywhere)**: name matching — `item_gain` collision,
-  item-key resolution, and conflict keys — uses trimmed, whitespace-collapsed, NFC-normalized,
-  Unicode case-folded comparison ("Lockpicks" and "lockpicks " are one key); the original string
-  is preserved separately as the display form.
+  item-key resolution, conflict keys, **and actor-name occupancy binding (§2.5, encounter
+  participants)** — uses trimmed, whitespace-collapsed, NFC-normalized, Unicode case-folded
+  comparison ("Lockpicks" and "lockpicks " are one key; occupancy "mira" binds `npc` Mira); the
+  original string is preserved separately as the display form.
 - **Item-record ref** (D16): `"item:<record id>"` — a registry item record. Resolution: the
   record must exist and its current holder must satisfy the schema's stated constraint (e.g.
   scene-held in the current location, on the tentative state), with the exactly-one rule trivial
@@ -200,12 +202,12 @@ scope: `harm` writes a number, never removes an actor.
 
 | Operation | Schema | State written | Weight | Direction | Availability |
 |---|---|---|---|---|---|
-| `item_lose` | `{op, owner: actor ref, item: item key}` | one unit leaves play from `owner`'s inventory | by item class (§3) | hurts `owner` | LIVE for character owners **with the mundane check below**; NPC owners GATED:D16 |
-| `item_gain` | `{op, owner: actor ref, name: licensed string}` — **mundane form only**. On a comparison-key match with an existing entry: if that entry passes **both mundane gates** (below), the engine increments its quantity by exactly one ("you scavenge another power cell"); a non-mundane match **rejects** (no stacking onto — or shadowing of — special items) | no match: one new mundane item, stored as `{name: <display form>, type: "general", description: "No description.", quantity: 1}`, every other property ignored — the model supplies the name and nothing else. Post-D16: a fresh engine-minted record id, classified mundane, provenance stamped | minor (mundane by construction) | helps `owner` | LIVE for character owners; NPC owners GATED:D16 |
-| `item_transfer` | `{op, item: item key, from: actor ref, to: actor ref}` — `item` resolves **against `from`** on the tentative state; `from ≠ to` required | the same item record changes holders — identity, condition, and provenance preserved | by item class (§3), **charged once** | net party effect (§3; same-frame nets defined there) | GATED:D16 (needs item records with holders) |
-| `item_drop` | `{op, owner: actor ref, item: item key, area: area id}` | the record's holder becomes the scene (that area); identity/condition/provenance preserved | by item class (§3) | hurts `owner` | GATED:D16 (records with location holders) |
+| `item_lose` | `{op, owner: actor ref, item: item key}` | one unit leaves play: the resolved stack's quantity decrements by one, and the entry is removed **only when quantity reaches zero**. Post-D16, durable records instead persist with holder `lost` and full provenance | by item class (§3) | hurts `owner` | LIVE for character owners **with the mundane gates below**; the NPC-owner form is GATED:D16 and takes `item: item-record ref` |
+| `item_gain` | `{op, owner: actor ref, name: licensed string}` — **mundane mint/stack only**, matching totalized: **zero** comparison-key matches in `owner`'s inventory → mint; **exactly one** match that is *fully* mundane (no `stats`, no `effect`, name gate passes) → increment its quantity by one ("you scavenge another coil of rope"); one match that is non-mundane or effect-bearing → **reject** (stacking would mint mechanics); **more than one** match → reject as ambiguous, before any mutation | mint: one new mundane item, stored as `{name: <display form>, type: "general", description: "No description.", quantity: 1}`, every other property ignored — the model supplies the name and nothing else. Post-D16: a fresh engine-minted record id, classified mundane, provenance stamped | minor (mundane by construction) | helps `owner` | LIVE for **character owners only** — there is no NPC gain form in any version: recorded items reach NPCs solely via `item_transfer` |
+| `item_transfer` | `{op, item: item-record ref, from: actor ref, to: actor ref}` — the record's holder must be `from` on the tentative state; `from ≠ to`; **each non-party endpoint must be in `affirmedOpposed`**, else `allegiance-unknown` (§3) | the same record changes holders — identity, condition, and provenance preserved | by item class (§3), **charged once** | net party effect (§3; nets are defined only over party/affirmed-opposed endpoints) | GATED:D16 |
+| `item_drop` | `{op, item: item-record ref, area: area id}` — the record's holder must be an actor on the tentative state | the record's holder becomes the scene (that area); identity/condition/provenance preserved | by item class (§3) | hurts the former holder | GATED:D16 |
 | `item_pickup` | `{op, owner: actor ref, item: item-record ref}` — the record's current holder must be the current location (scene-held), on the tentative state | the record's holder becomes `owner` | by item class (§3) | helps `owner` | GATED:D16 |
-| `item_condition_shift` | `{op, owner: actor ref, item: item key, direction: degrade\|improve}` | one step on `pristine`→`worn`→`damaged`→`broken` | step to `broken`: significant; else minor (priced on tentative state, §1.1) | degrade: hurts `owner`; improve: helps `owner` | GATED:D16 (condition lives on the item record) |
+| `item_condition_shift` | `{op, item: item-record ref, direction: degrade\|improve}` | one step on `pristine`→`worn`→`damaged`→`broken` | step to `broken`: significant; else minor (priced on tentative state, §1.1) | degrade: hurts the record's holder; improve: helps them | GATED:D16 |
 | `wealth_shift` | `{op, who: **npc ref**, direction: up\|down}` | one step on the §7 wealth ladder | minor | up: helps `who`; down: hurts `who` | GATED:D16 (the per-NPC wealth field; player-character wealth has **no approved home** — §6) |
 
 **Stack rule**: every item entry moves **exactly one unit** — quantity is never a model input and
@@ -220,17 +222,24 @@ LIVE inventory entry additionally passes Continuity's mundane gate (the same §1
 rejects pending D16 classification; a legacy artifact cannot be destroyed for one point as
 "mundane". **The mundane gates are two, both required (pre-D16)**: the Continuity semantic gate
 on the name/description (§1), and a **deterministic engine rule** — an inventory entry carrying
-`stats` or `effect` fields is non-mundane *by construction* and rejects for LIVE
-`item_lose`/`item_gain` stacking pending D16 classification; the legacy `equipped` field is
-declared **display-only, never mechanical state** (readiness is §6). **No minting significance**:
+`stats` is non-mundane *by construction* and rejects pending D16 classification. **The
+consumable carve (loss only, asymmetric by design)**: an entry carrying `effect` but no `stats`
+MAY be `item_lose`'d as a minor loss — the unit is wasted, gone from play, its effect never fires
+("the recovery patch tumbles into the canal") — but may NOT be stacked onto by `item_gain`,
+because minting a unit whose use fires mechanics would be mechanical gain outside D1b. The
+Continuity name gate still applies to the carve (a "Phoenix Elixir" rejects regardless). The
+legacy `equipped` field is declared **display-only, never mechanical state** (readiness is §6).
+**No minting significance**:
 `item_gain` constructs mundane items only; every recorded item moves through
 transfer/drop/pickup, which preserve the record — the laser rifle you loot is the recorded rifle
 its owner carried, in whatever condition the fight left it (the D16 loot requirement).
-**Versioned schema transition (normative)**: the shapes above with `item: item key` are the
-pre-D16 catalog version's. When D16 activates, the catalog version bumps and **every durable-item
-operation** (`item_transfer`, `item_drop`, `item_pickup`, `item_condition_shift`, and the
-NPC-owner forms of lose/gain) takes `item: item-record ref` with the holder validated from the
-record; name keys survive only in the legacy LIVE shapes. **Ordinary-path note**: the ordinary
+**Schema versioning (normative, one rule)**: every GATED:D16 operation above is documented in
+its post-D16 **executable** shape — `item: item-record ref` with the holder validated from the
+record. **No name-key form of `item_transfer`, `item_drop`, `item_pickup`, or
+`item_condition_shift` is legal in any catalog version**; name keys exist only in the LIVE
+`item_lose`/`item_gain` shapes, which persist unchanged as the legacy forms after D16 (the
+version bump adds the record-ref ops, it does not rewrite the live ones). **Ordinary-path
+note**: the ordinary
 authorizer (§9) may treat self-directed custody ops (setting your own pack down) as neutral —
 that audit is §9's; edge-band semantics here are unchanged.
 
@@ -250,10 +259,11 @@ like/dislike axis has no fear/respect channel (a future catalog version may add 
 `fact_learn`, a boon, or flavor.
 
 **Migration note (honest)**: today's turn contract lets the model emit a free integer
-`relationship_change` (−50…+50), Referee-adjudicated damage numbers, and free-form occupancy
-rewrites — all predate this chapter and violate tokens-in/numbers-out. Under rules-governed
-campaigns those seams migrate to catalog operations; freeform/legacy behavior is D13 scope, not
-silently changed.
+`relationship_change` (−50…+50), Referee-adjudicated damage numbers, free-form occupancy
+rewrites, and the free-text `quest_update` (active quest, description, act) — all predate this
+chapter and violate tokens-in/numbers-out. Under rules-governed campaigns those seams migrate to
+catalog operations or their owning systems (quest/act state → the outline system, §6);
+freeform/legacy behavior is D13 scope, not silently changed.
 
 ### 2.5 Position and presence — LIVE (refined by D6 zones)
 
@@ -263,7 +273,8 @@ silently changed.
 | `scene_exit` | `{op, who: **npc ref**, quality: favorable\|unfavorable\|neutral}` | `who`'s occupancy entry is removed — they leave the scene (flee, slip away, get hurled out) | minor | as above, declared for the exiter |
 
 **Binding rule (occupancy rows carry no ids today)**: `who` resolves to the occupancy row whose
-`name` exactly equals the recorded actor's name and whose `kind` matches the ref type
+name matches the recorded actor's name under §1's **comparison key** (never raw string equality —
+occupancy strings drift in case and spacing) and whose `kind` matches the ref type
 (`character:` → `player`, `npc:` → `npc`). The actor must already be a current occupant — these
 ops move or remove people *within* the scene, never into it (arrivals are §6). Zero matches or
 multiple matches → **reject**, stated reason; no silent creation. Stable occupancy identifiers
@@ -388,10 +399,13 @@ belongs to that chapter.
    beneficial; helps affirmed-opposed non-party → adverse.** A crit-success shove that sends a
    foe stumbling is beneficial; a marginal failure may not "complicate" the scene by
    disadvantaging the enemy — that inversion is exactly what this rule exists to reject.
-4. **Same-frame nets** (`item_transfer`): party→opposed-NPC is adverse; opposed-NPC→party is
-   beneficial. **PC→PC is neutral** — custody never leaves the party — hence illegal on edge
-   bands and legal only under ordinary authorization. **NPC→NPC rejects** pending recorded
-   allegiance.
+4. **Same-frame nets** (`item_transfer`): the nets are defined **only over party and
+   affirmed-opposed endpoints** — any non-party endpoint outside `affirmedOpposed` (the gift to
+   the bartender, the theft from the bystander) rejects `allegiance-unknown` like every other
+   frame-composed NPC effect. Within that domain: party→opposed-NPC is adverse;
+   opposed-NPC→party is beneficial. **PC→PC is neutral** — custody never leaves the party —
+   hence illegal on edge bands and legal only under ordinary authorization. **NPC→NPC rejects**
+   pending recorded allegiance.
 5. Side-composed ops: scene features use `works_against`, encounter lifecycle uses `outcome`,
    each through the same frame (§2.7, §2.8).
 6. Fixed-valence ops (disposition, `fact_learn`, value modulation) skip composition; each states
@@ -417,26 +431,25 @@ mismatch is impossible by construction.
 
 ## 4. Contextual suggestions (advisory, engine-assembled)
 
-When Chapter 1 licenses an edge-band annotation, the engine MAY hand the Referee a short list of
-candidate effects assembled from live state: the actor's inventory, present NPCs and their
-dispositions, areas, active conditions and features, **and the check's ruled situational deltas**
-(the D2 decision names them — driving rain suggests the slip, the fall, the soaked powder).
-Contract — deliberately minimal:
+**A substantive suggestion assembler is explicitly NOT a deliverable of this chapter.** The
+normative contract is exactly two clauses, both executable:
 
-- Every suggestion is pre-validated against the current license budget and band valence; the
-  list never contains an illegal option, and its length is capped (§7).
-- Suggestions are **advisory only**: the Referee may take one, combine within budget, or ignore
-  the list and write its own (validated identically). An empty or absent list never blocks
-  anything; flavor-only always remains legal. Contents are not ledgered unless chosen.
-- Assembly is engine code, not a model call. **Selection is implementation-defined** — no
-  determinism claim, no ranking contract — and the assembler is excluded from this chapter's
-  cold-implementation acceptance: it is an optional quality-of-life layer over a complete system.
+1. Any suggestion shown to the Referee MUST be a pre-validated legal effect array (license
+   budget, band valence, §1 core) — an illegal option may never appear; the list length is
+   capped (§7).
+2. Absence conforms: no suggestions, an empty list, or no assembler at all are all valid
+   implementations. Suggestions are advisory — the Referee may take, combine within budget, or
+   ignore them; nothing is ledgered unless chosen; flavor-only always remains legal.
 
-**Flag for owner sign-off (open by design, Chapter 1 §3 precedent)**: this advisory-MAY reading
+Everything else — which live-state sources to draw on (inventory, present NPCs, areas, active
+conditions and features, the check's ruled deltas), how candidates are generated, filtered, or
+ranked — is **non-normative guidance**, not contract, and no acceptance case may depend on it.
+
+**Flag for owner sign-off (open by design, Chapter 1 §3 precedent)**: this minimal reading
 follows the D2 decision's wording ("complication SUGGESTIONS, maybe"). If you want a
 *guaranteed* substantive suggestion feature — one implementations must ship, with defined
-behavior — say so at sign-off and this section gains a normative assembler contract; otherwise
-the de-scope stands.
+behavior — say so at sign-off and a normative assembler contract gets designed and reviewed as
+its own increment; otherwise the de-scope stands.
 
 This is the owner's "contextual table": suggestion content varies with the scene because it *is*
 the scene, while the free-text complication stays the model's to write.
@@ -469,6 +482,12 @@ No operation exists for — and no annotation or ability may assert as mechanica
 - **any frame-composed effect on a non-opposed NPC** — allies, neutrals, bystanders, whether
   helped or hurt: no recorded allegiance exists to compose valence from, and mis-affirming a
   bystander as opposed is a Continuity violation, not a workaround (**D8/D16**; §3);
+- **changing allegiance itself** — betrayal, defection, an ally turning: disposition can move
+  (like/dislike), but which *side* an NPC is on has no recorded home; loyalty changes are
+  prose-only until allegiance records exist (**D8/D16**);
+- **quest and objective state** — "the contract is fulfilled", "the hunt is now for X": the
+  live `quest_update`/act seam is real campaign state with no catalog verb; it belongs to the
+  outline system and the ordinary path (**D15**; §2.4 names it a migration target);
 - **capturing, binding, or forcing the surrender of the party** — restraint tokens, custody
   state, and party position changes have no operations; `encounter_end(party_costing)` may end
   hostilities unfavorably but asserts nothing more (**D9/D11 + the restraint/custody homes**;
@@ -596,9 +615,13 @@ annotation text and vice versa.
    are in the annotation's `affirmedOpposed` set; both entries hurt opposed non-party actors →
    **beneficial** (§3); 1 + 1 = 2/2; both are current occupants with unique names. Valid.
 7. **Current-version LIVE cases**: `{op:"item_gain", owner:"character:7", name:"power cell"}`
-   with a mundane "power cell" stack already held → the engine increments that stack by one
-   ("you scavenge another") — while the same op matching an entry carrying `stats`/`effect`
-   fields → **non-mundane rejection** (§2.3); `{op:"item_gain", owner:"character:7", name:"a
+   with one mundane "power cell" stack already held → the engine increments that stack by one
+   ("you scavenge another"); the same op matching an entry carrying `stats` or `effect` →
+   **rejection** (stacking would mint mechanics); matching *two* same-key legacy entries →
+   ambiguous, rejected before any mutation; `{op:"item_lose", owner:"character:7",
+   item:"recovery patch"}` where the entry carries `effect: heal_20` but no `stats` → **legal
+   minor loss** under the consumable carve ("the patch tumbles into the canal — wasted"), the
+   stack decrementing by one unit (§2.3); `{op:"item_gain", owner:"character:7", name:"a
    crate of 100 grenades"}` → licensed-string rejection (count assertion); two
    `disposition_worsen` entries on `npc:31` → conflict-key collision; `reposition` to the
    actor's current area → no-op; `{op:"reposition", who:"npc:63", quality:"unfavorable", …}`

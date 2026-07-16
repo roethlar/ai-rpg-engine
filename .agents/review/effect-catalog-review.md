@@ -364,3 +364,60 @@ commitment scoped honestly** — among edge bands `fact_learn` is crit-success-o
 on other bands are reword-or-flavor, and routine fact commitment belongs to the ordinary path
 (§6 entry) [grok 5]; **the neutral example fixed** and §2.3 notes the ordinary authorizer may
 treat self-directed custody ops as neutral per §9's audit [grok 6].
+
+### Round 6 — pinned `f35aa5936c082245217064bb0e33104d8a0ea96e` (draft r6)
+
+Dispatch note: the first codex r6 run died silently ~15:03 when the ptk MCP server restarted
+(reaping its background job); the owner's "is there actually a review running?" prompted the
+check that found it. Re-dispatched under harness-tracked background execution (kill → notify);
+grok's run had completed before the restart. Watcher lesson recorded: a grep-for-exit-marker
+watcher cannot distinguish "running" from "killed"; reviewer dispatches now run harness-tracked.
+
+#### grok — valid, SHA-matched, evidence-checked: **reopened** (2 HIGH / 4 MEDIUM)
+
+1. HIGH — the §2.3 table documents name-key schemas for GATED:D16 durable ops that can never
+   execute in any version (pre-gate they're gated; post-gate the transition says record refs).
+2. HIGH — `item_transfer` valence undefined when an endpoint is a non-opposed NPC (gift to the
+   bartender).
+3. MEDIUM — LIVE `item_lose` can't spend effect-bearing consumables (the starter Recovery Patch
+   carries `effect: heal_20`), gutting held-item loss coverage.
+4. MEDIUM — `item_lose` on a stack: unit decrement vs whole-entry delete unspecified.
+5. MEDIUM — quest/objective state (`quest_update` — live, mutable, every turn) has no verb and
+   no §6 home.
+6. MEDIUM — occupancy binding demands exact name equality while the rest of the system
+   case-folds.
+
+#### codex (re-run) — valid, SHA-matched, evidence-checked: **reopened** (4 HIGH / 1 MEDIUM)
+
+1. HIGH — the Status hard-gates edge bands on D7 while §1.1/§3 permit pre-D7 shipping with the
+   conservative false input — direct contradiction.
+2. HIGH — the post-D16 NPC `item_gain` form is incoherent (mint vs transfer vs recover
+   undefined; conflicts with "recorded items move only through transfer/drop/pickup").
+3. HIGH — `item_gain` undefined when multiple legacy entries share one normalized key.
+4. HIGH — the suggestion assembler is intentionally non-executable yet described substantively.
+5. MEDIUM — allegiance *changes* (betrayal, defection) are neither an op nor a §6 entry.
+
+#### Coder triage → r7
+
+All 11 ADMITTED (no criticals this round — softest verdicts of the loop). r7 changes: **Status
+contradiction resolved in favor of shipping** — edge bands gate on this chapter's acceptance
+only; pre-D7 pricing follows §3's conservative rule [codex 1]; **GATED:D16 durable-item ops
+documented with their post-D16 record-ref schemas only** — no name-key form of
+transfer/drop/pickup/condition_shift is legal in any catalog version; name keys survive solely
+in the LIVE lose/gain shapes [grok 1, codex 2 part]; **NPC-owner `item_gain` removed outright**
+— NPC acquisition is transfer/pickup; gain mints/stacks mundane player items only [codex 2];
+**`item_gain` matching totalized** — zero normalized matches mints, exactly one stacks if both
+mundane gates pass, more than one rejects as ambiguous [codex 3]; **`item_lose` write rule** —
+decrement by one, delete the entry at zero; post-D16 lost-holder described separately [grok 4];
+**consumable carve** — an entry with `effect` but no `stats` may be lost/wasted as minor (the
+effect never fires; Continuity's name gate still rejects unique/powerful names) [grok 3];
+**`item_transfer` endpoints restricted** — any non-party endpoint outside `affirmedOpposed`
+rejects `allegiance-unknown`; the four nets apply only to party/affirmed-opposed endpoints
+[grok 2]; **§4 collapsed to its executable core** — normative contract is exactly (a) any shown
+suggestion is pre-validated legal and (b) absence conforms; sources/selection demoted to
+non-normative guidance; a substantive assembler is explicitly NOT this chapter's deliverable,
+pending the recorded owner flag [codex 4]; **one comparison key everywhere** — §2.5/participant
+binding adopts the same NFC/case-fold key as items [grok 6]; **§6 additions** — allegiance
+changes (betrayal/defection → D8/D16) and quest/objective/act state (→ D15/outline + ordinary
+path), with `quest_update` named a migration-target seam beside the §2.4 note [codex 5,
+grok 5].
