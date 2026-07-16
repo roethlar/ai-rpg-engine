@@ -31,6 +31,17 @@
   (phased development with promotion gates, 2026-06-05; Council pipeline
   canonical, 2026-06-05; and later game-contract decisions).
 
+## Owner Communication
+
+- The owner runs many agents in parallel and reads chat only — never docs, never internal
+  bookkeeping (owner 2026-07-16: "I'm managing 10 agents. I'm not reading docs. give it to me in
+  an exec summary or it doesn't exist to me."). Every owner-facing message leads with a
+  plain-English executive summary. Internal tracking labels — decision-queue IDs ("D4"), slice and
+  finding IDs, file paths, commit SHAs — are repo paper-trail only: describe the thing plainly and
+  put the label in parentheses only if the trail needs it. Decisions still go one at a time in
+  ~25–50 plain words with a recommendation; this extends the `plan` operator's owner-facing rule
+  in `AGENTS.md` to all owner communication.
+
 ## Reading Order
 
 1. `.agents/state.md` — current state entry point (active work, blockers,
