@@ -557,3 +557,78 @@ pricing added to §6 (D1b/D16) [codex 3]; **stack eligibility totalized fail-clo
 whitelist {name, type, description, quantity, equipped}, unknown keys reject, quantity absent
 (=1, normalized) or positive safe integer, mundane gate over *stored* name/type/description;
 no second-line fallback (would break `item_lose` unique-match) [codex 4].
+
+### Round 10 — pinned `02d6e4586fb3984311d988457f4528c1af874aa8` (draft r10)
+
+#### grok — valid, SHA-matched, evidence-checked: **reopened** (3 HIGH / 3 MEDIUM)
+
+1. HIGH — the r10 composed-pair "intentional use" prose overclaims LIVE expressibility:
+   `heal` is GATED, so the mixed-valence pair (beneficial fire + adverse loss) can never pass
+   the single-valence edge bands on the current surface.
+2. HIGH — post-D16 `item_gain` storage ("fresh engine-minted record id" on mint) contradicts
+   the schema-versioning rule that live forms persist unchanged.
+3. HIGH — models must emit engine-issued refs (`npc:44`, `item:<record id>`), but no contract
+   says how the model ever *learns* those ids.
+4. MEDIUM — the mundane-gate wording ("same §1 standard as `item_gain` names") re-applied to
+   stored text would reject every legacy consumable whose description asserts mechanics
+   ("Restores 20 Health Points."), hollowing out the Recovery Patch carve.
+5. MEDIUM — `encounter_start` is vocabulary-present but license-unreachable in the modal case
+   (2 points vs the standard-tier out-of-encounter budget).
+6. MEDIUM — suggestion eligibility requires a computable band-legal valence, but frame
+   valence for NPC targets depends on `affirmedOpposed` entries that may not exist yet.
+
+#### codex — valid, SHA-matched, evidence-checked: **reopened** (4 HIGH / 2 MEDIUM)
+
+1. HIGH — the LIVE consumable-use composition cannot pass edge-band authorization (same
+   arithmetic as grok 1, demonstrated on the starter Recovery Patch).
+2. HIGH — post-D16 stack and record identity rules cannot be implemented consistently:
+   same-name gains incrementing a record's quantity fights "every item operation moves
+   exactly one unit" and record-form ops that preserve/move *the* record.
+3. HIGH — `scene_feature_clear` "removes the referenced feature record", destroying the
+   identity §1.1's persistence contract simultaneously requires every executed effect to
+   retain, serialize, and remap.
+4. HIGH — LIVE legacy `item_lose` is not fail-closed over actual inventory shapes: the
+   unknown-key/malformed-quantity rejections bound only `item_gain`, so loss-side matching
+   ran over untrusted records.
+5. MEDIUM — the feature-reference wire format is undefined (feature refs named only as "the
+   id of a feature record", with no typed-token form like `character:<id>`).
+6. MEDIUM — held-item capability changes (draw/stow/switch a wielded item) are neither
+   expressible nor listed in §6's deliberate-exception list.
+
+#### Coder triage → r11
+
+All 12 ADMITTED — two cross-reviewer duplicates (grok 1 ≡ codex 1, grok 2 ≈ codex 2) → ten
+distinct fixes. r11 changes: **intentional-use honesty** — declared NOT expressible on the
+current surface *by valence arithmetic, not omission* (mixed-valence pair vs single-valence
+edge bands); the all-adverse mishap pair is what LIVE carries; deliberate use is the ordinary
+path (§9/D15) or D1b `item_use` (§6), and the composed-pair contract survives as the binding
+template for whichever surface first carries it [grok 1 / codex 1]; **quantity-one registry
+records** — declared for D16: record-ref ops move/degrade/destroy whole discrete units;
+stacking/splitting/merging are mundane-list semantics that never enter the registry;
+`item_gain` writes the mundane stack list only in *every* catalog version — durable records
+are minted exclusively by engine flows (loot placement, import, D16 migration), never by this
+op [grok 2 / codex 2]; **`scene_feature_clear` is a status flip** — records are never
+deleted: `status: active|cleared` with `clearedBy`/`clearedTurn`, identity append-only,
+tombstones export and remap, clear-on-cleared is an unresolvable reference (double-clear
+guard) [codex 3]; **loss-side totalization** — fail-closed mirror of stack eligibility: key
+whitelist ∪ {`effect`}, unknown keys reject pending D16, quantity absent (=1) or positive
+safe integer, removes exactly one unit, malformed quantities reject before mutation
+[codex 4]; **feature wire format** — `feature:<record id>` typed token naming an active
+record, persisted state, remaps like every typed token [codex 5]; **held-item exception** —
+item readiness/wielded state added to §6: legacy `equipped` is display-only and never
+mechanical state; wielded state becomes D16 item-record data; readiness ops are a future
+catalog version [codex 6]; **ref disclosure (normative)** — engine-stamped ref directory in
+model context (party character ids, recorded NPCs at the location, layout area ids, active
+feature records, item records once stores exist); the model never invents an id; refs
+outside the directory reject as unresolvable; bare names never accepted in ref fields
+[grok 3]; **mundane gate scoped to significance** — §1's mechanical-property rejection
+governs model-emitted `item_gain` names only and is never re-applied to *stored* text; stored
+mechanics are policed by the deterministic rules, never by re-parsing strings, so the
+Recovery Patch carve survives [grok 4]; **`encounter_start` tiering declared deliberate** —
+a priced consequence of Chapter 1, not an oversight: standard-tier out-of-encounter
+annotation cannot flip a room hostile; escalation lives in extreme/legendary tiers, post-D7
+in-encounter criticals, or GM-authored turn flow [grok 5]; **"computable" is restrictive** —
+ops whose effective valence depends on not-yet-persisted inputs (declared judgments,
+`affirmedOpposed` membership) are not suggestion-eligible; frame-composed NPC ops are
+suggested only against NPCs already in the persisted `affirmedOpposed` set; assemblers never
+guess opposition [grok 6].
