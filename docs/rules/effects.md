@@ -49,8 +49,8 @@ Chapter 1's executable contract (§1.5); the recorded D16 requirements (loot, we
   naturally rule (recorded scene objects, unrecorded actors, world-scale state, intelligence
   state) is deliberately *not yet* expressible; §6 names every such exception and its future
   home. When a ruling cannot map, the fallback is reword-or-flavor — where flavor means
-  **mechanically inert**: text that asserts no change to possession, position, or availability.
-  Never silent state drift, never an unledgered consequence.
+  **mechanically inert**: text that asserts no change to possession, position, availability,
+  or the body of established fact. Never silent state drift, never an unledgered consequence.
 - **E3 — Tokens in, numbers out; strings are subordinate to tokens.** Models emit operation
   tokens, enumerated parameters, typed recorded references, and — only where a §2 schema
   explicitly licenses one — a bounded string. The engine maps every token to numbers via
@@ -119,7 +119,11 @@ An effect entry is an object whose fields are fixed per operation by the §2 sch
 **Ref disclosure (normative)**: refs are engine-issued ids, so any seat that may emit or affirm
 an effect ref receives an engine-stamped **ref directory** in its context — party character
 ids, recorded NPCs at the current location (id + name), the current layout's area ids, and —
-once their stores exist — active feature records and referenceable item records. A model is
+once their stores exist — active feature records and referenceable item records. "At the
+current location" is itself defined here, because no NPC location field exists: an NPC is
+directory-present iff its record joins the current occupancy under §2.3's comparison keys
+(normalized name × kind); a join that matches two records is ambiguous and stamps neither
+(the engine flags the collision for repair rather than guessing). A model is
 never required to invent or recall an id the engine did not surface that turn; a ref naming an
 id outside the stamped directory rejects as unresolvable, and a bare name is never accepted in
 a ref field (the comparison-key rule in §2.3 is an occupancy-binding rule, not a ref fallback).
@@ -160,8 +164,10 @@ An annotation's `effects` array is validated and priced as one ordered pass:
    that cannot (heal at max, degrade past `broken`, wealth past a ladder end, disposition already
    at a clamp, re-applying an active condition, clearing an absent one, repositioning to the
    current area) is a **no-op and is rejected** — narrated change must be real change.
-   Additionally, an array whose final tentative state equals its starting state (mutually
-   cancelling entries) is rejected wholesale. **Condition preconditions bind here**: an entry
+   Additionally, a **non-empty** array whose final tentative state equals its starting state
+   (mutually cancelling entries) is rejected wholesale — the empty array is *not* caught here:
+   `effects: []` is the flavor-only annotation and is always legal (§8 example 1,
+   resolution §1.5). **Condition preconditions bind here**: an entry
    whose target has an active `pinned` record on the tentative state rejects for `reposition`
    and `scene_exit` — unless an earlier entry cleared it (clear-then-move is the legal ordering).
 3. **Conflict keys**: at most one entry per conflict key per array. The key, per operation
@@ -224,7 +230,13 @@ token under the same entity mapping the bundle applies to the rows themselves**,
 import that cannot map a token fails whole (no dangling refs, no silent drops). The bundle's
 entity maps must therefore cover **every id space a token can name** — characters, recorded
 NPCs, and, as their stores ship, feature records (including cleared tombstones, §2.7), item
-records, and area-bearing layouts — not characters alone. Today's
+records, and area-bearing layouts — not characters alone. **Area identity (normative)**: the
+model emits a bare area id from the stamped directory (§1), but the *persisted* token is
+location-qualified — `area:<location-record-id>:<area-id>`, stamped by the engine at
+resolution — because layout validation scopes area ids per location and bare ids collide
+across locations (two `courtyard`s). The location component remaps like any record id; the
+area component is layout-internal and travels verbatim; the scene-feature record's own
+`location` field (§2.7) must equal its token's location component. Today's
 import path copies turn state verbatim; that is legal only while no ledgered effects exist —
 token remapping is part of the edge-band implementation gate.
 
@@ -349,7 +361,11 @@ that audit is §9's; edge-band semantics here are unchanged.
 | `disposition_worsen` | same | same | same | adverse |
 
 **Party-frame exception (deliberate)**: disposition valence is fixed, not frame-composed — these
-ops need no opposition affirmation and may target any recorded NPC. The relationship value
+ops need no opposition affirmation. **Targeting is directory-scoped**: the npc ref must resolve
+inside the turn's stamped ref directory (§1) like every other actor ref — fixed valence relaxes
+the *opposition* requirement, never the *resolution* rule. "Word of this reaches Lady Voss"
+when Lady Voss is elsewhere is an off-screen disposition change — inexpressible today, listed
+in §6 with the movement seam it rides on. The relationship value
 measures the party's standing with that NPC — an asset of the party — so improving it is
 beneficial and worsening it adverse no matter whose action moved it. Consequence, acknowledged:
 "the enemy now fears you" is not expressible as a beneficial disposition write; the single
@@ -477,8 +493,11 @@ bounded window of high-importance/recent memories, so an old fact can fall out o
 the fact's binding force lives in the ledger and Continuity's checks, and a stronger retrieval
 contract is named future work (§9). The op is beneficial-only (the party learning something is
 the benefit) — which means that **among edge bands it is legal only on `crit_success`**; a
-discovery inside failure-band texture ("you still notice the hinge is backwards") is
-reword-or-flavor with no memory write, stated in §6, and *routine* fact commitment on clean
+*novel* discovery inside failure-band texture ("you still notice the hinge is backwards") must
+be **reworded away, never downgraded to flavor**: annotation text is binding canon
+(resolution §1.5), so a new fact carried as "flavor" with no memory row would be an unledgered
+canon commitment — flavor may only restate already-established scene truths (E2's inert rule
+covers the body of established fact; stated in §6), and *routine* fact commitment on clean
 bands belongs to the ordinary path (§9). Adverse discoveries are expressed by the verb that
 changes the state, never by a "bad fact" — and *NPC/world* intelligence state (a blown cover, a
 burned password) has no verb yet at all (§6).
@@ -563,10 +582,17 @@ normative contract is exactly two clauses, both executable:
    (§7). **"Computable" is restrictive**: an op whose effective valence depends on inputs that
    do not yet exist — a declared judgment (`quality`, `works_against`, `outcome`) or an
    `affirmedOpposed` membership not already persisted from a prior turn — has no computable
-   valence and is **not eligible**. Concretely: fixed-valence ops, party-frame ops, and
-   frame-composed NPC ops whose target is already in the current persisted `affirmedOpposed`
-   set may appear; frame-composed ops against any other NPC may not — assemblers never guess
-   opposition.
+   valence and is **not eligible**. **The suggestion-time opposed set is defined, not
+   implementer-chosen**: the union of persisted `affirmedOpposed` arrays (§1.1) across
+   annotations committed since the campaign's current-location pointer last changed — the same
+   v1 scene proxy conditions and scene features already use (§2.7, §7; D7/D8 may refine),
+   restricted to targets that still reference-resolve. Not all-history (stale enmity would
+   outlive the fiction) and not latest-annotation-only (parallel foes would evict each other).
+   Concretely: fixed-valence ops, party-frame ops, and frame-composed NPC ops whose target is
+   in that projection may appear; frame-composed ops against any other NPC may not — assemblers
+   never guess opposition. An implementation that does not compute the projection must treat
+   the set as **empty** (its suggestions then cover fixed-valence and party-frame ops only),
+   never fall back to a guess.
 2. Absence conforms: no suggestions, an empty list, or no assembler at all are all valid
    implementations. Suggestions are advisory — the Referee may take, combine within budget, or
    ignore them; nothing is ledgered unless chosen; flavor-only always remains legal.
@@ -579,7 +605,9 @@ ranked — is **non-normative guidance**, not contract, and no acceptance case m
 follows the D2 decision's wording ("complication SUGGESTIONS, maybe"). If you want a
 *guaranteed* substantive suggestion feature — one implementations must ship, with defined
 behavior — say so at sign-off and a normative assembler contract gets designed and reviewed as
-its own increment; otherwise the de-scope stands.
+its own increment; otherwise the de-scope stands: this chapter's acceptance suite exercises
+clauses 1–2 only, and no source selection, generation, or ranking behavior may be cited as
+chapter-conformance evidence.
 
 This is the owner's "contextual table": suggestion content varies with the scene because it *is*
 the scene, while the free-text complication stays the model's to write.
@@ -632,8 +660,10 @@ No operation exists for — and no annotation or ability may assert as mechanica
   `equipped` inventory field is display-only and never mechanical state; wielded-state becomes
   D16 item-record data (its visibly-wielded loot requirement), and readiness operations are a
   future catalog version (**D16**);
-- **party-fact commitment outside `crit_success`** — a pure discovery inside failure-band
-  texture is reword-or-flavor with no memory write; routine fact commitment on clean bands is
+- **party-fact commitment outside `crit_success`** — a *novel* discovery inside failure-band
+  texture must be reworded away: there is **no flavor channel for new facts** (binding text
+  with no memory row is an unledgered canon commitment, §2.8, E2); flavor may restate
+  established truths only; routine fact commitment on clean bands is
   the ordinary path's (§2.8, §9);
 - **addressing creatures** — creature occupants have no stable reference (**D8**);
 - **manipulating recorded scene objects and fixed layout features** — moving a recorded crate,
@@ -660,11 +690,30 @@ No operation exists for — and no annotation or ability may assert as mechanica
   another recovery patch"): gaining a unit whose use fires mechanics is mechanical gain outside
   D1b; the expressible footprint today is discrete inert units (**D1b/D16**);
 - **item-sourced effect pricing** — a dedicated `item_use` op that consumes a unit and fires
-  its recorded effect at item-sourced (potentially discounted) cost: future, **D1b/D16**; the
-  LIVE interim is §2.3's composed pair, deliberately priced at full freestanding cost;
+  its recorded effect at item-sourced (potentially discounted) cost: future, **D1b/D16**. There
+  is **no LIVE interim for intentional use**: §2.3's composed pair is mixed-valence, and
+  Chapter 1's single-valence edge bands cannot carry it — deliberate use is inexpressible until
+  D1b (reword to the ordinary path, §9/D15). The composed-pair shape survives today only in its
+  all-adverse mishap form (§2.3), and it is the binding template for whichever surface first
+  carries intentional use — each entry validating, pricing, and ledgering independently at
+  full freestanding cost;
 - **item resource state** — charges, ammunition, fuel, batteries on durable items: no
   per-item resource meters exist; the canonical current representation is discrete consumable
   units (a "power cell" as its own stack), and metered resources arrive with **D1b/D16**;
+- **recoverable scene custody of stack-list units** — "you set the rope down; it's still on
+  the floor": `item_drop`/`item_pickup` are record-ref forms, `GATED:D16`, and no name-key
+  form is legal in any catalog version (§2.3), so a mundane stack unit has exactly two
+  ledgerable states — held, or gone from play via `item_lose` at its priced cost; a
+  recoverable parting is inexpressible today — reword to possession-neutral readiness texture
+  (§8) or commit the loss; scene custody arrives with **D16** record identity;
+- **multi-unit mundane gain or loss in one annotation** — "you recover three torches", "the
+  fire ruins several rations": the stack rule moves exactly one unit per entry (§2.3),
+  licensed names may not encode counts (§1), and same-(owner, name) item ops share one
+  conflict key (§1.1), so an annotation ledgers at most one unit per item name; narrate the
+  single unit actually moved, or spread acquisition across turns — one priced unit each;
+  post-D16, plural movement of *recorded* items is multiple record-ref entries (distinct
+  conflict keys, §1.1), while the stack-list forms stay one-unit-per-turn by design —
+  quantity is never a model input (§2.3);
 - **player-character wealth** — D16 records a coarse wealth category *for NPCs*; a PC-wealth
   subsystem would need its own owner decision;
 - **time pressure, countdowns, and clocks** — no world/scene clock exists; future home: the
@@ -673,6 +722,9 @@ No operation exists for — and no annotation or ability may assert as mechanica
   future catalog version;
 - **off-screen NPC movement or presence in another location** — the plausibility-bounded
   movement seam is **D16**;
+- **off-screen disposition change** ("word of this reaches Lady Voss") — `disposition_*`
+  targets resolve only inside the turn's ref directory (§2.4); reputation that travels rides
+  the same **D16** seam, or reword to a present target / `fact_learn`;
 - seat, permission, fork, or timeline operations (multiplayer/infra, not fiction);
 - a check's outcome fields (Chapter 1).
 
@@ -721,7 +773,7 @@ playtest, and recalibration is config, not redesign.
 | `smoke` / `darkness` | feature kind | sight into/within the area is impaired | total sensory loss for actors |
 | `alarm` | feature kind | attention has been drawn; the site is alerted | specific arrivals (§6) or clocks |
 | `cover` | feature kind | positions in the area shield their occupants | immunity, invisibility |
-| `passage` | feature kind | a temporary means of crossing or entry exists where none did (a force bridge, a pried-open way) | permanent layout change, new areas or destinations (§6) — the passage enables movement within the recorded layout, it never extends it |
+| `passage` | feature kind | an improvised crossing or entry is established as scene fact (a force bridge, a pried-open way) — texture and situational-delta source like every feature: it creates no exit, edits no layout, and gates no `reposition` (§2.5 binds occupancy and conditions, never topology) | permanent layout change, new areas, destinations, or actual exit topology (§6) |
 
 ## 8. Worked examples (executable acceptance cases)
 
