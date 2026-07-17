@@ -632,3 +632,83 @@ ops whose effective valence depends on not-yet-persisted inputs (declared judgme
 `affirmedOpposed` membership) are not suggestion-eligible; frame-composed NPC ops are
 suggested only against NPCs already in the persisted `affirmedOpposed` set; assemblers never
 guess opposition [grok 6].
+
+### Round 11 — pinned `5c287cdbc1c3e8a85cf381ae49aa35bb4b2b728d` (draft r11)
+
+#### grok — valid, SHA-matched, evidence-checked: **reopened** (2 HIGH / 2 MEDIUM)
+
+1. HIGH — §6 calls §2.3's composed pair "the LIVE interim" for item use while §2.3 itself
+   declares intentional beneficial use NOT expressible on the current surface, and the only
+   concrete edge-band-legal mishap example rides `harm`, which is GATED:D1b end-to-end.
+2. HIGH — the ref directory is location-scoped ("recorded NPCs at the current location")
+   while §2.4 disposition says it "may target any recorded NPC" — and the engine has no
+   normative definition of NPC location membership at all.
+3. MEDIUM — recoverable scene custody of stack-list inventory has no op (`item_drop` is
+   record-ref only, GATED:D16; no name-key form is ever legal) and was absent from §6's
+   deliberate-exception list.
+4. MEDIUM — suggestion eligibility depends on a multi-turn `affirmedOpposed` set with no
+   store contract: no aggregation rule (union vs latest), no lifecycle, no campaign or
+   scene store.
+
+#### codex — valid, SHA-matched, evidence-checked: **reopened** (1 CRITICAL / 3 HIGH / 3 MEDIUM)
+
+1. CRITICAL — failure-band flavor can commit a new fact without a ledgered effect:
+   `fact_learn` is the canon-commitment verb (beneficial-only), yet §2.8 permitted "you
+   still notice the hinge is backwards" as failure-band flavor with no memory write while
+   resolution §1.5 makes annotation text binding narrative canon.
+2. HIGH — §1.1 step 2 rejects any array whose final tentative state equals its starting
+   state; an empty array necessarily satisfies that, contradicting §8 example 1's legal
+   `effects: []` and resolution §1.5's flavor-only guarantee.
+3. HIGH — persisted area targets carried only a bare within-location area id, lacking the
+   location identity §1.1's exact-persisted-references and export/import/fork remapping
+   require.
+4. HIGH — `passage` was defined as enabling crossing/entry, but the feature record has no
+   source, destination, or exit reference: it cannot encode the connection its semantics
+   claimed to create.
+5. MEDIUM — ref-directory rule vs "any recorded NPC" disposition targeting (≡ grok 2).
+6. MEDIUM — the D2 decision describes scene-derived suggestion candidates; §4 declared no
+   substantive assembler deliverable, making the suggestion feature unimplementable from
+   the normative contract alone.
+7. MEDIUM — common multi-unit inventory rulings ("you recover three torches") neither map
+   to the one-unit ops nor appeared in §6's deliberate-exception list.
+
+#### Coder triage → r12
+
+All 11 ADMITTED — one cross-reviewer duplicate (grok 2 ≡ codex 5) → ten distinct fixes.
+r12 changes: **no LIVE interim for intentional use** — §6 states it outright: §2.3's
+composed pair is mixed-valence and Chapter 1's single-valence edge bands cannot carry it;
+deliberate use is inexpressible until D1b (reword to the ordinary path, §9/D15); the
+composed-pair shape survives today only as the all-adverse mishap, and remains the binding
+template for whichever surface first carries intentional use [grok 1]; **directory-scoped
+disposition** — §2.4: fixed valence relaxes *opposition*, never *resolution* — the npc ref
+must resolve inside the turn's stamped ref directory like every other actor ref; "word of
+this reaches Lady Voss" is an off-screen disposition change, now a named §6 entry riding
+the D16 movement seam [grok 2 / codex 5]; **stack-unit custody honesty** — new §6 entry: a
+mundane stack unit has exactly two ledgerable states (held, or gone-from-play via priced
+`item_lose`); recoverable parting is inexpressible today — possession-neutral readiness
+texture or commit the loss; scene custody arrives with D16 record identity [grok 3];
+**opposed-set projection defined** — the suggestion-time opposed set is defined, not
+implementer-chosen: the union of persisted `affirmedOpposed` arrays across annotations
+committed since the campaign's current-location pointer last changed (the same v1 scene
+proxy conditions and scene features already use), restricted to targets that still
+reference-resolve; an implementation that does not compute the projection must treat the
+set as empty, never guess [grok 4]; **flavor-canon boundary** — a *novel* discovery inside
+failure-band texture must be reworded away: there is no flavor channel for new facts
+(binding text with no memory row is an unledgered canon commitment); flavor may restate
+established truths only; new §6 entry + §2.8/E2 wording [codex 1]; **empty array exempt** —
+§1.1's wholesale no-op rejection catches only non-empty self-cancelling arrays;
+`effects: []` is the flavor-only annotation and is always legal (§8 example 1, resolution
+§1.5) [codex 2]; **location-qualified area identity** — persisted area targets carry the
+location component stamped from the turn's location pointer; it remaps like any record id,
+and §2.7's stored `location` field must equal the token's location component [codex 3];
+**`passage` is texture, not topology** — it creates no exit, edits no layout, and gates no
+`reposition` (§2.5 binds occupancy and conditions, never topology); actual new
+exits/destinations stay §6-inexpressible [codex 4]; **assembler minimalism is the
+contract** — §4 keeps the D2 wording ("complication SUGGESTIONS, maybe") as a deliberately
+minimal reading with an explicit owner sign-off flag for a *guaranteed* substantive
+feature; absence conforms; everything beyond eligibility is non-normative guidance
+[codex 6]; **one unit per name per annotation** — new §6 entry: the stack rule plus
+one-conflict-key-per-(owner, name) means an annotation ledgers at most one unit per item
+name; narrate the single unit actually moved, or spread acquisition across turns;
+post-D16, plural movement of *recorded* items is multiple record-ref entries with distinct
+conflict keys [codex 7].
