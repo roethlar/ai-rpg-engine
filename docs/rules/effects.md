@@ -94,7 +94,9 @@ An effect entry is an object whose fields are fixed per operation by the §2 sch
   by id.
 - **Area id**: an area id from the current location's stored layout, resolved with the same
   **exactly-one** rule (duplicate ids in a stored layout reject rather than guess).
-- **Feature ref**: the id of a recorded scene-feature record in the current location (§2.7).
+- **Feature ref**: `"feature:<record id>"` — a typed token naming an **active** scene-feature
+  record in the current location (§2.7). Cleared records do not resolve (§2.7); the token is
+  persisted state and remaps on export/import like every other typed token (§1.1).
 - **Condition / pool / kind / side / outcome tokens and all other enums**: exactly the values a
   schema lists. Every condition and feature token carries **canonical semantics and an overclaim
   boundary** (§7) — the gate below enforces those boundaries.
@@ -113,6 +115,16 @@ An effect entry is an object whose fields are fixed per operation by the §2 sch
   Enforcement is Continuity's semantic gate — the same trust class as Chapter 1 delta reasons;
   downstream council prompts must treat string content beyond the token as color, never as
   mechanics. The engine never parses a licensed string for quantities, classes, or properties.
+
+**Ref disclosure (normative)**: refs are engine-issued ids, so any seat that may emit or affirm
+an effect ref receives an engine-stamped **ref directory** in its context — party character
+ids, recorded NPCs at the current location (id + name), the current layout's area ids, and —
+once their stores exist — active feature records and referenceable item records. A model is
+never required to invent or recall an id the engine did not surface that turn; a ref naming an
+id outside the stamped directory rejects as unresolvable, and a bare name is never accepted in
+a ref field (the comparison-key rule in §2.3 is an occupancy-binding rule, not a ref fallback).
+Without this stamp the id spaces below §1.1's persistence contract would be unwritable in
+practice; with it, "unresolvable reference" is always a model error, never a context accident.
 
 **Validation pipeline** — factored into a consumer-independent core plus per-consumer
 authorization. For edge-band annotations this instantiates Chapter 1 §5's fixed handoff
@@ -209,7 +221,10 @@ catalog version, weight class, point cost, effective valence, pricing prestate};
 persisted reference is an engine-issued typed token (Status refinement 2) naming a row in
 *this* store — ids are store-local, so **export, import, and fork MUST remap every persisted
 token under the same entity mapping the bundle applies to the rows themselves**, and an
-import that cannot map a token fails whole (no dangling refs, no silent drops). Today's
+import that cannot map a token fails whole (no dangling refs, no silent drops). The bundle's
+entity maps must therefore cover **every id space a token can name** — characters, recorded
+NPCs, and, as their stores ship, feature records (including cleared tombstones, §2.7), item
+records, and area-bearing layouts — not characters alone. Today's
 import path copies turn state verbatim; that is legal only while no ledgered effects exist —
 token remapping is part of the edge-band implementation gate.
 
@@ -243,7 +258,7 @@ scope: `harm` writes a number, never removes an actor.
 | Operation | Schema | State written | Weight | Direction | Availability |
 |---|---|---|---|---|---|
 | `item_lose` | **Two forms, one op.** Legacy mundane-stack form (LIVE): `{op, owner: character ref, item: item key}` — the resolved stack's quantity decrements by one, entry removed **only at zero**; mundane gates below apply. Durable-record form (GATED:D16): `{op, item: item-record ref}` — the record's holder must be an **actor** on the tentative state (scene-held records reject: no frame to compose valence from — destroying scene-held loot is §6), owner derived and validated from the record | one unit leaves play; durable records persist with holder `lost` and full provenance (the looted saber falls into the chasm *from the looter's hands*) | by item class (§3) | hurts the holder | legacy form LIVE; record form GATED:D16 |
-| `item_gain` | `{op, owner: **character ref** (an npc-typed owner rejects at schema shape), name: licensed string}` — **mundane mint/stack only**, matching totalized: **zero** comparison-key matches in `owner`'s inventory → mint; **exactly one** match that is **stack-eligible** (shape totalized in the prose below) → increment its quantity by one ("you scavenge another coil of rope"); one match that is not stack-eligible → **reject** (stacking would mint mechanics, or the shape is untrusted); **more than one** match → reject as ambiguous, before any mutation | mint: one new mundane item, stored as `{name: <display form>, type: "general", description: "No description.", quantity: 1}`, every other property ignored — the model supplies the name and nothing else. Post-D16: a fresh engine-minted record id, classified mundane, provenance stamped | minor (mundane by construction) | helps `owner` | LIVE — there is no NPC *mint* form in any version: recorded items reach NPCs via `item_transfer` or `item_pickup`, and an NPC producing a previously unrecorded object is §6-inexpressible |
+| `item_gain` | `{op, owner: **character ref** (an npc-typed owner rejects at schema shape), name: licensed string}` — **mundane mint/stack only**, matching totalized: **zero** comparison-key matches in `owner`'s inventory → mint; **exactly one** match that is **stack-eligible** (shape totalized in the prose below) → increment its quantity by one ("you scavenge another coil of rope"); one match that is not stack-eligible → **reject** (stacking would mint mechanics, or the shape is untrusted); **more than one** match → reject as ambiguous, before any mutation | mint: one new mundane item, stored as `{name: <display form>, type: "general", description: "No description.", quantity: 1}`, every other property ignored — the model supplies the name and nothing else. **In every catalog version this op writes the mundane stack list only** — durable registry records are minted exclusively by engine flows (loot placement, import, D16 migration), never by this op | minor (mundane by construction) | helps `owner` | LIVE — there is no NPC *mint* form in any version: recorded items reach NPCs via `item_transfer` or `item_pickup`, and an NPC producing a previously unrecorded object is §6-inexpressible |
 | `item_transfer` | `{op, item: item-record ref, from: actor ref, to: actor ref}` — the record's holder must be `from` on the tentative state; `from ≠ to`; **each non-party endpoint must be in `affirmedOpposed`**, else `allegiance-unknown` (§3) | the same record changes holders — identity, condition, and provenance preserved | by item class (§3), **charged once** | net party effect (§3; nets are defined only over party/affirmed-opposed endpoints) | GATED:D16 |
 | `item_drop` | `{op, item: item-record ref, area: area id}` — the record's holder must be an actor on the tentative state | the record's holder becomes the scene (that area); identity/condition/provenance preserved | by item class (§3) | hurts the former holder | GATED:D16 |
 | `item_pickup` | `{op, owner: actor ref, item: item-record ref}` — the record's current holder must be the current location (scene-held), on the tentative state | the record's holder becomes `owner` | by item class (§3) | helps `owner` | GATED:D16 |
@@ -257,11 +272,16 @@ post-D16, durable records persist with holder `lost` and full provenance (destru
 durable record is a future op, not this one). A recoverable parting is `item_drop` (custody moves
 to the scene) and recovery is `item_pickup`; between actors it is `item_transfer`, atomic and
 priced once. **The pre-D16 mundane check**: because no class field exists yet, `item_lose` on a
-LIVE inventory entry additionally passes Continuity's mundane gate (the same §1 standard as
-`item_gain` names) — an entry whose name/description reads as unique, powerful, or plot-weighted
-rejects pending D16 classification; a legacy artifact cannot be destroyed for one point as
-"mundane". **The mundane gates are two, both required (pre-D16)**: the Continuity semantic gate
-on the name/description (§1), and a **deterministic engine rule** — an inventory entry carrying
+LIVE inventory entry additionally passes Continuity's mundane gate over the entry's **stored**
+name/type/description — the *significance* half of the §1 standard: an entry reading as unique,
+powerful, or plot-weighted rejects pending D16 classification; a legacy artifact cannot be
+destroyed for one point as "mundane". §1's mechanical-property rejection governs **model-emitted
+`item_gain` names**; it is not re-applied to stored text here — otherwise every legacy
+consumable whose stored description plainly states its effect ("Restores 20 Health Points.")
+would reject, and the carve below would govern an empty set. Stored mechanics are policed by
+the deterministic rules that follow, never by re-parsing strings. **The mundane gates are two,
+both required (pre-D16)**: the Continuity *significance* gate on the stored
+name/type/description, and a **deterministic engine rule** — an inventory entry carrying
 `stats` is non-mundane *by construction* and rejects pending D16 classification.
 **Stack eligibility (totalized over every legacy shape, fail-closed)**: the matched entry
 stacks only if its keys are a subset of {`name`, `type`, `description`, `quantity`,
@@ -272,19 +292,39 @@ non-numeric rejects), and the Continuity mundane gate passes over the entry's **
 name, type, and description — not merely the proposed name (a stored description reading as
 plot-weighted blocks stacking even under an innocuous name). Every other same-key shape
 rejects the op before any mutation; there is no "add a second line" fallback, because a
-same-name duplicate would make the stack unresolvable for `item_lose`'s unique-match rule. **The
+same-name duplicate would make the stack unresolvable for `item_lose`'s unique-match rule.
+**Registry records are quantity-one by construction (declared for D16)**: a durable record is
+one discrete unit — record-ref ops move, degrade, or destroy **whole records**, and stacking,
+splitting, and merging are mundane-list semantics that never enter the registry, so the
+identity contract (§1.1) has no split/merge case to define and no record ever carries a
+`quantity` field. **The
 consumable carve (loss only, asymmetric by design)**: an entry carrying `effect` but no `stats`
 MAY be `item_lose`'d as a minor loss — in the bare form the unit is wasted, gone from play, its
 effect never fires ("the recovery patch tumbles into the canal") — but may NOT be stacked onto
 by `item_gain`, because minting a unit whose use fires mechanics would be mechanical gain
-outside D1b. **Intentional use is expressible only as a composed pair**: the same annotation
-array carries the fired effect as its own first-class entry *plus* the `item_lose` — each
-validates, prices, and ledgers independently at full freestanding cost, so nothing fires
-unrecorded and consumption is never cheaper than the spontaneous effect (the same conservative
-stance as the pre-D7 license rule; item-sourced discounted pricing is §6). The engine never
-parses legacy `effect` strings — it does not verify the fired entry "matches" the item; the
-pair is licensed by Continuity like any annotation, and the conservative pricing makes a
-mismatch unprofitable rather than dangerous. The
+outside D1b. **Loss-side totalization (fail-closed, the mirror of stack eligibility)**: the
+matched entry's keys must be ⊆ {`name`, `type`, `description`, `quantity`, `equipped`} ∪
+{`effect`} — `stats` is already non-mundane, and **any other unknown key rejects pending D16**
+exactly as it blocks stacking: an unrecognized property may be latent mechanics, and erasing
+it for one point would bypass D13 stakes weighting as surely as minting it would bypass D1b.
+`quantity` must be absent (read as 1) or a positive safe integer, and the op removes exactly
+one unit (decrement; delete at zero) — fractional, zero, negative, or non-numeric quantities
+reject before any mutation. **Intentional beneficial use is NOT expressible on the current
+surface — by valence arithmetic, not by omission**: the honest shape would be a composed pair
+(the fired effect as its own first-class entry *plus* the `item_lose`), but the pair is
+mixed-valence — the fired effect helps the party while the loss hurts it (§3, priced per entry,
+no netting) — and Chapter 1's edge bands are single-valence (`crit_success` admits only
+beneficial effects; the other three only adverse), so **no band can carry both entries**.
+The pair shape that *is* edge-band-legal today is the all-adverse mishap ("the flashbang cooks
+off in your pack": `harm` + `item_lose` on a failure band). Deliberately drinking the potion is
+routine intentional action — the ordinary path's problem (§9/D15) or a D1b `item_use` (§6),
+not an edge-band shape. **The composed-pair contract survives as the binding template for
+whichever surface first carries it**: each entry validates, prices, and ledgers independently
+at full freestanding cost, so nothing fires unrecorded and consumption is never cheaper than
+the spontaneous effect (the same conservative stance as the pre-D7 license rule; item-sourced
+discounted pricing is §6); the engine never parses legacy `effect` strings — it does not
+verify the fired entry "matches" the item; the pair is licensed by Continuity like any
+annotation, and conservative pricing makes a mismatch unprofitable rather than dangerous. The
 Continuity name gate still applies to the carve (a "Phoenix Elixir" rejects regardless). The
 legacy `equipped` field is declared **display-only, never mechanical state** (readiness is §6).
 **No minting significance**:
@@ -375,18 +415,26 @@ in §7; it carries no arithmetic of its own.
 | Operation | Schema | State written | Weight | Valence |
 |---|---|---|---|---|
 | `scene_feature_place` | `{op, area: area id, kind: obstruction\|hazard\|smoke\|darkness\|alarm\|cover\|passage, name: licensed string, duration: scene\|persistent, works_against: party\|opposition\|both}` | a scene-feature record | scene: minor; persistent: significant | composed from `works_against` (§3): `party` → adverse; `opposition` → beneficial; `both` → **adverse by rule** (a mutual hazard always costs the party; it can never be a pure boon) |
-| `scene_feature_clear` | `{op, feature: feature ref}` | removes that record | **from the stored record's duration** (scene: minor; persistent: significant) | computed from the stored `works_against`: clearing `party`-hindering → beneficial; `opposition`-hindering → adverse; `both` → beneficial |
+| `scene_feature_clear` | `{op, feature: feature ref}` | marks the record `cleared` — **identity is append-only; no row is ever deleted** | **from the stored record's duration** (scene: minor; persistent: significant) | computed from the stored `works_against`: clearing `party`-hindering → beneficial; `opposition`-hindering → adverse; `both` → beneficial |
 
 **Required state addition (declared, not yet built) — the scene-feature record**:
-`{ id, location, area, kind, name, duration, works_against, source: checkId, appliedTurn }`.
+`{ id, location, area, kind, name, duration, works_against, status: active|cleared,
+source: checkId, appliedTurn, clearedBy?: checkId, clearedTurn? }`.
 Occupancy rows (`{name, kind, area, note}`) cannot hold kind, duration, or side without parsing
 strings for mechanics, which §1 forbids — hence the record. Features are temporary scene state —
 rubble across a door, smoke in the hall, a klaxon blaring — and **never edit the stored layout**
 (§6); nor do they touch *recorded* scene objects, which have no vocabulary yet (§6).
-Scene-duration features clear on the same location-pointer boundary as conditions.
-`works_against` is a declared judgment validated by Continuity against the text;
-`scene_feature_clear`'s valence is engine-computed from the stored field — no declaration to
-trust.
+**Lifecycle is a status flip, never a delete**: every ledgered `place` and `clear` effect
+persists a `feature:<id>` token (§1.1), so the row those tokens name must outlive the feature —
+deletion would leave the ledger unreplayable and make export/import fail whole on a dangling
+ref. Gameplay resolution (§1's feature ref, `clear`'s own lookup, the D8 slice) binds
+**active** records only; a `clear` naming a cleared record is an unresolvable reference (§1),
+which doubles as the double-clear guard. Cleared rows are tombstones: exported with the
+bundle, remapped like live rows, never resurrected. Scene-duration features flip to `cleared`
+on the same location-pointer boundary as conditions — same mechanism, engine-driven, no
+ledger entry. `works_against` is a declared judgment validated by Continuity against the
+text; `scene_feature_clear`'s valence is engine-computed from the stored field — no
+declaration to trust.
 
 ### 2.8 Scene and canon
 
@@ -404,6 +452,17 @@ declared-judgment class as `quality`: Continuity rejects a declaration the text 
 the engine composes valence only from the validated token. **Capture, surrender, and binding the
 party are not `encounter_end` semantics** — they assert restraint, custody, and position changes
 no operation can ledger yet, and are §6-inexpressible until those homes exist.
+
+**Affordability is deliberately tiered (priced consequence of Chapter 1, not an oversight)**:
+`encounter_start` is significant-class (2 points), and the standard tier out of encounter caps
+licenses at `minor`/1 even on critical bands — so at standard stakes a botched persuade
+**cannot** turn the room hostile via annotation. That is the conservative pre-D7 stance on the
+most identity-bending consequence an edge band can impose: the affordable expression is
+`disposition_worsen` plus flavor, and the full escalation belongs to extreme/legendary tiers
+(whose critical bands do reach significant/2), to in-encounter criticals post-D7, or to the
+GM-authored turn flow, which needs no license at all. Reviewers flagging "you can never start
+a fight from a failed check" should read this as the design: annotations may tilt a scene,
+only play may detonate it at standard stakes.
 
 `fact_learn` is the canon-commitment verb — and its payload is deliberately narrow: `fact` states
 **exactly one** verifiable fictional fact, expressed in the annotation text, asserting no
@@ -501,7 +560,13 @@ normative contract is exactly two clauses, both executable:
    declared-judgment affirmations — cannot run before text exists; the full §1 core validates
    the annotation *after* the Referee adopts a suggestion and writes its text, and may still
    reject it then.) An illegal-by-mechanics option may never appear; the list length is capped
-   (§7).
+   (§7). **"Computable" is restrictive**: an op whose effective valence depends on inputs that
+   do not yet exist — a declared judgment (`quality`, `works_against`, `outcome`) or an
+   `affirmedOpposed` membership not already persisted from a prior turn — has no computable
+   valence and is **not eligible**. Concretely: fixed-valence ops, party-frame ops, and
+   frame-composed NPC ops whose target is already in the current persisted `affirmedOpposed`
+   set may appear; frame-composed ops against any other NPC may not — assemblers never guess
+   opposition.
 2. Absence conforms: no suggestions, an empty list, or no assembler at all are all valid
    implementations. Suggestions are advisory — the Referee may take, combine within budget, or
    ignore them; nothing is ledgered unless chosen; flavor-only always remains legal.
