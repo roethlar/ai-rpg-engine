@@ -712,3 +712,68 @@ one-conflict-key-per-(owner, name) means an annotation ledgers at most one unit 
 name; narrate the single unit actually moved, or spread acquisition across turns;
 post-D16, plural movement of *recorded* items is multiple record-ref entries with distinct
 conflict keys [codex 7].
+
+### Round 12 — pinned `89ba8be7c1e2f0485341f411ff5d0679f51ddabf` (draft r12)
+
+Both verdicts valid, SHA-matched, `evidence_checked: true`,
+`cold_implementer_executable: false`. **Triage is IN PROGRESS — no r13 edit is applied yet.**
+Verification notes below are this session's, not a reviewer's.
+
+#### grok — **reopened** (1 CRITICAL / 1 HIGH / 2 MEDIUM)
+
+1. CRITICAL — §3's pre-D7 parenthetical ("critical bands and extreme/legendary tiers still
+   raise it to `minor`") caps the ladder one step below Chapter 1: with encounter-active
+   false, base `flavor_only` +1 critical → `minor` +1 extreme/legendary → **`significant`**.
+   §2.8 already says extreme/legendary criticals "do reach significant/2" and §8's recap
+   restates the real stacking, so §3 contradicts both and the signed Chapter 1 §1.5.
+   *Confirmed against effects.md L558 vs L478 vs L780–782.*
+2. HIGH — §4 clause 1 both forbids and allows judgment-bearing ops: an op whose valence
+   depends on a declared judgment (`quality`/`works_against`/`outcome`) "has no computable
+   valence and is **not eligible**", yet the next sentence says frame-composed NPC ops in the
+   projection "may appear" — and `reposition`/`scene_exit`, `scene_feature_*`, `encounter_*`
+   always carry exactly those fields. *Confirmed: L582–585 vs L591–592.*
+3. MEDIUM — §8 examples 3 and 4 assert legal `disposition_worsen` with only tier/license
+   setup, omitting the directory/occupancy precondition r12's §2.4 now requires (example 6
+   states its preconditions). *Confirmed: L799–807 vs L364.*
+4. MEDIUM — §1's ref-disclosure prose points occupancy binding at "§2.3's comparison keys"
+   and calls "the comparison-key rule in §2.3" an occupancy-binding rule; §2.3 is Items and
+   wealth. The comparison key is defined in §1 and occupancy binding in §2.5.
+   *Confirmed: L124 and L129 vs L86 and L389.*
+
+#### codex — **reopened** (1 CRITICAL / 3 HIGH / 4 MEDIUM)
+
+1. CRITICAL — flavor/prose can still move mechanically relevant NPC state: §2.4 offers
+   "flavor" for "the enemy now fears you" and §6 calls allegiance changes "prose-only",
+   but those facts feed Continuity's `affirmedOpposed` set and therefore later valence and
+   suggestions — an unledgered canon commitment r12's own flavor-canon boundary forbids.
+   *Confirmed: L373 and L651 vs E2 L52–53 and the r12 §2.8 rule at L496–500.*
+2. HIGH — `fact_learn` is LIVE but its novelty check is unenforceable: §2.8 requires
+   Continuity to reject already-established facts while admitting retrieval is a bounded
+   window and deferring a stronger contract to §9; once a fact leaves the window a duplicate
+   inserts a fresh row and passes the no-op rule.
+3. HIGH — `catalog_version` conflates catalog pinning, rules enablement, and dependency
+   activation: new campaigns are stamped `effects-1` and absence disables execution, yet
+   gated forms activate when dependencies ship *and* adding operations is a version change;
+   rules_mode=false still exists for new campaigns and D13 is pending.
+4. HIGH — the D16 item-record ops are called executable but the record schema is never
+   declared (holder, area, class, condition, provenance, `lost`), and §1's directory says
+   only "referenceable item records" — circular.
+5. MEDIUM — availability-before-schema cannot dispatch `item_lose`'s overloaded `item`
+   field: no discriminator precedence or reserved-prefix rule, and hybrid payloads are
+   undefined.
+6. MEDIUM — no suggestion assembler is derivable from §4. **Likely DISPUTE**: this is the
+   deliberate de-scope carrying an explicit owner sign-off flag, and codex's own r2 finding 9
+   was resolved this way (partial dispute recorded at r4). Confirm against that trail before
+   admitting.
+7. MEDIUM — r12's opposition projection goes stale *within* a location: an encounter can end
+   or an NPC surrender while `current_location_id` is unchanged, so the union keeps
+   suggesting hostile ops against a reconciled NPC.
+8. MEDIUM — GM-natural rulings outside both the ops and §6: same-item compound changes
+   ("the blade chips and falls from your hand") collide on one conflict key, and action
+   economy (lose your next action, initiative) is absent from §6 though §9 names initiative
+   D7 scope.
+
+#### Coder triage → r13 — NOT STARTED
+
+Also noted this session, unflagged by either reviewer: **the Status block still reads
+"DRAFT r10"** (L3) though r11 and r12 have landed — fix in r13.
