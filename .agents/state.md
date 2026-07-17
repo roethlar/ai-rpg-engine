@@ -45,12 +45,26 @@ to `docs/history/state-archive.md`.
   superseding decision is recorded in `.agents/decisions.md`; the chapter is the active resolution
   spec. **D2 is DECIDED 2026-07-16** (free-text complications with contextual suggestions over a
   deliberately wide engine verb set; trust tuned by the ledgered stakes license, never unledgered
-  effects — `.agents/decisions.md`). The next rules-track artifact is the **D2 catalog document**
-  (verb set + recorded deliverables), drafted through the reviewloop; it still gates edge-band
-  implementation. The canonical queue remains
+  effects — `.agents/decisions.md`). The canonical queue remains
   `.agents/review/rules-system-plan-intake.md` (next decisions: D4, D6, D11, D12, D14 — one at
   a time; D3/D5/D13 are unblocked by D2; D15 and D16 are owner-raised with recorded required
   shapes, pending). No rules code before a concrete phase and an accepted plan review.
+- **IN FLIGHT — the D2 effect catalog (`docs/rules/effects.md`) is at DRAFT r12, mid-reviewloop,
+  NOT converged.** It gates edge-band implementation. Owner approved drafting + independent review
+  "like the dice spec"; the dual codex+grok loop and its convergence contract (both reviewers
+  accept the *same* pinned SHA with no material comments) live in
+  `.agents/review/effect-catalog-review.md`, which owns every round record, verdict, and dispute —
+  do not reconstruct that trail from anywhere else. Twelve rounds have run and none has converged;
+  r9 came closest (grok accepted with zero findings, codex reopened).
+  **Round 12 (pin `89ba8be`) is recorded and both reviewers reopened: grok 4 findings
+  (1 CRITICAL / 1 HIGH / 2 MEDIUM), codex 8 (1 CRITICAL / 3 HIGH / 4 MEDIUM).** Triage is
+  **unstarted** and no r13 edit exists — the working tree is clean at the round-12 record. The two
+  CRITICALs both allege the draft contradicts itself: §3's pre-D7 license parenthetical caps the
+  ladder one step below Chapter 1 (grok), and §2.4/§6 still offer "flavor"/"prose-only" for
+  fear/allegiance shifts that feed `affirmedOpposed` (codex). Four grok findings were verified
+  against the text this session (notes in the round record); codex 6 (no suggestion assembler) is
+  flagged a likely DISPUTE — it is the deliberate de-scope carrying an owner sign-off flag, already
+  resolved that way at r4. A stale `Status: DRAFT r10` line (effects.md L3) is also noted for r13.
 - The existing owner-approved reviewloop backlog remains unstarted as of `ca55b55`.
   `.agents/review/index.md` owns the exact findings and order; resume at `jt-1`, finish the remaining
   backlog, then enter the approved T2-s/T2 plan.
@@ -109,17 +123,26 @@ to `docs/history/state-archive.md`.
 ## Next
 
 **THE RESOLUTION CHAPTER IS SIGNED OFF AND D2 IS DECIDED (2026-07-16).** The immediate product
-gate remains Phase V's owner voice playtest; the rules track's next deliverable is the D2 effect
-verb-catalog document (reviewloop), and the next owner decisions in the queue are D4, D6, D11,
-D12, D14. The admin model-registry track is complete.
+gate remains Phase V's owner voice playtest; the rules track is mid-loop on the D2 effect
+verb-catalog document, and the next owner decisions in the queue are D4, D6, D11, D12, D14. The
+admin model-registry track is complete.
+
+- **Resume the effect-catalog loop at Round 12 triage.** In order: decide ADMIT/DISPUTE for each
+  of the 12 recorded findings, verifying each against `docs/rules/effects.md` before admitting;
+  apply the admitted fixes as r13 (plus the stale `Status: DRAFT r10` line); append the triage
+  under the round-12 record's "Coder triage → r13 — NOT STARTED" heading; commit the draft and the
+  record as two commits on the established pattern (`docs(rules): effect catalog r13 - …` then
+  `docs(review): …`); re-pin the reviewer prompt to the new record commit and dispatch both
+  reviewers again. The loop is not converged and no owner sign-off has been requested or given.
+  Held for that sign-off once it converges: the §4 assembler minimal-vs-substantive flag, the
+  pre-D7 conservative license consequence, and the three declared Chapter 1 refinements.
 
 - Phase V's owner playtest remains the pending feel gate after this explicitly selected repo work.
   Configure either OpenAI or Grok voice in `/admin`, enable Voice Narration, and play a real scene
   with narrator plus multiple NPC lines. Confirm distinct/sticky identities, audible moods and
   per-line tones, Skip, and shared host/seat delivery.
-- `map-1` is landed and closed (merge `dd59c27`); the rules track's next moves are the D2 catalog
-  document (reviewloop) and the remaining intake-queue decisions, presented one item at a time
-  from the intake queue.
+- `map-1` is landed and closed (merge `dd59c27`); after the catalog converges and is signed off,
+  the rules track's remaining moves are the intake-queue decisions, presented one item at a time.
 - For the combined host/seat playtest, set
   `ACCESS_SECRET` + `ADMIN_SECRET`, confirm an AI provider is configured
   there, expose the server, create the second character (party strip
