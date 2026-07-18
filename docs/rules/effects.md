@@ -1,6 +1,6 @@
 # Aetheria House Ruleset — Chapter 2: Effects
 
-**Status**: DRAFT r19 — rounds r1–r8 were reopened by both independent reviewers; at r9 one
+**Status**: DRAFT r20 — rounds r1–r8 were reopened by both independent reviewers; at r9 one
 reviewer **accepted** (zero findings, cold-implementer-executable) and one reopened; r10–r12
 were reopened by both; r13–r14 were codex-only conservative passes (owner-directed) reopening
 with 1 HIGH / 2 MEDIUM, then 1 MEDIUM; the r15 repair-delta redispatch reopened once more with
@@ -17,8 +17,11 @@ ruin (given the same `to:` target-rung form as items); the r19 full-scope round 
 deliberate exception (a "standing down in place" bullet now does, future home D7
 per-participant status + D9/D11 custody), and §8's "every effect is shown as its full
 payload" claim contradicted its own abbreviated evaluator cases (the abbreviation is now a
-stated section-local notation scoped to gate/pricing/conflict-key cases) — all admitted
-findings fixed; every
+stated section-local notation scoped to gate/pricing/conflict-key cases); the r20 round
+admitted 1 MEDIUM — the r19 standing-down bullet flatly listed "dropping weapons" as
+inexpressible while post-D16 `item_drop` legally ledgers an NPC's physical weapon
+relinquishment (the bullet now claims only the capitulation status, naming `item_drop` as a
+ledgerable neighbor) — all admitted findings fixed; every
 admitted finding is addressed in place (trail and the recorded disputes:
 `.agents/review/effect-catalog-review.md`). Not yet owner-signed. Implementation of Chapter 1's
 edge bands is gated on **this chapter's acceptance** — and, per campaign, on a pinned
@@ -801,12 +804,14 @@ No operation exists for — and no annotation or ability may assert as mechanica
 - **restraining or capturing an NPC** — "you bind the defeated thug", taking prisoners: no
   custody/restraint state exists on either side of the table (the party-capture entry above has
   the same missing homes — **D9/D11 + restraint/custody state**);
-- **an NPC standing down in place** — surrender, yielding, dropping weapons while remaining
-  present: no per-participant combatant status exists, so the only ledgerable de-escalations
-  are `disposition_improve` (attitude), `scene_exit` (they flee, leaving the roster), or
-  (post-D7) an `encounter_end` covering the whole encounter; an individual foe's mid-encounter
-  capitulation is reword-or-flavor until **D7 per-participant status** exists (plus **D9/D11**
-  for any custody that follows) — §4's projection trim names exactly this residue;
+- **an NPC standing down in place** — surrender or yielding while remaining present: no
+  per-participant combatant status exists, so capitulation *as mechanical fact* has no op; the
+  ledgerable neighbors are `disposition_improve` (attitude), `scene_exit` (they flee, leaving
+  the roster), (post-D7) an `encounter_end` covering the whole encounter, and (post-D16) an
+  `item_drop` of a held weapon — which ledgers the physical relinquishment **only**, never the
+  yielding it dramatizes; the capitulation itself is reword-or-flavor until **D7
+  per-participant status** exists (plus **D9/D11** for any custody that follows) — §4's
+  projection trim names exactly this residue;
 - **mechanical-consumable acquisition** — restocking effect-bearing items ("you scavenge
   another recovery patch"): gaining a unit whose use fires mechanics is mechanical gain outside
   D1b; the expressible footprint today is discrete inert units (**D1b/D16**);

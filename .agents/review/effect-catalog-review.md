@@ -1058,3 +1058,11 @@ Dispatched against pin 0f7d0447eed50b22f1d4a012d1d83abdbc6dbdae (DRAFT r18). Ver
   well-formed and irrelevant to the tested outcome, never a licensed wire shape.
 Both fixes applied in place; status block bumped **DRAFT r18 → DRAFT r19**. Zero open
 findings against the draft text, not yet owner-signed.
+
+## Round r20 — repair-delta redispatch (codex, conservative) — REOPENED, then FIXED
+- Pinned: 0ce2525b66bdba5335090f8c2671b86ac2180674 (draft r19)
+- R20-1 (MEDIUM, admitted): §6 standing-down bullet listed "dropping weapons" as flatly
+  inexpressible; post-D16 `item_drop` (holder: any actor, NPCs included) legally ledgers the
+  physical relinquishment. Bullet narrowed to claim only the capitulation *status*, with
+  `item_drop` named as a ledgerable neighbor ("ledgers the physical relinquishment only,
+  never the yielding it dramatizes"). Draft r20.
