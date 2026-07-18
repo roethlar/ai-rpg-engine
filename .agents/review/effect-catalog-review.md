@@ -773,7 +773,71 @@ Verification notes below are this session's, not a reviewer's.
    economy (lose your next action, initiative) is absent from §6 though §9 names initiative
    D7 scope.
 
-#### Coder triage → r13 — NOT STARTED
+#### Coder triage → r13 — COMPLETE (11 admitted+fixed, 1 partial dispute)
 
-Also noted this session, unflagged by either reviewer: **the Status block still reads
-"DRAFT r10"** (L3) though r11 and r12 have landed — fix in r13.
+All line refs below are r13 (working tree) unless marked r12.
+
+**grok:**
+
+1. CRITICAL — **admitted, fixed.** §3's pre-D7 parenthetical rewritten to restate the real
+   Chapter 1 §1.5 stacking: encounter-active false + critical band + extreme/legendary tier
+   reaches `significant`; the parenthetical no longer caps one step below. Now agrees with
+   §2.8 and §8's recap.
+2. HIGH — **admitted, fixed** (clarification, not redesign). The two sentences were
+   reconcilable but never composed: projection membership supplies only the *frame* valence
+   input, while forms carrying declared-judgment inputs (`reposition`/`scene_exit`
+   `works_against`, `scene_feature_*` judgments, `encounter_*` `outcome`) stay ineligible even
+   against a projection member. §4 clause 1 now states both legs apply together and names the
+   judgment-free NPC-target candidate forms (`harm`, `disposition_*`, condition ops).
+3. MEDIUM — **admitted, fixed.** §8 examples 3 and 4 now state their directory/occupancy
+   preconditions explicitly, matching example 6's pattern and §2.4's r12 requirement.
+4. MEDIUM — **admitted, fixed.** §1's ref-disclosure prose now points the comparison key at
+   §1's own definition and occupancy binding at §2.5; the stray "§2.3" attributions removed.
+
+**codex:**
+
+1. CRITICAL — **admitted, fixed** (two legs). §2.4's stance guidance no longer offers bare
+   "flavor" for opposition-relevant facts: any wording that would feed `affirmedOpposed` or
+   later valence must either be ledgered through an op or be reworded to restate only
+   already-established truths. §6's allegiance bullet no longer calls side-switches
+   "prose-only": a defection asserted in binding text is exactly the unledgered canon
+   commitment §2.8 forbids; until D8/D16 the change is reworded away, expressible footprint
+   `disposition_*` + `crit_success` `fact_learn`.
+2. HIGH — **admitted, fixed.** `fact_learn` novelty: the check is now scoped to the
+   retrieval window and named a *dedup guard, not a novelty guarantee*; a
+   window-escaped duplicate row is defined as harmless (facts are idempotent canon,
+   duplicates confer no mechanical advantage) and the stronger contract stays §9/D14 scope.
+3. HIGH — **admitted, fixed.** `catalog_version` responsibilities split and stated where the
+   stamp is defined: the stamp pins the *catalog document version* only; form availability is
+   governed solely by per-form gates (dependency-keyed), so gated forms activating when a
+   dependency ships is not a version change, while adding/removing/redefining forms is;
+   absence-disables-execution restated as the campaign-level kill switch, D13 noted pending.
+4. HIGH — **admitted, fixed.** D16 item-record schema declared as a normative minimum
+   (id, `name`, holder-or-area location, class, condition enum, provenance, `lost` flag)
+   next to the loot requirement; §1's directory language now points at that declaration
+   instead of the circular "referenceable item records".
+5. MEDIUM — **admitted, fixed** in the same block: `item` field dispatch gets a declared
+   precedence — record id resolves first iff it matches the stamped id shape, else
+   holder-inventory name key; hybrid payloads rejected as ambiguous rather than guessed.
+6. MEDIUM — **partial dispute, recorded** (matches the r2-finding-9 → r4 trail): the absent
+   assembler is the deliberate, owner-flagged de-scope; §4's two executable clauses and the
+   sign-off flag stand. No edit beyond the r13 clarifications already made for grok 2 /
+   codex 7. Reviewer instructed to carry it as disputed-by-design, not reopen-worthy,
+   absent new evidence.
+7. MEDIUM — **admitted, fixed.** §4's projection gains a per-target reconciliation trim:
+   an NPC drops when a later committed annotation records reconciliation
+   (`disposition_improve` toward them; post-D7 `encounter_end` scope), decidable from
+   persisted rows; fled NPCs already drop via reference resolution; residual unledgered
+   staleness explicitly bounded — projection gates suggestions only, full §1 validation and
+   Referee choice still stand between a stale suggestion and the ledger.
+8. MEDIUM — **admitted, fixed** (two legs). Conflict keys: `item_condition_shift` moved to
+   its own (item, "condition") axis, so "chips *and* falls from your hand" ledgers as
+   `[item_condition_shift(degrade), item_drop]` without collision; possession ops keep the
+   shared (item, "possession") key and every dependent passage (§2.3 multi-unit rule, §8
+   evaluator cases) still holds. §6 gains an **action economy and turn order** bullet:
+   no turn machine or action tokens in v1, D7 scope per §9, expressible footprint
+   `hindrance_apply` condition texture; skipped/granted/reordered turns may never be
+   asserted as mechanical fact.
+
+Also fixed (session-noted, unflagged): Status block updated **DRAFT r10 → DRAFT r13** with
+the r10–r12 reopen history folded into the trail sentence.

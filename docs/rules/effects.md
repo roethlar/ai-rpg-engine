@@ -1,8 +1,9 @@
 # Aetheria House Ruleset — Chapter 2: Effects
 
-**Status**: DRAFT r10 — rounds r1–r8 were reopened by both independent reviewers; at r9 one
-reviewer **accepted** (zero findings, cold-implementer-executable) and one reopened; every
-admitted finding is addressed in place (trail and the two recorded disputes:
+**Status**: DRAFT r13 — rounds r1–r8 were reopened by both independent reviewers; at r9 one
+reviewer **accepted** (zero findings, cold-implementer-executable) and one reopened; r10–r12
+were reopened by both; every
+admitted finding is addressed in place (trail and the recorded disputes:
 `.agents/review/effect-catalog-review.md`). Not yet owner-signed. Implementation of Chapter 1's
 edge bands is gated on **this chapter's acceptance** — and, per campaign, on a pinned
 `catalog_version` (campaigns without one are pre-catalog legacy and fail closed pending D13,
@@ -121,12 +122,12 @@ an effect ref receives an engine-stamped **ref directory** in its context — pa
 ids, recorded NPCs at the current location (id + name), the current layout's area ids, and —
 once their stores exist — active feature records and referenceable item records. "At the
 current location" is itself defined here, because no NPC location field exists: an NPC is
-directory-present iff its record joins the current occupancy under §2.3's comparison keys
+directory-present iff its record joins the current occupancy under §1's comparison key (§2.5 owns the binding rule)
 (normalized name × kind); a join that matches two records is ambiguous and stamps neither
 (the engine flags the collision for repair rather than guessing). A model is
 never required to invent or recall an id the engine did not surface that turn; a ref naming an
 id outside the stamped directory rejects as unresolvable, and a bare name is never accepted in
-a ref field (the comparison-key rule in §2.3 is an occupancy-binding rule, not a ref fallback).
+a ref field (§1's comparison key serves occupancy *binding*, §2.5 — never as a ref fallback).
 Without this stamp the id spaces below §1.1's persistence contract would be unwritable in
 practice; with it, "unresolvable reference" is always a model error, never a context accident.
 
@@ -177,8 +178,9 @@ An annotation's `effects` array is validated and priced as one ordered pass:
    |---|---|
    | `harm` / `heal` | (who, "health") |
    | `pool_drain` / `pool_restore` | (who, pool) |
-   | `item_lose` / `item_transfer` / `item_drop` / `item_pickup` / `item_condition_shift` | (the holder-resolved item entry or record id); two *different* items never conflict |
-   | `item_gain` | (owner, normalized `name`) — the minted entry's synthetic identity; it also collides with any other item op resolving to that same (owner, name) entry |
+   | `item_lose` / `item_transfer` / `item_drop` / `item_pickup` | (the holder-resolved item entry or record id, "possession"); two *different* items never conflict |
+   | `item_condition_shift` | (the holder-resolved item entry or record id, "condition") — condition and possession are independent axes, so a compound ruling ("the blade chips *and* falls from your hand") ledgers as `[item_condition_shift(degrade), item_drop]` without collision, each axis at most once per item per array |
+   | `item_gain` | (owner, normalized `name`, "possession") — the minted entry's synthetic identity; it also collides with any other possession-axis item op resolving to that same (owner, name) entry |
    | `wealth_shift` | (who, "wealth") |
    | `disposition_improve` / `disposition_worsen` | (npc, "disposition") |
    | `reposition` / `scene_exit` | (who, "presence") |
@@ -219,6 +221,20 @@ bundle is still legacy; nothing auto-migrates). Versions change only by explicit
 owner-approved migration (never silently reweighted by an engine upgrade); adding, removing,
 or re-weighting operations is a version change; models never see two catalogs at once. Every
 ledgered effect records the version it executed under (Status refinement 1).
+
+**Pinning, gating, and enablement are three axes, not one (normative)**: (1) *vocabulary
+pinning* — `catalog_version` fixes the documented op/form/schema/weight set **including**
+every `GATED:<dep>` form and its named gate, so a gated form *activating* when its feature
+ships is **not** a version change (the pinned vocabulary already declared both the form and
+the gate; only the runtime capability test flips), while adding, removing, or re-weighting
+forms **is** one; (2) *feature capability* — the per-form availability test above, evaluated
+at validation time every turn; (3) *execution enablement* — whether edge-band execution runs
+for a campaign at all: today's live flag is the campaign's `rules_mode` (campaigns are
+creatable with it off), and an `effects-1` stamp on a `rules_mode`-off campaign is dormant
+pinned vocabulary, **not** a promise that effects execute; enablement requires this chapter's
+acceptance gate plus the campaign's rules mode, and a missing `catalog_version`
+force-disables fail-closed (above) pending D13. Never infer enablement from pinning, nor a
+version bump from a gate lift.
 
 **Persistence and identity (binding on the implementation, not restated per-op)**: a
 committed effect persists with exactly {op, resolved params as engine reference tokens,
@@ -343,6 +359,24 @@ legacy `equipped` field is declared **display-only, never mechanical state** (re
 `item_gain` constructs mundane items only; every recorded item moves through
 transfer/drop/pickup, which preserve the record — the laser rifle you loot is the recorded rifle
 its owner carried, in whatever condition the fight left it (the D16 loot requirement).
+**The `item` field dispatches on grammar, never on guesswork (normative)**: a string matching
+the typed-token grammar `item:<record id>` (§1) **is** the record-ref form — resolved as a
+record ref or rejected, never reinterpreted as a name key — and any other string is the
+legacy name key. The prefixes of §1's typed tokens (`item:`, `feature:`, `npc:`,
+`character:`, `area:`) are **reserved**: `item_gain`'s licensed-string gate rejects a
+proposed name matching any reserved-prefix grammar, and a *stored* legacy entry whose name
+matches one is unresolvable by design — the op rejects and the engine flags the entry for
+repair rather than guessing which form was meant. Hybrid payloads (a record ref alongside
+name-key fields, or two `item` values) are schema-invalid. **The item-record interface
+(required here, owned by D16)**: this catalog binds to a record exposing at least {stable
+record id (remaps under §1.1); display name/type/description (comparison-keyed, §1); holder —
+exactly one of an actor ref or a location-qualified area; condition; class (mundane vs
+significant); `lost` flag; provenance}. D16 may extend the record, but no form above executes
+until every listed field exists — "executable shape" documents the post-D16 call, it does not
+assert the store exists. §1's "referenceable item records" is defined off this same
+interface: a record is directory-referenceable iff its holder is a directory-present actor or
+its area belongs to the current location's stored layout — the directory derives from
+records, never records from the directory.
 **Schema versioning (normative, one rule)**: every GATED:D16 operation above is documented in
 its post-D16 **executable** shape — `item: item-record ref` with the holder validated from the
 record. **No name-key form of `item_transfer`, `item_drop`, `item_pickup`, or
@@ -369,8 +403,12 @@ in §6 with the movement seam it rides on. The relationship value
 measures the party's standing with that NPC — an asset of the party — so improving it is
 beneficial and worsening it adverse no matter whose action moved it. Consequence, acknowledged:
 "the enemy now fears you" is not expressible as a beneficial disposition write; the single
-like/dislike axis has no fear/respect channel (a future catalog version may add one). Use
-`fact_learn`, a boon, or flavor.
+like/dislike axis has no fear/respect channel (a future catalog version may add one). The
+expressible footprint: `fact_learn` commits it as a ledgered party fact (`crit_success` only,
+§2.8), a boon expresses it once the conditions store ships — otherwise **reword, never
+flavor**: an NPC's stance is a *novel* fact, exactly the class §2.8 forbids carrying as
+unledgered flavor, and stance prose feeds later opposition affirmation (§3), so a
+prose-committed attitude would be silent mechanical drift.
 
 **Migration note (honest)**: today's turn contract lets the model emit a free integer
 `relationship_change` (−50…+50), Referee-adjudicated damage numbers, free-form occupancy
@@ -485,7 +523,15 @@ only play may detonate it at standard stakes.
 quantities and no mechanics beyond established scene truths ("the vault hinge is mounted
 backwards" passes; "the vault holds 10,000 crowns and its guardian is vulnerable to fire" is two
 facts, one of them a mechanics claim — rejected). Continuity checks singularity, novelty (a fact
-already established is a no-op → rejected), and text expression. **Idempotency and linkage**: the
+already established is a no-op → rejected), and text expression. **The novelty check queries
+the store, not the window (normative)**: Continuity's duplicate test runs against the
+campaign's *full* persisted memory rows plus the §2.8 establishment sources — never against
+the bounded retrieval window — so a fact that has aged out of the prompt still trips
+rejection. The test is textual-comparison best-effort; a paraphrase that slips past it
+writes a *redundant retrieval copy* and nothing else — `fact_learn` writes no mechanical
+state, the roll ledger stays authoritative, and the license point was spent knowingly — so
+the failure mode is bounded at "duplicate row", never at "duplicate mechanics"; tightening
+the comparison is part of §9's retrieval contract. **Idempotency and linkage**: the
 memory row is written inside the annotation's atomic transaction (at most once per `checkId`);
 the roll ledger remains the authoritative check-to-fact linkage; the memory row is a retrieval
 copy on today's schema, no new column. **Retrieval honesty**: current council context includes a
@@ -497,8 +543,14 @@ the benefit) — which means that **among edge bands it is legal only on `crit_s
 be **reworded away, never downgraded to flavor**: annotation text is binding canon
 (resolution §1.5), so a new fact carried as "flavor" with no memory row would be an unledgered
 canon commitment — flavor may only restate already-established scene truths (E2's inert rule
-covers the body of established fact; stated in §6), and *routine* fact commitment on clean
-bands belongs to the ordinary path (§9). Adverse discoveries are expressed by the verb that
+covers the body of established fact; stated in §6). **"Already-established" is a store test,
+not a vibe (normative)**: a truth is established iff it is derivable from state that already
+binds — the ledger, campaign memory, the stored scene/location state, or earlier binding
+annotation text of *this* session — and anything the model merely believes from prompt
+context fails the test. When drafting texture the model asks one question: *would a fresh
+council, given only the stores, already know this?* If yes it is restateable flavor; if no it
+is a novel fact and must be ledgered by the owning verb or reworded away. *Routine* fact
+commitment on clean bands belongs to the ordinary path (§9). Adverse discoveries are expressed by the verb that
 changes the state, never by a "bad fact" — and *NPC/world* intelligence state (a blown cover, a
 burned password) has no verb yet at all (§6).
 
@@ -555,7 +607,10 @@ map takes "is an encounter active" as an input, but no persistent encounter life
 today — the per-turn pacing enum records initiation cadence, not activity, and **must not be used
 as a proxy**. Until D7 ships a deterministic lifecycle, the encounter-active input is
 **constantly false**: licenses are never wider than the fiction warrants, only narrower (base
-`flavor_only`; critical bands and extreme/legendary tiers still raise it to `minor`).
+`flavor_only`; the Chapter 1 §1.5 ladder still stacks on top — +1 step for a critical band
+**and** +1 for `extreme`/`legendary` tier, so either alone reaches `minor` and both together
+reach `significant`/2, exactly as §2.8 and §8's recap state; encounter-false removes only the
+in-encounter `minor` base, it does not cap the ladder).
 **Owner-visible consequence, flagged**: until encounters exist, mechanical complications are rare
 and small — mid-fight texture arrives with D7. This is a shipping-order fact, not a design
 change.
@@ -588,9 +643,25 @@ normative contract is exactly two clauses, both executable:
    v1 scene proxy conditions and scene features already use (§2.7, §7; D7/D8 may refine),
    restricted to targets that still reference-resolve. Not all-history (stale enmity would
    outlive the fiction) and not latest-annotation-only (parallel foes would evict each other).
+   **Per-target reconciliation trim (the projection can go stale *inside* a location)**: an
+   NPC drops from the projection the moment a *later* committed annotation records
+   reconciliation toward them — concretely, a `disposition_improve` targeting them, or
+   (post-D7) an `encounter_end` whose recorded scope covers them — each a persisted row, so
+   the trim is as decidable as the union itself; NPCs who fled fall out already via
+   reference-resolution (`scene_exit` removes their occupancy row). Residual staleness a trim
+   cannot see (a surrender that was never ledgered by any op) is bounded by construction:
+   the projection gates *suggestions only* — a stale hostile suggestion still passes through
+   full §1 validation and Referee choice before anything is ledgered, and the Referee holds
+   the fiction.
    Concretely: fixed-valence ops, party-frame ops, and frame-composed NPC ops whose target is
    in that projection may appear; frame-composed ops against any other NPC may not — assemblers
-   never guess opposition. An implementation that does not compute the projection must treat
+   never guess opposition. **Both eligibility legs apply together, not alternately**: projection
+   membership supplies only the *frame* input; a form that additionally carries a
+   declared-judgment valence input (`reposition`/`scene_exit`'s `works_against`, the
+   `scene_feature_*` judgments, `encounter_*`'s `outcome`) remains ineligible even against a
+   projection member, because that judgment still does not exist at suggestion time — NPC-target
+   candidates therefore come from the judgment-free frame-composed forms (`harm`,
+   `disposition_*`, condition ops). An implementation that does not compute the projection must treat
    the set as **empty** (its suggestions then cover fixed-valence and party-frame ops only),
    never fall back to a guess.
 2. Absence conforms: no suggestions, an empty list, or no assembler at all are all valid
@@ -647,8 +718,13 @@ No operation exists for — and no annotation or ability may assert as mechanica
   helped or hurt: no recorded allegiance exists to compose valence from, and mis-affirming a
   bystander as opposed is a Continuity violation, not a workaround (**D8/D16**; §3);
 - **changing allegiance itself** — betrayal, defection, an ally turning: disposition can move
-  (like/dislike), but which *side* an NPC is on has no recorded home; loyalty changes are
-  prose-only until allegiance records exist (**D8/D16**);
+  (like/dislike), but which *side* an NPC is on has no recorded home — and a side-switch is
+  **not** a prose-only matter: whose side an NPC is on feeds later opposition affirmation
+  (§3), so asserting a defection in binding annotation text would be exactly the unledgered
+  canon commitment §2.8 forbids. Until allegiance records exist (**D8/D16**) the change is
+  **reworded away** (the §2.4 stance rule); the expressible footprint is `disposition_*` for
+  the felt shift and, on `crit_success`, `fact_learn` for the party *discovering* an
+  allegiance truth the fiction already established;
 - **quest and objective state** — "the contract is fulfilled", "the hunt is now for X": the
   live `quest_update`/act seam is real campaign state with no catalog verb; it belongs to the
   outline system and the ordinary path (**D15**; §2.4 names it a migration target);
@@ -718,6 +794,12 @@ No operation exists for — and no annotation or ability may assert as mechanica
   subsystem would need its own owner decision;
 - **time pressure, countdowns, and clocks** — no world/scene clock exists; future home: the
   encounter machine and recovery/world-clock work (**D7/D10**);
+- **action economy and turn order** — "you lose your next action", "you act first", initiative
+  swings: v1 has no turn machine and no action tokens, and the encounter machine and
+  initiative are **D7** scope (§9). The expressible footprint is `hindrance_apply` with a
+  condition token ("staggered", "off-balance") whose bite lands on *future checks* through
+  §2.6's condition rules; an annotation may never assert a skipped, granted, or reordered
+  turn as mechanical fact — that claim has no state home until D7;
 - **faction or organization standing** — only per-NPC disposition exists; a faction axis is a
   future catalog version;
 - **off-screen NPC movement or presence in another location** — the plausibility-bounded
@@ -800,10 +882,13 @@ annotation text and vice versa.
    `extreme` tier → `minor`, budget 1). The intent **fails** — no partial achievement: "the
    payload dies in the buffer, and on the way out the grid warden's suspicion hardens into
    certainty." Effects: `[{op:"disposition_worsen", npc:"npc:44", step:"slight"}]` — 1/1, adverse
-   (fixed valence, no opposition affirmation needed). Valid today, LIVE.
+   (fixed valence, no opposition affirmation needed); `npc:44` resolves in the turn's stamped
+   ref directory — the warden is watching this scene (§2.4's directory-scoped targeting; were
+   they elsewhere, this is the off-screen case §6 lists). Valid today, LIVE.
 4. **Imperial court, marginal failure** (`extreme` tier, no encounter → `flavor_only`+1 =
    `minor`, budget 1). Text: "the Chancellor's smile thins." Effects:
-   `[{op:"disposition_worsen", npc:"npc:31", step:"slight"}]` — 1/1, adverse (fixed). `marked`
+   `[{op:"disposition_worsen", npc:"npc:31", step:"slight"}]` — 1/1, adverse (fixed);
+   `npc:31` is directory-present — the Chancellor is in the room (§2.4). `marked`
    (significant, 2 pts) is out of reach: one faux pas cannot nuke the relationship.
 5. **[post-D7] Firefight, marginal success** (encounter → `minor`, budget 1). Text: "the burst
    connects — and the rifle's last power cell runs dry." Effects:
