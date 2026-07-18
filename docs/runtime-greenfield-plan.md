@@ -21,15 +21,24 @@ campaign shape (§4).
   `principal_id`) — `seat` for seat members, `host` for the host's stable account id — so
   host requests use the same non-null idempotency key as seats (no NULL-distinct rows),
   with a canonical request hash. The exchange **lifecycle** is a persisted state machine
-  `accepted → generating → committing → settled(status §6.5)` with a lease (owner process
-  + expiry). A duplicate `POST /turn` with the same key returns the stored settled result,
-  or 202-with-state for `accepted`/`generating`/`committing`, **to that principal only**
-  (replay is audience-scoped); the same key with a different request hash rejects; never a
-  second billing or a second commit. Settlement is a single SQLite transaction joining
-  canonical state commit, public sequence allocation, terminal status, and result
-  reference; startup recovery scans non-terminal exchanges with expired leases and either
-  resumes them or settles them `failed` with **no state commit** (§7). Fixture suite
-  includes concurrent host-duplicate and seat-duplicate requests.
+  `accepted → generating → committing → settled(status §6.5)` with a **fenced lease**
+  (owner process, expiry, and a monotonically increasing **lease epoch**; acquisition and
+  renewal are single compare-and-swap transactions that increment the epoch). Every
+  generation dispatch and every settlement transaction records its acquiring epoch and
+  **aborts if the exchange's current epoch differs** — the check runs inside the single
+  settlement transaction, so a stale owner returning from a slow provider call can neither
+  dispatch nor settle over its successor. A duplicate `POST /turn` with the same key
+  returns the stored settled result, or 202-with-state for
+  `accepted`/`generating`/`committing`, **to that principal only** (replay is
+  audience-scoped); the same key with a different request hash rejects; never a second
+  billing or a second commit. Settlement is a single SQLite transaction joining canonical
+  state commit, public sequence allocation, terminal status, and result reference; startup
+  recovery scans non-terminal exchanges with expired leases: one with **no dispatch in
+  flight** (no `dispatched` ledger row, §3.7) is re-acquired (epoch bump) and resumed or
+  settled `failed_closed` (§6.5's terminal fallback status) with **no state commit** (§7);
+  one with a recorded in-flight dispatch is reconciled through §3.7's `ambiguous` path —
+  never blindly resumed. Fixture suite includes concurrent host-duplicate and
+  seat-duplicate requests plus a stale-owner (expired-lease) settlement attempt.
 - **Generation** — one logical model task, recorded with its exchange id and a **stage** enum.
   The synchronous **base chain** is `initial → ≤1 validation re-prompt → ≤1 escalated retry`
   (§3.1 state machine). Synchronous **continuations** are separate stages, each with its own
@@ -328,16 +337,24 @@ storage).
   snapshot. Custom providers without declared prices cannot join paid tiers.
 - **Reserve → dispatch → settle, durably.** Per **dispatch** state machine, persisted:
   `reserved → dispatched → settled | ambiguous`. Reservation = **tokenize the fully
-  serialized request with the destination model's tokenizer before dispatch**, then reserve
-  (actual input tokens × cold input rate) + (output-token cap × output rate) + media unit
-  cap — no estimated component (the ~6k cacheable prefix is a forecast figure only, §4).
-  Settlement can never exceed reservation: cold input is the per-token worst case, output
-  is hard-capped, media is unit-capped. The prompt assembler enforces a per-tier
-  serialized-input token ceiling (a build constant; §4 worst-case math cites it);
+  serialized request with the destination model's pinned tokenizer version before
+  dispatch** (tokenizer versions live in the config snapshot, §7), classify every token by
+  **provider billing class at the declared §3.4 cache boundary**, then reserve
+  (cacheable-prefix tokens × cache-write rate — the per-token cold worst case for those
+  tokens; a cache-read settlement only refunds) + (non-prefix tokens × input rate) +
+  (output-token cap × output rate) + (media unit cap × media rate) — no estimated
+  component (the ~6k cacheable prefix is a forecast figure only, §4; the reservation uses
+  the actual tokenized segments). TTS reserves from the **exact pre-dispatch character
+  count** of the committed narration text under §3.6's hard character cap.
+  Settlement can never exceed reservation: every billing class is reserved at its
+  per-token worst case, output is hard-capped, media is unit-capped. The prompt assembler
+  enforces a per-tier serialized-input token ceiling (a build constant; §4 states it:
+  **8,192 tokens**);
   exceeding the ceiling is a structural build failure surfaced pre-dispatch, never silent
-  truncation. (Reference shape — 1.5k fresh input cold + 600-token output cap —
-  ≈ **$0.012 small / $0.036 mid / $0.180 frontier** at snapshot v1; illustrative, not the
-  reservation rule.)
+  truncation. (Reference shape — 6k prefix at cache-write + 1.5k fresh at input +
+  600-token output cap — ≈ **$0.012 small / $0.036 mid / $0.180 frontier** at snapshot v1,
+  computed with exactly this billing classification; illustrative, not the reservation
+  rule.)
   Campaign-mix averages are **forecast** figures (§4) and are never used as reservations —
   every physical dispatch is covered by its own pre-tokenized worst-case reservation,
   which is what makes the $45 ceiling a construction property. Dispatch uses provider idempotency keys where
@@ -362,13 +379,25 @@ storage).
 **Pricing snapshot v1** (2026-07, sole source): per Mtok — small $1 in / $5 out / $0.10
 cache-read / $1.25 cache-write; mid $3 / $15 / $0.30 / $3.75; frontier $15 / $75 / $1.50 /
 $18.75. Media: image generation $0.04/image; embeddings $0.02/M tokens; TTS $15/M characters.
-**Batch lane** (async kinds only): small at **50% of list** in/out, settled at batch
-completion (≤ 24 h SLA; timeout falls back to list-rate synchronous billing; cache rates do
-not apply in batch). Derived: extractor (500 in / 60 out) = $0.0004 batched / $0.0008
-unbatched at list; audit is priced at list even when batched (discount not claimed —
-conservative padding).
+**Batch lane** (async kinds whose settlement deadline exceeds the lane's SLA — audit and
+offline-pause backlog flush only; **in-play extraction is excluded** because §3.3's four-turn
+freshness bound is far shorter than the SLA): small at **50% of list** in/out, settled at
+batch completion (≤ 24 h SLA; cache rates do not apply in batch). Batch terms — rates,
+per-kind eligibility, SLA, timeout disposition — are **versioned fields of the pricing
+snapshot** (§3.7), never hard-coded lane constants. Timeout disposition: the timed-out
+original settles terminally under its own reservation **first**, then the recovery dispatch
+is a fresh list-rate synchronous reservation — never two live claims for the same work.
+Derived: extractor (500 in / 60 out) = $0.0004 batched / $0.0008 unbatched at list;
+**scenarios price all in-play extraction at list** (the batch discount is never claimed in E
+or A); audit is priced at list even when batched (discount not claimed — conservative
+padding).
 Call shape: cacheable prefix ~6,000 tokens; fresh ~1,500; output ~400 typical (600 cap).
-Continuations: cache-read 6k + ~200 fresh + 400 out.
+Continuations: cache-read 6k + ~200 fresh + 400 out. **Serialized-input ceiling** (build
+constant, all tiers): **8,192 tokens**; §3.7's reservation classifies every token from the
+pinned per-model tokenizer (cacheable-prefix segments → cache-write rate, non-prefix →
+input rate), so the ceiling numerically bounds any single hot-call reservation at
+≤ $0.0133 / $0.0398 / $0.1986 small/mid/frontier (all-cache-write cold at ceiling plus the
+600-token output cap).
 
 | Per-call | small | mid | frontier |
 |---|---|---|---|
@@ -399,11 +428,11 @@ snapshot cost, the padding is deliberate contingency, labeled with its multiplie
 | Kind | Model | Freq E / A | Unit caps | Retry cap | Batch | Line basis (computed → padded) |
 |---|---|---|---|---|---|---|
 | hot call | tier-routed | 1/exchange | 1.5k fresh / 600 out | state machine | no | per-call table above, unpadded |
-| validation retry | same tier, cold | tier-cond. E 1.5/4/8% / A 4/8/15% | as hot | 1 | no | Σ tier × same-tier cold: E $1.37 / A $5.95, unpadded |
+| validation retry | same tier, cold | tier-cond. E 1.5/4/8% / A 4/8/15% | as hot | 1 | no | Σ tier × same-tier cold: E $1.20 / A $5.22, unpadded |
 | escalated retry | +1 tier; frontier→frontier, cold | tier-cond. of committed: E 0.3/1/2.5% / A 1.2/4/8% | as hot | 1 | no | Σ tier × destination cold: E $0.83 / A $6.44, unpadded |
 | strict continuation | turn tier | 0% / 40% of committed | 200 fresh / 400 out | 0 (occ ≤ 1) | no | tier-weighted $0.0052, unpadded |
 | recall | small + embed | 3% / 5% of committed | 200-token result | 0 (occ ≤ 1) | no | $0.0030 computed (cont $0.0028 + embed) → $0.005 (×1.7) |
-| extractor | small | 1/committed | 500 in / 60 out | 3 → dead-letter | E yes / A no | $0.0004 / $0.0008, unpadded |
+| extractor | small | 1/committed | 500 in / 60 out | 3 → dead-letter | in-play no; offline pauses only (§3.3) | $0.0008 list in both scenarios (batch $0.0004 never claimed in-play), unpadded |
 | audit | small | 5% of committed | 1k in / 200 out | 1 | yes | $0.002 computed → $0.004 (×2, retry allowance) |
 | image | image model | 32 / 40 per campaign | 1 image | 1 | n/a | $0.04/image, snapshot rate |
 | tts | local default | 0 (cloud = §8 Q4) | 1 turn's narration | 1 | n/a | $15/M chars if cloud |
@@ -415,33 +444,37 @@ round once — display rounding never compounds.
 
 **Scenario E — expected.** 1,800 committed (75 h @ 2.5 min) + 360 non-committing = 2,160
 exchanges; mix 80/18/2; warm 90/75/70 (set pieces cluster, frontier re-warms); voice off.
+The mix routes committed turns; all 360 non-committing exchanges run small (§3.5 fail-soft
+lanes), so **tier exchange counts are small 1,800 / mid 324 / frontier 36** — retry lines
+use these tier counts (the same counts as the hot rows), never the headline mix.
 
 | Line | Calls × avg | Total |
 |---|---|---|
 | small hot (0.90 warm) | 1,800 × $0.00479 | $8.62 |
 | mid hot (0.75 warm) | 324 × $0.01748 | $5.66 |
 | frontier hot (0.70 warm) | 36 × $0.09255 | $3.33 |
-| validation retries (tier-cond. 1.5/4/8%) | 25.9 / 15.6 / 3.5 × tier cold | $1.37 |
-| escalated retries (tier-cond. 0.3/1/2.5%) | 4.3 / 3.2 / 0.9 × dest cold | $0.83 |
-| extractor (batched) | 1,800 × $0.0004 | $0.72 |
+| validation retries (tier-cond. 1.5/4/8%) | 27 / 12.96 / 2.88 × tier cold | $1.20 |
+| escalated retries (tier-cond. 0.3/1/2.5% of committed) | 4.32 / 3.24 / 0.9 × dest cold | $0.83 |
+| extractor (list, in-play lane) | 1,800 × $0.0008 | $1.44 |
 | audit (5%) | 90 × $0.004 | $0.36 |
 | recall (3%) | 54 × $0.005 | $0.27 |
 | images | 32 × $0.04 | $1.28 |
 | setup | — | $0.50 |
-| **Total** | | **$22.94** |
+| **Total** | | **$23.49** |
 
 **Scenario A — adverse (unmanaged, sizes the governor).** 3,000 committed + 600 = 3,600
 exchanges; mix 75/22/3; warm 75/50/30; tier-conditional retries per the matrix (blended
-≈ 5.2% validation / ≈ 2.0% escalation — deliberately past §6.1's governed thresholds: this
+≈ 5.0% validation / ≈ 2.0% escalation — deliberately past §6.1's governed thresholds: this
 is the unmanaged case the governor must contain); strict on 40% of committed; recall 5%;
-extraction unbatched; 40 images.
+extraction unbatched; 40 images. Tier exchange counts: small 2,850 / mid 660 / frontier 90
+(600 non-committing all small); retry lines use these counts.
 
 | Line | Calls × avg | Total |
 |---|---|---|
 | small hot (0.75 warm) | 2,850 × $0.005825 | $16.60 |
 | mid hot (0.50 warm) | 660 × $0.02265 | $14.95 |
 | frontier hot (0.30 warm) | 90 × $0.13395 | $12.06 |
-| validation retries (tier-cond. 4/8/15%) | 108 / 63.4 / 16.2 × tier cold | $5.95 |
+| validation retries (tier-cond. 4/8/15%) | 114 / 52.8 / 13.5 × tier cold | $5.22 |
 | escalated retries (tier-cond. 1.2/4/8%) | 27 / 26.4 / 7.2 × dest cold | $6.44 |
 | strict continuations (75/22/3-weighted $0.005208) | 1,200 × $0.005208 | $6.25 |
 | recall (5%) | 150 × $0.005 | $0.75 |
@@ -449,7 +482,7 @@ extraction unbatched; 40 images.
 | audit (5%) | 150 × $0.004 | $0.60 |
 | images | 40 × $0.04 | $1.60 |
 | setup | — | $0.50 |
-| **Total** | | **≈ $68.1 — over the owner bar** |
+| **Total** | | **≈ $67.4 — over the owner bar** |
 
 That is the point: pacing, cache luck, and optional modes can push an unmanaged campaign well
 past $50, so the governor is **load-bearing**. Governed, the same campaign hits the **$45
@@ -462,7 +495,7 @@ construction property; §6.5 tests the construction (cold caches, forced retries
 dispatches, 3,000 turns).
 
 **Versus baseline**, normalized per committed turn (both at snapshot v1): E is
-$22.94 / 1,800 = **$0.0127/turn** vs the Council's estimated $0.08–0.20 → **≈ 6–16×
+$23.49 / 1,800 = **$0.0131/turn** vs the Council's estimated $0.08–0.20 → **≈ 6–15×
 cheaper** (vs all-small Council ≈ 3–5×). Single-digit-dollar campaigns require the local
 routine tier, not the default claim. Latency drops from five sequential round-trips to one
 call — the cost fix and the "feels like a real GM" fix are the same fix.

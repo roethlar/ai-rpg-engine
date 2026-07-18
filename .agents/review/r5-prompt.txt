@@ -1,0 +1,16 @@
+Round r5 repair-delta continuation. Draft on disk at docs/runtime-greenfield-plan.md. Pinned git blob SHA: a6e41099087348ba15042101f7668126475389ec (655 lines). Re-read the FULL file from disk first; run `git hash-object docs/runtime-greenfield-plan.md` and confirm it matches the pin before reviewing. If it does not match, stop and return verdict "stale_pin".
+
+This delta repairs the scenario-table retry-count convention inconsistency:
+
+- Scenario E header now states the tier exchange counts explicitly — committed mix 1,440/324/36 plus 360 non-committing routed small (§3.5 fail-soft lanes) → tier exchange counts small 1,800 / mid 324 / frontier 36 — and states that retry lines use these tier counts, never the headline mix.
+- Scenario E validation-retries row corrected to 27 / 12.96 / 2.88 × tier cold = $1.20, now exactly matching the §4 path-matrix line (was $1.37 with counts inconsistent with the matrix). Escalated-retries row unchanged at $0.83 but labeled "of committed" (counts 4.32 / 3.24 / 0.9 = 0.3/1/2.5% of committed tiers 1,440/324/36, destination-cold priced, frontier→frontier fresh cold).
+- Scenario E extractor repriced at unbatched list: 1,800 × $0.0008 = $1.44 (was $0.72 at the batch rate). The in-play committed-turn extractor lane backs pre-admission recovery and cannot rely on the ≤24 h batch SLA; the $0.0004 batch rate remains reserved for genuinely deferrable async kinds per the snapshot's batch-lane terms.
+- Scenario E total: $22.94 → $23.49.
+- Scenario A header: blended validation corrected to ≈ 5.0% (180.3 retries / 3,600 exchanges); tier exchange counts stated explicitly — small 2,850 / mid 660 / frontier 90 (600 non-committing all small).
+- Scenario A validation-retries row was computed under a different convention than the §4 matrix (all-exchange mix counts 108 / 63.4 / 16.2 → $5.95, conflicting with the matrix's stated A $5.22). Corrected to the same committed-mix-plus-non-committing-small convention Scenario E uses: 114 / 52.8 / 13.5 × tier cold = $5.22. Escalated row unchanged ($6.44, matches matrix).
+- Scenario A total: ≈ $68.1 → ≈ $67.4 (still over the owner bar; the governed-containment argument is unchanged).
+- Versus-baseline normalization updated: E $23.49 / 1,800 = $0.0130/turn → ≈ 6–15× cheaper than the Council's $0.08–0.20 estimate (was $0.0127 / 6–16×).
+
+Arithmetic verified against snapshot v1 cold rates ($0.0110 / $0.0330 / $0.1650): E val 27×0.0110 + 12.96×0.0330 + 2.88×0.1650 = $1.1999; E esc = $0.8257; A val 114×0.0110 + 52.8×0.0330 + 13.5×0.1650 = $5.2239; A esc = $6.435; A table sum = $67.37.
+
+Review the delta and the two scenario tables for remaining internal inconsistency with §4's path matrix and §3.5's routing rules. Return the standard JSON verdict envelope.
