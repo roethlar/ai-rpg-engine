@@ -1066,3 +1066,9 @@ findings against the draft text, not yet owner-signed.
   physical relinquishment. Bullet narrowed to claim only the capitulation *status*, with
   `item_drop` named as a ledgerable neighbor ("ledgers the physical relinquishment only,
   never the yielding it dramatizes"). Draft r20.
+
+## Round r21 — repair-delta redispatch (codex, conservative) — CLOSED, zero findings
+- Pinned: 10eae8b44b2b3e2b5aea99009724d9832fb6456d (draft r20)
+- Delta scope (r19 pin -> r20 pin) introduced no new contradictions; no admitted finding
+  remains unfixed. Convergence signal — full-scope verification round r22 dispatched per
+  contract before declaring the catalog converged.
