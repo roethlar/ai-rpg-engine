@@ -1,6 +1,6 @@
 # Aetheria House Ruleset — Chapter 2: Effects
 
-**Status**: DRAFT r20 — rounds r1–r8 were reopened by both independent reviewers; at r9 one
+**Status**: DRAFT r21 — rounds r1–r8 were reopened by both independent reviewers; at r9 one
 reviewer **accepted** (zero findings, cold-implementer-executable) and one reopened; r10–r12
 were reopened by both; r13–r14 were codex-only conservative passes (owner-directed) reopening
 with 1 HIGH / 2 MEDIUM, then 1 MEDIUM; the r15 repair-delta redispatch reopened once more with
@@ -21,7 +21,11 @@ stated section-local notation scoped to gate/pricing/conflict-key cases); the r2
 admitted 1 MEDIUM — the r19 standing-down bullet flatly listed "dropping weapons" as
 inexpressible while post-D16 `item_drop` legally ledgers an NPC's physical weapon
 relinquishment (the bullet now claims only the capitulation status, naming `item_drop` as a
-ledgerable neighbor) — all admitted findings fixed; every
+ledgerable neighbor); the r22 full-scope verification round admitted 2 HIGH — the §6
+standing-down and intelligence/condition fallbacks said "reword-or-flavor"/"let it be
+flavor" where §2.4 and E2/§2.8 forbid flavor from asserting novel stance or state (all four
+fallback sites now demand reword-away, with flavor confined to restating already-binding
+truth) — all admitted findings fixed; every
 admitted finding is addressed in place (trail and the recorded disputes:
 `.agents/review/effect-catalog-review.md`). Not yet owner-signed. Implementation of Chapter 1's
 edge bands is gated on **this chapter's acceptance** — and, per campaign, on a pinned
@@ -673,7 +677,8 @@ normative contract is exactly two clauses, both executable:
    (post-D7) an `encounter_end` whose recorded scope covers them — each a persisted row, so
    the trim is as decidable as the union itself; NPCs who fled fall out already via
    reference-resolution (`scene_exit` removes their occupancy row). Residual staleness a trim
-   cannot see (an NPC's in-place surrender — §6-inexpressible today, so no op ever ledgers
+   cannot see (an NPC's in-place surrender — §6-inexpressible today, and its prose must be
+   **reworded away** under §2.4's stance rule, so neither ledger nor binding text can carry
    it) is bounded by construction:
    the projection gates *suggestions only* — a stale hostile suggestion still passes through
    full §1 validation and Referee choice before anything is ledgered, and the Referee holds
@@ -790,11 +795,14 @@ No operation exists for — and no annotation or ability may assert as mechanica
   scene-state store; **D6/D16-adjacent**) — scene features (§2.7) *add* temporary state, they
   never touch what the layout or occupancy already records;
 - **NPC/world intelligence state** — a blown cover, a burned password, a circulated description:
-  no knowledge store exists beyond party memories (future catalog version; until then,
-  reword-or-flavor — or the verb that changes real state, like `disposition_worsen`);
+  no knowledge store exists beyond party memories (future catalog version; until then the
+  asserted intelligence change is **reworded away** or routed through the verb that changes
+  real state, like `disposition_worsen` — E2's inert rule leaves flavor no room to assert
+  what anyone *knows*);
 - **conditions outside the §7 token sets** — blindness, silence, poison, total restraint and
-  kin are absent tokens: reword to the nearest token's §7 semantics or let it be flavor; new
-  tokens arrive as catalog versions;
+  kin are absent tokens: reword to the nearest token's §7 semantics (whose "must not assert"
+  column still binds the text) or reword the condition away — flavor may only restate what
+  already binds, never assert the absent condition; new tokens arrive as catalog versions;
 - attribute, skill, XP, level, or advancement changes (**D4/D5**);
 - act or plot-outline transitions (the outline system, **D15**);
 - **permanent layout or map edits** — scene features (§2.7) are temporary records, never layout;
@@ -809,7 +817,8 @@ No operation exists for — and no annotation or ability may assert as mechanica
   ledgerable neighbors are `disposition_improve` (attitude), `scene_exit` (they flee, leaving
   the roster), (post-D7) an `encounter_end` covering the whole encounter, and (post-D16) an
   `item_drop` of a held weapon — which ledgers the physical relinquishment **only**, never the
-  yielding it dramatizes; the capitulation itself is reword-or-flavor until **D7
+  yielding it dramatizes; the capitulation itself must be **reworded away, never carried as
+  flavor** (§2.4: stance prose feeds later opposition affirmation) until **D7
   per-participant status** exists (plus **D9/D11** for any custody that follows) — §4's
   projection trim names exactly this residue;
 - **mechanical-consumable acquisition** — restocking effect-bearing items ("you scavenge
@@ -863,8 +872,9 @@ No operation exists for — and no annotation or ability may assert as mechanica
 The coverage claim (E2) is scoped accordingly: consequences over recorded actors and their held
 items map today, conditions and temporary features map once their stores ship, and this list is
 the deliberate remainder. The fallback is Chapter 1's rule: reword to the expressible footprint,
-or let it be flavor — mechanically inert color that changes no possession, position, or
-availability.
+or let it be flavor in E2's strict sense — mechanically inert color that asserts no change to
+possession, position, availability, **or the body of established fact**; a sentence still
+asserting the unexpressible change is never flavor and is reworded away.
 
 ## 7. Config block (engine-owned, provisional)
 

@@ -1072,3 +1072,16 @@ findings against the draft text, not yet owner-signed.
 - Delta scope (r19 pin -> r20 pin) introduced no new contradictions; no admitted finding
   remains unfixed. Convergence signal — full-scope verification round r22 dispatched per
   contract before declaring the catalog converged.
+
+## Round r22 — full-scope verification (codex, conservative) — REOPENED, then FIXED
+- Pinned: b90cec437819631006e68a1f0e3b727eae6031a5 (draft r20)
+- R22-1 (HIGH, admitted): §6 standing-down bullet said capitulation is `reword-or-flavor`,
+  contradicting §2.4's stance rule (reword, never flavor — stance prose feeds opposition
+  affirmation). Bullet now demands reword-away; §4's residual-staleness parenthetical
+  updated to note neither ledger nor binding text can carry an in-place surrender.
+- R22-2 (HIGH, admitted): §6 intelligence-state and absent-condition bullets plus the §6
+  coverage-claim tail offered bare `let it be flavor`, contradicting E2's inert-flavor
+  definition (no change to the body of established fact) and §2.8's ledger-or-reword rule.
+  All three sites now confine flavor to restating already-binding truth and demand
+  reword-away for any sentence asserting the unexpressible change.
+- Draft r21.
