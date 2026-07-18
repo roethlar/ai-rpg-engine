@@ -887,3 +887,40 @@ resolution.md, `.agents/decisions.md:1060-1152`, rules-system-plan-intake),
 
 Effects.md Status block bumped **DRAFT r13 → DRAFT r14** with the r13 codex-only pass noted
 in the trail sentence.
+
+### Round 14 — pinned `91f851936a0d6fd98adce92d51bbf7b1147fb824` (draft r14)
+
+Owner direction unchanged (codex MCP only, conservative single pass). No grok dispatch.
+Verdict valid, SHA-matched, `evidence_checked` across 6 ranges (effects.md §0–§9 whole-file,
+resolution.md full chapter, `.agents/decisions.md:1043-1152`, rules-system-plan-intake,
+this review doc's Rounds 12–14 incl. the standing §4 dispute),
+`cold_implementer_executable: false`. Second consecutive round with zero CRITICAL/HIGH; the
+§4 assembler de-scope dispute was carried, not reopened.
+
+#### codex — **reopened** (1 MEDIUM)
+
+1. MEDIUM — §4 clause 1's suggestion-eligibility examples contradict the operation schemas
+   and the computable-valence rule on three legs: it named `works_against` as
+   `reposition`/`scene_exit`'s judgment field (the schema field is `quality`, L428–429);
+   it classified every `scene_feature_*` form as judgment-dependent although
+   `scene_feature_clear`'s valence is engine-computed from the stored record (L476,
+   L493–495); and it offered `harm` and `disposition_*` as frame-composed NPC candidates
+   although `harm` is character-only (L270, L274) and disposition valence is fixed, not
+   frame-composed (L401, L592). An assembler could not derive one consistent eligibility
+   set from the clause. *Confirmed: L641–668 against the cited schema/valence lines — all
+   three legs reproduce.*
+
+#### Coder triage → r15 — COMPLETE (1 admitted+fixed, 1 edit)
+
+1. MEDIUM — admitted, fixed in a single rewrite of the flagged sentence pair (§4 clause 1):
+   the declared-judgment examples now read `reposition`/`scene_exit`'s `quality`,
+   `scene_feature_place`'s `works_against`, `encounter_*`'s `outcome`; a new parenthetical
+   permits `scene_feature_clear` whenever its `feature` ref resolves (valence
+   engine-computed from the stored record, §2.7 — no judgment to wait on); and the
+   NPC-candidate list is corrected to the genuinely judgment-free frame-composed forms —
+   the §2.6 condition ops and `item_transfer` same-frame nets (§3) — with `disposition_*`
+   noted as already eligible under the fixed-valence category and `harm` excluded as
+   character-only (§2.1).
+
+Effects.md Status block bumped **DRAFT r14 → DRAFT r15** (zero-CRITICAL/HIGH streak noted
+in the trail sentence).

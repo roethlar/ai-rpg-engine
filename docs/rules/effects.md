@@ -1,9 +1,9 @@
 # Aetheria House Ruleset — Chapter 2: Effects
 
-**Status**: DRAFT r14 — rounds r1–r8 were reopened by both independent reviewers; at r9 one
+**Status**: DRAFT r15 — rounds r1–r8 were reopened by both independent reviewers; at r9 one
 reviewer **accepted** (zero findings, cold-implementer-executable) and one reopened; r10–r12
-were reopened by both; r13 was a codex-only conservative pass (owner-directed) reopening with
-1 HIGH / 2 MEDIUM, all admitted and fixed; every
+were reopened by both; r13–r14 were codex-only conservative passes (owner-directed) reopening
+with 1 HIGH / 2 MEDIUM, then 1 MEDIUM — zero CRITICAL/HIGH at r14 — all admitted and fixed; every
 admitted finding is addressed in place (trail and the recorded disputes:
 `.agents/review/effect-catalog-review.md`). Not yet owner-signed. Implementation of Chapter 1's
 edge bands is gated on **this chapter's acceptance** — and, per campaign, on a pinned
@@ -661,11 +661,15 @@ normative contract is exactly two clauses, both executable:
    in that projection may appear; frame-composed ops against any other NPC may not — assemblers
    never guess opposition. **Both eligibility legs apply together, not alternately**: projection
    membership supplies only the *frame* input; a form that additionally carries a
-   declared-judgment valence input (`reposition`/`scene_exit`'s `works_against`, the
-   `scene_feature_*` judgments, `encounter_*`'s `outcome`) remains ineligible even against a
-   projection member, because that judgment still does not exist at suggestion time — NPC-target
-   candidates therefore come from the judgment-free frame-composed forms (`harm`,
-   `disposition_*`, condition ops). An implementation that does not compute the projection must treat
+   declared-judgment valence input (`reposition`/`scene_exit`'s `quality`,
+   `scene_feature_place`'s `works_against`, `encounter_*`'s `outcome`) remains ineligible even
+   against a projection member, because that judgment still does not exist at suggestion time
+   (`scene_feature_clear` carries no judgment — its valence is engine-computed from the stored
+   record, §2.7, so it is eligible whenever its `feature` ref resolves) — NPC-target
+   candidates therefore come from the genuinely judgment-free frame-composed forms: the §2.6
+   condition ops and `item_transfer` same-frame nets (§3). `disposition_*` needs no projection
+   at all — it is fixed-valence (§3), eligible under the first category above — and `harm`
+   never enters this set: it is character-only (§2.1). An implementation that does not compute the projection must treat
    the set as **empty** (its suggestions then cover fixed-valence and party-frame ops only),
    never fall back to a guess.
 2. Absence conforms: no suggestions, an empty list, or no assembler at all are all valid
