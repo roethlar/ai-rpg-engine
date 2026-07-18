@@ -1090,3 +1090,59 @@ findings against the draft text, not yet owner-signed.
 - Pinned: b7ac73130fff9a73ea0933c969cd150e3488b11b (draft r21)
 - Delta scope (r20 pin -> r21 pin) introduced no new contradictions; no admitted finding
   remains unfixed. Full-scope verification round r24 dispatched per contract.
+
+## Round r24 — full-scope verification (codex, conservative) — REOPENED, then FIXED
+- Pinned: b7ac73130fff9a73ea0933c969cd150e3488b11b (draft r21)
+- R24-1 (HIGH, admitted): §2.3's registry-atomicity sentence said record-ref ops "move,
+  degrade, or destroy **whole records**", contradicting the custody rule and §6, which
+  make destruction of a durable record an inexpressible future op. Sentence now reads:
+  a record-ref op acts on exactly one whole record and may move it, degrade it, or mark
+  it `lost`, never delete it.
+- R24-2 (HIGH, admitted): the "(pre-D16)"/"until D16 ships" qualifiers on the legacy
+  mundane gates implied the gates lapse when D16 activates, though `item_gain` writes
+  classless stack entries in every catalog version. Gates are now permanent per-form:
+  name-key stack forms gate by Continuity + the deterministic `stats` rule in every
+  catalog version (remediation is D16 migration, never erasure or time); class pricing
+  is record-ref-only.
+- Draft r22 (pinned 363b3abee8e002704492e9ce559cef180b5b46a1). Repair-delta redispatch
+  round r25 dispatched per contract.
+
+## Round r25 — repair-delta redispatch (codex, conservative) — CLOSED, zero findings
+- Pinned: 363b3abee8e002704492e9ce559cef180b5b46a1 (draft r22)
+- Delta scope (r21 pin -> r22 pin) verified both R24 fixes present and complete; no new
+  contradictions introduced; no admitted finding remains unfixed. Envelope valid,
+  SHA-matched, evidence_checked: true, cold_implementer_executable: true. Convergence
+  signal — full-scope verification round r26 dispatched per contract.
+
+## Round r26 — full-scope verification (codex, conservative) — REOPENED, then FIXED
+- Pinned: 363b3abee8e002704492e9ce559cef180b5b46a1 (draft r22)
+- R26-1 (admitted): the §2 gate preamble claimed every condition and feature token carries
+  §7 canonical semantics, but §7's token-semantics table had no rows for ladder rungs.
+  Preamble now reads "condition, ladder-rung, and feature token"; §7 gained semantics/
+  overclaim rows for `pristine`/`worn`/`damaged`/`broken` and `destitute`…`opulent`.
+- R26-2 (admitted): §2.3 non-recoverable partings did not state that destructive narration
+  license differs by form. Now: the legacy stack form deletes the entry and only its text
+  may narrate the unit destroyed; the record form (GATED:D16) marks `lost` and expresses
+  loss from play, never cessation of existence; the future-op carve-out says "physical
+  annihilation included".
+- R26-3 (admitted): condition-record `source`/`clearedBy` were typed as `checkId`, minting
+  a fake-check obligation for §5 ability and §9 ordinary-path consumers that commit under
+  their own transaction ids. Now normative as "originating transaction id (§2.6)" here and
+  in §2.7 — today's instance is the edge-band annotation's `checkId`.
+- R26-4 (admitted): `fact_learn` pinned `turn_number` to "the check's ledger turn" and
+  memory-row atomicity to per-`checkId`, assuming a check-based committer. Now "the
+  committing transaction's ledger turn (the check's turn today)" and at most once per
+  originating transaction.
+- R26-5 (admitted): the fresh-council texture test classified manner color of the current
+  row's resolved outcome as a novel fact (the derivability base omitted the check's own
+  resolved row). Now: the base includes this check's resolved row; the test governs
+  standing facts; manner color is restateable flavor that licenses nothing. The §8
+  `disposition_worsen` example was reworded to drop an NPC-internal-state assertion
+  ("suspicion hardens into certainty") accordingly.
+- R26-6 (admitted): §6's inexpressible-futures enumeration lacked two entries now added:
+  novel qualitative item properties/transformations (no store records them; reword or
+  route through a verb; item property vocabulary is D16) and encounters beyond the §7
+  `participants` cap (surplus staged as directory-present non-participants until D7).
+- Severities per the r26 dispatch transcript; all six admitted, none contested. Draft r23
+  (pinned fa80e2fc72fdd1397bf04e0c3a839e023bbd8478). Repair-delta redispatch round r27
+  dispatched per contract.
