@@ -129,8 +129,8 @@ An effect entry is an object whose fields are fixed per operation by the §2 sch
   record in the current location (§2.7). Cleared records do not resolve (§2.7); the token is
   persisted state and remaps on export/import like every other typed token (§1.1).
 - **Condition / pool / kind / side / outcome tokens and all other enums**: exactly the values a
-  schema lists. Every condition and feature token carries **canonical semantics and an overclaim
-  boundary** (§7) — the gate below enforces those boundaries.
+  schema lists. Every condition, ladder-rung, and feature token carries **canonical semantics
+  and an overclaim boundary** (§7) — the gate below enforces those boundaries.
 - **Licensed string** (`name`, `detail`, `fact`): allowed only where a schema names one. Bounded
   (§7 caps), engine-normalized (trimmed, whitespace-collapsed), and **subordinate to its token**:
   - an item `name` must denote a genre-plausible, unremarkable object — a string asserting
@@ -325,12 +325,17 @@ scope: `harm` writes a number, never removes an actor.
 
 **Stack rule**: every item entry moves **exactly one unit** — quantity is never a model input and
 never prose-derived. **Custody, stated precisely**: `item_lose` means the unit is *gone from
-play* (swallowed by the chasm, burned up) — by form, never by era: the legacy stack form
-deletes the inventory entry/unit in every catalog version; the record form (GATED:D16) marks
-the durable record `lost` with full provenance — the holder
+play* — by form, never by era, and **the destructive color license differs by form**: the
+legacy stack form deletes the inventory entry/unit in every catalog version, and only *its*
+text may narrate the unit destroyed ("swallowed by the chasm", "burned up") — a deleted stack
+entry leaves no record for later text to contradict; the record form (GATED:D16) marks
+the durable record `lost` with full provenance and expresses **loss from play, never
+destruction** — its text may assert the unit is gone (dropped into the chasm, lost to the
+void), never that it ceased to exist ("the saber burns to ash" rewords or waits for the
+future destruction op) — the holder
 field retains its last value, but a `lost` record is out of play: never
 directory-referenceable, and every record-form op above rejects it (destruction of a
-durable record is a future op, not this one). A recoverable parting is `item_drop` (custody moves
+durable record — physical annihilation included — is a future op, not this one, per §6). A recoverable parting is `item_drop` (custody moves
 to the scene) and recovery is `item_pickup`; between actors it is `item_transfer`, atomic and
 priced once. **The legacy mundane check (every catalog version)**: because no class field ever
 exists on a stack entry (classes are registry data; stack entries never enter the registry),
@@ -495,7 +500,12 @@ roster, §2.8); what an emptied opposing side does to the encounter lifecycle is
 
 **Required state addition (declared, not yet built) — the condition record**:
 `{ actor: typed ref, condition: token, class: boon|hindrance (from the token's §7 set), detail,
-source: checkId (or other originating transaction id), duration, appliedTurn }`. **Uniqueness**:
+source: originating transaction id, duration, appliedTurn }`. **Originating transaction id
+(normative for every record `source`/`clearedBy` field here and in §2.7)**: the atomic
+transaction a commit executes inside names the record's provenance, consumer-agnostically —
+today that is always an edge-band annotation and the id is its `checkId`; ability (§5) and
+ordinary-path (§9) consumers commit under their own transaction ids, so no future consumer
+must mint a fake check to satisfy a record shape. **Uniqueness**:
 at most one active instance per (actor, condition token); re-application is a no-op (§1.1).
 `detail` is cause/color under §1's semantic gate, and doubles as the citable fictional fact a
 Chapter 1 situational delta may reference — one-fact-one-home applies unchanged. `who` may be
@@ -516,7 +526,8 @@ in §7; it carries no arithmetic of its own.
 
 **Required state addition (declared, not yet built) — the scene-feature record**:
 `{ id, location, area, kind, name, duration, works_against, status: active|cleared,
-source: checkId, appliedTurn, clearedBy?: checkId, clearedTurn? }`.
+source: originating transaction id (§2.6), appliedTurn, clearedBy?: originating transaction
+id, clearedTurn? }`.
 Occupancy rows (`{name, kind, area, note}`) cannot hold kind, duration, or side without parsing
 strings for mechanics, which §1 forbids — hence the record. Features are temporary scene state —
 rubble across a door, smoke in the hall, a klaxon blaring — and **never edit the stored layout**
@@ -539,7 +550,7 @@ declaration to trust.
 |---|---|---|---|---|---|
 | `encounter_start` | `{op, posture: hostile\|social_standoff, outcome: party_favored\|party_costing, participants: [1..cap unique npc refs, each bound to a current occupant via §2.5's binding rule]}` | the encounter state machine | significant | composed from `outcome` (Continuity-validated against the text): `party_favored` — the party forced the fight it wanted → beneficial; `party_costing` — trouble found the party → adverse | GATED:D7 (today only a per-turn pacing enum exists) |
 | `encounter_end` | `{op, outcome: party_favored\|party_costing}` | the encounter state machine — the active encounter concludes, **and nothing else**: its text may assert only the ceasing of hostilities plus consequences ledgered by accompanying entries. **Displacement wording rejects**: "you are driven from the field" asserts a position/location change no accompanying op can ledger for the party today (§6) | minor | composed from `outcome`: rout/de-escalation in the party's favor → beneficial; hostilities ending on unfavorable terms **with everyone still where they stand** (a forced truce on bad terms, the standoff hardens against you) → adverse | GATED:D7 |
-| `fact_learn` | `{op, fact: licensed string}` | one party-scope memory row, fields pinned: campaign from the transaction, `turn_number` = the check's ledger turn, summary = the `fact` string, importance = engine config default (§7), keywords engine-default empty; checkId linkage stays ledger-only | minor | beneficial (fixed) | LIVE (campaign memories) |
+| `fact_learn` | `{op, fact: licensed string}` | one party-scope memory row, fields pinned: campaign from the transaction, `turn_number` = the committing transaction's ledger turn (the check's turn today), summary = the `fact` string, importance = engine config default (§7), keywords engine-default empty; transaction linkage stays ledger-only (§2.6's consumer-agnostic id) | minor | beneficial (fixed) | LIVE (campaign memories) |
 
 Encounter lifecycle cost is **fixed regardless of participant count** — legality, not cost,
 bounds the list (unique, 1..cap per §7, every ref bound to a present occupant). **Participants
@@ -575,7 +586,8 @@ writes a *redundant retrieval copy* and nothing else — `fact_learn` writes no 
 state, the roll ledger stays authoritative, and the license point was spent knowingly — so
 the failure mode is bounded at "duplicate row", never at "duplicate mechanics"; tightening
 the comparison is part of §9's retrieval contract. **Idempotency and linkage**: the
-memory row is written inside the annotation's atomic transaction (at most once per `checkId`);
+memory row is written inside the annotation's atomic transaction (at most once per
+originating transaction — per `checkId` today, §2.6);
 the roll ledger remains the authoritative check-to-fact linkage; the memory row is a retrieval
 copy on today's schema, no new column. **Retrieval honesty**: current council context includes a
 bounded window of high-importance/recent memories, so an old fact can fall out of the prompt;
@@ -588,11 +600,20 @@ be **reworded away, never downgraded to flavor**: annotation text is binding can
 canon commitment — flavor may only restate already-established scene truths (E2's inert rule
 covers the body of established fact; stated in §6). **"Already-established" is a store test,
 not a vibe (normative)**: a truth is established iff it is derivable from state that already
-binds — the ledger, campaign memory, the stored scene/location state, or earlier binding
+binds — the ledger *including this check's own resolved row* (band, quality, resolved
+effects), campaign memory, the stored scene/location state, or earlier binding
 annotation text of *this* session — and anything the model merely believes from prompt
-context fails the test. When drafting texture the model asks one question: *would a fresh
-council, given only the stores, already know this?* If yes it is restateable flavor; if no it
-is a novel fact and must be ledgered by the owning verb or reworded away. *Routine* fact
+context fails the test. The test governs **standing facts**: assertions later text could cite
+as established without re-deriving them from a banded outcome (the hinge is backwards, a
+name, a guard's schedule). **Manner color** — the sensory shape of *this* row's resolved
+outcome ("the picks slip once, loudly" rendering a `marginal_success` lockpick; knuckles
+whitening as a rejected disarm is reworded) — is derivable from that row by construction:
+restateable flavor that establishes nothing beyond the band it renders. If later fiction
+wants the noise to have *mattered*, that consequence is ledgered by its own verb at that
+moment or proposed anew — the color licenses nothing. When drafting texture the model asks
+one question: *would a fresh council, given only the stores, already know this?* If yes it is
+restateable flavor; if no it is a novel fact and must be ledgered by the owning verb or
+reworded away. *Routine* fact
 commitment on clean bands belongs to the ordinary path (§9). Adverse discoveries are expressed by the verb that
 changes the state, never by a "bad fact" — and *NPC/world* intelligence state (a blown cover, a
 burned password) has no verb yet at all (§6).
@@ -826,6 +847,11 @@ No operation exists for — and no annotation or ability may assert as mechanica
 - minting significant items from nothing, destroying durable item records (including
   scene-held ones — record-form `item_lose` requires an actor holder), and **any NPC producing
   a previously unrecorded object** (§2.3; registry is **D16**);
+- **novel qualitative item properties or transformations** — an item gaining, revealing, or
+  losing a capability ("the cyberdeck now broadcasts your location", a blade revealed as
+  poisoned): condition rungs carry only §7's wear semantics, so a property no store records is
+  asserted by no rung and by no licensed string — reword it away or route it through a verb
+  that changes real state; item property vocabulary is a future catalog version (**D16**);
 - **restraining or capturing an NPC** — "you bind the defeated thug", taking prisoners: no
   custody/restraint state exists on either side of the table (the party-capture entry above has
   the same missing homes — **D9/D11 + restraint/custody state**);
@@ -838,6 +864,12 @@ No operation exists for — and no annotation or ability may assert as mechanica
   flavor** (§2.4: stance prose feeds later opposition affirmation) until **D7
   per-participant status** exists (plus **D9/D11** for any custody that follows) — §4's
   projection trim names exactly this residue;
+- **encounters larger than the participant cap** — a fight against more foes than §7's
+  `participants` cap (six today) has no truthful single-`encounter_start` expression: the
+  roster is legality-bounded (§2.8; unique refs, 1..cap), so the surplus is staged in fiction
+  as directory-present non-participants (menace held at the edges, reinforcements not yet
+  committed) whose direct mechanical contact is reworded away until D7's lifecycle gives them
+  a roster path; the cap is §7 config, never a model call;
 - **mechanical-consumable acquisition** — restocking effect-bearing items ("you scavenge
   another recovery patch"): gaining a unit whose use fires mechanics is mechanical gain outside
   D1b; the expressible footprint today is discrete inert units (**D1b/D16**);
@@ -933,6 +965,11 @@ playtest, and recalibration is config, not redesign.
 | `alarm` | feature kind | attention has been drawn; the site is alerted | specific arrivals (§6) or clocks |
 | `cover` | feature kind | positions in the area shield their occupants | immunity, invisibility |
 | `passage` | feature kind | an improvised crossing or entry is established as scene fact (a force bridge, a pried-open way) — texture and situational-delta source like every feature: it creates no exit, edits no layout, and gates no `reposition` (§2.5 binds occupancy and conditions, never topology) | permanent layout change, new areas, destinations, or actual exit topology (§6) |
+| `pristine` | item condition rung (§2.3) | unmarred and fully functional | numeric bonuses or powers beyond the record's own entry |
+| `worn` | item condition rung | visibly used; still fully functional | mechanical penalties |
+| `damaged` | item condition rung | impaired — still works, at visible cost or unreliability in fiction | new capabilities, revealed hidden virtues, or total loss of function |
+| `broken` | item condition rung | unusable for its purpose until repaired | destruction or erasure of the record (§6), harm to the holder (vitals are gated) |
+| `destitute` … `opulent` | wealth rung (§2.3 ladder, per-NPC) | the NPC's material means at that station, in fiction | purchasing arithmetic, party wealth (no home — §6), or any non-wealth capability |
 
 ## 8. Worked examples (executable acceptance cases)
 
@@ -959,8 +996,10 @@ Chapter 1, every effect must be expressed in the annotation text and vice versa.
    gate; the actor is a current occupant, so binding resolves. Valid.
 3. **Cyberpunk break-in, marginal failure** (no active encounter pre-D7 → `flavor_only`… on
    `extreme` tier → `minor`, budget 1). The intent **fails** — no partial achievement: "the
-   payload dies in the buffer, and on the way out the grid warden's suspicion hardens into
-   certainty." Effects: `[{op:"disposition_worsen", npc:"npc:44", step:"slight"}]` — 1/1, adverse
+   payload dies in the buffer, and on the way out you feel the grid warden's regard curdle."
+   ("…suspicion hardens into certainty" would assert NPC intelligence state — §6: reword to
+   the disposition the op actually ledgers.) Effects:
+   `[{op:"disposition_worsen", npc:"npc:44", step:"slight"}]` — 1/1, adverse
    (fixed valence, no opposition affirmation needed); `npc:44` resolves in the turn's stamped
    ref directory — the warden is watching this scene (§2.4's directory-scoped targeting; were
    they elsewhere, this is the off-screen case §6 lists). Valid today, LIVE.
