@@ -1,6 +1,6 @@
 # Effect catalog review (docs/rules/effects.md)
 
-**Status**: OPEN — round 13 triaged (codex-only pass), draft r14 pending re-review.
+**Status**: OPEN — round 17 triaged (full-scope), draft r17 committed; redispatch pending.
 **Artifact**: `docs/rules/effects.md` (Chapter 2: Effects — the D2 effect verb catalog).
 **Owner direction**: 2026-07-16 — owner approved drafting with independent review "like the dice
 spec" (the resolution chapter), which ran dual codex + grok. Claude authored this draft and
@@ -968,3 +968,19 @@ Reviewer verdict (machine envelope): "closed", finding R15-1, reason empty; evid
 docs/rules/effects.md 1–15, 288–298, 454–460, 564–610, 638–685 — the widened enumeration
 verified schema-true against the §2.3 table and §3 rules, no adjacent regression in the
 touched surface. Chapter 2 stands at **DRAFT r16**, zero open findings, not yet owner-signed.
+
+#### Round r17 — full-scope round on draft r16 — 1 CRITICAL admitted, fixed
+
+Pins 786e8dac421d43ed602da218830024e40e9dd0de → 1523bfd5cbeb474e499bad362a8b6bf4319ab987.
+Finding R17-1 (CRITICAL, admitted): `item_condition_shift` moved exactly one ladder rung,
+the §1.1 conflict key admits at most one condition op per item per array, and §6 carried no
+exception — so a compound GM-natural ruling ("the pristine sword snaps" → `broken`, three
+rungs) was inexpressible, defeating E2's held-item-consequence promise and D16(d)'s
+end-of-fight-condition loot requirement (intake L81). Fix, in place (§2.3 row, §8 config
+table, §9 evaluator cases): optional `to:` **target rung** — a ladder token, never a number
+(enums-only invariant preserved); when present it must lie strictly beyond the current rung
+in `direction` on the tentative state (equal/backward → strict-progress rejection); absent
+keeps the one-step reading. Weight restated over the **result** rung (result `broken`:
+significant; else minor), so multi-step pricing needs no new numbers; valence, gating
+(GATED:D16), and the one-condition-op-per-item conflict key are unchanged — the compound
+ruling is now a single op. Effects.md Status block bumped **DRAFT r16 → DRAFT r17**.
