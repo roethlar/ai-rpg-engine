@@ -1,6 +1,6 @@
 # Runtime greenfield plan review (docs/runtime-greenfield-plan.md)
 
-**Status**: OPEN — round r1 dispatching.
+**Status**: OPEN — r1 REOPENED (21 findings, all repaired); round r2 dispatching against draft r2 `b2d1d25f0a8637deaa1213317bccb735f73235b7`.
 **Artifact**: `docs/runtime-greenfield-plan.md` (cost-first greenfield runtime architecture plan).
 **Owner direction**: 2026-07-18 — owner ordered a greenfield plan for a better, cheaper engine;
 prior decisions and rules explicitly **not binding**; hard bar: a campaign cannot cost $50.
