@@ -959,3 +959,12 @@ the party-holder reading routed to the party-frame category and gates left intac
 
 Effects.md Status block bumped **DRAFT r15 → DRAFT r16** (r15 reopen recorded in the trail
 sentence; zero-CRITICAL/HIGH streak preserved).
+
+#### Round r16 — repair-delta redispatch (codex, conservative) — CLOSED
+
+Pins 390981b37d98559cf39e3a701098d9d48f500a4b → 786e8dac421d43ed602da218830024e40e9dd0de.
+Guard at dispatch: 11 assertions, revert→FAIL (exactly the four new legs), restore→PASS.
+Reviewer verdict (machine envelope): "closed", finding R15-1, reason empty; evidence spans
+docs/rules/effects.md 1–15, 288–298, 454–460, 564–610, 638–685 — the widened enumeration
+verified schema-true against the §2.3 table and §3 rules, no adjacent regression in the
+touched surface. Chapter 2 stands at **DRAFT r16**, zero open findings, not yet owner-signed.
