@@ -49,22 +49,16 @@ to `docs/history/state-archive.md`.
   `.agents/review/rules-system-plan-intake.md` (next decisions: D4, D6, D11, D12, D14 — one at
   a time; D3/D5/D13 are unblocked by D2; D15 and D16 are owner-raised with recorded required
   shapes, pending). No rules code before a concrete phase and an accepted plan review.
-- **IN FLIGHT — the D2 effect catalog (`docs/rules/effects.md`) is at DRAFT r12, mid-reviewloop,
-  NOT converged.** It gates edge-band implementation. Owner approved drafting + independent review
-  "like the dice spec"; the dual codex+grok loop and its convergence contract (both reviewers
-  accept the *same* pinned SHA with no material comments) live in
-  `.agents/review/effect-catalog-review.md`, which owns every round record, verdict, and dispute —
-  do not reconstruct that trail from anywhere else. Twelve rounds have run and none has converged;
-  r9 came closest (grok accepted with zero findings, codex reopened).
-  **Round 12 (pin `89ba8be`) is recorded and both reviewers reopened: grok 4 findings
-  (1 CRITICAL / 1 HIGH / 2 MEDIUM), codex 8 (1 CRITICAL / 3 HIGH / 4 MEDIUM).** Triage is
-  **unstarted** and no r13 edit exists — the working tree is clean at the round-12 record. The two
-  CRITICALs both allege the draft contradicts itself: §3's pre-D7 license parenthetical caps the
-  ladder one step below Chapter 1 (grok), and §2.4/§6 still offer "flavor"/"prose-only" for
-  fear/allegiance shifts that feed `affirmedOpposed` (codex). Four grok findings were verified
-  against the text this session (notes in the round record); codex 6 (no suggestion assembler) is
-  flagged a likely DISPUTE — it is the deliberate de-scope carrying an owner sign-off flag, already
-  resolved that way at r4. A stale `Status: DRAFT r10` line (effects.md L3) is also noted for r13.
+- **The D2 effect catalog (`docs/rules/effects.md`) is REVIEW-CONVERGED at DRAFT r24 —
+  round r28 repair-delta redispatch returned CLOSED with zero findings (pinned
+  `6772d33ca2026bf14c26bf518a280b54e88e9061`), awaiting owner sign-off.** The full 28-round
+  trail, every verdict, and every dispute live in `.agents/review/effect-catalog-review.md` —
+  do not reconstruct that trail from anywhere else. The closing arc: r26 admitted six findings
+  (all repaired in r23), r27 admitted three (originating transaction envelope, derivability
+  base timing, per-rung wealth semantics — all repaired in r24), and r28 verified all three
+  repairs complete with no new contradictions, `cold_implementer_executable: true`. Sign-off
+  ungates Chapter 1 edge-band implementation planning (still: no rules code before a concrete
+  phase and an accepted plan review).
 - The existing owner-approved reviewloop backlog remains unstarted as of `ca55b55`.
   `.agents/review/index.md` owns the exact findings and order; resume at `jt-1`, finish the remaining
   backlog, then enter the approved T2-s/T2 plan.
@@ -123,19 +117,17 @@ to `docs/history/state-archive.md`.
 ## Next
 
 **THE RESOLUTION CHAPTER IS SIGNED OFF AND D2 IS DECIDED (2026-07-16).** The immediate product
-gate remains Phase V's owner voice playtest; the rules track is mid-loop on the D2 effect
-verb-catalog document, and the next owner decisions in the queue are D4, D6, D11, D12, D14. The
-admin model-registry track is complete.
+gate remains Phase V's owner voice playtest; the D2 effect verb-catalog document is
+REVIEW-CONVERGED at DRAFT r24 (r28 CLOSED, zero findings) and awaits owner sign-off; the next
+owner decisions in the queue are D4, D6, D11, D12, D14. The admin model-registry track is
+complete.
 
-- **Resume the effect-catalog loop at Round 12 triage.** In order: decide ADMIT/DISPUTE for each
-  of the 12 recorded findings, verifying each against `docs/rules/effects.md` before admitting;
-  apply the admitted fixes as r13 (plus the stale `Status: DRAFT r10` line); append the triage
-  under the round-12 record's "Coder triage → r13 — NOT STARTED" heading; commit the draft and the
-  record as two commits on the established pattern (`docs(rules): effect catalog r13 - …` then
-  `docs(review): …`); re-pin the reviewer prompt to the new record commit and dispatch both
-  reviewers again. The loop is not converged and no owner sign-off has been requested or given.
-  Held for that sign-off once it converges: the §4 assembler minimal-vs-substantive flag, the
-  pre-D7 conservative license consequence, and the three declared Chapter 1 refinements.
+- **Request owner sign-off on Chapter 2 (`docs/rules/effects.md`, DRAFT r24, pin
+  `6772d33ca2026bf14c26bf518a280b54e88e9061`).** The review loop is complete — no further
+  autonomous work exists on the chapter. Present at sign-off the items held for the owner:
+  the §4 assembler minimal-vs-substantive flag, the pre-D7 conservative license consequence,
+  and the three declared Chapter 1 refinements. Sign-off ungates Chapter 1 edge-band
+  implementation planning (no rules code before a concrete phase and an accepted plan review).
 
 - Phase V's owner playtest remains the pending feel gate after this explicitly selected repo work.
   Configure either OpenAI or Grok voice in `/admin`, enable Voice Narration, and play a real scene
