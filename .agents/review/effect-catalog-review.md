@@ -991,7 +991,8 @@ Pins 786e8dac421d43ed602da218830024e40e9dd0de → 1523bfd5cbeb474e499bad362a8b6b
 Guard at dispatch: 6 assertions, revert-proxy (r16 pin) → all legs absent, restore → PASS.
 Reviewer verdict (machine envelope): "reopen", finding R17-1, severity **LOW** — "the
 mechanical repair closes R17-1", but this trail's entry mislabeled the touched sections
-(§8 config / §9 evaluator; effects.md numbers them **§7** and **§8**), failing the
+(config table and evaluator cases were each cited one section too high; effects.md numbers
+them **§7** and **§8**), failing the
 trail-to-delta match. Evidence spans docs/rules/effects.md 3–19, 83–125, 164–219, 291–397,
 578–634, 725–860, 882–960; this trail 972–986; intake L81. Disposition: admitted — the
 defect was in this trail file only, the draft is untouched; the entry above now reads
