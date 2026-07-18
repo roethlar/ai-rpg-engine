@@ -976,11 +976,24 @@ Finding R17-1 (CRITICAL, admitted): `item_condition_shift` moved exactly one lad
 the §1.1 conflict key admits at most one condition op per item per array, and §6 carried no
 exception — so a compound GM-natural ruling ("the pristine sword snaps" → `broken`, three
 rungs) was inexpressible, defeating E2's held-item-consequence promise and D16(d)'s
-end-of-fight-condition loot requirement (intake L81). Fix, in place (§2.3 row, §8 config
-table, §9 evaluator cases): optional `to:` **target rung** — a ladder token, never a number
+end-of-fight-condition loot requirement (intake L81). Fix, in place (§2 op-table row, §7 config
+table, §8 evaluator cases): optional `to:` **target rung** — a ladder token, never a number
 (enums-only invariant preserved); when present it must lie strictly beyond the current rung
 in `direction` on the tentative state (equal/backward → strict-progress rejection); absent
 keeps the one-step reading. Weight restated over the **result** rung (result `broken`:
 significant; else minor), so multi-step pricing needs no new numbers; valence, gating
 (GATED:D16), and the one-condition-op-per-item conflict key are unchanged — the compound
 ruling is now a single op. Effects.md Status block bumped **DRAFT r16 → DRAFT r17**.
+
+#### Round r17 — repair-delta redispatch (codex, conservative) — reopened LOW, trail corrected — CLOSED
+
+Pins 786e8dac421d43ed602da218830024e40e9dd0de → 1523bfd5cbeb474e499bad362a8b6bf4319ab987.
+Guard at dispatch: 6 assertions, revert-proxy (r16 pin) → all legs absent, restore → PASS.
+Reviewer verdict (machine envelope): "reopen", finding R17-1, severity **LOW** — "the
+mechanical repair closes R17-1", but this trail's entry mislabeled the touched sections
+(§8 config / §9 evaluator; effects.md numbers them **§7** and **§8**), failing the
+trail-to-delta match. Evidence spans docs/rules/effects.md 3–19, 83–125, 164–219, 291–397,
+578–634, 725–860, 882–960; this trail 972–986; intake L81. Disposition: admitted — the
+defect was in this trail file only, the draft is untouched; the entry above now reads
+"§2 op-table row, §7 config table, §8 evaluator cases". Chapter 2 stands at **DRAFT r17**,
+zero open findings against the draft text, not yet owner-signed.
