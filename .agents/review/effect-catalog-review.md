@@ -1085,3 +1085,8 @@ findings against the draft text, not yet owner-signed.
   All three sites now confine flavor to restating already-binding truth and demand
   reword-away for any sentence asserting the unexpressible change.
 - Draft r21.
+
+## Round r23 — repair-delta redispatch (codex, conservative) — CLOSED, zero findings
+- Pinned: b7ac73130fff9a73ea0933c969cd150e3488b11b (draft r21)
+- Delta scope (r20 pin -> r21 pin) introduced no new contradictions; no admitted finding
+  remains unfixed. Full-scope verification round r24 dispatched per contract.
