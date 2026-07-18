@@ -1009,3 +1009,28 @@ docs/rules/effects.md exited 0 with both blobs at 6073df46a040bda57f7b89eb279d1a
 R17-1 is closed as a trail-only defect; the draft text was never touched by this finding.
 Chapter 2 remains **DRAFT r17** — round r17 is closed with zero open findings, awaiting
 owner sign-off before any status change beyond DRAFT.
+
+#### Round r18 — full-scope round (codex, conservative)
+Dispatched against pin 1523bfd5cbeb474e499bad362a8b6bf4319ab987 (DRAFT r17). Verdict:
+**reopened**, evidence_checked true, cold_implementer_executable false, 2 findings.
+- **R18-1 (MEDIUM, §1/§2.6/§6/§7)** — the NPC-injury boundary contradicted itself:
+  `hindrance_apply` accepts any actor ref and §1 licenses "twisted ankle on the scree" as
+  `hindered` color, while §6 declared injuring opposition "at all" inexpressible; a cold
+  Continuity implementer could not decide pass-or-reject for injury-flavored NPC conditions.
+  Evidence spans effects.md 85–88, 117–125, 457–475, 729–730, 863–874. Disposition:
+  **admitted** — the §6 bullet is narrowed to *vital* injury (`harm`/`heal`, wounds, HP,
+  dying, death) and now states the non-vital license explicitly (condition `detail` may carry
+  injury-flavored cause inside the token's §7 must-not-assert boundary); §2.6's condition
+  record prose gains the mirror sentence (NPC refs licensed, §6 gates only vitals).
+- **R18-2 (MEDIUM, §1.1/§2.3/§6/§7)** — `wealth_shift` moved exactly one rung under a
+  one-wealth-op-per-NPC-per-annotation conflict key, so a single-event multi-rung ruin
+  (opulent → destitute) was inexpressible and §6 did not claim it as deliberate. Evidence
+  spans effects.md 191, 301, 807–816, 835–850; intake L81 (D16(c) coarse wealth).
+  Disposition: **admitted** — `wealth_shift` gains the same optional `to:` target-rung form
+  the r17 fix gave `item_condition_shift`: enums-only, strict-progress in `direction` on the
+  tentative state, one op under the existing (who, "wealth") key; weight rule is
+  engine-owned — result rung at a ladder end (`destitute`/`opulent`) prices significant,
+  else minor; §8 gains the paired evaluator cases (strict-progress rejection spans both
+  ladders; opulent→`to: destitute` = one op, significant).
+Both fixes applied in place; status block bumped **DRAFT r17 → DRAFT r18**. Zero open
+findings against the draft text, not yet owner-signed.

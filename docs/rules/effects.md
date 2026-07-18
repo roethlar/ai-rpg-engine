@@ -1,6 +1,6 @@
 # Aetheria House Ruleset — Chapter 2: Effects
 
-**Status**: DRAFT r17 — rounds r1–r8 were reopened by both independent reviewers; at r9 one
+**Status**: DRAFT r18 — rounds r1–r8 were reopened by both independent reviewers; at r9 one
 reviewer **accepted** (zero findings, cold-implementer-executable) and one reopened; r10–r12
 were reopened by both; r13–r14 were codex-only conservative passes (owner-directed) reopening
 with 1 HIGH / 2 MEDIUM, then 1 MEDIUM; the r15 repair-delta redispatch reopened once more with
@@ -9,7 +9,10 @@ the NPC-holder record-item ops were omitted); the r17 full-scope round admitted 
 (`item_condition_shift` could not express a multi-step compound ruling — a pristine sword
 snapping to `broken` — which E2 promises and D16(d)'s end-of-fight-condition loot requirement
 needs; fixed with an optional `to:` target rung, enums-only, strict-progress validated,
-result-rung priced) — all admitted findings fixed; every
+result-rung priced); the r18 full-scope round admitted 2 MEDIUM — the §6 NPC-injury bullet
+contradicted §1/§2.6's licensed `hindered` color (narrowed to vitals, with the non-vital
+license stated at both sites) and `wealth_shift` could not express a multi-rung single-event
+ruin (given the same `to:` target-rung form as items) — all admitted findings fixed; every
 admitted finding is addressed in place (trail and the recorded disputes:
 `.agents/review/effect-catalog-review.md`). Not yet owner-signed. Implementation of Chapter 1's
 edge bands is gated on **this chapter's acceptance** — and, per campaign, on a pinned
@@ -298,7 +301,7 @@ scope: `harm` writes a number, never removes an actor.
 | `item_drop` | `{op, item: item-record ref, area: area id}` — the record's holder must be an actor on the tentative state | the record's holder becomes the scene (that area); identity/condition/provenance preserved | by item class (§3) | hurts the former holder | GATED:D16 |
 | `item_pickup` | `{op, owner: actor ref, item: item-record ref}` — the record's current holder must be the current location (scene-held), on the tentative state | the record's holder becomes `owner` | by item class (§3) | helps `owner` | GATED:D16 |
 | `item_condition_shift` | `{op, item: item-record ref, direction: degrade\|improve, to?: condition rung}` — the record's holder must be an **actor** on the tentative state (scene-held and `lost` records reject: no frame to compose valence from); `to`, when present, must lie **strictly beyond** the record's current rung in `direction` on the tentative state (equal or backward rejects); `to` is a ladder token, never a number (enums-only invariant) | moves the rung on `pristine`→`worn`→`damaged`→`broken` — one step when `to` is absent, directly to `to` when present, so a compound ruling ("the pristine sword snaps" → `to: broken`) is **one op** and the §1.1 one-condition-op-per-item key stays sufficient | result rung `broken`: significant; else minor (priced on tentative state, §1.1) | degrade: hurts the holder; improve: helps them (actor-frame rules, §3) | GATED:D16 |
-| `wealth_shift` | `{op, who: **npc ref**, direction: up\|down}` | one step on the §7 wealth ladder | minor | up: helps `who`; down: hurts `who` | GATED:D16 (the per-NPC wealth field; player-character wealth has **no approved home** — §6) |
+| `wealth_shift` | `{op, who: **npc ref**, direction: up\|down, to?: wealth rung}` — `to`, when present, must lie **strictly beyond** the NPC's current rung in `direction` on the tentative state (equal or backward rejects); `to` is a §7 ladder token, never a number (enums-only invariant) | moves the rung on the §7 wealth ladder — one step when `to` is absent, directly to `to` when present, so a compound ruling ("the magnate is ruined" → `to: destitute`) is **one op** and the §1.1 one-wealth-op-per-NPC key stays sufficient | result rung at a ladder end (`destitute`/`opulent`): significant; else minor (priced on tentative state, §1.1) | up: helps `who`; down: hurts `who` | GATED:D16 (the per-NPC wealth field; player-character wealth has **no approved home** — §6) |
 
 **Stack rule**: every item entry moves **exactly one unit** — quantity is never a model input and
 never prose-derived. **Custody, stated precisely**: `item_lose` means the unit is *gone from
@@ -467,7 +470,9 @@ roster, §2.8); what an emptied opposing side does to the encounter lifecycle is
 source: checkId (or other originating transaction id), duration, appliedTurn }`. **Uniqueness**:
 at most one active instance per (actor, condition token); re-application is a no-op (§1.1).
 `detail` is cause/color under §1's semantic gate, and doubles as the citable fictional fact a
-Chapter 1 situational delta may reference — one-fact-one-home applies unchanged. **Scene boundary
+Chapter 1 situational delta may reference — one-fact-one-home applies unchanged. `who` may be
+any actor ref, NPCs included: §6 gates only vitals, so an injury-flavored cause bounded by the
+token's §7 row is licensed on opposition ("a twisted ankle" for `hindered` passes on an NPC). **Scene boundary
 (v1 proxy, stated)**: a `scene`-duration condition clears when the campaign's current-location
 pointer changes — the one observable boundary today; D7's encounter machine may refine it.
 `persistent` lasts until explicitly cleared. **v1 semantics are deliberately thin**: a condition
@@ -727,7 +732,12 @@ assignment, and the ability **authorizer** (§1) — is D3/D5 scope. Two rules b
 No operation exists for — and no annotation or ability may assert as mechanical fact:
 
 - killing or removing an actor outright (`harm` writes numbers; death is **D9**);
-- **injuring opposition at all** — NPCs and creatures carry no vitals (**D8/D16**);
+- **vital injury to opposition** — NPCs and creatures carry no vitals (**D8/D16**): `harm`/
+  `heal` cannot target them, and wounds, HP loss, dying, or death for them are inexpressible
+  as mechanical fact. This bullet does **not** reach non-vital impairment: `hindrance_apply`
+  on an NPC ref is legal (§2.6), and its `detail` may state an injury-flavored *cause* inside
+  the token's §7 boundary — "a twisted ankle" as `hindered` color passes; anything named in
+  §7's must-not-assert column, or any vital/HP consequence, does not;
 - **introducing actors into the scene** — reinforcements, summons, arrivals: no ref exists for
   an unrecorded actor, `reposition`/`scene_exit` only touch current occupants, and
   `encounter_start` only names those present (**D7/D8/D16**);
@@ -952,7 +962,9 @@ annotation text and vice versa.
    **[post-dependency]** evaluator cases (run once their gates lift): two
    `item_condition_shift(degrade)` entries on the same sword → conflict-key collision (the
    compound ruling is a **single** op with `to: broken`, §2.3); a `to:` equal to or behind the
-   current rung → strict-progress rejection; `heal` on
+   current rung → strict-progress rejection (item and wealth ladders alike);
+   `wealth_shift{direction:"down", to:"destitute"}` on an opulent NPC → one op, priced
+   significant (ladder end, §2.3); `heal` on
    a full-health ally → no-op; a `value_reduce` + `value_enhance` pair → shared conflict key;
    `reposition` of a `pinned` actor → precondition rejection, while
    `[condition_clear(pinned), reposition]` in that order → valid (clear-then-move, §1.1);
