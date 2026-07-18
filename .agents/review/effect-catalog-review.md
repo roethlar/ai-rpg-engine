@@ -1,6 +1,6 @@
 # Effect catalog review (docs/rules/effects.md)
 
-**Status**: OPEN — round 17 triaged (full-scope), draft r17 committed; redispatch pending.
+**Status**: OPEN — round 17 CLOSED (R17-1 trail-only defect fixed, redispatch verdict: closed); Chapter 2 at DRAFT r17, zero open findings, awaiting owner sign-off.
 **Artifact**: `docs/rules/effects.md` (Chapter 2: Effects — the D2 effect verb catalog).
 **Owner direction**: 2026-07-16 — owner approved drafting with independent review "like the dice
 spec" (the resolution chapter), which ran dual codex + grok. Claude authored this draft and
@@ -998,3 +998,14 @@ trail-to-delta match. Evidence spans docs/rules/effects.md 3–19, 83–125, 164
 defect was in this trail file only, the draft is untouched; the entry above now reads
 "§2 op-table row, §7 config table, §8 evaluator cases". Chapter 2 stands at **DRAFT r17**,
 zero open findings against the draft text, not yet owner-signed.
+
+#### Round r17 — redispatch closure (codex, conservative)
+Reviewer re-ran the three checks against commit 883d33dc28f78b25f641a13160b96124c5903ca8 and
+returned verdict **closed** on R17-1 with empty reason. Evidence spans: this trail 972–1000
+(r17 entries cite §2 op-table, §7 config, §8 evaluator cases; zero §9 occurrences in the r17
+scope), docs/rules/effects.md 266, 841, 882 (headings §2 Operations, §7 Config block,
+§8 Worked examples), and git diff 1523bfd5cbeb474e499bad362a8b6bf4319ab987 --
+docs/rules/effects.md exited 0 with both blobs at 6073df46a040bda57f7b89eb279d1ae7b96e0b04.
+R17-1 is closed as a trail-only defect; the draft text was never touched by this finding.
+Chapter 2 remains **DRAFT r17** — round r17 is closed with zero open findings, awaiting
+owner sign-off before any status change beyond DRAFT.
