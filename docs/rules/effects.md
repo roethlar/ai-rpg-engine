@@ -1,6 +1,6 @@
 # Aetheria House Ruleset — Chapter 2: Effects
 
-**Status**: DRAFT r21 — rounds r1–r8 were reopened by both independent reviewers; at r9 one
+**Status**: DRAFT r22 — rounds r1–r8 were reopened by both independent reviewers; at r9 one
 reviewer **accepted** (zero findings, cold-implementer-executable) and one reopened; r10–r12
 were reopened by both; r13–r14 were codex-only conservative passes (owner-directed) reopening
 with 1 HIGH / 2 MEDIUM, then 1 MEDIUM; the r15 repair-delta redispatch reopened once more with
@@ -25,7 +25,14 @@ ledgerable neighbor); the r22 full-scope verification round admitted 2 HIGH — 
 standing-down and intelligence/condition fallbacks said "reword-or-flavor"/"let it be
 flavor" where §2.4 and E2/§2.8 forbid flavor from asserting novel stance or state (all four
 fallback sites now demand reword-away, with flavor confined to restating already-binding
-truth) — all admitted findings fixed; every
+truth); the r24 full-scope verification round admitted 2 HIGH — §2.3's registry atomicity
+sentence said record-ref ops "destroy whole records" where the custody rule and §6 make
+durable-record destruction a future op (record-ref ops now move, degrade, or mark `lost`,
+never delete), and the "(pre-D16)"/"until D16 ships" qualifiers on the legacy mundane gates
+implied they lapse when D16 activates, though `item_gain` keeps writing classless stack
+entries in every catalog version (the gates are now permanent per-form: name-key forms gate
+by Continuity in every version, class pricing is record-ref-only) — all admitted findings
+fixed; every
 admitted finding is addressed in place (trail and the recorded disputes:
 `.agents/review/effect-catalog-review.md`). Not yet owner-signed. Implementation of Chapter 1's
 edge bands is gated on **this chapter's acceptance** — and, per campaign, on a pinned
@@ -318,24 +325,29 @@ scope: `harm` writes a number, never removes an actor.
 
 **Stack rule**: every item entry moves **exactly one unit** — quantity is never a model input and
 never prose-derived. **Custody, stated precisely**: `item_lose` means the unit is *gone from
-play* (swallowed by the chasm, burned up) — pre-D16 that deletes the inventory entry/unit;
-post-D16, durable records persist with the `lost` flag set and full provenance — the holder
+play* (swallowed by the chasm, burned up) — by form, never by era: the legacy stack form
+deletes the inventory entry/unit in every catalog version; the record form (GATED:D16) marks
+the durable record `lost` with full provenance — the holder
 field retains its last value, but a `lost` record is out of play: never
 directory-referenceable, and every record-form op above rejects it (destruction of a
 durable record is a future op, not this one). A recoverable parting is `item_drop` (custody moves
 to the scene) and recovery is `item_pickup`; between actors it is `item_transfer`, atomic and
-priced once. **The pre-D16 mundane check**: because no class field exists yet, `item_lose` on a
-LIVE inventory entry additionally passes Continuity's mundane gate over the entry's **stored**
+priced once. **The legacy mundane check (every catalog version)**: because no class field ever
+exists on a stack entry (classes are registry data; stack entries never enter the registry),
+`item_lose` on a LIVE inventory entry additionally passes Continuity's mundane gate over the
+entry's **stored**
 name/type/description — the *significance* half of the §1 standard: an entry reading as unique,
-powerful, or plot-weighted rejects pending D16 classification; a legacy artifact cannot be
+powerful, or plot-weighted rejects until D16 *migration* classifies it into the registry
+(time lifts nothing; migration does); a legacy artifact cannot be
 destroyed for one point as "mundane". §1's mechanical-property rejection governs **model-emitted
 `item_gain` names**; it is not re-applied to stored text here — otherwise every legacy
 consumable whose stored description plainly states its effect ("Restores 20 Health Points.")
 would reject, and the carve below would govern an empty set. Stored mechanics are policed by
 the deterministic rules that follow, never by re-parsing strings. **The mundane gates are two,
-both required (pre-D16)**: the Continuity *significance* gate on the stored
-name/type/description, and a **deterministic engine rule** — an inventory entry carrying
-`stats` is non-mundane *by construction* and rejects pending D16 classification.
+both required in every catalog version for the stack-list form**: the Continuity
+*significance* gate on the stored name/type/description, and a **deterministic engine rule** —
+an inventory entry carrying `stats` is non-mundane *by construction* and rejects until
+migrated. A loss that passes both gates is mundane by construction and prices `minor` (§3).
 **Stack eligibility (totalized over every legacy shape, fail-closed)**: the matched entry
 stacks only if its keys are a subset of {`name`, `type`, `description`, `quantity`,
 `equipped`} (so no `stats`/`effect` by construction and **any unknown key rejects** — an
@@ -347,8 +359,10 @@ plot-weighted blocks stacking even under an innocuous name). Every other same-ke
 rejects the op before any mutation; there is no "add a second line" fallback, because a
 same-name duplicate would make the stack unresolvable for `item_lose`'s unique-match rule.
 **Registry records are quantity-one by construction (declared for D16)**: a durable record is
-one discrete unit — record-ref ops move, degrade, or destroy **whole records**, and stacking,
-splitting, and merging are mundane-list semantics that never enter the registry, so the
+one discrete unit — a record-ref op acts on exactly **one whole record** and may move it,
+degrade it, or mark it `lost`, **never delete it** (destruction of a durable record stays a
+future op — §6 lists it as inexpressible); stacking, splitting, and merging are mundane-list
+semantics that never enter the registry, so the
 identity contract (§1.1) has no split/merge case to define and no record ever carries a
 `quantity` field. **The
 consumable carve (loss only, asymmetric by design)**: an entry carrying `effect` but no `stats`
@@ -357,8 +371,9 @@ effect never fires ("the recovery patch tumbles into the canal") — but may NOT
 by `item_gain`, because minting a unit whose use fires mechanics would be mechanical gain
 outside D1b. **Loss-side totalization (fail-closed, the mirror of stack eligibility)**: the
 matched entry's keys must be ⊆ {`name`, `type`, `description`, `quantity`, `equipped`} ∪
-{`effect`} — `stats` is already non-mundane, and **any other unknown key rejects pending D16**
-exactly as it blocks stacking: an unrecognized property may be latent mechanics, and erasing
+{`effect`} — `stats` is already non-mundane, and **any other unknown key rejects in every
+catalog version** (remediation is D16 migration, never erasure) exactly as it blocks
+stacking: an unrecognized property may be latent mechanics, and erasing
 it for one point would bypass D13 stakes weighting as surely as minting it would bypass D1b.
 `quantity` must be absent (read as 1) or a positive safe integer, and the op removes exactly
 one unit (decrement; delete at zero) — fractional, zero, negative, or non-numeric quantities
@@ -644,9 +659,11 @@ and small — mid-fight texture arrives with D7. This is a shipping-order fact, 
 change.
 
 **Weight**: per the §2 tables. *By item class*: `minor` for mundane-class, `significant` for
-significant-class items; classes are D16 registry data — until D16 ships, every LIVE item op
-passes the Continuity mundane gate instead (§2.3), and every operation needing the record is
-gated anyway. State-dependent weights (degrade-to-broken) are priced on the tentative state
+significant-class items; classes are D16 registry data and exist only on registry records —
+the LIVE name-key legacy forms price by the Continuity mundane gate (§2.3) in **every catalog
+version** (a passing legacy loss is mundane by construction, `minor`; class pricing is
+record-ref-only), and every operation needing the record is gated anyway. State-dependent
+weights (degrade-to-broken) are priced on the tentative state
 (§1.1). **Costs and budgets**: Chapter 1 §1.5 owns them (`minor` = 1, `significant` = 2; budgets
 0/1/2). The model never emits a weight, cost, or valence; validation recomputes all three, so a
 mismatch is impossible by construction.
