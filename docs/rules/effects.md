@@ -1,8 +1,9 @@
 # Aetheria House Ruleset — Chapter 2: Effects
 
-**Status**: DRAFT r13 — rounds r1–r8 were reopened by both independent reviewers; at r9 one
+**Status**: DRAFT r14 — rounds r1–r8 were reopened by both independent reviewers; at r9 one
 reviewer **accepted** (zero findings, cold-implementer-executable) and one reopened; r10–r12
-were reopened by both; every
+were reopened by both; r13 was a codex-only conservative pass (owner-directed) reopening with
+1 HIGH / 2 MEDIUM, all admitted and fixed; every
 admitted finding is addressed in place (trail and the recorded disputes:
 `.agents/review/effect-catalog-review.md`). Not yet owner-signed. Implementation of Chapter 1's
 edge bands is gated on **this chapter's acceptance** — and, per campaign, on a pinned
@@ -285,7 +286,7 @@ scope: `harm` writes a number, never removes an actor.
 
 | Operation | Schema | State written | Weight | Direction | Availability |
 |---|---|---|---|---|---|
-| `item_lose` | **Two forms, one op.** Legacy mundane-stack form (LIVE): `{op, owner: character ref, item: item key}` — the resolved stack's quantity decrements by one, entry removed **only at zero**; mundane gates below apply. Durable-record form (GATED:D16): `{op, item: item-record ref}` — the record's holder must be an **actor** on the tentative state (scene-held records reject: no frame to compose valence from — destroying scene-held loot is §6), owner derived and validated from the record | one unit leaves play; durable records persist with holder `lost` and full provenance (the looted saber falls into the chasm *from the looter's hands*) | by item class (§3) | hurts the holder | legacy form LIVE; record form GATED:D16 |
+| `item_lose` | **Two forms, one op.** Legacy mundane-stack form (LIVE): `{op, owner: character ref, item: item key}` — the resolved stack's quantity decrements by one, entry removed **only at zero**; mundane gates below apply. Durable-record form (GATED:D16): `{op, item: item-record ref}` — the record's holder must be an **actor** on the tentative state (scene-held records reject: no frame to compose valence from — destroying scene-held loot is §6), owner derived and validated from the record | one unit leaves play; durable records persist out of play with the `lost` flag set and full provenance (the looted saber falls into the chasm *from the looter's hands*) | by item class (§3) | hurts the holder | legacy form LIVE; record form GATED:D16 |
 | `item_gain` | `{op, owner: **character ref** (an npc-typed owner rejects at schema shape), name: licensed string}` — **mundane mint/stack only**, matching totalized: **zero** comparison-key matches in `owner`'s inventory → mint; **exactly one** match that is **stack-eligible** (shape totalized in the prose below) → increment its quantity by one ("you scavenge another coil of rope"); one match that is not stack-eligible → **reject** (stacking would mint mechanics, or the shape is untrusted); **more than one** match → reject as ambiguous, before any mutation | mint: one new mundane item, stored as `{name: <display form>, type: "general", description: "No description.", quantity: 1}`, every other property ignored — the model supplies the name and nothing else. **In every catalog version this op writes the mundane stack list only** — durable registry records are minted exclusively by engine flows (loot placement, import, D16 migration), never by this op | minor (mundane by construction) | helps `owner` | LIVE — there is no NPC *mint* form in any version: recorded items reach NPCs via `item_transfer` or `item_pickup`, and an NPC producing a previously unrecorded object is §6-inexpressible |
 | `item_transfer` | `{op, item: item-record ref, from: actor ref, to: actor ref}` — the record's holder must be `from` on the tentative state; `from ≠ to`; **each non-party endpoint must be in `affirmedOpposed`**, else `allegiance-unknown` (§3) | the same record changes holders — identity, condition, and provenance preserved | by item class (§3), **charged once** | net party effect (§3; nets are defined only over party/affirmed-opposed endpoints) | GATED:D16 |
 | `item_drop` | `{op, item: item-record ref, area: area id}` — the record's holder must be an actor on the tentative state | the record's holder becomes the scene (that area); identity/condition/provenance preserved | by item class (§3) | hurts the former holder | GATED:D16 |
@@ -296,7 +297,9 @@ scope: `harm` writes a number, never removes an actor.
 **Stack rule**: every item entry moves **exactly one unit** — quantity is never a model input and
 never prose-derived. **Custody, stated precisely**: `item_lose` means the unit is *gone from
 play* (swallowed by the chasm, burned up) — pre-D16 that deletes the inventory entry/unit;
-post-D16, durable records persist with holder `lost` and full provenance (destruction of a
+post-D16, durable records persist with the `lost` flag set and full provenance — the holder
+field retains its last value, but a `lost` record is out of play: never
+directory-referenceable, and every record-form op above rejects it (destruction of a
 durable record is a future op, not this one). A recoverable parting is `item_drop` (custody moves
 to the scene) and recovery is `item_pickup`; between actors it is `item_transfer`, atomic and
 priced once. **The pre-D16 mundane check**: because no class field exists yet, `item_lose` on a
@@ -374,7 +377,7 @@ exactly one of an actor ref or a location-qualified area; condition; class (mund
 significant); `lost` flag; provenance}. D16 may extend the record, but no form above executes
 until every listed field exists — "executable shape" documents the post-D16 call, it does not
 assert the store exists. §1's "referenceable item records" is defined off this same
-interface: a record is directory-referenceable iff its holder is a directory-present actor or
+interface: a record is directory-referenceable iff `lost` is unset and its holder is a directory-present actor or
 its area belongs to the current location's stored layout — the directory derives from
 records, never records from the directory.
 **Schema versioning (normative, one rule)**: every GATED:D16 operation above is documented in
@@ -382,7 +385,8 @@ its post-D16 **executable** shape — `item: item-record ref` with the holder va
 record. **No name-key form of `item_transfer`, `item_drop`, `item_pickup`, or
 `item_condition_shift` is legal in any catalog version**; name keys exist only in the LIVE
 `item_lose`/`item_gain` shapes, which persist unchanged as the legacy forms after D16 (the
-version bump adds the record-ref ops, it does not rewrite the live ones). **Ordinary-path
+D16 gate lift activates the already-pinned record-ref forms with **no** `catalog_version`
+change — §1.1's three axes; the live shapes are never rewritten). **Ordinary-path
 note**: the ordinary
 authorizer (§9) may treat self-directed custody ops (setting your own pack down) as neutral —
 that audit is §9's; edge-band semantics here are unchanged.
@@ -911,7 +915,9 @@ annotation text and vice versa.
    stack decrementing by one unit (§2.3); `{op:"item_gain", owner:"character:7", name:"a
    crate of 100 grenades"}` → licensed-string rejection (count assertion); two
    `disposition_worsen` entries on `npc:31` → conflict-key collision; `reposition` to the
-   actor's current area → no-op; `{op:"reposition", who:"npc:63", quality:"unfavorable", …}`
+   actor's current area → no-op; `{op:"reposition", who:"npc:63", area:"cellar",
+   quality:"unfavorable"}` (destination valid and distinct from his current area — the shape
+   passes, isolating the gate)
    with `npc:63` not in `affirmedOpposed` → `allegiance-unknown` (the bartender caught in the
    blast is reword-or-flavor, §6); `quality:"neutral"` in an edge-band annotation →
    neutral-illegal (§3). After a gate or gate-class rejection, legal flavor must be

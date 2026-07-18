@@ -1,6 +1,6 @@
 # Effect catalog review (docs/rules/effects.md)
 
-**Status**: OPEN — round 1 dispatched.
+**Status**: OPEN — round 13 triaged (codex-only pass), draft r14 pending re-review.
 **Artifact**: `docs/rules/effects.md` (Chapter 2: Effects — the D2 effect verb catalog).
 **Owner direction**: 2026-07-16 — owner approved drafting with independent review "like the dice
 spec" (the resolution chapter), which ran dual codex + grok. Claude authored this draft and
@@ -841,3 +841,49 @@ All line refs below are r13 (working tree) unless marked r12.
 
 Also fixed (session-noted, unflagged): Status block updated **DRAFT r10 → DRAFT r13** with
 the r10–r12 reopen history folded into the trail sentence.
+
+### Round 13 — pinned `507475ec404035836f3345d10c3d1ec326ab8669` (draft r13)
+
+Owner direction: codex MCP only, conservative single pass — "use codereview with codex mcp.
+review conservatively. no need to burn tokens on ever slice." No grok dispatch this round.
+Verdict valid, SHA-matched, `evidence_checked` across 8 ranges (effects.md §0–§9 whole-file,
+resolution.md, `.agents/decisions.md:1060-1152`, rules-system-plan-intake),
+`cold_implementer_executable: false`.
+
+#### codex — **reopened** (1 HIGH / 2 MEDIUM)
+
+1. HIGH — §1.1 and §2.3's versioning rules conflict: §1.1 says `effects-1` already contains
+   every gated form and lifting D16 activates those forms without a version change; §2.3's
+   schema-versioning note instead says "the version bump adds the record-ref ops".
+   Implementers cannot determine whether existing `effects-1` campaigns receive D16 forms
+   automatically or require migration. *Confirmed: L225–237 vs L380–385.*
+2. MEDIUM — the durable-item lost state has incompatible representations: `item_lose` said
+   the record persists "with holder `lost`" (a literal holder value), while the required
+   item-record interface restricts `holder` to exactly one of an actor ref or a
+   location-qualified area and separately declares a `lost` flag.
+   *Confirmed: L288–300 vs L371–375.*
+3. MEDIUM — §8 example 7 promises full executable payloads, but the `allegiance-unknown`
+   `reposition` case omitted the required `area` field behind an ellipsis; schema validation
+   precedes valence authorization, so the shown payload would reject for malformed shape,
+   never reaching the gate it illustrates. *Confirmed: L860–867 vs L914–916.*
+
+#### Coder triage → r14 — COMPLETE (3 admitted+fixed, 5 edits)
+
+1. HIGH — admitted, fixed. §2.3's schema-versioning note now states the D16 gate lift
+   activates the already-pinned record-ref forms with **no** `catalog_version` change
+   (§1.1's three axes); the live `item_lose`/`item_gain` shapes are never rewritten.
+   Existing `effects-1` campaigns therefore receive the forms at gate lift; no migration.
+2. MEDIUM — admitted, fixed via the **flag** leg (opposite of codex's minimal suggestion,
+   which would have widened the holder union with a literal): `lost` stays a flag and the
+   holder union is unchanged. Three edits — the `item_lose` table row and the custody prose
+   now read "persist out of play with the `lost` flag set and full provenance", with the
+   holder field retaining its last value; a `lost` record is out of play, never
+   directory-referenceable, and every record-form op rejects it; the record-interface
+   paragraph now defines directory-referenceable as "iff `lost` is unset and" the existing
+   holder/area test.
+3. MEDIUM — admitted, fixed. Example 7's `reposition` payload now carries `area:"cellar"`
+   (destination valid and distinct from the NPC's current area), so the shape passes and
+   missing `affirmedOpposed` membership is isolated as the sole rejection cause.
+
+Effects.md Status block bumped **DRAFT r13 → DRAFT r14** with the r13 codex-only pass noted
+in the trail sentence.
