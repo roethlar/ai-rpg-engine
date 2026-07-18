@@ -1,12 +1,15 @@
 # Aetheria House Ruleset — Chapter 2: Effects
 
-**Status**: DRAFT r16 — rounds r1–r8 were reopened by both independent reviewers; at r9 one
+**Status**: DRAFT r17 — rounds r1–r8 were reopened by both independent reviewers; at r9 one
 reviewer **accepted** (zero findings, cold-implementer-executable) and one reopened; r10–r12
 were reopened by both; r13–r14 were codex-only conservative passes (owner-directed) reopening
 with 1 HIGH / 2 MEDIUM, then 1 MEDIUM; the r15 repair-delta redispatch reopened once more with
 1 MEDIUM (the repaired clause's candidate enumeration was still incomplete — `wealth_shift` and
-the NPC-holder record-item ops were omitted) — zero CRITICAL/HIGH since r14 — all admitted and
-fixed; every
+the NPC-holder record-item ops were omitted); the r17 full-scope round admitted 1 CRITICAL
+(`item_condition_shift` could not express a multi-step compound ruling — a pristine sword
+snapping to `broken` — which E2 promises and D16(d)'s end-of-fight-condition loot requirement
+needs; fixed with an optional `to:` target rung, enums-only, strict-progress validated,
+result-rung priced) — all admitted findings fixed; every
 admitted finding is addressed in place (trail and the recorded disputes:
 `.agents/review/effect-catalog-review.md`). Not yet owner-signed. Implementation of Chapter 1's
 edge bands is gated on **this chapter's acceptance** — and, per campaign, on a pinned
@@ -294,7 +297,7 @@ scope: `harm` writes a number, never removes an actor.
 | `item_transfer` | `{op, item: item-record ref, from: actor ref, to: actor ref}` — the record's holder must be `from` on the tentative state; `from ≠ to`; **each non-party endpoint must be in `affirmedOpposed`**, else `allegiance-unknown` (§3) | the same record changes holders — identity, condition, and provenance preserved | by item class (§3), **charged once** | net party effect (§3; nets are defined only over party/affirmed-opposed endpoints) | GATED:D16 |
 | `item_drop` | `{op, item: item-record ref, area: area id}` — the record's holder must be an actor on the tentative state | the record's holder becomes the scene (that area); identity/condition/provenance preserved | by item class (§3) | hurts the former holder | GATED:D16 |
 | `item_pickup` | `{op, owner: actor ref, item: item-record ref}` — the record's current holder must be the current location (scene-held), on the tentative state | the record's holder becomes `owner` | by item class (§3) | helps `owner` | GATED:D16 |
-| `item_condition_shift` | `{op, item: item-record ref, direction: degrade\|improve}` — the record's holder must be an **actor** on the tentative state (scene-held and `lost` records reject: no frame to compose valence from) | one step on `pristine`→`worn`→`damaged`→`broken` | step to `broken`: significant; else minor (priced on tentative state, §1.1) | degrade: hurts the holder; improve: helps them (actor-frame rules, §3) | GATED:D16 |
+| `item_condition_shift` | `{op, item: item-record ref, direction: degrade\|improve, to?: condition rung}` — the record's holder must be an **actor** on the tentative state (scene-held and `lost` records reject: no frame to compose valence from); `to`, when present, must lie **strictly beyond** the record's current rung in `direction` on the tentative state (equal or backward rejects); `to` is a ladder token, never a number (enums-only invariant) | moves the rung on `pristine`→`worn`→`damaged`→`broken` — one step when `to` is absent, directly to `to` when present, so a compound ruling ("the pristine sword snaps" → `to: broken`) is **one op** and the §1.1 one-condition-op-per-item key stays sufficient | result rung `broken`: significant; else minor (priced on tentative state, §1.1) | degrade: hurts the holder; improve: helps them (actor-frame rules, §3) | GATED:D16 |
 | `wealth_shift` | `{op, who: **npc ref**, direction: up\|down}` | one step on the §7 wealth ladder | minor | up: helps `who`; down: hurts `who` | GATED:D16 (the per-NPC wealth field; player-character wealth has **no approved home** — §6) |
 
 **Stack rule**: every item entry moves **exactly one unit** — quantity is never a model input and
@@ -843,7 +846,7 @@ playtest, and recalibration is config, not redesign.
 | Config | Provisional value |
 |---|---|
 | Disposition steps | `slight` = ±10, `marked` = ±25 (sign by op; clamp −100…+100) |
-| Item condition ladder | `pristine` → `worn` → `damaged` → `broken` (one step per shift) |
+| Item condition ladder | `pristine` → `worn` → `damaged` → `broken` (one step per shift, or a `to:` target rung strictly further in the same direction — §2.3) |
 | Wealth ladder (tokens here; the per-NPC field is D16's) | `destitute` \| `struggling` \| `comfortable` \| `wealthy` \| `opulent` |
 | **Hindrance token set** (normative membership) | `hindered`, `exposed`, `dazed`, `pinned`, `winded` |
 | **Boon token set** (normative membership) | `steadied`, `inspired`, `concealed` |
@@ -947,7 +950,9 @@ annotation text and vice versa.
    `pool_drain{pool:"strain"}` still rejects `GATED:D5` — the governing gate, not the op token,
    decides (§1.1).
    **[post-dependency]** evaluator cases (run once their gates lift): two
-   `item_condition_shift(degrade)` entries on the same sword → conflict-key collision; `heal` on
+   `item_condition_shift(degrade)` entries on the same sword → conflict-key collision (the
+   compound ruling is a **single** op with `to: broken`, §2.3); a `to:` equal to or behind the
+   current rung → strict-progress rejection; `heal` on
    a full-health ally → no-op; a `value_reduce` + `value_enhance` pair → shared conflict key;
    `reposition` of a `pinned` actor → precondition rejection, while
    `[condition_clear(pinned), reposition]` in that order → valid (clear-then-move, §1.1);
