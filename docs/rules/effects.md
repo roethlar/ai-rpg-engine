@@ -1,6 +1,6 @@
 # Aetheria House Ruleset — Chapter 2: Effects
 
-**Status**: DRAFT r22 — rounds r1–r8 were reopened by both independent reviewers; at r9 one
+**Status**: DRAFT r24 — rounds r1–r8 were reopened by both independent reviewers; at r9 one
 reviewer **accepted** (zero findings, cold-implementer-executable) and one reopened; r10–r12
 were reopened by both; r13–r14 were codex-only conservative passes (owner-directed) reopening
 with 1 HIGH / 2 MEDIUM, then 1 MEDIUM; the r15 repair-delta redispatch reopened once more with
@@ -31,7 +31,16 @@ durable-record destruction a future op (record-ref ops now move, degrade, or mar
 never delete), and the "(pre-D16)"/"until D16 ships" qualifiers on the legacy mundane gates
 implied they lapse when D16 activates, though `item_gain` keeps writing classless stack
 entries in every catalog version (the gates are now permanent per-form: name-key forms gate
-by Continuity in every version, class pricing is record-ref-only) — all admitted findings
+by Continuity in every version, class pricing is record-ref-only); the r26 full-scope round
+admitted 6 findings (ladder-rung token semantics, per-form destruction narration license,
+consumer-agnostic transaction ids, envelope-pinned `fact_learn` turn, the derivability
+base's own-row inclusion, two added §6 inexpressible futures); the r27 repair-delta round
+admitted 3 findings — §2.6's transaction id generalized to a full **originating
+transaction envelope** (id + ledger turn) so §1.1 step 5 and every pinned turn field are
+consumer-independent, the fresh-council derivability base narrowed to the check's
+**already-resolved band** (its `quality` and effect entries bind nothing while the pass
+runs), and the collapsed `destitute`…`opulent` semantics row expanded to five per-rung
+rows — all admitted findings
 fixed; every
 admitted finding is addressed in place (trail and the recorded disputes:
 `.agents/review/effect-catalog-review.md`). Not yet owner-signed. Implementation of Chapter 1's
@@ -227,8 +236,10 @@ An annotation's `effects` array is validated and priced as one ordered pass:
    are persisted per effect as engine-stamped resolved metadata (Status refinement 1) — the
    audit trail survives the state it priced.
 5. If every entry passes core validation and the consumer's authorization, the tentative state
-   commits **atomically** with the annotation, under Chapter 1's one-transaction-per-`checkId`
-   idempotency. Any failure rejects the whole array; nothing partial ever executes.
+   commits **atomically** inside the consumer's originating transaction (§2.6's envelope). For
+   edge-band annotations that transaction is the annotation commit, idempotent under Chapter 1's
+   one-transaction-per-`checkId` rule. Any failure rejects the whole array; nothing partial
+   ever executes.
 
 **Availability attaches to each documented schema form and enumerated parameter predicate, not
 to the bare op token.** `LIVE` forms execute against state and resolution rules that exist
@@ -500,12 +511,15 @@ roster, §2.8); what an emptied opposing side does to the encounter lifecycle is
 
 **Required state addition (declared, not yet built) — the condition record**:
 `{ actor: typed ref, condition: token, class: boon|hindrance (from the token's §7 set), detail,
-source: originating transaction id, duration, appliedTurn }`. **Originating transaction id
-(normative for every record `source`/`clearedBy` field here and in §2.7)**: the atomic
-transaction a commit executes inside names the record's provenance, consumer-agnostically —
-today that is always an edge-band annotation and the id is its `checkId`; ability (§5) and
-ordinary-path (§9) consumers commit under their own transaction ids, so no future consumer
-must mint a fake check to satisfy a record shape. **Uniqueness**:
+source: originating transaction id, duration, appliedTurn }`. **Originating transaction
+envelope (normative for every record `source`/`clearedBy` field here and in §2.7, and for
+every field a schema pins to a ledger turn)**: every transaction that commits catalog effects
+carries two fields, consumer-agnostically — a stable **id** that names the record's provenance
+and the **ledger turn** it commits on. Today's only instance is the edge-band annotation: its
+id is the `checkId`, its ledger turn is the check's turn. Ability (§5) and ordinary-path (§9)
+consumers commit under their own envelopes — their own id and their own ledger turn — so no
+future consumer must mint a fake check to satisfy a record shape or populate a pinned turn
+field. **Uniqueness**:
 at most one active instance per (actor, condition token); re-application is a no-op (§1.1).
 `detail` is cause/color under §1's semantic gate, and doubles as the citable fictional fact a
 Chapter 1 situational delta may reference — one-fact-one-home applies unchanged. `who` may be
@@ -550,7 +564,7 @@ declaration to trust.
 |---|---|---|---|---|---|
 | `encounter_start` | `{op, posture: hostile\|social_standoff, outcome: party_favored\|party_costing, participants: [1..cap unique npc refs, each bound to a current occupant via §2.5's binding rule]}` | the encounter state machine | significant | composed from `outcome` (Continuity-validated against the text): `party_favored` — the party forced the fight it wanted → beneficial; `party_costing` — trouble found the party → adverse | GATED:D7 (today only a per-turn pacing enum exists) |
 | `encounter_end` | `{op, outcome: party_favored\|party_costing}` | the encounter state machine — the active encounter concludes, **and nothing else**: its text may assert only the ceasing of hostilities plus consequences ledgered by accompanying entries. **Displacement wording rejects**: "you are driven from the field" asserts a position/location change no accompanying op can ledger for the party today (§6) | minor | composed from `outcome`: rout/de-escalation in the party's favor → beneficial; hostilities ending on unfavorable terms **with everyone still where they stand** (a forced truce on bad terms, the standoff hardens against you) → adverse | GATED:D7 |
-| `fact_learn` | `{op, fact: licensed string}` | one party-scope memory row, fields pinned: campaign from the transaction, `turn_number` = the committing transaction's ledger turn (the check's turn today), summary = the `fact` string, importance = engine config default (§7), keywords engine-default empty; transaction linkage stays ledger-only (§2.6's consumer-agnostic id) | minor | beneficial (fixed) | LIVE (campaign memories) |
+| `fact_learn` | `{op, fact: licensed string}` | one party-scope memory row, fields pinned: campaign from the transaction, `turn_number` = the committing transaction's ledger turn (§2.6's envelope; the check's turn today), summary = the `fact` string, importance = engine config default (§7), keywords engine-default empty; transaction linkage stays ledger-only (§2.6's consumer-agnostic id) | minor | beneficial (fixed) | LIVE (campaign memories) |
 
 Encounter lifecycle cost is **fixed regardless of participant count** — legality, not cost,
 bounds the list (unique, 1..cap per §7, every ref bound to a present occupant). **Participants
@@ -586,8 +600,8 @@ writes a *redundant retrieval copy* and nothing else — `fact_learn` writes no 
 state, the roll ledger stays authoritative, and the license point was spent knowingly — so
 the failure mode is bounded at "duplicate row", never at "duplicate mechanics"; tightening
 the comparison is part of §9's retrieval contract. **Idempotency and linkage**: the
-memory row is written inside the annotation's atomic transaction (at most once per
-originating transaction — per `checkId` today, §2.6);
+memory row is written inside the committing transaction (at most once per §2.6
+originating-transaction envelope — the annotation's `checkId` today);
 the roll ledger remains the authoritative check-to-fact linkage; the memory row is a retrieval
 copy on today's schema, no new column. **Retrieval honesty**: current council context includes a
 bounded window of high-importance/recent memories, so an old fact can fall out of the prompt;
@@ -600,14 +614,16 @@ be **reworded away, never downgraded to flavor**: annotation text is binding can
 canon commitment — flavor may only restate already-established scene truths (E2's inert rule
 covers the body of established fact; stated in §6). **"Already-established" is a store test,
 not a vibe (normative)**: a truth is established iff it is derivable from state that already
-binds — the ledger *including this check's own resolved row* (band, quality, resolved
-effects), campaign memory, the stored scene/location state, or earlier binding
+binds *at the moment this pass runs* — the ledger **including this check's already-resolved
+band** (the resolution fact Chapter 1 commits before the annotation is drafted; this check's
+`quality` and effect entries are themselves still under validation and bind nothing yet),
+campaign memory, the stored scene/location state, or earlier binding
 annotation text of *this* session — and anything the model merely believes from prompt
 context fails the test. The test governs **standing facts**: assertions later text could cite
 as established without re-deriving them from a banded outcome (the hinge is backwards, a
-name, a guard's schedule). **Manner color** — the sensory shape of *this* row's resolved
-outcome ("the picks slip once, loudly" rendering a `marginal_success` lockpick; knuckles
-whitening as a rejected disarm is reworded) — is derivable from that row by construction:
+name, a guard's schedule). **Manner color** — the sensory shape of the band this text
+renders ("the picks slip once, loudly" rendering a `marginal_success` lockpick; knuckles
+whitening as a rejected disarm is reworded) — is derivable from that band by construction:
 restateable flavor that establishes nothing beyond the band it renders. If later fiction
 wants the noise to have *mattered*, that consequence is ledgered by its own verb at that
 moment or proposed anew — the color licenses nothing. When drafting texture the model asks
@@ -969,7 +985,11 @@ playtest, and recalibration is config, not redesign.
 | `worn` | item condition rung | visibly used; still fully functional | mechanical penalties |
 | `damaged` | item condition rung | impaired — still works, at visible cost or unreliability in fiction | new capabilities, revealed hidden virtues, or total loss of function |
 | `broken` | item condition rung | unusable for its purpose until repaired | destruction or erasure of the record (§6), harm to the holder (vitals are gated) |
-| `destitute` … `opulent` | wealth rung (§2.3 ladder, per-NPC) | the NPC's material means at that station, in fiction | purchasing arithmetic, party wealth (no home — §6), or any non-wealth capability |
+| `destitute` | wealth rung (§2.3 ladder, per-NPC) | owns little beyond what they carry; meeting basic needs is visibly in doubt | purchasing arithmetic, party wealth (no home — §6), or any non-wealth capability |
+| `struggling` | wealth rung (§2.3 ladder, per-NPC) | scrapes by; ordinary expenses bite and reserves are thin to none | purchasing arithmetic, party wealth (no home — §6), or any non-wealth capability |
+| `comfortable` | wealth rung (§2.3 ladder, per-NPC) | routine needs met without strain, with modest reserves | purchasing arithmetic, party wealth (no home — §6), or any non-wealth capability |
+| `wealthy` | wealth rung (§2.3 ladder, per-NPC) | substantial surplus; ordinary prices are beneath concern | purchasing arithmetic, party wealth (no home — §6), or any non-wealth capability |
+| `opulent` | wealth rung (§2.3 ladder, per-NPC) | commanding means displayed openly; expense is no object in fiction | purchasing arithmetic, party wealth (no home — §6), or any non-wealth capability |
 
 ## 8. Worked examples (executable acceptance cases)
 
@@ -1077,7 +1097,9 @@ record** (declared required state additions, §2.6/§2.7); a **memory-retrieval 
 enough that committed facts reliably reach later council context (§2.8 names today's bounded
 window); and the **ordinary-action commit path** — the ledgered transaction through which
 clean-band and no-check state changes flow once rules-governed campaigns exist. That chapter
-reuses this catalog's vocabulary, §1 core validation, and §1.1 evaluator — and **extends the
+reuses this catalog's vocabulary, §1 core validation, and §1.1 evaluator — supplying its own
+§2.6 originating-transaction envelope (its transaction id and ledger turn) where the
+edge-band path supplies the annotation's `checkId` and check turn — and **extends the
 catalog through versioning with the ordinary-only verbs this chapter deliberately lacks**
 (party location transitions foremost, §6); it owns the neutral-valence audit of every
 directional operation and its own authorizer (resolved intent instead of an edge-band license).

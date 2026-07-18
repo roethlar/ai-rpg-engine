@@ -1146,3 +1146,27 @@ findings against the draft text, not yet owner-signed.
 - Severities per the r26 dispatch transcript; all six admitted, none contested. Draft r23
   (pinned fa80e2fc72fdd1397bf04e0c3a839e023bbd8478). Repair-delta redispatch round r27
   dispatched per contract.
+
+## Round r27 — repair-delta redispatch (codex, conservative) — REOPENED, then FIXED
+- Pinned: fa80e2fc72fdd1397bf04e0c3a839e023bbd8478 (draft r23)
+- R27-1 (admitted): the r26-3/r26-4 fixes replaced `checkId` with a consumer-agnostic
+  transaction *id*, but §1.1 step 5 still committed "atomically with the annotation" and
+  the pinned turn fields (`appliedTurn`, `fact_learn` `turn_number`) still assumed a
+  check-shaped committer. §2.6 now defines a full **originating transaction envelope** —
+  a stable id plus the ledger turn the transaction commits on, normative for every record
+  `source`/`clearedBy` field and every schema-pinned turn field; §1.1 step 5 commits
+  inside the consumer's envelope (the annotation commit today); §9's carry-over names the
+  adapter's own envelope explicitly.
+- R27-2 (admitted): the fresh-council derivability base included "this check's own resolved
+  row (band, quality, resolved effects)", but the Continuity texture pass runs while the
+  annotation is still under validation — `quality` and the effect entries bind nothing
+  yet. The base now names only the check's **already-resolved band** (the resolution fact
+  Chapter 1 commits before the annotation is drafted), states the timing rule ("binds at
+  the moment this pass runs"), and manner color is derivable from the band it renders.
+- R27-3 (admitted): the §7 token-semantics table collapsed the wealth ladder into one
+  `destitute` … `opulent` row whose semantics column ("material means at that station")
+  restated the rung name and pinned nothing per token. The row is now five rows, one per
+  rung, each with its own fictional meaning and the full must-not-assert boundary
+  (purchasing arithmetic, party wealth, non-wealth capability) stated per row.
+- Severities per the r27 dispatch transcript; all three admitted, none contested. Draft
+  r24. Repair-delta redispatch round r28 dispatched per contract.
