@@ -1,6 +1,6 @@
 # Aetheria House Ruleset — Chapter 2: Effects
 
-**Status**: DRAFT r18 — rounds r1–r8 were reopened by both independent reviewers; at r9 one
+**Status**: DRAFT r19 — rounds r1–r8 were reopened by both independent reviewers; at r9 one
 reviewer **accepted** (zero findings, cold-implementer-executable) and one reopened; r10–r12
 were reopened by both; r13–r14 were codex-only conservative passes (owner-directed) reopening
 with 1 HIGH / 2 MEDIUM, then 1 MEDIUM; the r15 repair-delta redispatch reopened once more with
@@ -12,7 +12,13 @@ needs; fixed with an optional `to:` target rung, enums-only, strict-progress val
 result-rung priced); the r18 full-scope round admitted 2 MEDIUM — the §6 NPC-injury bullet
 contradicted §1/§2.6's licensed `hindered` color (narrowed to vitals, with the non-vital
 license stated at both sites) and `wealth_shift` could not express a multi-rung single-event
-ruin (given the same `to:` target-rung form as items) — all admitted findings fixed; every
+ruin (given the same `to:` target-rung form as items); the r19 full-scope round admitted
+2 MEDIUM — §4 named an in-place NPC surrender no op ledgers while §6 never claimed it as a
+deliberate exception (a "standing down in place" bullet now does, future home D7
+per-participant status + D9/D11 custody), and §8's "every effect is shown as its full
+payload" claim contradicted its own abbreviated evaluator cases (the abbreviation is now a
+stated section-local notation scoped to gate/pricing/conflict-key cases) — all admitted
+findings fixed; every
 admitted finding is addressed in place (trail and the recorded disputes:
 `.agents/review/effect-catalog-review.md`). Not yet owner-signed. Implementation of Chapter 1's
 edge bands is gated on **this chapter's acceptance** — and, per campaign, on a pinned
@@ -664,7 +670,8 @@ normative contract is exactly two clauses, both executable:
    (post-D7) an `encounter_end` whose recorded scope covers them — each a persisted row, so
    the trim is as decidable as the union itself; NPCs who fled fall out already via
    reference-resolution (`scene_exit` removes their occupancy row). Residual staleness a trim
-   cannot see (a surrender that was never ledgered by any op) is bounded by construction:
+   cannot see (an NPC's in-place surrender — §6-inexpressible today, so no op ever ledgers
+   it) is bounded by construction:
    the projection gates *suggestions only* — a stale hostile suggestion still passes through
    full §1 validation and Referee choice before anything is ledgered, and the Referee holds
    the fiction.
@@ -794,6 +801,12 @@ No operation exists for — and no annotation or ability may assert as mechanica
 - **restraining or capturing an NPC** — "you bind the defeated thug", taking prisoners: no
   custody/restraint state exists on either side of the table (the party-capture entry above has
   the same missing homes — **D9/D11 + restraint/custody state**);
+- **an NPC standing down in place** — surrender, yielding, dropping weapons while remaining
+  present: no per-participant combatant status exists, so the only ledgerable de-escalations
+  are `disposition_improve` (attitude), `scene_exit` (they flee, leaving the roster), or
+  (post-D7) an `encounter_end` covering the whole encounter; an individual foe's mid-encounter
+  capitulation is reword-or-flavor until **D7 per-participant status** exists (plus **D9/D11**
+  for any custody that follows) — §4's projection trim names exactly this residue;
 - **mechanical-consumable acquisition** — restocking effect-bearing items ("you scavenge
   another recovery patch"): gaining a unit whose use fires mechanics is mechanical gain outside
   D1b; the expressible footprint today is discrete inert units (**D1b/D16**);
@@ -894,9 +907,11 @@ playtest, and recalibration is config, not redesign.
 License recap from Chapter 1 (pointer, not restatement): base `flavor_only` out of encounter /
 `minor` in one; +1 step for a critical band; +1 for `extreme`/`legendary` tier; cap
 `significant`. Budgets: 0 / 1 / 2 points. Pre-D7 the encounter-active input is false (§3); the
-in-encounter cases below are therefore **post-D7 acceptance tests**, marked accordingly. Every
-effect is shown as its full payload; per Chapter 1, every effect must be expressed in the
-annotation text and vice versa.
+in-encounter cases below are therefore **post-D7 acceptance tests**, marked accordingly. Cases
+that test payload shape are shown as full payloads; gate, pricing, and conflict-key cases use
+an abbreviated `op{field: …}` form whose omitted fields are well-formed and play no part in
+the tested outcome — a notation of this section only, never a licensed wire shape. Per
+Chapter 1, every effect must be expressed in the annotation text and vice versa.
 
 1. **Flavor-only license** (Chapter 1's rooftop lockwork: `marginal_success`, `standard`, no
    encounter → `flavor_only`, budget 0). Text: "it opens — the picks slip once, loudly." Effects:

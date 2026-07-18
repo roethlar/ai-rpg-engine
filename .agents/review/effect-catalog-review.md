@@ -1034,3 +1034,27 @@ Dispatched against pin 1523bfd5cbeb474e499bad362a8b6bf4319ab987 (DRAFT r17). Ver
   ladders; opulent→`to: destitute` = one op, significant).
 Both fixes applied in place; status block bumped **DRAFT r17 → DRAFT r18**. Zero open
 findings against the draft text, not yet owner-signed.
+
+#### Round r19 — full-scope round (codex, conservative)
+Dispatched against pin 0f7d0447eed50b22f1d4a012d1d83abdbc6dbdae (DRAFT r18). Verdict:
+**reopened**, evidence_checked true, cold_implementer_executable false, 2 findings.
+- **R19-1 (MEDIUM, §4/§6)** — §4's projection-trim prose named "a surrender that was never
+  ledgered by any op" as residual staleness, but an individual NPC's in-place capitulation
+  (yielding while remaining present) was neither expressible (`disposition_improve` is
+  attitude only, `scene_exit` requires leaving, `encounter_end` concludes the whole
+  encounter) nor claimed by §6 as a deliberate exception — an undocumented gap the chapter
+  itself referenced. Evidence spans effects.md 57–64, 512–523, 661–670, 794–796, 845–849.
+  Disposition: **admitted** — §6 gains an "NPC standing down in place" bullet (future home
+  **D7 per-participant status**, plus **D9/D11** for follow-on custody, mirroring the
+  adjacent restraint entries), and §4's parenthetical now cites §6-inexpressibility instead
+  of positing an unledgered event.
+- **R19-2 (MEDIUM, §8)** — §8's preamble claimed "every effect is shown as its full
+  payload," but the evaluator cases added in r17/r18 (and several older gate cases) use
+  abbreviated forms (`wealth_shift{direction:"down", to:"destitute"}`, bare op tokens for
+  gate rejections) that omit `op`/`who` and prestates — a self-contradiction a cold reader
+  cannot resolve. Evidence spans effects.md 896–899, 940–972. Disposition: **admitted** —
+  the claim is rescoped: shape-testing cases remain full payloads; gate, pricing, and
+  conflict-key cases use a stated section-local abbreviation whose omitted fields are
+  well-formed and irrelevant to the tested outcome, never a licensed wire shape.
+Both fixes applied in place; status block bumped **DRAFT r18 → DRAFT r19**. Zero open
+findings against the draft text, not yet owner-signed.
