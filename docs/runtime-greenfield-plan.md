@@ -8,18 +8,24 @@ needs must be immediately available without being a carried token burden.
 **Planning numbers.** A campaign is 50–100 hours of play. Observed solo pacing is 2–3 minutes per
 committed turn, so the committed-turn envelope is **1,200–3,000 turns**; the **upper planning
 case is 3,000 committed turns** (100 h at 2 min). Budget bars: **owner mandate: under $50,
-hard**; engine ceiling **$45** (reservation-enforced, §3.7); **~$22 expected** at the median
+hard**; engine ceiling **$45** (reservation-enforced, §3.7); **~$23 expected** at the median
 campaign shape (§4).
 
 **Accounting units** (three levels, each with its own ID, cap, and denominator):
 
 - **Exchange** — one player-visible request/response cycle (action, clarification, table talk).
   Upper envelope **3,600 per campaign** (1.2× committed turns). Public turn numbering derives
-  **only** from exchanges, so async work and retries never create visible gaps.
-- **Generation** — one logical model task. A synchronous exchange contains 1–3 generations
-  (initial + ≤1 re-prompt + ≤1 escalated retry, §3.1 state machine); async kinds (extractor,
-  audit, recall, strict continuation, image, tts, setup) are generations with their own
-  per-kind envelopes (§4 path matrix).
+  **only** from exchanges, so async work and retries never create visible gaps. An exchange
+  record is **persisted, uniquely keyed by a client-supplied `request_id`, before any
+  generation dispatches**; a duplicate `POST /turn` with the same `request_id` returns the
+  stored in-progress or settled result — never a second billing or a second commit (§7).
+- **Generation** — one logical model task, recorded with its exchange id and a **stage** enum.
+  The synchronous **base chain** is `initial → ≤1 validation re-prompt → ≤1 escalated retry`
+  (§3.1 state machine). Synchronous **continuations** are separate stages, each with its own
+  cap: strict-mode roll continuation (≤1 per checked exchange) and recall continuation (≤1).
+  Absolute synchronous maximum per exchange: **3** (normal), **4** (strict), **5** (strict +
+  recall); the base-chain retries never multiply continuations. Async kinds (extractor, audit,
+  image, tts, setup) are generations with their own per-kind envelopes (§4 path matrix).
 - **Dispatch** — one physical provider request. One generation issues one dispatch (SDK
   auto-retries disabled, §3.7); every dispatch is individually reserved before it leaves the
   engine and settled after (§3.7).
@@ -76,14 +82,12 @@ One structured-output call per committed turn. Output envelope:
                      text,
                      outcome?: { check: "cN", claim: "success"|"failure"|"partial" },
                      refs: [local handle | fact id] } ],
-  ops:           [ ... ],       // closed vocabulary; creation ops declare local_id n1..nN
-  fact_ops:      [ ... ],       // ledger writes, committed atomically with the turn (§3.3)
-  npc_updates:   [ ... ],
+  ops:           [ ... ],       // the ONLY mutation channel; creation ops declare n1..nN
   scene_summary: "≤40 tokens" }
 ```
 
 **Envelope-local handles (causality).** Checks are implicitly handled `c1..cN` in declaration
-order; creation ops declare `local_id` (`n1..nN`) which later ops/fact_ops in the same envelope
+order; creation ops declare `local_id` (`n1..nN`) which later ops in the same envelope
 may reference. The validator resolves every local reference — checks to engine-computed
 `roll_result` records (engine-issued ids `r<turn>.<n>`), `local_id`s to freshly engine-issued
 entity IDs — **before** atomic commit; any unresolvable or forward-inconsistent reference
@@ -106,13 +110,18 @@ validation_retry / escalated_retry / strict_continuation / recall_continuation /
 audit / image / tts / setup), tier, reserved cost, actual usage, cache stats, dispatch state
 (§3.7). Clarifications commit no state but are billed, capped, and soaked like everything else.
 
-**Ops contract.** `ops` use a closed vocabulary. Normative core (v0): op kinds are
+**Ops contract.** `ops` is the **single canonical mutation channel**: every state, fact,
+disposition, and knowledge mutation is an op in this one array — there is no side channel, so
+preconditions, consequence caps, and conflict keys apply uniformly and cross-channel bypass
+is structurally impossible. Normative core (v0): op kinds are
 `create_entity, move, transfer_item, apply_condition, clear_condition, adjust_clock,
-complete_objective, reveal_fact, npc_disposition, spawn_thread, close_thread` — each with fixed
+complete_objective, record_fact, reveal_fact, npc_disposition, spawn_thread, close_thread` —
+each with fixed
 fields, **engine-issued ID provenance** (models reference existing IDs or `local_id` handles
 only), preconditions (allowed source states), a consequence class checked against the turn's
-stakes cap, a conflict key (two ops with the same key in one envelope reject), deterministic
-in-order application, and a rejection code. Ops granting items, completing objectives, or
+stakes cap, a conflict key (two ops with the same key in one envelope reject; keys are defined
+over the target entity/attribute so any two ops touching the same slot collide regardless of
+kind), deterministic in-order application, and a rejection code. Ops granting items, completing objectives, or
 moving location must cite an enabling `roll_result` or standing entitlement; uncited grants
 reject ("unearned change", §6.4). State the engine can derive is derived, never
 model-asserted. **Gate G1**: the full op contract (`docs/rules/op-contract.md`, versioned:
@@ -137,12 +146,19 @@ fully specified: per-campaign root secret generated at campaign creation and **c
 LP(canonical_player_input) || LP(rng_algo_version))` where `LP(x)` is UTF-8 with a 4-byte
 length prefix (domain-separated, length-delimited — no concatenation ambiguity). The hash of
 (seed, algorithm id, column) is written to the turn record before dispatch; the seed is
-revealed after commit. Verification: revealed seeds validate against the pre-play root
-commitment, so clients can re-derive columns without ever holding the root. Secret lifecycle:
-stored server-side only; **fork/import derives a fresh root** (old commitments remain
-read-only verifiable in the copied history; future rolls are not predictable from the
-export); compromise = rotate root, re-commit, note in campaign log. Cross-language test
-vectors ship with gate G1's fixture suite.
+revealed after commit. **What is verifiable, and when (precise)**: (a) *live, per turn* — the
+revealed (seed, column) re-derives the committed hash, proving the column was fixed **before
+the model call**: the model provably could not pick its dice. This is the neutrality property
+that matters against the model. (b) *At root reveal only* — that each turn's seed was honestly
+HMAC-derived from the committed root (i.e. the trusted engine code, not a cherry-picking
+server, chose the seeds). A hash commitment cannot authenticate HMAC outputs without the key,
+so (b) is verified when the root is revealed: at campaign end, or on owner-triggered rotation
+(reveal old root, commit fresh root, verify history to that point). The plan claims (a)
+during play and (b) post hoc — nothing stronger. Secret lifecycle: stored server-side only;
+**fork/import derives a fresh root** (copied commitments become verifiable when the *source*
+campaign reveals its root; future rolls are never predictable from an export); compromise =
+rotate (which reveals and re-commits). Cross-language test vectors ship with gate G1's
+fixture suite.
 
 Binding is implicit and validator-enforced: check #N binds to die #N; the schema exposes no
 index field. Declaring more checks than the column holds (engine max 4) fails validation;
@@ -159,7 +175,8 @@ pressure).
 
 ### 3.3 Memory: fact store + deterministic projection
 
-- **Write path.** Explicit `fact_ops` commit atomically with the turn:
+- **Write path.** Explicit fact-writing ops (`record_fact`, `reveal_fact` — ops like any
+  other, §3.1's single channel) commit atomically with the turn:
   `fact { subjects: [ids], text ≤25 tokens, kind: promise|revelation|relationship|world|event,
   provenance: turn id + segment ref, visibility: ACL, lifecycle: {salience, class, supersedes?} }`.
   The async extractor is a safety net: durable idempotent queue (enqueue at commit; small-model
@@ -188,12 +205,18 @@ pressure).
 - **Visibility.** Facts carry engine-derived **witness ACLs** (present / told / could-infer,
   computed from scene records at write time; model-authored visibility claims are clamped to
   the engine's ACL, never widened). Projections are audience-specific. **Output audience
-  semantics** (multiplayer): shared narration is generated from the **intersection of all
-  recipient seats' ACLs**; facts outside the intersection may drive NPC behavior only via
-  behavioral surface (disposition, pressure), not restatement. The same ACL rule applies to
-  journal rows, poll backfill, audio, and error payloads (seat scoping already exists in
-  `server.js` — `scopeStateForSeat`, `scopeJournalForSeat` — and carries over). Leak testing
-  includes **cross-seat paraphrase fixtures** (§6.4).
+  semantics** (multiplayer, dual-projection): narration segments are **ACL-tagged**. The
+  **table-shared representation** is generated from the intersection of all recipient seats'
+  ACLs — facts outside it may drive NPC behavior only via behavioral surface (disposition,
+  pressure), not restatement. **Requester-private segments** — content in the acting seat's
+  ACL but not the table intersection (what *your* character alone learned) — are stored
+  tagged and served **only to eligible seats**, so private knowledge remains usable, not
+  starved. Journal persists the tagged segments and serves them seat-scoped on poll/backfill;
+  audio is synthesized from the shared representation only (private segments are text-only in
+  v0); error payloads carry no fact text. Seat scoping already exists in `server.js`
+  (`scopeStateForSeat`, `scopeJournalForSeat`) and carries over. Leak testing includes
+  **cross-seat paraphrase fixtures** and a **private-answer fixture** (private info must
+  reach its eligible seat — starving is a failure too) (§6.4).
 
 ### 3.4 Prompt layering and cache discipline
 
@@ -219,7 +242,11 @@ trigger one escalated re-dispatch (§3.1) — a misroute costs one extra call, n
 commit from a small model. **Router validation** (§6.7): a labeled corpus (construction and
 adjudication protocol documented with the corpus; two-rater labels, disagreements adjudicated
 before freezing) with a published confusion matrix, minimum **recall ≥ 95% for
-escalation-worthy inputs**, and a consequence-weighted false-negative ceiling.
+escalation-worthy inputs**, and a consequence-weighted false-negative ceiling (≤ 1 weighted
+miss per 1,000 escalation-worthy inputs, weights = stakes class). **Gate G4**: the exact
+router spec (`docs/runtime-router.md`: normalization, tokenizer, lexicon contents,
+imperative-clause rule, thresholds, tier transitions, corpus fixtures, the numeric ceiling)
+is pinned before router implementation — feature *names* in this plan are scope, not spec.
 
 | Tier | Share (planning) | Class | Warm/cold per-call (snapshot v1) |
 |---|---|---|---|
@@ -246,7 +273,10 @@ storage).
 - **Reserve → dispatch → settle, durably.** Per **dispatch** state machine, persisted:
   `reserved → dispatched → settled | ambiguous`. Reservation = worst case (max input at cold
   rates + output cap, or media unit cap). Dispatch uses provider idempotency keys where
-  supported; SDK auto-retries are disabled (a retry is a new reserved dispatch). Timeout or
+  supported; SDK auto-retries are disabled (a retry is a new reserved dispatch). Client-side
+  duplicates are absorbed one level up: the exchange record's unique `request_id` (Accounting
+  units) means a resubmitted `POST /turn` finds the existing exchange and replays its stored
+  state — no second generation, no second reservation. Timeout or
   crash between dispatch and settle → `ambiguous`: the **full reservation is charged
   permanently** until invoice reconciliation proves otherwise; crash recovery scans
   `dispatched` rows at startup. Insufficient headroom → not dispatched; degradation order: mix
@@ -276,17 +306,22 @@ Continuations: cache-read 6k + ~200 fresh + 400 out.
 **Path matrix** (planning frequencies; E = expected, A = adverse; reservation basis in
 parentheses):
 
-| Kind | Model | Freq E / A | Unit caps | Retry cap | Batch | Line basis |
+Rates count **exchanges entering that stage** (each stage = one extra dispatch). Where a line
+basis exceeds its computed snapshot cost, the padding is deliberate contingency, labeled with
+its multiplier — reservations use the padded figure.
+
+| Kind | Model | Freq E / A | Unit caps | Retry cap | Batch | Line basis (computed → padded) |
 |---|---|---|---|---|---|---|
-| hot call | tier-routed | 1/exchange | 1.5k fresh / 600 out (cold) | state machine | no | table below |
-| validation+escalated retry | tier±1 | 2% / 5% of exchanges | as hot (cold) | ≤2 total | no | cold mid |
-| strict continuation | turn tier | 0% / 40% of committed | 200 fresh / 400 out | 1 | no | tier-weighted |
-| recall | small + embed | 3% / 5% of committed | 200-token result | 1 | no | $0.005 (cont + embed) |
-| extractor | small | 1/committed | 500 in / 60 out | 3 → dead-letter | E yes / A no | $0.0004 / $0.0008 |
-| audit | small | 5% of committed | 1k in / 200 out | 1 | yes | $0.004 |
-| image | image model | 32 / 40 per campaign | 1 image | 1 | n/a | $0.04 |
+| hot call | tier-routed | 1/exchange | 1.5k fresh / 600 out | state machine | no | per-call table above, unpadded |
+| validation retry | same tier, cold | 2% / 5% of exchanges | as hot | 1 | no | cold mid $0.033 as bound (≥ tier-weighted $0.017; ×~2 conservative) |
+| escalated retry | +1 tier, cold | 0.5% / 2% of exchanges | as hot | 1 | no | mix-weighted next-tier cold: E $0.0594, A $0.066, unpadded |
+| strict continuation | turn tier | 0% / 40% of committed | 200 fresh / 400 out | 1 | no | tier-weighted $0.0052, unpadded |
+| recall | small + embed | 3% / 5% of committed | 200-token result | 1 | no | $0.0030 computed (cont $0.0028 + embed) → $0.005 (×1.7) |
+| extractor | small | 1/committed | 500 in / 60 out | 3 → dead-letter | E yes / A no | $0.0004 / $0.0008, unpadded |
+| audit | small | 5% of committed | 1k in / 200 out | 1 | yes | $0.002 computed → $0.004 (×2, retry allowance) |
+| image | image model | 32 / 40 per campaign | 1 image | 1 | n/a | $0.04/image, snapshot rate |
 | tts | local default | 0 (cloud = §8 Q4) | 1 turn's narration | 1 | n/a | $15/M chars if cloud |
-| setup | mid | ~6 calls once | 2k in / 1k out | 1 | no | $0.50 total |
+| setup | mid | ~6 calls once | 2k in / 1k out | 1 | no | $0.126 computed (6 × cold mid 2k/1k) → $0.50 (×4, image-prompt retries + provider variance) |
 
 **Scenario E — expected.** 1,800 committed (75 h @ 2.5 min) + 360 non-committing = 2,160
 exchanges; mix 80/18/2; warm 90/75/70 (set pieces cluster, frontier re-warms); voice off.
@@ -296,31 +331,33 @@ exchanges; mix 80/18/2; warm 90/75/70 (set pieces cluster, frontier re-warms); v
 | small hot (0.90 warm) | 1,800 × $0.00479 | $8.62 |
 | mid hot (0.75 warm) | 324 × $0.01748 | $5.66 |
 | frontier hot (0.70 warm) | 36 × $0.09255 | $3.33 |
-| retries (2%, cold mid) | 43 × $0.0330 | $1.42 |
+| validation retries (2%) | 43 × $0.0330 | $1.42 |
+| escalated retries (0.5%) | 11 × $0.0594 | $0.65 |
 | extractor (batched) | 1,800 × $0.0004 | $0.72 |
 | audit (5%) | 90 × $0.004 | $0.36 |
 | recall (3%) | 54 × $0.005 | $0.27 |
 | images | 32 × $0.04 | $1.28 |
 | setup | — | $0.50 |
-| **Total** | | **$22.16** |
+| **Total** | | **$22.81** |
 
 **Scenario A — adverse (unmanaged, sizes the governor).** 3,000 committed + 600 = 3,600
-exchanges; mix 75/22/3; warm 75/50/30; retries 5%; strict on 40% of committed; recall 5%;
-extraction unbatched; 40 images.
+exchanges; mix 75/22/3; warm 75/50/30; validation retries 5% / escalated 2%; strict on 40% of
+committed; recall 5%; extraction unbatched; 40 images.
 
 | Line | Calls × avg | Total |
 |---|---|---|
 | small hot (0.75 warm) | 2,850 × $0.005825 | $16.60 |
 | mid hot (0.50 warm) | 660 × $0.02265 | $14.95 |
 | frontier hot (0.30 warm) | 90 × $0.13395 | $12.06 |
-| retries (5%, cold mid) | 180 × $0.0330 | $5.94 |
+| validation retries (5%) | 180 × $0.0330 | $5.94 |
+| escalated retries (2%) | 72 × $0.0660 | $4.75 |
 | strict continuations (75/22/3-weighted $0.0052) | 1,200 × $0.0052 | $6.24 |
 | recall (5%) | 150 × $0.005 | $0.75 |
 | extractor (unbatched) | 3,000 × $0.0008 | $2.40 |
 | audit (5%) | 150 × $0.004 | $0.60 |
 | images | 40 × $0.04 | $1.60 |
 | setup | — | $0.50 |
-| **Total** | | **≈ $61.6 — over the owner bar** |
+| **Total** | | **≈ $66.4 — over the owner bar** |
 
 That is the point: pacing, cache luck, and optional modes can push an unmanaged campaign well
 past $50, so the governor is **load-bearing**. Governed, the same campaign hits the **$45
@@ -333,7 +370,7 @@ construction property; §6.5 tests the construction (cold caches, forced retries
 dispatches, 3,000 turns).
 
 **Versus baseline**, normalized per committed turn (both at snapshot v1): E is
-$22.16 / 1,800 = **$0.0123/turn** vs the Council's estimated $0.08–0.20 → **≈ 6.5–16×
+$22.81 / 1,800 = **$0.0127/turn** vs the Council's estimated $0.08–0.20 → **≈ 6–16×
 cheaper** (vs all-small Council ≈ 3–5×). Single-digit-dollar campaigns require the local
 routine tier, not the default claim. Latency drops from five sequential round-trips to one
 call — the cost fix and the "feels like a real GM" fix are the same fix.
@@ -364,24 +401,34 @@ for the greenfield runtime; chapters remain the semantic reference for op meanin
 4. **Memory & integrity suite** (versioned corpora, fixed seeds, published oracle): facts at
    turn N **actually used** at N+500 (behavior probes; expected-observable-behavior oracle;
    ≥ 50 probes; pass ≥ 95%); cross-seat and single-seat **paraphrase leak fixtures** fail
-   closed (0 leaks tolerated); unearned-change and narration/result contradiction fixtures
+   closed (0 leaks tolerated) and the **private-answer fixtures** deliver requester-private
+   content to eligible seats (starving fails too); unearned-change and narration/result
+   contradiction fixtures
    reject 100%; same-envelope local-handle fixtures (G1) pass; prose-evasion fixture set
    measured via audit sampler; sustained extractor-outage test exercises §3.3 backpressure to
    the stop-accepting-actions state.
-5. **Budget**: 3,000-turn adversarial soak (cold-cache injection, forced retries, forced
-   ambiguous dispatches, strict mode on, output-cap pressure) never exceeds $45; **minimum
-   progress under governance**: ≥ 95% of soak exchanges still commit or fail closed within
-   thresholds (refusal-only passes are invalid); per-generation telemetry reconciles with
-   provider-reported usage within 5% (and invoices where available); ambiguous dispatches
-   charge full reservation until reconciled.
+5. **Budget**: the 3,000-turn adversarial soak runs a **pinned, seeded workload manifest**
+   (gate G5: exchange mix, failure-injection kinds with exact rates and RNG seeds, ordering)
+   so the test is reproducible, and never exceeds $45. Every player request records an
+   **exchange status**: `committed | clarified | table_talk_ok | governor_denied |
+   failed_closed` — the denominator is all of them, so refusals cannot hide. Thresholds:
+   attempted actions committed ≥ 95%, clarifications answered ≥ 99%, governor denials ≤ 2%,
+   terminal fallbacks ≤ 0.5%. Per-generation telemetry reconciles with provider-reported
+   usage within 5% (and invoices where available); ambiguous dispatches charge full
+   reservation until reconciled.
 6. **Fairness**: root-secret commitment precedes first turn; per-turn hashes recorded
    pre-dispatch; reveals re-derive identically (cross-language vectors); recomputation rejects
    drift; strict mode passes with engine-held rolls; fork derives a fresh root.
-7. **Feel regression gate**: pre-registered, paired, blinded **non-inferiority** playtest —
-   per-dimension margin 0.75 on a 7-point scale (continuity, agency, tone, pacing), α = 0.05,
-   power 0.8 → **≥ 25 paired scenario ratings** per dimension (Council reference vs
-   greenfield, randomized order, tier labels hidden, single-rater repeated-measures design
-   acknowledged in the analysis). Rerun triggers: any change to models, routing mix or
+7. **Feel regression gate**: pre-registered, paired, blinded **non-inferiority** playtest.
+   Test: one-sided paired non-inferiority per dimension (continuity, agency, tone, pacing;
+   7-point scale) — pass iff the one-sided 95% CI lower bound of the mean paired difference
+   (greenfield − Council) exceeds **−0.75**. Sample size derived, not asserted: assumed SD of
+   paired differences 1.25 (documented conservative assumption pending a pilot), α = 0.05,
+   power 0.8 → n ≈ 18 pairs; inflated ~40% for variance misspecification and missing ratings
+   → **≥ 25 paired scenario ratings** per dimension (randomized order, tier labels hidden,
+   single-rater repeated-measures acknowledged). If observed SD > 1.25, n is recomputed and
+   collection extends before judging; incomplete pairs are dropped with the n floor
+   maintained. Rerun triggers (full re-collection): any change to models, routing mix or
    thresholds, prompt layers, projection logic, validators, or cache layout.
 8. **Baseline honesty**: Council per-branch call counts and per-call token/usage traces
    captured from live code before §1's comparison is cited outside this document.
@@ -391,7 +438,10 @@ for the greenfield runtime; chapters remain the semantic reference for op meanin
    (`docs/runtime-turn-api.md`: golden host+seat fixtures captured from the live endpoints
    below) pinned before adapter work. **G3** migration matrix (`docs/runtime-migration.md`:
    per-table/per-field DDL, ordered upgrade/rollback, fork/export/import algorithms) pinned
-   before cutover.
+   **before any migration code is written** (not merely before cutover); cutover additionally
+   requires its fixture migrations passing. **G4** router spec (`docs/runtime-router.md`,
+   §3.5) pinned before router implementation. **G5** soak workload manifest (seeded, §6.5)
+   pinned before the budget soak is cited.
 
 ## 7. Migration posture
 
@@ -404,10 +454,14 @@ sceneGrounding, choices, art/voice references, numbered turns; `GET /api/campaig
 returns seat-sanitized `{turns, memories}` (no `state_changes_json` for seats) and is the
 poll/backfill channel that makes clarifications visible to other seats;
 `GET .../audio/:turnNumber` (manifest) and `.../audio/:turnNumber/segments/:segmentId` serve
-per-turn TTS with save-once semantics. The adapter maps every envelope field or deterministic
+per-turn TTS with save-once semantics. The greenfield turn request adds a **client-supplied
+`request_id`** (unique per exchange; the server persists the exchange record under it before
+any generation and replays the stored result on resubmission — lost HTTP responses can no
+longer double-bill or double-commit). The adapter maps every envelope field or deterministic
 derivative onto that surface; non-committing exchanges get **durable exchange IDs** so seat
 visibility and numbering are preserved (no duplicate numbering, no invisible exchanges);
-ACL rules (§3.3) apply to state, journal, poll, audio, and error payloads alike. G2's fixture
+ACL rules (§3.3, dual-projection) apply to state, journal, poll, audio, and error payloads
+alike. G2's fixture
 suite (golden host and guest-seat responses, ordering, idempotency, error codes) gates
 adapter work.
 
@@ -420,10 +474,15 @@ facts with ID remapping (subjects/ACLs/supersession links remapped together), at
 parentage preserved, telemetry copied read-only; open async jobs are **not copied executable —
 re-enqueued as fresh claims with new idempotency keys** (no double execution); reservations
 are never copied (recomputed); dice root secret: fresh root derived on fork/import, old
-commitments read-only verifiable (§3.2). Rollback: additive tables make downgrade = ignore;
-G3 specifies ordered upgrade scripts and fixture migrations from representative existing
-databases. Cutover is per-campaign opt-in: new campaigns first; Council retires after §6.7
-passes.
+commitments verifiable per §3.2's reveal rules. **Rollback and version fencing**: additive
+DDL alone does not make downgrade safe — an older binary would run a greenfield campaign
+through the Council path, ignoring facts, reservations, and dice semantics. Therefore each
+greenfield campaign records a `min_runtime_version`; binaries below it **refuse to open the
+campaign** (the fence check ships in the first additive migration, before any greenfield
+campaign can exist). Greenfield activation is **one-way per campaign**; rollback is backup
+restoration, not downgrade. G3 (gated before any migration code, §6.9) specifies ordered
+upgrade scripts and fixture migrations from representative existing databases. Cutover is
+per-campaign opt-in: new campaigns first; Council retires after §6.7 passes.
 
 ## 8. Open questions for the owner
 
