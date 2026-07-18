@@ -1,9 +1,12 @@
 # Aetheria House Ruleset — Chapter 2: Effects
 
-**Status**: DRAFT r15 — rounds r1–r8 were reopened by both independent reviewers; at r9 one
+**Status**: DRAFT r16 — rounds r1–r8 were reopened by both independent reviewers; at r9 one
 reviewer **accepted** (zero findings, cold-implementer-executable) and one reopened; r10–r12
 were reopened by both; r13–r14 were codex-only conservative passes (owner-directed) reopening
-with 1 HIGH / 2 MEDIUM, then 1 MEDIUM — zero CRITICAL/HIGH at r14 — all admitted and fixed; every
+with 1 HIGH / 2 MEDIUM, then 1 MEDIUM; the r15 repair-delta redispatch reopened once more with
+1 MEDIUM (the repaired clause's candidate enumeration was still incomplete — `wealth_shift` and
+the NPC-holder record-item ops were omitted) — zero CRITICAL/HIGH since r14 — all admitted and
+fixed; every
 admitted finding is addressed in place (trail and the recorded disputes:
 `.agents/review/effect-catalog-review.md`). Not yet owner-signed. Implementation of Chapter 1's
 edge bands is gated on **this chapter's acceptance** — and, per campaign, on a pinned
@@ -666,8 +669,16 @@ normative contract is exactly two clauses, both executable:
    against a projection member, because that judgment still does not exist at suggestion time
    (`scene_feature_clear` carries no judgment — its valence is engine-computed from the stored
    record, §2.7, so it is eligible whenever its `feature` ref resolves) — NPC-target
-   candidates therefore come from the genuinely judgment-free frame-composed forms: the §2.6
-   condition ops and `item_transfer` same-frame nets (§3). `disposition_*` needs no projection
+   candidates therefore come from the genuinely judgment-free frame-composed forms, and
+   membership is decidable from the operation tables alone: a form qualifies **iff** its schema
+   carries none of `quality`/`works_against`/`outcome` **and** §3 composes its valence through
+   the actor frame rather than fixing it (rule 6). Under the current catalog that set is: the
+   §2.6 condition ops; `wealth_shift` (npc-ref by schema, §2.3); and the §2.3 record-item ops
+   whenever the valence-bearing endpoint is the projected NPC — `item_transfer` within its §3
+   rule-4 net domain, and `item_pickup`/`item_drop`/`item_lose` (record form)/
+   `item_condition_shift` when the record's holder or receiving `owner` is that NPC (with a
+   party holder these same forms are party-frame ops, the second category above; each remains
+   subject to its own gate). `disposition_*` needs no projection
    at all — it is fixed-valence (§3), eligible under the first category above — and `harm`
    never enters this set: it is character-only (§2.1). An implementation that does not compute the projection must treat
    the set as **empty** (its suggestions then cover fixed-valence and party-frame ops only),

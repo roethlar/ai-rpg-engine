@@ -924,3 +924,38 @@ this review doc's Rounds 12–14 incl. the standing §4 dispute),
 
 Effects.md Status block bumped **DRAFT r14 → DRAFT r15** (zero-CRITICAL/HIGH streak noted
 in the trail sentence).
+
+### Round r15 — repair-delta redispatch (codex, conservative) — REOPENED, then fixed
+
+Narrow mandate: verify the r14 MEDIUM (R14-1) repair only, pins
+91f851936a0d6fd98adce92d51bbf7b1147fb824 → 390981b37d98559cf39e3a701098d9d48f500a4b.
+Guard proof at dispatch: revert→FAIL (all 7 assertions), restore→PASS (7/7).
+
+#### Reviewer verdict — machine envelope, verbatim reason
+
+REOPENED (1 finding, MEDIUM, on the repaired clause itself):
+
+1. MEDIUM — "The corrected candidate set at docs/rules/effects.md:669-672 is still not
+   schema-true: it limits judgment-free frame-composed NPC candidates to condition ops and
+   item_transfer, but wealth_shift at docs/rules/effects.md:295 also targets an NPC, has
+   mechanically determined up/down direction, and carries none of the declared-judgment
+   inputs excluded at lines 641-666. It is GATED:D16 just like item_transfer, so when
+   available against a projected NPC it is another eligible candidate under the §3
+   composition rule."
+
+#### Coder adjudication → r16 — COMPLETE (admitted; scope widened once, deliberately)
+
+Admitted against the text: `wealth_shift` (L295) is npc-ref by schema, absent from §3
+rule 6's fixed-valence list, judgment-free, GATED:D16 — both eligibility legs pass, the
+enumeration omitted it. Adjudication also surfaced the same defect class one layer wider:
+the §2.3 record-item ops (`item_pickup`/`item_drop`/`item_lose` record form/
+`item_condition_shift`) take **actor** holders, so with an NPC holder they are equally
+judgment-free frame-composed NPC candidates the list omitted. Fixed in one rewrite rather
+than per-op drip: the clause now states the membership criterion as decidable from the
+operation tables alone (no declared-judgment field **and** frame-composed valence per §3),
+then enumerates the full current-catalog set — §2.6 condition ops, `wealth_shift` (§2.3),
+`item_transfer` within its §3 rule-4 net domain, and the NPC-holder record-item ops — with
+the party-holder reading routed to the party-frame category and gates left intact.
+
+Effects.md Status block bumped **DRAFT r15 → DRAFT r16** (r15 reopen recorded in the trail
+sentence; zero-CRITICAL/HIGH streak preserved).
