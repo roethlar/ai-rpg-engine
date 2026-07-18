@@ -1,6 +1,6 @@
 # Effect catalog review (docs/rules/effects.md)
 
-**Status**: OPEN — round 17 CLOSED (R17-1 trail-only defect fixed, redispatch verdict: closed); Chapter 2 at DRAFT r17, zero open findings, awaiting owner sign-off.
+**Status**: CLOSED — round r28 repair-delta redispatch returned CLOSED with zero findings (pinned 6772d33ca2026bf14c26bf518a280b54e88e9061); Chapter 2 at DRAFT r24, zero open findings, review loop complete, awaiting owner sign-off.
 **Artifact**: `docs/rules/effects.md` (Chapter 2: Effects — the D2 effect verb catalog).
 **Owner direction**: 2026-07-16 — owner approved drafting with independent review "like the dice
 spec" (the resolution chapter), which ran dual codex + grok. Claude authored this draft and
@@ -1170,3 +1170,13 @@ findings against the draft text, not yet owner-signed.
   (purchasing arithmetic, party wealth, non-wealth capability) stated per row.
 - Severities per the r27 dispatch transcript; all three admitted, none contested. Draft
   r24. Repair-delta redispatch round r28 dispatched per contract.
+
+## Round r28 — repair-delta redispatch (codex, conservative) — CLOSED, zero findings
+- Pinned: 6772d33ca2026bf14c26bf518a280b54e88e9061 (draft r24)
+- Delta scope: fa80e2fc72fdd1397bf04e0c3a839e023bbd8478 (r23) -> 6772d33ca2026bf14c26bf518a280b54e88e9061 (r24)
+- Reviewer verified SHA match and clean working tree before reading; `git diff --check` passed.
+- R27-1 fix verified: §§1.1, 2.6, 2.7, 2.8, 9 plus all transaction/source/clearedBy/turn-field/checkId references — the originating transaction envelope consistently supplies provenance id and ledger turn without imposing a check-shaped committer anywhere.
+- R27-2 fix verified: §2.8 checked against resolution.md's commit/annotation-validation order — only the already-resolved band binds during the Continuity texture pass; `quality`/effect entries do not. Prompt-context beliefs remain excluded; standing facts remain governed.
+- R27-3 fix verified: five per-rung wealth rows checked against §2.3 `wealth_shift` and the §7 configured ladder — all rungs present in order, distinct fictional meanings, complete per-row must-not-assert boundary.
+- No new contradictions in the status narrative, review trail cross-references, §2.7 record shape, or §9 carry-over.
+- Verdict envelope: CLOSED, findings [], cold_implementer_executable true. Draft r24 stands. Review loop complete — chapter awaits owner sign-off.
