@@ -160,7 +160,7 @@ complete.
   it does **not** cover `app.js` theme wiring or `map-render.js`. One-time setup per machine:
   `npx playwright install chromium`.
 - Guard-proof requirements and anti-vacuity practice live in `AGENTS.md`, `.agents/decisions.md`, and
-  `.agents/playbooks/reviewloop.md`.
+  `.agents/playbooks/codereview.md`.
 - Live: `node server.js`, then a seat smoke (mint seat → `/api/seat/session` →
   leak-scan the payload). Do it against a throwaway store —
   `RPG_DB_PATH=/tmp/x.db` — never the dev DB; release/revoke are destructive.
@@ -169,7 +169,7 @@ complete.
 ## Active Sources
 
 - `AGENTS.md`, `.agents/repo-guidance.md`, `.agents/decisions.md`,
-  `.agents/playbooks/reviewloop.md`
+  `.agents/playbooks/codereview.md`
 - `plan.md` — phases and the current priority.
 - `.agents/review/index.md` — review loops, findings, verdicts.
 - `README.md` — current setup, hosting, seat, and voice flow.

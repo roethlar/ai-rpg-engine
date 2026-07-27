@@ -183,7 +183,7 @@ Applying this question to the bh-1 plan found real holes in FOUR consecutive rev
 - One "guard" tested a shape that turned out to be HARMLESS, so a lenient implementation passed it
   and still shipped a false pass.
 
-This generalizes the vacuous-guard anti-pattern already recorded in `.agents/playbooks/reviewloop.md`
+This generalizes the vacuous-guard anti-pattern already recorded in `.agents/playbooks/codereview.md`
 (a test that re-implements the logic it checks) to a second form: a test that passes against the
 wrong implementation. Both are guards that cannot fail.
 
@@ -352,7 +352,7 @@ dead: setup generates flavor, never mechanics.
 Status: Active, except the reviewer-role assignment was superseded 2026-07-14
 
 Decision:
-Every code change goes through `.agents/playbooks/reviewloop.md` with an independent
+Every code change goes through `.agents/playbooks/codereview.md` with an independent
 reviewer. This is unconditional and there is no per-change exemption: size, urgency,
 obviousness, an owner go on the change itself, and a passing test suite are all
 irrelevant to whether the loop is required. An owner approval to *make* a change is
