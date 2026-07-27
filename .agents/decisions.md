@@ -707,24 +707,6 @@ option list) are subject to the reopened design; its canon-state half — the
 ruleset is persistent, Council-consultable, player-viewable campaign state —
 stands unchallenged.
 
-### 2026-07-04 - External rulesets dropped; the generated house system is the system
-
-Status: Superseded (reopened 2026-07-11; D0 settled the replacement frame 2026-07-12)
-
-Decision:
-No third-party/SRD rulesets will be adopted. The campaign-generated house
-ruleset (decision 2026-07-03) is the engine's rules system, full stop.
-docs/ruleset-licensing.md stays as evidence if this is ever revisited.
-
-Reason:
-Owner 2026-07-04 ("forget the system") after rejecting whole-work
-attribution framing (Fate, ORC); the house system already covers the need.
-
-Supersedes:
-The "open-source systems join as additional options later" half of the
-2026-07-03 ruleset decision, and the SRD-options item in the build queue.
-The house-default and canon-state halves of that decision stand unchanged.
-
 ### 2026-07-04 - Owner delegation: open calls decided by the agent, plans approved by external review loop
 
 Status: Active delegation; the Codex reviewer assignment was superseded 2026-07-14
@@ -836,29 +818,6 @@ The 2026-07-05 park decision below ("Multiplayer is an OPEN question") —
 multiplayer work resumes. Reactivates the 2026-07-05 multi-user decision
 (status updated in place).
 
-### 2026-07-05 - Multiplayer is an OPEN question; all multiplayer work parked
-
-Status: Superseded (multiplayer reopened 2026-07-09 — see the decision above)
-
-Decision:
-Multiplayer — its meaning, scope, and whether/when to build it — flips back
-to an open, undecided question. The multiplayer playtest is parked. No
-further multiplayer work (no S2 visibility scoping, no S3 UI rewire, no
-Phase 3 extensions) until the owner reopens the topic. Code already landed
-(multi-character schema, turn order, seats/S1) stays in the tree: it was
-built to leave solo play unchanged and verified so; reverting is available
-on the owner's word but was not requested.
-
-Reason:
-Owner 2026-07-05: "this is not what I want. multiplayer flips back to open
-decision, testing is parked. I cannot work on this now."
-
-Supersedes:
-The 2026-07-05 multi-user decision below and the 2026-07-04 multiplayer-v1
-decision as ACTIVE direction — both become recorded design history, not
-mandates. The next-playtest-closes-all-gates framing is void; no playtest
-is pending.
-
 ### 2026-07-05 - Multiplayer means multi-USER: per-seat credentials, server-side character binding, scoped visibility
 
 Status: Active (reactivated 2026-07-09 by the reopen decision above; was parked 2026-07-05 – 2026-07-09)
@@ -890,33 +849,6 @@ Supersedes:
 The "shared ACCESS_SECRET, per-player auth stays future" half of the
 2026-07-04 multiplayer-v1 decision below. Its turn-order, round-robin, and
 in-app-chat-later parts stand.
-
-### 2026-07-04 - Multiplayer v1 shape: shared token, round-robin turns, in-app-later chat
-
-Status: Superseded (in part — see 2026-07-05 multi-user decision above)
-
-Decision:
-The first multiplayer cut (Phase 3) is deliberately minimal: players share
-the existing ACCESS_SECRET token (per-player auth stays future); a campaign
-holds multiple characters, each browser selects which character it plays;
-turn order is round-robin over active characters (initiative is stored on
-characters for future use but does not order v1); the server enforces
-whose turn it is. The player-communication fork is decided in favor of an
-in-app, fully-loggable player-only text channel — but it is a later slice,
-not v1; the never-routed-to-GM boundary recorded 2026-06-13 applies when it
-lands. Single-player campaigns must behave exactly as today (an order of
-one).
-
-Reason:
-Owner wants the next playtest to be multiplayer ("so I can get other
-opinions", 2026-07-04) and previously wanted early two-browser solo
-testing; the smallest honest version of that is shared-token + turn
-enforcement. In-app chat wins the fork because external tools cannot honor
-the log-everything requirement (recorded 2026-06-13 tension).
-
-Supersedes:
-Nothing; concretizes the Phase 3 skeleton and the player-channel fork
-direction. The multiplayer end-state vision in plan.md is unchanged.
 
 ### 2026-07-04 - Ruleset licensing constraint: no whole-work attribution framing
 
@@ -1052,8 +984,6 @@ Owner 2026-07-16: "D20 is fine. I don't actually care about the die. but the mar
 
 Supersedes:
 The dice bake-off memo's margin-band recommendation (memo Addendum 2 records the rejection); the rules intake D1 row status (was: Pending — next owner decision).
-
-
 
 ### 2026-07-16 - Rules resolution chapter signed off: d100 with licensed edge texture (supersedes D1's die clauses)
 
