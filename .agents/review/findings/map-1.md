@@ -4,9 +4,9 @@
 overlap into an unreadable collision and the rightmost label is clipped by the canvas
 edge, so the panel misinforms about where things are. Cosmetic in mechanism, but the map
 is a *spatial* surface — an unreadable one is worse than none.
-**Status**: REOPENED (r1, 2026-07-13) — three real defects found; fix-ups pending
-**Branch**: `fix/map-label-overflow`
-**Commit**: `b178222` (reviewed; not accepted)
+**Status**: CLOSED — APPROVED at r2 and merged 2026-07-15
+**Branch**: deleted after content-arrival verification
+**Commit**: merge `dd59c27`
 
 ## Evidence
 `map-render.js:68` (at base `af4b2bd`) draws each area's name as a bare SVG `<text>`

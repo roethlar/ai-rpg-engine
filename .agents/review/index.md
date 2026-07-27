@@ -13,7 +13,7 @@ gated until Claude and Grok accepted the same pinned base-plan SHA. Both accepte
 extension at `0f36f0f920e2e26a0783840e49ad8144f797dec5`. Review trail:
 `.agents/review/admin-model-registry-plan.md`.
 
-## Active admin model-registry implementation
+## Closed admin model-registry implementation (2026-07-15)
 
 | ID | Severity | Impact (one line) | Status | Branch |
 |----|----------|-------------------|--------|--------|
@@ -40,7 +40,7 @@ dated verdicts below retain the role actually used at the time.
 
 | ID | Severity | Impact (one line) | Status | Branch |
 |----|----------|-------------------|--------|--------|
-| map-1 | MEDIUM | Situation-panel area labels overrun their box: adjacent labels collide and the rightmost is clipped by the canvas edge | `[~]` r1 fix-ups landed (code-point cut, indexed clip ids, dependent x/y clamps), branch rebased onto master @ `207f27e`, suite green; awaiting r2 verdict | `fix/map-label-overflow` @ `a4d1c0b` |
+| map-1 | MEDIUM | Situation-panel area labels overrun their box: adjacent labels collide and the rightmost is clipped by the canvas edge | `[x]` merged at `dd59c27` (APPROVED r2; branch deleted after content-arrival verification) | none |
 | css-1 | MEDIUM | Pre-existing: `rgba(var(--theme-*), α)` over HSL-triple vars is invalid CSS — header/glass/panel fills compute unpainted on every theme | `[x]` MERGED at `41e1938` (ACCEPTED r5); branch deleted | `09bb433` (was `fix/css-1-hsla-theme-vars`) |
 | css-2 | MEDIUM | The css-1 guard scanned only one authoring surface, but the attempted broader scanner crashed and rejected valid CSS | `[!]` **ABANDONED / REPLACED BY PHASE CT** — branch refs deleted; never merge or recreate it. See `docs/history/css-2-abandoned-scanner.md` | none (was `fix/css-2-scanner-scope` @ `0229679`) |
 | css-3 | LOW | `--theme-glow` was dead: defined 6× in `styles.css`, written on every theme apply, read nowhere | `[-]` **SUPERSEDED** — folded into Phase CT (plan.md). It was a *quadruple* (components + alpha), so it had no complete-colour form and CT deleted it. Never branched | none |

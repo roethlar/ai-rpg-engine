@@ -1085,7 +1085,7 @@ The previously recorded D2 scope deliverables stand unchanged: complication-effe
 with D1b), effect weight classes (minor/significant), per-operation point costs, and per-operation
 valence tags. Next deliverable: the catalog document, drafted and run through the reviewloop like
 the resolution chapter. The accepted catalog document still gates edge-band implementation; no
-rules code before a concrete phase and an accepted plan review. The D2 decision unblocks the D3,
+rules code before a concrete phase and an owner-approved plan. The D2 decision unblocks the D3,
 D5, and D13 queue discussions.
 
 Reason:

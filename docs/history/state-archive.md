@@ -173,3 +173,69 @@ machine-local evidence, if any, belongs only in `.agents/machines.md`.
 - The 2026-07-05 codex review loop: closed, 4/4 verified and merged. A codex
   plan pass shaped Phase S before it was parked (park later reversed by the
   2026-07-09 reopen decision).
+
+---
+
+## Rotated 2026-07-26 (catchup)
+
+### Closed and superseded findings
+
+- **css-2 is abandoned and replaced by Phase CT.** Its project branch was deleted and, as
+  reverified 2026-07-15, is absent from the canonical remotes; it must never be merged or revived.
+  `.agents/machines.md` owns the machine-local cleanup blocker. The durable post-mortem is
+  `docs/history/css-2-abandoned-scanner.md`.
+- **map-1 is CLOSED — landed on `master`** via merge `dd59c27` (2026-07-15) on the owner's
+  explicit go, after a codex r2 APPROVED verdict (3/3 defects fixed, guards confirmed, no new
+  findings). Content verified on master (both fixed lines present, no `hsl(var(`, suite green:
+  pass 1 / fail 0) and `fix/map-label-overflow` deleted after verification.
+  `.agents/review/findings/map-1.md` owns the defect enumeration and both verdicts. No review
+  finding has an open branch.
+
+### Admin model registry landed
+
+- **The old `/admin` catalog-only plan is superseded by the admin model registry redesign.** Owner
+  direction 2026-07-15: compact provider connections with shared keys, reusable configured models
+  with optional custom key overrides and live editable catalogs, then primary + fallback assignment
+  per Council role. The `am-*` r8 plan in plan.md is accepted by Claude and Grok at
+  `5f0261375f9b97f464f54ee406d5bafca7f3ea8d`. A first-class, no-key
+  `claude-code` provider using the server process's logged-in plan is covered by the accepted r11
+  extension at `0f36f0f920e2e26a0783840e49ad8144f797dec5`; model ids remain manually editable
+  because the installed CLI has no documented machine-readable account catalog. Claude Fable 5
+  accepted the pinned extension with evidence checked and no comments.
+- **`am-1` is accepted at review head `80c2143` and merged into `master` under the owner's go.**
+  It adds canonical v2 projection/validation/save seams and Council runtime resolution
+  while leaving the v1 admin HTTP wire active. `.agents/review/findings/am-1.md` owns the scope,
+  guard proof, and verdict.
+- **`am-cc` is accepted and merged into `master` at `1a62848`.** Implementation commit `abbf956`
+  adds the isolated, subscription-authenticated Claude Code adapter and routes it through the
+  existing AIClient/Council pipeline. Claude Fable independently confirmed the red/green guard
+  proof. `.agents/review/findings/am-cc.md` owns the verdict trail.
+- **`am-2` is accepted and merged into `master` at `5103f46`.** Implementation commits `619b838`
+  and `0578115` add live provider model catalogs, safe Claude Code account status, shared production
+  endpoint provenance, a bounded response-body timeout, and the admin-authenticated catalog route.
+  Fable independently confirmed the red/green timeout guard and found no remaining material issue.
+  `.agents/review/findings/am-2.md` owns the verdict trail.
+- **`am-3` is accepted and merged into `master` at `e75c89f`.** Commit `93a91e8`
+  atomically activates the v2 admin settings wire and replaces repeated forms with compact provider
+  connections, reusable configured models, and five primary/fallback Council assignments. Fable's
+  first review found that clearing stored keys can reject or declassify migrated legacy entries;
+  fix-up `6e05325` preserves the marker and environment precedence while clearing the secret, with
+  server persistence and mutation proof. Fable accepted review head `5c2aeb5` after independently
+  reproducing the old failure and rerunning both suites green. `.agents/review/findings/am-3.md`
+  owns the full trail.
+
+### Other landed and closed work
+
+- **Two UI slices landed 2026-07-15 on owner request** (workflow-reviewed in-session): `8ade369`
+  replaced native confirm()/prompt() with in-app promise-based modals (Tauri/WKWebView no-ops broke
+  campaign delete and every input dialog in the desktop shell); `b984eb9` added save-once narration
+  audio (see the Phase V bullet). Both verified headless; suite green.
+- **Outline-leak report investigated 2026-07-15, no code defect found**: the owner-reported
+  "players can see the campaign outline" did not reproduce — every seat-reachable payload routes
+  through the `scopeStateForSeat`/`scopeJournalForSeat` allowlists, which never carry the outline,
+  and `testSeatVisibility` guards it with leak markers. Most likely cause: an unset `ACCESS_SECRET`
+  makes every tokenless request a HOST (full payload) — dev-mode by design. Open hardening
+  candidates (unscheduled, would need the loop): fail closed when binding non-loopback without
+  `ACCESS_SECRET`; scope the host-only `/fork` response; per-campaign ownership check on the MCP
+  `get_campaign_outline` tool.
+- Solo play with no seats minted behaves exactly as before, as it always has.
