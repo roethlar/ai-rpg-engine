@@ -1,6 +1,10 @@
-# Runtime Greenfield Plan — cost-first engine architecture
+# Runtime Greenfield Plan — ABANDONED
 
-**Mandate** (owner, 2026-07-18): greenfield-plan a better, cheaper engine for the models to use.
+**Status** (owner, 2026-07-26): abandoned. Historical design evidence only; do not implement.
+The shipped Council runtime remains canonical, and product work continues incrementally through
+rules, UI, mapping, and related improvements.
+
+**Historical mandate** (owner, 2026-07-18): greenfield-plan a better, cheaper engine for the models to use.
 Prior decisions and rules are **not binding** on this plan. The hard constraint is economic: a
 campaign must not cost $50 — that money buys a AAA title delivering 50–100 hours. Facts the model
 needs must be immediately available without being a carried token burden.

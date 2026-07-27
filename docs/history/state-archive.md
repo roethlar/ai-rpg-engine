@@ -239,3 +239,18 @@ machine-local evidence, if any, belongs only in `.agents/machines.md`.
   `ACCESS_SECRET`; scope the host-only `/fork` response; per-campaign ownership check on the MCP
   `get_campaign_outline` tool.
 - Solo play with no seats minted behaves exactly as before, as it always has.
+
+---
+
+## Rotated 2026-07-26 (owner abandoned the greenfield rewrite)
+
+- **THE COST-FIRST GREENFIELD RUNTIME PLAN IS REVIEW-CLOSED, NOT IMPLEMENTATION-APPROVED.**
+  `docs/runtime-greenfield-plan.md` is at post-r5 blob
+  `03ec483f46e0e476ce261a2854294c2f75f643e1`; the independent r5 verdict was APPROVED with zero
+  open findings. The owner mandate makes this plan authoritative over earlier runtime/rules choices
+  where they conflict, but §8 still owns the unresolved owner decisions and the plan still needs
+  owner sign-off. The shipped Council remains canonical until the plan's gates and cutover criteria
+  pass; no greenfield runtime code is authorized yet.
+
+Archive note: the owner abandoned this proposal later on 2026-07-26. Its final artifact moved to
+`docs/history/runtime-greenfield-plan-abandoned.md`; it has no current authority.

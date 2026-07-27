@@ -10,13 +10,10 @@ to `docs/history/state-archive.md`.
   `.agents/decisions.md`). Do not invoke an external reviewer unless the owner explicitly requests
   `codereview`, `review`, `openreview`, or names one for the work. Code still requires an
   owner-approved plan and normal repository verification.
-- **THE COST-FIRST GREENFIELD RUNTIME PLAN IS REVIEW-CLOSED, NOT IMPLEMENTATION-APPROVED.**
-  `docs/runtime-greenfield-plan.md` is at post-r5 blob
-  `03ec483f46e0e476ce261a2854294c2f75f643e1`; the independent r5 verdict was APPROVED with zero
-  open findings. The owner mandate makes this plan authoritative over earlier runtime/rules choices
-  where they conflict, but §8 still owns the unresolved owner decisions and the plan still needs
-  owner sign-off. The shipped Council remains canonical until the plan's gates and cutover criteria
-  pass; no greenfield runtime code is authorized yet.
+- **THE GREENFIELD RUNTIME REWRITE IS ABANDONED** (owner decision 2026-07-26). The shipped Council
+  pipeline remains canonical. Product work continues incrementally through rules, UI, mapping, and
+  related improvements. The discarded proposal survives only as historical evidence at
+  `docs/history/runtime-greenfield-plan-abandoned.md`; none of its gates or open questions apply.
 - **THE RULES TRACK HAS ONE SIGN-OFF GATE AND A SEPARATE DECISION QUEUE.** Chapter 1
   (`docs/rules/resolution.md`) is owner-signed and D2 is decided. Chapter 2
   (`docs/rules/effects.md`, DRAFT r24 at commit `6772d33`) is review-converged after r28 with zero
@@ -37,16 +34,15 @@ to `docs/history/state-archive.md`.
 
 ## Next
 
-**FIRST OWNER ACTION:** settle §8 question 1 in `docs/runtime-greenfield-plan.md`: use the cheaper
-dice-column mode as the campaign default, with strict provably-neutral rolls opt-in, or make strict
-mode the default. Recommendation: dice-column default, because it matches the cost-first mandate
-while retaining strict mode for tables that value proof over the extra call cost. The remaining §8
-questions and final plan sign-off stay blocked until the owner responds.
+**FIRST OWNER ACTION:** sign off or reject the review-converged effect catalog
+(`docs/rules/effects.md`, DRAFT r24). Recommendation: sign it off; r28 closed with zero findings,
+and sign-off unlocks the next rules decision and a concrete edge-band implementation plan.
 
-- After §8 is settled and the plan is owner-approved, promote the greenfield work into a concrete,
-  phased implementation plan; gates G1–G5 precede the implementation points named in the plan.
-- Separately, request owner sign-off on the review-converged effect catalog before any edge-band
-  implementation planning.
+- After the catalog ruling, continue the rules intake queue one owner decision at a time.
+- The first approved UI backlog slice is `jt-1` (prevent stale cross-campaign Journal responses);
+  select it when UI implementation should resume.
+- The concrete mapping candidate is the parked location-title overflow defect; draft and approve
+  its fix plan before changing code.
 - Phase V's pending feel gate is a real voice session with narrator plus multiple NPC lines,
   checking sticky identities, moods/tones, Skip, and shared host/seat delivery.
 - For the combined host/seat playtest, configure `ACCESS_SECRET` and `ADMIN_SECRET`, expose the
@@ -55,8 +51,6 @@ questions and final plan sign-off stay blocked until the owner responds.
 ## Blockers
 
 - No product-code defect blocks development.
-- Greenfield implementation is blocked on the §8 owner decisions, owner sign-off, and a concrete
-  approved implementation phase.
 - Rules edge-band planning is blocked on owner sign-off of `docs/rules/effects.md`.
 - Phase V closure requires the owner's real-session voice verdict.
 - Multiplayer network exposure is owner-handled infrastructure.
@@ -78,7 +72,6 @@ questions and final plan sign-off stay blocked until the owner responds.
 ## Active Sources
 
 - `AGENTS.md`, `.agents/repo-guidance.md`, `.agents/decisions.md`
-- `docs/runtime-greenfield-plan.md` and `.agents/review/runtime-greenfield-plan.md`
 - `docs/rules/effects.md`, `.agents/review/effect-catalog-review.md`, and
   `.agents/review/rules-system-plan-intake.md`
 - `plan.md` — the broader phased roadmap.

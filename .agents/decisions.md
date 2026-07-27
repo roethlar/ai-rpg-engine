@@ -20,6 +20,30 @@ Supersedes:
 <Optional prior decision, doc, or rule.>
 -->
 
+### 2026-07-26 - Abandon the greenfield runtime rewrite; improve the shipped engine incrementally
+
+Status: Active
+
+Decision:
+The cost-first greenfield runtime rewrite is abandoned and must not be implemented. The shipped
+Council pipeline remains the canonical player-turn architecture. Product development continues
+incrementally on that architecture, with rules, UI, mapping, and related improvements proceeding
+through the repository's normal plan and verification gates.
+
+The discarded proposal is retained only as historical design evidence at
+`docs/history/runtime-greenfield-plan-abandoned.md`; its reviewed gates, open questions, migration
+posture, and claims of authority over prior rules or runtime decisions create no current
+obligations.
+
+Reason:
+Owner direction 2026-07-26: **"scrap the greenfield plan. we're sticking with what we have. what I
+want to do is continue rules and UI updates, mapping, etv."**
+
+Supersedes:
+The 2026-07-18 greenfield mandate, the runtime greenfield plan, and any current-state wording that
+treated that proposal as the next implementation track. Its review trail remains historical
+evidence only.
+
 ### 2026-07-26 - Cross-harness review is opt-in
 
 Status: Active

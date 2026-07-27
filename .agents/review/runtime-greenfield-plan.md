@@ -1,8 +1,10 @@
-# Runtime greenfield plan review (docs/runtime-greenfield-plan.md)
+# Runtime greenfield plan review (abandoned)
 
-**Status**: CLOSED — r5 APPROVED with zero open findings; awaiting owner sign-off on the
-decision surface in §8.
-**Artifact**: `docs/runtime-greenfield-plan.md` (cost-first greenfield runtime architecture plan).
+**Status**: ABANDONED by owner 2026-07-26. The r5 review closed with zero findings, but the
+artifact must not be implemented.
+**Artifact**: `docs/history/runtime-greenfield-plan-abandoned.md` (historical design evidence).
+**Owner supersession**: 2026-07-26 — keep the shipped Council runtime and continue incremental
+rules, UI, mapping, and related improvements.
 **Owner direction**: 2026-07-18 — owner ordered a greenfield plan for a better, cheaper engine;
 prior decisions and rules explicitly **not binding**; hard bar: a campaign cannot cost $50.
 Review harness: openreview with codex `gpt-5.6-sol` at **xhigh** effort (owner confirmed the
@@ -57,5 +59,5 @@ and acceptance-criteria testability. Loop to CLOSED with zero findings, then own
 - Reviewed SHA: `a6e41099087348ba15042101f7668126475389ec` — repair-delta on the scenario-table retry-count convention. Reviewer verdict `approved`, evidence_checked: true, arithmetic_rechecked: true, cold_implementer_executable: true. Independently reproduced: E val $1.19988, A val $5.2239, E esc $0.82566, A esc $6.435; totals $23.49124 → $23.49 and $67.36425 → ≈ $67.4.
 - Repairs confirmed (rg-r5-3): §4 scenario tables now use one convention — committed mix + non-committing-all-small tier exchange counts (E 1,800/324/36; A 2,850/660/90); retry lines Σ(tier count × conditional rate × destination cold) match the path matrix in both scenarios; E extractor at unbatched list ($1.44); E total $23.49; A total ≈ $67.4 (still over the owner bar — governor remains load-bearing).
 - One LOW finding rg-r5-10 (normalization rounding): $23.49124 / 1,800 = $0.0130507 → $0.0131/turn, not $0.0130. Fixed in-place; ≈ 6–15× comparison unchanged. Post-fix SHA: `03ec483f46e0e476ce261a2854294c2f75f643e1`.
-- Loop state: review loop CLOSED with zero open findings. Next step: owner sign-off; §8 is the
-  canonical owner decision surface.
+- Historical loop result: CLOSED with zero open findings. The owner later abandoned the artifact;
+  there is no sign-off or implementation step.
