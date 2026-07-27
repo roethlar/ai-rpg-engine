@@ -6,15 +6,11 @@ to `docs/history/state-archive.md`.
 
 ## Now
 
-- **ALL CODE GOES THROUGH THE REVIEWLOOP**, and planning completes before coding starts
-  (owner decisions 2026-07-12 and 2026-07-14, `.agents/decisions.md`). This is
-  unconditional; docs-only changes are outside the rule. The current default division of labour is
-  Codex implementation with independent Claude planning and adversarial verification, dispatched
-  with the exact `--model claude-fable-5` argument; Grok is not used by default. Exception on
-  explicit owner wording (2026-07-16, "run it by codex and grok reviewloops"): the resolution-
-  ruleset document loop ran dual codex+grok, recorded in
-  `.agents/review/resolution-ruleset-review.md`. The roles may swap for the
-  nature of a slice, but an author never reviews their own code.
+- **CROSS-HARNESS REVIEW IS OFF BY DEFAULT** (owner decision 2026-07-26,
+  `.agents/decisions.md`). Do not invoke Claude, Grok, Codex, or another external reviewer unless
+  the owner explicitly requests `codereview`, `review`, `openreview`, or names the reviewer for
+  that work. Code still requires an owner-approved plan and normal repository verification; the
+  installed review playbooks are opt-in.
 - **PHASE V CODE IS COMPLETE; THE OWNER PLAYTEST IS PENDING.** All four implementation slices are
   merged and accepted; `.agents/review/index.md` owns their status and verdict trail. The live
   contract is one campaign-canonical narrator, server-resolved NPC voices, and shared host/seat
@@ -48,7 +44,7 @@ to `docs/history/state-archive.md`.
   effects — `.agents/decisions.md`). The canonical queue remains
   `.agents/review/rules-system-plan-intake.md` (next decisions: D4, D6, D11, D12, D14 — one at
   a time; D3/D5/D13 are unblocked by D2; D15 and D16 are owner-raised with recorded required
-  shapes, pending). No rules code before a concrete phase and an accepted plan review.
+  shapes, pending). No rules code before a concrete phase and an owner-approved plan.
 - **The D2 effect catalog (`docs/rules/effects.md`) is REVIEW-CONVERGED at DRAFT r24 —
   round r28 repair-delta redispatch returned CLOSED with zero findings (pinned
   `6772d33ca2026bf14c26bf518a280b54e88e9061`), awaiting owner sign-off.** The full 28-round
@@ -58,8 +54,8 @@ to `docs/history/state-archive.md`.
   base timing, per-rung wealth semantics — all repaired in r24), and r28 verified all three
   repairs complete with no new contradictions, `cold_implementer_executable: true`. Sign-off
   ungates Chapter 1 edge-band implementation planning (still: no rules code before a concrete
-  phase and an accepted plan review).
-- The existing owner-approved reviewloop backlog remains unstarted as of `ca55b55`.
+  phase and an owner-approved plan).
+- The existing owner-approved implementation backlog remains unstarted as of `ca55b55`.
   `.agents/review/index.md` owns the exact findings and order; resume at `jt-1`, finish the remaining
   backlog, then enter the approved T2-s/T2 plan.
 - **The old `/admin` catalog-only plan is superseded by the admin model registry redesign.** Owner
@@ -127,7 +123,7 @@ complete.
   autonomous work exists on the chapter. Present at sign-off the items held for the owner:
   the §4 assembler minimal-vs-substantive flag, the pre-D7 conservative license consequence,
   and the three declared Chapter 1 refinements. Sign-off ungates Chapter 1 edge-band
-  implementation planning (no rules code before a concrete phase and an accepted plan review).
+  implementation planning (no rules code before a concrete phase and an owner-approved plan).
 
 - Phase V's owner playtest remains the pending feel gate after this explicitly selected repo work.
   Configure either OpenAI or Grok voice in `/admin`, enable Voice Narration, and play a real scene
@@ -168,11 +164,10 @@ complete.
 
 ## Active Sources
 
-- `AGENTS.md`, `.agents/repo-guidance.md`, `.agents/decisions.md`,
-  `.agents/playbooks/codereview.md`
+- `AGENTS.md`, `.agents/repo-guidance.md`, `.agents/decisions.md`
+- `.agents/playbooks/codereview.md` — only when the owner explicitly invokes review
 - `plan.md` — phases and the current priority.
 - `.agents/review/index.md` — review loops, findings, verdicts.
 - `README.md` — current setup, hosting, seat, and voice flow.
 - `.agents/machines.md` — machine-local facts and cleanup blockers; never portable state.
 - `docs/history/state-archive.md` — rotated history; not current state.
-

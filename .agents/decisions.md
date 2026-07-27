@@ -20,9 +20,34 @@ Supersedes:
 <Optional prior decision, doc, or rule.>
 -->
 
-### 2026-07-15 - Claude Code Fable 5 is the reviewloop reviewer
+### 2026-07-26 - Cross-harness review is opt-in
 
 Status: Active
+
+Decision:
+Independent planning and review dispatches are disabled by default. An agent must not invoke
+Claude, Grok, Codex, or another external reviewer for a plan or code change unless the owner
+explicitly requests `codereview`, `review`, `openreview`, or otherwise explicitly names the
+reviewer for that work.
+
+Code changes still require an owner-approved plan and the repository's normal verification under
+`AGENTS.md`, but they do not require an independent review verdict before implementation, commit,
+or landing. The installed review playbooks remain available as opt-in workflows. Historical plan
+language and review records remain evidence of the workflows that produced them; they do not
+authorize a new external reviewer dispatch.
+
+Reason:
+After an automatic Claude planning dispatch was attempted solely because of the standing
+reviewloop rule, the owner directed on 2026-07-26: **"flip that rule to off."**
+
+Supersedes:
+The 2026-07-12 unconditional reviewloop requirement, the 2026-07-14 default division of review
+labour, and the 2026-07-15 Claude Fable reviewer default. Historical verdicts remain valid, and a
+future explicit owner request may opt a specific task into a review playbook.
+
+### 2026-07-15 - Claude Code Fable 5 is the reviewloop reviewer
+
+Status: Superseded as an automatic default by the 2026-07-26 opt-in decision
 
 Decision:
 Independent reviewloop dispatches for Codex-authored plans and code use Claude Code with the exact
@@ -189,7 +214,7 @@ wrong implementation. Both are guards that cannot fail.
 
 ### 2026-07-14 - Division of labour: codex IMPLEMENTS, Claude PLANS and ADVERSARIALLY VERIFIES
 
-Status: Active
+Status: Superseded as the default workflow by the 2026-07-26 opt-in decision
 
 Decision:
 The reviewloop's roles are **reassigned, not abandoned**. For work that is well-specified by an
@@ -349,7 +374,7 @@ dead: setup generates flavor, never mechanics.
 
 ### 2026-07-12 - All code goes through the reviewloop playbook; plan first, then code
 
-Status: Active, except the reviewer-role assignment was superseded 2026-07-14
+Status: Superseded by the 2026-07-26 opt-in review decision
 
 Decision:
 Every code change goes through `.agents/playbooks/codereview.md` with an independent
@@ -1080,4 +1105,3 @@ content. It refines — does not supersede — resolution chapter §1.5: catalog
 and point-budget validation stand, with the catalog understood as a wide state-verb vocabulary.
 The genre-spread coverage proof carries forward as a drafting-stage obligation on the verb set
 (reviewer recommendation; not separately owner-ruled).
-
