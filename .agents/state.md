@@ -14,11 +14,12 @@ to `docs/history/state-archive.md`.
   pipeline remains canonical. Product work continues incrementally through rules, UI, mapping, and
   related improvements. The discarded proposal survives only as historical evidence at
   `docs/history/runtime-greenfield-plan-abandoned.md`; none of its gates or open questions apply.
-- **THE RULES TRACK HAS ONE SIGN-OFF GATE AND A SEPARATE DECISION QUEUE.** Chapter 1
-  (`docs/rules/resolution.md`) is owner-signed and D2 is decided. Chapter 2
-  (`docs/rules/effects.md`, DRAFT r24 at commit `6772d33`) is review-converged after r28 with zero
-  findings and awaits owner sign-off. `.agents/review/rules-system-plan-intake.md` owns the remaining
-  decision queue; no rules code before a concrete phase and an owner-approved plan.
+- **RULES CHAPTERS 1 AND 2 ARE OWNER-SIGNED; THE DECISION QUEUE CONTINUES.** Chapter 1
+  (`docs/rules/resolution.md`) and Chapter 2 (`docs/rules/effects.md`, r24 substantive pin
+  `6772d33`) are canonical. Chapter 2 closed r28 with zero findings and was signed off
+  2026-07-27, enacting its three declared Chapter 1 refinements and closing the D2 catalog-design
+  gate. `.agents/review/rules-system-plan-intake.md` owns the remaining decision queue; no rules
+  code before a concrete phase and an owner-approved plan.
 - **PHASE V CODE IS COMPLETE; THE OWNER VOICE PLAYTEST IS PENDING.** The live contract is one
   campaign-canonical narrator, server-resolved NPC voices, shared host/seat synthesis, and
   save-once replay. `.agents/review/index.md` owns the accepted implementation trail. The phase
@@ -34,11 +35,12 @@ to `docs/history/state-archive.md`.
 
 ## Next
 
-**FIRST OWNER ACTION:** sign off or reject the review-converged effect catalog
-(`docs/rules/effects.md`, DRAFT r24). Recommendation: sign it off; r28 closed with zero findings,
-and sign-off unlocks the next rules decision and a concrete edge-band implementation plan.
+**FIRST OWNER ACTION:** Decide D3's archetype boundary. Recommendation: use a fixed, versioned
+mechanical chassis with campaign-specific names and flavor skins; this preserves portability,
+balance, and late-join consistency while retaining genre expression.
 
-- After the catalog ruling, continue the rules intake queue one owner decision at a time.
+- Continue the rules intake queue one owner decision at a time; D5 and D13 are also ready now
+  that D2 is signed off.
 - The first approved UI backlog slice is `jt-1` (prevent stale cross-campaign Journal responses);
   select it when UI implementation should resume.
 - The concrete mapping candidate is the parked location-title overflow defect; draft and approve
@@ -51,7 +53,8 @@ and sign-off unlocks the next rules decision and a concrete edge-band implementa
 ## Blockers
 
 - No product-code defect blocks development.
-- Rules edge-band planning is blocked on owner sign-off of `docs/rules/effects.md`.
+- Rules implementation remains blocked on a concrete phase and owner-approved code plan; the
+  catalog-design gate itself is closed.
 - Phase V closure requires the owner's real-session voice verdict.
 - Multiplayer network exposure is owner-handled infrastructure.
 - Machine-local css-2 cleanup on `nagatha` requires explicit destructive go; see

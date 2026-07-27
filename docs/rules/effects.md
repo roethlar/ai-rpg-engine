@@ -1,6 +1,6 @@
 # Aetheria House Ruleset — Chapter 2: Effects
 
-**Status**: DRAFT r24 — rounds r1–r8 were reopened by both independent reviewers; at r9 one
+**Status**: OWNER-SIGNED r24 (2026-07-27) — rounds r1–r8 were reopened by both independent reviewers; at r9 one
 reviewer **accepted** (zero findings, cold-implementer-executable) and one reopened; r10–r12
 were reopened by both; r13–r14 were codex-only conservative passes (owner-directed) reopening
 with 1 HIGH / 2 MEDIUM, then 1 MEDIUM; the r15 repair-delta redispatch reopened once more with
@@ -43,14 +43,14 @@ runs), and the collapsed `destitute`…`opulent` semantics row expanded to five 
 rows — all admitted findings
 fixed; every
 admitted finding is addressed in place (trail and the recorded disputes:
-`.agents/review/effect-catalog-review.md`). Not yet owner-signed. Implementation of Chapter 1's
-edge bands is gated on **this chapter's acceptance** — and, per campaign, on a pinned
+`.agents/review/effect-catalog-review.md`). Owner-signed 2026-07-27. Chapter 1's edge-band
+implementation now consumes this accepted chapter and remains gated, per campaign, on a pinned
 `catalog_version` (campaigns without one are pre-catalog legacy and fail closed pending D13,
 §1.1): pre-D7, license pricing follows §3's
 conservative rule (the encounter-active input is constantly false), and each gated operation
 activates with its own dependency — there is no separate D7 shipping gate.
-**Declared Chapter 1 refinements (enacted at this chapter's sign-off, mirroring Chapter 1's own
-supersession pattern)**:
+**Declared Chapter 1 refinements (enacted by this chapter's 2026-07-27 owner sign-off, mirroring
+Chapter 1's own supersession pattern)**:
 1. The §5 ledger `annotation` shape extends from `{text, effects}` to `{text, effects,
    affirmedOpposed}` — the Continuity-emitted set of NPC refs affirmed as presently opposed
    (§1/§3); the field is Continuity's alone (a proposal carrying it rejects). Additionally, each
@@ -691,9 +691,9 @@ as a proxy**. Until D7 ships a deterministic lifecycle, the encounter-active inp
 **and** +1 for `extreme`/`legendary` tier, so either alone reaches `minor` and both together
 reach `significant`/2, exactly as §2.8 and §8's recap state; encounter-false removes only the
 in-encounter `minor` base, it does not cap the ladder).
-**Owner-visible consequence, flagged**: until encounters exist, mechanical complications are rare
-and small — mid-fight texture arrives with D7. This is a shipping-order fact, not a design
-change.
+**Owner-visible consequence, accepted at sign-off 2026-07-27**: until encounters exist,
+mechanical complications are rare and small — mid-fight texture arrives with D7. This is a
+shipping-order fact, not a design change.
 
 **Weight**: per the §2 tables. *By item class*: `minor` for mundane-class, `significant` for
 significant-class items; classes are D16 registry data and exist only on registry records —
@@ -768,13 +768,11 @@ Everything else — which live-state sources to draw on (inventory, present NPCs
 conditions and features, the check's ruled deltas), how candidates are generated, filtered, or
 ranked — is **non-normative guidance**, not contract, and no acceptance case may depend on it.
 
-**Flag for owner sign-off (open by design, Chapter 1 §3 precedent)**: this minimal reading
-follows the D2 decision's wording ("complication SUGGESTIONS, maybe"). If you want a
-*guaranteed* substantive suggestion feature — one implementations must ship, with defined
-behavior — say so at sign-off and a normative assembler contract gets designed and reviewed as
-its own increment; otherwise the de-scope stands: this chapter's acceptance suite exercises
-clauses 1–2 only, and no source selection, generation, or ranking behavior may be cited as
-chapter-conformance evidence.
+**Owner sign-off resolution (2026-07-27): the minimal reading is approved.** The D2 decision's
+wording ("complication SUGGESTIONS, maybe") does not require a substantive suggestion assembler.
+This chapter's acceptance suite exercises clauses 1–2 only, and no source selection, generation,
+or ranking behavior may be cited as chapter-conformance evidence. A guaranteed substantive
+suggestion feature would require its own future plan and contract.
 
 This is the owner's "contextual table": suggestion content varies with the scene because it *is*
 the scene, while the free-text complication stays the model's to write.

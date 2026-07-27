@@ -20,6 +20,27 @@ Supersedes:
 <Optional prior decision, doc, or rule.>
 -->
 
+### 2026-07-27 - Rules Chapter 2 effect catalog is signed off
+
+Status: Active
+
+Decision:
+Chapter 2 r24 (`docs/rules/effects.md`) is the owner-signed canonical D2 effect vocabulary,
+substantively pinned at `6772d33ca2026bf14c26bf518a280b54e88e9061`. Sign-off accepts §3's
+conservative pre-D7 encounter input, §4's minimal/optional contextual-suggestion interpretation,
+and the three declared Chapter 1 refinements: Continuity-owned `affirmedOpposed` plus
+engine-stamped resolved metadata, typed engine-issued entity references as identifiers rather than
+arithmetic, and `neutral` valence outside edge-band authorization. This closes the D2 design gate;
+rules code still requires a concrete phase and owner-approved plan.
+
+Reason:
+The owner approved the complete sign-off surface on 2026-07-27 after the r28 repair-delta review
+closed with zero findings and judged the chapter cold-implementer-executable.
+
+Supersedes:
+Chapter 2's draft/awaiting-owner-sign-off status, the unresolved §4 assembler flag, and records
+that still describe an accepted effect catalog as an unmet D2 prerequisite.
+
 ### 2026-07-26 - Abandon the greenfield runtime rewrite; improve the shipped engine incrementally
 
 Status: Active
@@ -1107,10 +1128,9 @@ play; failure stays observable without unfalsifiable state drift.
 The previously recorded D2 scope deliverables stand unchanged: complication-effect classes
 (resource/inventory loss, NPC disposition shifts, encounter initiation, outcome-value modulation
 with D1b), effect weight classes (minor/significant), per-operation point costs, and per-operation
-valence tags. Next deliverable: the catalog document, drafted and run through the reviewloop like
-the resolution chapter. The accepted catalog document still gates edge-band implementation; no
-rules code before a concrete phase and an owner-approved plan. The D2 decision unblocks the D3,
-D5, and D13 queue discussions.
+valence tags. The owner-signed Chapter 2 r24 satisfied the catalog-document gate on 2026-07-27;
+no rules code may begin before a concrete phase and an owner-approved plan. The D2 decision now
+unblocks the D3, D5, and D13 queue discussions.
 
 Reason:
 Owner 2026-07-16, rejecting the fixed-catalog-as-complication-table framing: "complication tables

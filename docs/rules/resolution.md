@@ -1,10 +1,12 @@
 # Aetheria House Ruleset — Chapter 1: Resolution
 
 **Status**: ACTIVE — signed off by the owner 2026-07-16 at review-converged pin `8f7862d` (nine
-rounds, codex + grok dual acceptance; trail: `.agents/review/resolution-ruleset-review.md`). The
+rounds, codex + grok dual acceptance; trail: `.agents/review/resolution-ruleset-review.md`);
+amended 2026-07-27 by the owner-signed Chapter 2 r24's three declared refinements. The
 Supersession declaration below is enacted and recorded in `.agents/decisions.md`. This chapter is
-the canonical check-resolution specification; implementation of the edge bands is gated on the D2
-effect catalog.
+the canonical check-resolution specification. The D2 effect-catalog design gate was satisfied by
+the owner-signed Chapter 2 r24 on 2026-07-27; rules code still requires a concrete owner-approved
+phase plan.
 **Provenance**: D0 (2026-07-12, fixed house chassis + flavor skins); D1 (2026-07-16, as amended);
 owner brainstorm adopted for drafting 2026-07-16 (`.agents/review/dice-bakeoff.md`, addenda 3–4).
 
@@ -28,9 +30,11 @@ On owner acceptance, this chapter supersedes the following clauses of the 2026-0
    identifiers (direction + magnitude + reason, §3), the `tierBasis` statement, the `callSeq`
    protocol ordinal, and edge-band annotation proposals (§1.5). Every **game-mechanical number**
    remains engine-owned: models never emit, see pre-commit, or alter any value that enters game
-   arithmetic. Models emit exactly two numeric protocol identifiers, neither of which enters game
-   arithmetic: the acting-character id (a cross-check the engine independently binds and verifies,
-   §1.2) and the `callSeq` idempotency ordinal.
+   arithmetic. The only standalone numeric protocol identifiers are the acting-character id (a
+   cross-check the engine independently binds and verifies, §1.2) and the `callSeq` idempotency
+   ordinal. Chapter 2 additionally permits typed, engine-issued entity reference tokens inside
+   effect selections; they name recorded entities, are validated on resolution, and never enter
+   game arithmetic.
 
 Carried forward unchanged from D1: difficulty lives only in the target (no graded difficulty
 mechanics in the mid-range); the ladder is code-owned; models never invent numbers; GM latitude on
@@ -114,7 +118,9 @@ A **check** resolves one uncertain, consequential action by the current turn's a
 5. **Annotation (edge bands only; validated, atomic, one-shot).** For `crit_success`,
    `crit_failure`, `marginal_success`, and `marginal_failure`, the Referee proposes the
    extra/complication as a structured **annotation**: `{ text, effects }`. Continuity validates it
-   against established fiction, the non-negation rule (an annotation on a success cannot remove,
+   and alone supplies `affirmedOpposed`, the typed NPC refs it affirms as presently opposed; a
+   Referee proposal carrying that field rejects. Validation covers established fiction, the
+   non-negation rule (an annotation on a success cannot remove,
    undo, or conditionalize the succeeded intent; on a failure it cannot grant the goal), and
    **text–effect coherence, in both directions**: every `effects` entry must be the mechanical
    expression of the annotation's `text`, and every mechanical consequence the text asserts — a
@@ -133,8 +139,9 @@ A **check** resolves one uncertain, consequential action by the current turn's a
    - **Engine validation of effects (after Continuity, before any commit or execution)**: the
      engine validates every `effects` entry — D2 catalog membership; quantity legality per the
      catalog's fixed/tiered definitions; **band-valence legality** (every catalog operation
-     carries an engine-checkable valence tag, `beneficial` or `adverse` — a D2 deliverable;
-     `crit_success` admits only `beneficial` effects, the other three edge bands only `adverse`);
+     carries an engine-checkable valence tag, `beneficial`, `adverse`, or `neutral`; `neutral` is
+     illegal for edge-band authorization, `crit_success` admits only `beneficial` effects, and the
+     other three edge bands admit only `adverse` effects);
      and the **summed effect-point cost within the license budget** (see the executable contract
      below). An annotation failing engine validation counts against the same single-revision
      allowance as a Continuity rejection; two failures of any mix commit the null annotation.
@@ -146,12 +153,11 @@ A **check** resolves one uncertain, consequential action by the current turn's a
      pick reduces the pick count by one; a spilled drink angers the patron and can start an
      encounter; a glancing blow deals reduced damage. What models supply remains identifiers only:
      each `effects` entry is a D2 catalog selection — an operation token whose quantities are fixed
-     or tiered and engine-owned — never a model-chosen number. Because that vocabulary does not
-     exist yet, **the D2 effect catalog is a hard prerequisite for implementing this chapter's edge
-     bands**: no implementation may ship annotations whose complications lack their mechanical
-     weight, and none may execute effects outside the catalog. Effects may never modify a check's
-     outcome fields. The annotation text is additionally binding narrative canon for narration and
-     every later continuity check.
+     or tiered and engine-owned — never a model-chosen number. The owner-signed Chapter 2 catalog is
+     the canonical vocabulary: no implementation may ship annotations whose complications lack
+     their mechanical weight, and none may execute effects outside the catalog. Effects may never
+     modify a check's outcome fields. The annotation text is additionally binding narrative canon
+     for narration and every later continuity check.
    - **Discretion is licensed, never required, and always ledgered (playtest-tunable).** A band
      *licenses* a complication; it never mandates one — flavor-only is always a legal ruling, the
      way a human GM lets a near-miss ride when the moment is light. How hard a complication may
@@ -172,9 +178,9 @@ A **check** resolves one uncertain, consequential action by the current turn's a
      engine-owned points: a `minor`-class effect costs 1 and a `significant`-class effect costs 2;
      the license grants a budget (`flavor_only` = 0, `minor` = 1, `significant` = 2) and the summed
      cost must not exceed it — a `minor` license admits exactly one minor effect; a `significant`
-     license admits one significant or two minors. Which catalog operations are `minor` versus
-     `significant`, their per-operation point costs, and each operation's valence tag are D2
-     deliverables.
+     license admits one significant or two minors. The owner-signed Chapter 2 catalog defines
+     which operations are `minor` versus `significant`, their per-operation point costs, and each
+     operation's valence tag; validation reads them from the campaign's pinned catalog version.
    The check's outcome fields (`T`, `raw`, `band`, and everything in §5 except the one-time
    annotation transaction) are immutable from the moment of commit.
 6. **Narrate.** Narration receives the completed record and describes it. The band is binding:
@@ -266,7 +272,7 @@ Every check appends exactly one record; field types are the contract:
 | `raw` | integer 1–100 |
 | `sides` | literal `100` (roll-record contract, intake F7) |
 | `band` | band token (§1.4 enum) |
-| `annotation` | `{text: string ≤300, effects: [...]}` or `null` — every `effects` entry is a D2 catalog selection, no model-chosen quantities (§1.5); one atomic transaction, edge bands only |
+| `annotation` | `{text: string ≤300, effects: [...], affirmedOpposed: [typed NPC refs...]}` or `null` — the Referee proposes only `{text, effects}`; Continuity alone emits `affirmedOpposed`; every effect is a Chapter 2 catalog selection, with engine-stamped resolved metadata and no model-chosen quantities (§1.5); one atomic transaction, edge bands only |
 | `annotationRejected` | string ≤200 or `null` — set when both annotation proposals failed validation (§1.5) |
 | `stakesLicense` | license token, engine-computed from encounter state + tier + band (§1.5) — recorded on edge-band checks, `null` otherwise |
 | `timestamp` | ISO-8601 UTC, engine clock, stamped at commit |
@@ -287,8 +293,9 @@ direction + magnitude + reason identifiers; emit the protocol identifiers (actor
 annotations (text plus D2 catalog effect selections, within the stakes license — or nothing but
 flavor); narrate the computed band; describe success and failure to fit the situation.
 **May not:** roll dice; emit, invent, or alter any game-mechanical number (targets, bonuses, delta
-values, results — the only model-emitted numeric tokens are the two protocol identifiers, actor
-id and callSeq, and neither enters game arithmetic); apply arithmetic; select whose competence a check uses (the engine binds the
+values, results — the only standalone model-emitted numeric protocol identifiers are actor id and
+callSeq; Chapter 2 typed entity reference tokens are identifiers, not arithmetic); apply arithmetic;
+select whose competence a check uses (the engine binds the
 actor); count one underlying fact in more than one place (tierBasis and deltas combined); request
 a second roll for a resolved logical key; upgrade, downgrade, or conditionalize a band in prose;
 attach effects outside the D2 catalog, beyond the stakes license, or with model-chosen
@@ -297,11 +304,8 @@ ledgered effect; offer the player an alternate outcome for a resolved check.
 
 ## 7. Explicit non-scope (tracked elsewhere)
 
-Value derivation for damage/effects (**D1b**); the effect catalog (**D2** — a hard prerequisite for
-implementing this chapter's edge bands; its required scope includes the complication-effect
-classes: resource/inventory loss, NPC disposition shifts, encounter initiation, and outcome-value
-modulation jointly with D1b — plus the effect-weight classes (`minor`/`significant`), per-operation
-point costs, and per-operation valence tags the stakes license and band-valence checks consume);
+Value derivation for damage/effects (**D1b**); implementation of the owner-signed Chapter 2 effect
+catalog (the design contract is settled; runtime work belongs in the eventual phase plan);
 archetypes (**D3**); attributes and SkillBonus derivation
 (**D4**); spend economy (**D5**); zones/tactical space (**D6**); initiative (**D7**); the
 opposition curve and final ladder values (**D8**); dying/death (**D9**); recovery (**D10**);

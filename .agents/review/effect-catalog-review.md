@@ -1,6 +1,6 @@
 # Effect catalog review (docs/rules/effects.md)
 
-**Status**: CLOSED — round r28 repair-delta redispatch returned CLOSED with zero findings (pinned 6772d33ca2026bf14c26bf518a280b54e88e9061); Chapter 2 at DRAFT r24, zero open findings, review loop complete, awaiting owner sign-off.
+**Status**: OWNER-SIGNED — Chapter 2 r24 signed off 2026-07-27 after round r28 repair-delta redispatch returned CLOSED with zero findings (substantive review pin `6772d33ca2026bf14c26bf518a280b54e88e9061`; the sign-off slice changes status/decision records and enacts the already-reviewed refinements in Chapter 1).
 **Artifact**: `docs/rules/effects.md` (Chapter 2: Effects — the D2 effect verb catalog).
 **Owner direction**: 2026-07-16 — owner approved drafting with independent review "like the dice
 spec" (the resolution chapter), which ran dual codex + grok. Claude authored this draft and
@@ -1179,4 +1179,12 @@ findings against the draft text, not yet owner-signed.
 - R27-2 fix verified: §2.8 checked against resolution.md's commit/annotation-validation order — only the already-resolved band binds during the Continuity texture pass; `quality`/effect entries do not. Prompt-context beliefs remain excluded; standing facts remain governed.
 - R27-3 fix verified: five per-rung wealth rows checked against §2.3 `wealth_shift` and the §7 configured ladder — all rungs present in order, distinct fictional meanings, complete per-row must-not-assert boundary.
 - No new contradictions in the status narrative, review trail cross-references, §2.7 record shape, or §9 carry-over.
-- Verdict envelope: CLOSED, findings [], cold_implementer_executable true. Draft r24 stands. Review loop complete — chapter awaits owner sign-off.
+- Verdict envelope: CLOSED, findings [], cold_implementer_executable true. Draft r24 stands. Review loop complete.
+
+## Owner sign-off — 2026-07-27
+
+- Owner approved Chapter 2 r24 after receiving the decision surface in chat.
+- Accepted terms include §3's conservative pre-D7 encounter input, §4's minimal/optional
+  contextual-suggestion interpretation, and the three declared Chapter 1 refinements.
+- The effect-catalog design gate is closed. Rules code still requires a concrete phase and
+  owner-approved plan.

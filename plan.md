@@ -676,8 +676,9 @@ Raised during planning but deliberately deferred. **Per project rule, nothing he
     - **A deterministic resolver replacing part of an AI role.** This is the intake's own
       headline conclusion arrived at independently: the engine owns every number, die,
       resource, condition and state transition; models emit validated identifiers and enums,
-      never arithmetic. It is the Referee becoming mostly code, and it cannot be specified
-      until the effect catalog exists (intake F2, HIGH).
+      never arithmetic. The owner-signed Chapter 2 effect catalog now supplies that vocabulary;
+      implementation still waits on the remaining rules decisions, a concrete phase, and an
+      owner-approved code plan.
     - **Correction, load-bearing:** *externality is not what makes a roll unfudgeable.* A
       separate process, an MCP hop or a dice microservice adds latency and a new trust
       boundary, not integrity. What makes a roll honest is that the model never emits the
