@@ -112,6 +112,6 @@ recorded facts still hold.
 - The conventional remote roles are `origin` = the private canonical Gitea and `github` = the public
   mirror. Remote URLs are clone-local configuration; inspect `git remote -v` rather than recording a
   hostname here. Because the mirror is public, tracked files must never contain secrets; `.env` and
-  `data/` are gitignored.
+  `data/` are gitignored. <!-- lint: allow (owner ruled leave-it, 2026-07-26: data/ is gitignored and created at runtime by db.js/audio-store.js/rpg-engine.js; this documents the ignore rule, not a tracked path) -->
 - Push policy lives in `.agents/push-policy.md` and applies to both remotes:
   a push go means pushing master to both unless the owner says otherwise.
