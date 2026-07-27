@@ -18,3 +18,4 @@ delete entries as soon as they stop being true. Portable project state belongs i
   worktree would discard or require preserving its local probe changes, so cleanup is destructive
   and requires an explicit owner go. After cleanup, delete this entry; do not refresh it as
   permanent history.
+- harness-cli: codex.exe (recorded 2026-07-26, refresh offer)
