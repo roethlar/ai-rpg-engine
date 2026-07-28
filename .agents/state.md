@@ -20,11 +20,16 @@ to `docs/history/state-archive.md`.
   2026-07-27, enacting its three declared Chapter 1 refinements and closing the D2 catalog-design
   gate. `.agents/review/rules-system-plan-intake.md` owns the remaining decision queue; no rules
   code before a concrete phase and an owner-approved plan.
-- **D3 HAS A REVIEWED V2 PLAN, NOT AN OWNER DECISION.**
-  `.agents/review/archetype-portability-matrix-v2.md` supersedes v1 as the active working draft
-  after incorporating `.agents/review/archetype-portability-matrix-review.md`. It makes functional
-  families internal, adds D2 bindings and implementation/verification gates, and leaves
-  new-character composition plus D13/D16 state portability explicitly unresolved.
+- **D3 HAS A REVIEWED V3.1 PLAN, NOT AN OWNER DECISION.**
+  `.agents/review/archetype-portability-matrix-v3.1.md` is the active working draft; v1, v2, v3,
+  and `.agents/review/archetype-portability-matrix-review.md` are retained evidence. V3 replaced
+  v2's mechanical-equivalence fingerprint with an immutable-mechanics thesis — Translate copies the
+  mechanical record verbatim and rebinds only expression — and v3.1 fixed nine review findings
+  against it (per-character bindings, a formal requirement predicate grammar, corrected pin
+  coverage, the literal-pin/leak-test contradiction, new-character onboarding, ability-id scope,
+  declaration lifecycle, and a narrowed round-trip claim). It also withdraws v3's claim that
+  expression-only translation is mechanically risk-free: the ruleset sheet is the adjudicating
+  model's canon rulebook (`rpg-prompts.js:101-109`), so canon-prose rewrites ship last and gated.
 - **PHASE V CODE IS COMPLETE; THE OWNER VOICE PLAYTEST IS PENDING.** The live contract is one
   campaign-canonical narrator, server-resolved NPC voices, shared host/seat synthesis, and
   save-once replay. `.agents/review/index.md` owns the accepted implementation trail. The phase
@@ -40,10 +45,10 @@ to `docs/history/state-archive.md`.
 
 ## Next
 
-**FIRST OWNER ACTION:** Review `.agents/review/archetype-portability-matrix-v2.md`. First rule only
-on the core architecture: functional kernel plus destination expression, distinct
-Continue/Branch/Translate modes, translated branch creation, and mandatory player approval. No D3
-decision is recorded until the owner rules.
+**FIRST OWNER ACTION:** Review `.agents/review/archetype-portability-matrix-v3.1.md`. First rule
+only on the core architecture: mechanics copied verbatim plus per-campaign expression bindings,
+distinct Continue/Branch/Translate modes, translated branch creation, and mandatory player
+approval. No D3 decision is recorded until the owner rules; no slice is proposed as standalone.
 
 - Continue the rules intake queue one owner decision at a time; D5 and D13 are also ready now
   that D2 is signed off.
@@ -83,9 +88,11 @@ decision is recorded until the owner rules.
 - `AGENTS.md`, `.agents/repo-guidance.md`, `.agents/decisions.md`
 - `docs/rules/effects.md`, `.agents/review/effect-catalog-review.md`, and
   `.agents/review/rules-system-plan-intake.md`
-- `.agents/review/archetype-portability-matrix-v2.md` — active D3 plan;
-  `.agents/review/archetype-portability-matrix.md` and
-  `.agents/review/archetype-portability-matrix-review.md` — retained v1 evidence.
+- `.agents/review/archetype-portability-matrix-v3.1.md` — active D3 plan;
+  `.agents/review/archetype-portability-matrix.md`,
+  `.agents/review/archetype-portability-matrix-review.md`,
+  `.agents/review/archetype-portability-matrix-v2.md`, and
+  `.agents/review/archetype-portability-matrix-v3.md` — retained evidence.
 - `plan.md` — the broader phased roadmap.
 - `.agents/review/index.md` — implementation findings, order, and verdicts.
 - `README.md` — current setup, hosting, seat, and voice flow.
