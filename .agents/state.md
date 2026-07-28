@@ -20,6 +20,11 @@ to `docs/history/state-archive.md`.
   2026-07-27, enacting its three declared Chapter 1 refinements and closing the D2 catalog-design
   gate. `.agents/review/rules-system-plan-intake.md` owns the remaining decision queue; no rules
   code before a concrete phase and an owner-approved plan.
+- **D3 HAS A REVIEWED V2 PLAN, NOT AN OWNER DECISION.**
+  `.agents/review/archetype-portability-matrix-v2.md` supersedes v1 as the active working draft
+  after incorporating `.agents/review/archetype-portability-matrix-review.md`. It makes functional
+  families internal, adds D2 bindings and implementation/verification gates, and leaves
+  new-character composition plus D13/D16 state portability explicitly unresolved.
 - **PHASE V CODE IS COMPLETE; THE OWNER VOICE PLAYTEST IS PENDING.** The live contract is one
   campaign-canonical narrator, server-resolved NPC voices, shared host/seat synthesis, and
   save-once replay. `.agents/review/index.md` owns the accepted implementation trail. The phase
@@ -35,9 +40,10 @@ to `docs/history/state-archive.md`.
 
 ## Next
 
-**FIRST OWNER ACTION:** Review `.agents/review/archetype-portability-matrix.md`. Start with whether
-the proposed functional-kernel plus destination-genre-expression model correctly defines character
-portability; no D3 decision is recorded until the owner rules.
+**FIRST OWNER ACTION:** Review `.agents/review/archetype-portability-matrix-v2.md`. First rule only
+on the core architecture: functional kernel plus destination expression, distinct
+Continue/Branch/Translate modes, translated branch creation, and mandatory player approval. No D3
+decision is recorded until the owner rules.
 
 - Continue the rules intake queue one owner decision at a time; D5 and D13 are also ready now
   that D2 is signed off.
@@ -75,9 +81,11 @@ portability; no D3 decision is recorded until the owner rules.
 ## Active Sources
 
 - `AGENTS.md`, `.agents/repo-guidance.md`, `.agents/decisions.md`
-- `docs/rules/effects.md`, `.agents/review/effect-catalog-review.md`,
-  `.agents/review/rules-system-plan-intake.md`, and
-  `.agents/review/archetype-portability-matrix.md`
+- `docs/rules/effects.md`, `.agents/review/effect-catalog-review.md`, and
+  `.agents/review/rules-system-plan-intake.md`
+- `.agents/review/archetype-portability-matrix-v2.md` — active D3 plan;
+  `.agents/review/archetype-portability-matrix.md` and
+  `.agents/review/archetype-portability-matrix-review.md` — retained v1 evidence.
 - `plan.md` — the broader phased roadmap.
 - `.agents/review/index.md` — implementation findings, order, and verdicts.
 - `README.md` — current setup, hosting, seat, and voice flow.

@@ -1,7 +1,8 @@
 # Cross-genre archetype portability matrix
 
-**Status**: DRAFT for owner review — not a settled D3 decision and not implementation
-authorization.
+**Status**: SUPERSEDED AS THE ACTIVE WORKING DRAFT by
+`.agents/review/archetype-portability-matrix-v2.md`; retained as v1 review evidence. No D3
+decision or implementation authorization was created by either draft.
 
 **Date**: 2026-07-27
 
