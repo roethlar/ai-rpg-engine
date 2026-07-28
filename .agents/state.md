@@ -30,6 +30,14 @@ to `docs/history/state-archive.md`.
   declaration lifecycle, and a narrowed round-trip claim). It also withdraws v3's claim that
   expression-only translation is mechanically risk-free: the ruleset sheet is the adjudicating
   model's canon rulebook (`rpg-prompts.js:101-109`), so canon-prose rewrites ship last and gated.
+- **THE V3.1 CORE IS READY FOR AN OWNER RULING; STAGE 1 IS NOT YET COLD-IMPLEMENTABLE.**
+  The latest read recommends adopting gate 1's immutable-mechanics plus per-campaign-bindings
+  architecture. Before gate 2, revise three remaining seams: S1.8 cannot derive ruleset
+  `cost`/`effect`/`limits` from profile abilities safely before D5 defines their canonical link;
+  new-character onboarding needs a persisted approval draft rather than the synchronous `new`
+  route; and tightening campaign capabilities must require each affected player's approval, not
+  host-only resolution. Also define a legal expression candidate as a known semantic key whose
+  engine-owned predicate passes, with its term remaining player-approved.
 - **PHASE V CODE IS COMPLETE; THE OWNER VOICE PLAYTEST IS PENDING.** The live contract is one
   campaign-canonical narrator, server-resolved NPC voices, shared host/seat synthesis, and
   save-once replay. `.agents/review/index.md` owns the accepted implementation trail. The phase
@@ -48,7 +56,8 @@ to `docs/history/state-archive.md`.
 **FIRST OWNER ACTION:** Review `.agents/review/archetype-portability-matrix-v3.1.md`. First rule
 only on the core architecture: mechanics copied verbatim plus per-campaign expression bindings,
 distinct Continue/Branch/Translate modes, translated branch creation, and mandatory player
-approval. No D3 decision is recorded until the owner rules; no slice is proposed as standalone.
+approval. Recommendation: adopt gate 1. No D3 decision is recorded until the owner rules; Stage 1
+remains blocked on the three seams recorded above and no slice is proposed as standalone.
 
 - Continue the rules intake queue one owner decision at a time; D5 and D13 are also ready now
   that D2 is signed off.
