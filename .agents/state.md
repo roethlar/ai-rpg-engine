@@ -35,9 +35,9 @@ to `docs/history/state-archive.md`.
 
 ## Next
 
-**FIRST OWNER ACTION:** Decide D3's archetype boundary. Recommendation: use a fixed, versioned
-mechanical chassis with campaign-specific names and flavor skins; this preserves portability,
-balance, and late-join consistency while retaining genre expression.
+**FIRST OWNER ACTION:** Review `.agents/review/archetype-portability-matrix.md`. Start with whether
+the proposed functional-kernel plus destination-genre-expression model correctly defines character
+portability; no D3 decision is recorded until the owner rules.
 
 - Continue the rules intake queue one owner decision at a time; D5 and D13 are also ready now
   that D2 is signed off.
@@ -75,8 +75,9 @@ balance, and late-join consistency while retaining genre expression.
 ## Active Sources
 
 - `AGENTS.md`, `.agents/repo-guidance.md`, `.agents/decisions.md`
-- `docs/rules/effects.md`, `.agents/review/effect-catalog-review.md`, and
-  `.agents/review/rules-system-plan-intake.md`
+- `docs/rules/effects.md`, `.agents/review/effect-catalog-review.md`,
+  `.agents/review/rules-system-plan-intake.md`, and
+  `.agents/review/archetype-portability-matrix.md`
 - `plan.md` — the broader phased roadmap.
 - `.agents/review/index.md` — implementation findings, order, and verdicts.
 - `README.md` — current setup, hosting, seat, and voice flow.
