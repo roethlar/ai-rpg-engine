@@ -2887,6 +2887,96 @@ valid CSS). Its project branch refs were deleted after CT landed; the postmortem
 
 ---
 
+## Phase PT: Cross-genre portability, Stage 1 — PHASE APPROVED (gate 2, 2026-07-31); PLAN AWAITING OWNER APPROVAL
+
+**Design authority**: `.agents/review/archetype-portability-matrix-v3.1.md` (as amended §1.1).
+This section adds implementation coordinates only; mechanics, schemas, flows, and the full
+verification matrix live there and are not restated. Decisions trail:
+`.agents/decisions.md` (D3 gate 1 adopted, gate 2 approved, both 2026-07-31).
+
+**Status line (plan contract):** no code until the owner approves this plan. Remaining design
+gates ride their slices and come to chat one at a time before the affected slice lands:
+gate 3 (capability axes, v3.1 §6.1) before S1.2; gate 4 (slot taxonomy §5.3) and gate 5
+(families §5.6) before S1.3; gate 6 (onboarding shape §8.1) and gate 7 (name/history policy §10)
+before S1.5. D5 is NOT a Stage 1 dependency (amendment A narrowed S1.8 to byte-identical carry).
+
+**Slice order is load-bearing (owner gate 2) — S1.1 → S1.8, one slice per commit-series, no
+slice standalone:**
+
+- **S1.1 Ability ids** (v3.1 §4.4). Engine-issued globally unique ids, minted once; matching on
+  id with name fallback for legacy rows; one-shot backfill keyed by current name within profile.
+  Files: `rpg-engine.js` (`applyAbilityUpdates` ~110-148; Setup ability generation ~1124-1151;
+  backfill), `db.js` (abilities_json rows gain `id`; bundle export/import remaps ids),
+  `rpg-state.js` (accept/validate `id`), `test.js` (rename-in-place, legacy fallback, id
+  survival through Branch/copy/export/import).
+  Exit: renaming no longer forks an ability; suite green.
+- **S1.2 Capability declaration** (§6.1, §6.4 as amended C). Campaign columns `capability_json`,
+  `declaration_version` (nullable); derived at creation from genre; typed nine-axis validation;
+  host-visible and host-editable; tightening resolution is per affected player.
+  Files: `db.js` (campaign columns), `rpg-engine.js` (creation derivation), `rpg-state.js`
+  (axis/enum validation), `server.js` (host endpoints; per-player tightening resolution),
+  `public/index.html` + `public/app.js` (host view/edit; no `styles.css` change anticipated —
+  if styling is touched, `npm run test:browser` becomes required), `test.js` (lifecycle rules).
+  Exit: declaration round-trips; tightening names affected bindings per character and blocks on
+  each affected player; loosening immediate.
+- **S1.3 Predicate evaluator + seed tables** (§6.2, §5.6-5.9). New module `rpg-portability.js`:
+  pure, total, fail-closed evaluator (`all`/`any`/`gte`/`eq`/`not`, depth cap 3); seed data for
+  12 slot families × 10 genre classes; genre classifier target (§5.5).
+  Files: `rpg-portability.js` (new), `test.js` (grammar edges; every seed row evaluates against
+  every genre class).
+  Exit: v3.1 §12 predicate/filter rows pass.
+- **S1.4 Vocabulary + bindings** (§5, amendment D). Campaign columns `vocabulary_json`,
+  `vocabulary_version`; per-(character, campaign) bindings stored with the campaign-local
+  character snapshot; generation folded into the outline call (`rpg-engine.js:1113`) or lazy on
+  first Translate; bound-entry immutability; specialization; legal-candidate rule (§6.3).
+  Files: `db.js`, `rpg-engine.js`, `rpg-state.js`, `test.js` (two characters coexist; late
+  joiner cannot shift established terms; specialization never rewrites the shared entry).
+  Seat isolation is a re-test boundary here (repo-guidance): bindings enter seat payloads —
+  re-run leak/route guards and a throwaway-store smoke.
+- **S1.5 Onboarding** (§8.1 as amended B). Persisted draft (proposed families/slots/pins,
+  capability summary, hash-bound approval) serving all three entry points; model proposal
+  instruction; engine structural validation (known families/slots, no numbers, no mechanics).
+  Files: `db.js` (draft record), `rpg-prompts.js` (proposal instruction), `rpg-engine.js`
+  (validation), `server.js` (draft endpoints), `public/index.html` + `public/app.js` (summary
+  approval UI at the concept box), `test.js`.
+  Exit: a new character gets an identity record without seeing a class menu; draft survives
+  reload.
+- **S1.6 Translate mode** (§8.2-8.5, §13). `campaign_creation_drafts` for Translate; verbatim
+  mechanics copy + hash; card build; hash-bound idempotent approval; atomic commit;
+  `translated_from_character_id` lineage distinct from `copied_from_character_id`.
+  Files: `db.js`, `rpg-engine.js` (extend the reuse/copy creation paths ~1153-1230, 2086-2099),
+  `server.js` (`/api/campaign-drafts` routes, host-authorized), `public/app.js` +
+  `public/index.html` (card UI), `test.js` (draft states, staleness, idempotent retry; source
+  untouched).
+  Exit: play cannot begin before approval; `assert.deepStrictEqual(translated.mechanics,
+  source.mechanics)` holds.
+- **S1.7 Narration binding + leak check** (§9). Bindings + shared vocabulary injected as naming
+  authority into council context; `ability_updates` write destination ids/display names; the
+  §9 set-difference leak assertion over an assembled-context fixture, including the
+  literal-pin-must-appear case.
+  Files: `rpg-engine.js` (turn-context assembly ~523-599), `rpg-prompts.js` (GM instruction),
+  `test.js`.
+  Exit: no unapproved source term reaches destination council context; seat guards re-run.
+- **S1.8 Rule-sheet carryover** (§11 as amended A) — LAST, never after turn 1. Destination
+  Setup receives incoming ability records; entries with a source ruleset counterpart carry
+  `cost`/`effect`/`limits` byte-identical with only the display name rebound; no-counterpart
+  abilities carried underived and disclosed on the card.
+  Files: `rpg-engine.js` (Setup ruleset generation ~1124-1151), `rpg-prompts.js`, `test.js`
+  (§12 S1.8 byte-identity row).
+  Exit: a reused profile's sheet names her abilities in destination language, mechanics
+  byte-identical, every change shown on the card.
+
+**Success metrics**: the v3.1 §12 verification table rows for each slice pass in `npm test`
+(guard-proofed per AGENTS.md); the §12 manual playtests 1-10 are bundled into the owner's
+consolidated feel session per the standing arrangement (state.md), with the phase's feel gate
+= the §12 bar: before turn 1 the player can state what the character can do, what changed, what
+it costs, what remains impossible — and after ten turns the narrator still speaks the
+destination's language.
+
+**Non-goals**: v3.1 §14 in full; nothing from Stages 2-4 (D5/D13/D16-gated).
+
+---
+
 ## Historical Progress Log (not current state)
 
 This section preserves implementation history. `.agents/state.md` is the canonical current-state

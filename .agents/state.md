@@ -25,14 +25,12 @@ to `docs/history/state-archive.md`.
   mandatory player approval. `.agents/review/archetype-portability-matrix-v3.1.md` is the active
   working draft; v1, v2, v3, and the review file are retained evidence. Gates 2-7 remain unruled;
   no product code is authorized.
-- **THE STAGE 1 SEAMS ARE CLOSED** (post-gate-1 amendments 2026-07-31, mapped in §1.1 of the v3.1
-  draft): S1.8 narrowed to byte-identical carryover of source ruleset entries with no derivation
-  before D5; new-character onboarding gained a persisted, hash-bound approval draft; tightening a
-  campaign declaration now requires each affected player's own resolution, never host-imposed;
-  and "legal expression candidate" is formally defined (known semantic key, engine-evaluated
-  predicate, player-approved term). The amendments are agent-drafted and unreviewed
-  (cross-harness review stays off by default). Gate 2 — Stage 1 as a phase, S1.1 → S1.8 — is
-  ready for the owner.
+- **D3 GATE 2 IS OWNER-APPROVED (2026-07-31): STAGE 1 IS A PHASE — PHASE PT.** The three seams
+  are closed by the post-gate-1 amendments (v3.1 §1.1; openreviewed by kimi k3 max over
+  `8320db7..770b3e5`, one LOW records finding fixed as rq-1). The concrete phase plan is drafted
+  as Phase PT in `plan.md` and **awaits owner plan approval — no code until it lands**. Gates
+  3-7 ride their slices (3 before S1.2; 4-5 before S1.3; 6-7 before S1.5), one decision at a
+  time. D5 is not a Stage 1 dependency.
 - **PHASE V CODE IS COMPLETE; THE OWNER VOICE PLAYTEST IS PENDING.** The live contract is one
   campaign-canonical narrator, server-resolved NPC voices, shared host/seat synthesis, and
   save-once replay. `.agents/review/index.md` owns the accepted implementation trail. The phase
@@ -48,10 +46,9 @@ to `docs/history/state-archive.md`.
 
 ## Next
 
-**NEXT OWNER ACTION:** Gate 2 — approve Stage 1 as a phase in the S1.1 → S1.8 order (the order is
-load-bearing). A yes authorizes drafting the concrete phase plan (files to change, success
-metrics) for separate approval; no code moves on the gate alone. No slice is proposed as
-standalone.
+**NEXT OWNER ACTION:** Approve the Phase PT plan (`plan.md`, "Phase PT: Cross-genre portability,
+Stage 1"). A yes authorizes S1.1 (ability ids) to start immediately; gates 3-7 then arrive in
+chat one at a time as their slices come up. No slice is proposed as standalone.
 
 - Continue the rules intake queue one owner decision at a time; D5 and D13 are also ready now
   that D2 is signed off.
