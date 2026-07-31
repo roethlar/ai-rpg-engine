@@ -2887,15 +2887,17 @@ valid CSS). Its project branch refs were deleted after CT landed; the postmortem
 
 ---
 
-## Phase PT: Cross-genre portability, Stage 1 — PHASE APPROVED (gate 2, 2026-07-31); PLAN AWAITING OWNER APPROVAL
+## Phase PT: Cross-genre portability, Stage 1 — PLAN APPROVED (owner "yes", 2026-07-31); S1.1 IN PROGRESS
 
 **Design authority**: `.agents/review/archetype-portability-matrix-v3.1.md` (as amended §1.1).
 This section adds implementation coordinates only; mechanics, schemas, flows, and the full
 verification matrix live there and are not restated. Decisions trail:
 `.agents/decisions.md` (D3 gate 1 adopted, gate 2 approved, both 2026-07-31).
 
-**Status line (plan contract):** no code until the owner approves this plan. Remaining design
-gates ride their slices and come to chat one at a time before the affected slice lands:
+**Status line (plan contract):** plan approved by the owner 2026-07-31 ("yes"); implementation
+authorized in slice order, coding dispatched to Opus/Sonnet subagents (owner instruction
+2026-07-31). Remaining design gates ride their slices and come to chat one at a time before the
+affected slice lands:
 gate 3 (capability axes, v3.1 §6.1) before S1.2; gate 4 (slot taxonomy §5.3) and gate 5
 (families §5.6) before S1.3; gate 6 (onboarding shape §8.1) and gate 7 (name/history policy §10)
 before S1.5. D5 is NOT a Stage 1 dependency (amendment A narrowed S1.8 to byte-identical carry).
