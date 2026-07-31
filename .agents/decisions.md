@@ -1178,3 +1178,24 @@ Supersedes:
 v2's candidate-generation-plus-equivalence-proof apparatus
 (`.agents/review/archetype-portability-matrix-v2.md`, retained as evidence). The v3.1 draft's
 remaining owner gates are unaffected.
+
+### 2026-07-31 - Rules D3 gate 2: Stage 1 approved as a phase, S1.1 → S1.8 order (owner decision)
+
+Stage 1 of the cross-genre portability plan — expression translation over today's free-text
+profiles — is approved as a phase, in the fixed slice order S1.1 → S1.8
+(`.agents/review/archetype-portability-matrix-v3.1.md` §11, as amended §1.1). The order is
+load-bearing: identity, binding, validation, and approval machinery land before anything touches
+canon prose, and S1.8 (rule-sheet carryover, narrowed to byte-identical carry by amendment A)
+ships last. No slice is standalone.
+
+The gate authorizes drafting the concrete phase plan (files to change, success metrics,
+verification) for its own separate approval; no code is authorized until that plan is approved.
+Remaining v3.1 §16 gates (3: capability axes, 4: slot taxonomy, 5: families, 6: onboarding
+shape, 7: name/history policy) ride the slices they govern and come to chat one at a time
+before the affected slice lands.
+
+Reason:
+Owner 2026-07-31: "go", on the recommendation to approve gate 2 immediately after the gate-1
+adoption and the post-gate-1 seam amendments closed Stage 1's cold-implementability gaps
+(openreviewed same day: kimi k3 max over `8320db7..770b3e5`, one LOW records finding, fixed
+as rq-1).
