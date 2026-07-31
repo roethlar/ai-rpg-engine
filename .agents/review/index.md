@@ -93,7 +93,7 @@ snapshot `526aa5c` with Claude Code 2.1.207 (`claude-opus-4-8`, high effort,
 structured output). Verdict: `ready_for_owner_decisions` — **not** plan
 acceptance. It admitted 14 plan gaps (5 HIGH) and produced a 15-decision queue.
 D0-D2 are decided; D3 Gates 1-3 and Phase PT are approved, with S1.1 landed and
-S1.2 ready. One persistent character ID is active in exactly one campaign; mechanics/progression
+S1.2 landed. One persistent character ID is active in exactly one campaign; mechanics/progression
 travel, first entry fills missing Stage 1 name/ability bindings, and returns reuse saved wording
 exactly while reviewing only newly gained abilities without destination wording. Gate 3 rejects a
 second setting model: portability reads live outline/setting, latest six turns chronological, and

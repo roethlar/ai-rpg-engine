@@ -4349,6 +4349,314 @@ async function testSeatVisibility() {
   assert.strictEqual(scopeStateForSeat({ party: [] }, 1).turn, null);
 }
 
+// -------------------------------------------------------------
+// Test: shared campaign canon context (Phase PT S1.2)
+// -------------------------------------------------------------
+async function testCampaignContext() {
+  console.log('  - Running shared campaign-context tests...');
+  const db = await import('./db.js');
+  const {
+    MAX_HISTORY_LIMIT,
+    MAX_MEMORY_LIMIT,
+    MAX_MEMORY_QUERY_LENGTH,
+    digestCanonBasis,
+    readCampaignHistory,
+    readCampaignMemories,
+    readCampaignOutline,
+    readStageOneCanonContext,
+    stableCanonBasisJson
+  } = await import('./campaign-context.js');
+  const { handleToolCall } = await import('./server.js');
+  const { scopeStateForSeat } = await import('./rpg-state.js');
+
+  await db.initDb();
+
+  const createCampaign = async (title, outlineJson) => {
+    const campaignId = (await db.run(
+      `INSERT INTO campaigns (title, genre, summary, current_act)
+       VALUES (?, 'context-test', 'context-test', 1)`,
+      [title]
+    )).id;
+    if (outlineJson !== undefined) {
+      await db.run(
+        `INSERT INTO campaign_outlines (campaign_id, outline_json) VALUES (?, ?)`,
+        [campaignId, outlineJson]
+      );
+    }
+    return campaignId;
+  };
+
+  const privateSetting = 'CANON_PRIVATE_laser_monastery_beneath_the_harbor';
+  const rawOutline = {
+    title: '  Context Campaign  ',
+    setting: `  ${privateSetting}  `,
+    acts: [{ act: 1, title: 'Arrival', objective: 'Find the gate', key_events: ['Open it'] }],
+    major_locations: [{ name: 'Harbor', description: 'A rain-black quay.' }],
+    starting_quest: { title: 'The Gate', description: 'Find the hidden gate.' },
+    theme_colors: {}
+  };
+  const campaignId = await createCampaign('Context Campaign', JSON.stringify(rawOutline));
+  const otherCampaignId = await createCampaign('Other Campaign', JSON.stringify({
+    title: 'Other',
+    setting: 'Elsewhere.',
+    starting_quest: { title: 'Other Quest', description: 'Stay separate.' }
+  }));
+  const missingOutlineCampaignId = await createCampaign('No Outline');
+  const corruptMarker = 'CORRUPT_PRIVATE_outline_marker';
+  const corruptCampaignId = await createCampaign('Corrupt Outline', `{${corruptMarker}`);
+  const nonObjectCampaignId = await createCampaign('Array Outline', '[]');
+
+  for (const invalidId of [0, -1, 1.5, Number.MAX_SAFE_INTEGER + 1, '1', null]) {
+    await assert.rejects(
+      () => readCampaignOutline(invalidId),
+      error => error.code === 'CAMPAIGN_ID_INVALID',
+      `Campaign id ${String(invalidId)} must fail before a database read`
+    );
+  }
+  assert.strictEqual(await readCampaignOutline(missingOutlineCampaignId), null, 'Missing outline is distinct from corrupt data');
+  await assert.rejects(
+    () => readCampaignOutline(corruptCampaignId),
+    error => error.code === 'CAMPAIGN_OUTLINE_INVALID' && !error.message.includes(corruptMarker),
+    'Malformed outline fails without quoting private stored canon'
+  );
+  await assert.rejects(
+    () => readCampaignOutline(nonObjectCampaignId),
+    error => error.code === 'CAMPAIGN_OUTLINE_INVALID',
+    'A JSON array is not a campaign outline object'
+  );
+
+  const outline = await readCampaignOutline(campaignId);
+  assert.strictEqual(outline.title, 'Context Campaign', 'Outline passes through canonical validator');
+  assert.strictEqual(outline.setting, privateSetting, 'Validated setting is the canon source');
+
+  await db.run(
+    `WITH RECURSIVE sequence(n) AS (
+       SELECT 1
+       UNION ALL
+       SELECT n + 1 FROM sequence WHERE n < 1010
+     )
+     INSERT INTO turns (
+       campaign_id, turn_number, player_action, narrative, state_changes_json
+     )
+     SELECT ?, n, 'Action ' || n, 'Narrative ' || n,
+            '{"dice_rolls":[{"total":' || n || '}]}'
+       FROM sequence`,
+    [campaignId]
+  );
+  await db.run(
+    `INSERT INTO turns (campaign_id, turn_number, player_action, narrative, state_changes_json)
+     VALUES (?, 1, 'Other action', 'Other narrative', '{"private":"other"}')`,
+    [otherCampaignId]
+  );
+
+  const earliest = await readCampaignHistory(campaignId, { window: 'earliest', limit: 3 });
+  assert.deepStrictEqual(earliest.map(row => row.turn_number), [1, 2, 3], 'Earliest window is chronological');
+  const latest = await readCampaignHistory(campaignId, { window: 'latest', limit: 6 });
+  assert.deepStrictEqual(
+    latest.map(row => row.turn_number),
+    [1005, 1006, 1007, 1008, 1009, 1010],
+    'Latest window selects newest rows then returns them chronologically'
+  );
+  assert.strictEqual(latest[0].player_action, 'Action 1005', 'Player action remains explicitly labeled as player input');
+  assert.strictEqual(latest[0].gm_narrative, 'Narrative 1005', 'GM narration has its own explicit field');
+  assert.strictEqual(
+    JSON.parse(latest[0].state_changes_json).dice_rolls[0].total,
+    1005,
+    'Council mechanics context keeps state_changes_json intact'
+  );
+  assert.strictEqual(latest.some(row => row.campaign_id !== campaignId), false, 'History never crosses campaigns');
+  assert.strictEqual(
+    (await readCampaignHistory(campaignId, { window: 'earliest', limit: MAX_HISTORY_LIMIT + 500 })).length,
+    MAX_HISTORY_LIMIT,
+    'History reads clamp at the public maximum'
+  );
+  assert.deepStrictEqual(
+    await readCampaignHistory(campaignId, { window: 'latest', limit: 0 }),
+    [],
+    'An explicit zero limit returns no history'
+  );
+  await assert.rejects(
+    () => readCampaignHistory(campaignId, { window: 'middle', limit: 1 }),
+    error => error.code === 'CAMPAIGN_HISTORY_WINDOW_INVALID'
+  );
+  await assert.rejects(
+    () => readCampaignHistory(campaignId, { window: 'earliest', limit: -1 }),
+    error => error.code === 'CAMPAIGN_CONTEXT_LIMIT_INVALID'
+  );
+
+  await db.run(
+    `WITH RECURSIVE sequence(n) AS (
+       SELECT 1
+       UNION ALL
+       SELECT n + 1 FROM sequence WHERE n < 105
+     )
+     INSERT INTO memories (campaign_id, turn_number, importance, summary, keywords)
+     SELECT ?, n, (n % 5) + 1, 'General memory ' || n, 'general'
+       FROM sequence`,
+    [campaignId]
+  );
+  const olderTieId = (await db.run(
+    `INSERT INTO memories (campaign_id, turn_number, importance, summary, keywords)
+     VALUES (?, 200, 9, 'Older ranked memory', 'ranked')`,
+    [campaignId]
+  )).id;
+  const newerTieId = (await db.run(
+    `INSERT INTO memories (campaign_id, turn_number, importance, summary, keywords)
+     VALUES (?, 201, 9, 'Newer ranked memory', 'ranked')`,
+    [campaignId]
+  )).id;
+  const lexicalId = (await db.run(
+    `INSERT INTO memories (campaign_id, turn_number, importance, summary, keywords)
+     VALUES (?, 202, 1, 'The wizard mapped the drowned archive', 'wizard archive')`,
+    [campaignId]
+  )).id;
+  await db.run(
+    `INSERT INTO memories (campaign_id, turn_number, importance, summary, keywords)
+     VALUES (?, 1, 99, 'Other campaign memory', 'wizard')`,
+    [otherCampaignId]
+  );
+
+  const ranked = await readCampaignMemories(campaignId, { limit: 8 });
+  assert.deepStrictEqual(ranked.slice(0, 2).map(row => row.id), [newerTieId, olderTieId], 'Memory ties break by newest id');
+  assert.strictEqual(ranked.some(row => row.campaign_id !== campaignId), false, 'Memory reads never cross campaigns');
+  assert.strictEqual(
+    (await readCampaignMemories(campaignId, { limit: MAX_MEMORY_LIMIT + 50 })).length,
+    MAX_MEMORY_LIMIT,
+    'Memory reads clamp at the public search maximum'
+  );
+  const searched = await readCampaignMemories(campaignId, { query: 'wizard', limit: 8 });
+  assert.deepStrictEqual(searched.map(row => row.id), [lexicalId], 'Lexical search stays campaign-scoped and ranked');
+  await assert.rejects(
+    () => readCampaignMemories(campaignId, { query: 'x'.repeat(MAX_MEMORY_QUERY_LENGTH + 1) }),
+    error => error.code === 'CAMPAIGN_MEMORY_QUERY_INVALID',
+    'Memory queries over 200 characters fail before SQL'
+  );
+
+  const stageContext = await readStageOneCanonContext(campaignId, { memoryQuery: 'wizard' });
+  assert.strictEqual(stageContext.basis.history.length, 6, 'Stage 1 pins six latest turns');
+  assert.deepStrictEqual(
+    stageContext.basis.history.map(turn => turn.turn_number),
+    [1005, 1006, 1007, 1008, 1009, 1010],
+    'Stage 1 history remains chronological'
+  );
+  assert.strictEqual(
+    stageContext.basis.history[0].player_action.source,
+    'player_action_or_claim',
+    'Player statements are labeled as attempted actions or claims, not world canon'
+  );
+  assert.strictEqual(stageContext.basis.history[0].gm_narrative.source, 'gm_narrative');
+  assert.strictEqual('state_changes_json' in stageContext.basis.history[0], false, 'Portability basis excludes Council mechanics records');
+  assert.strictEqual(stageContext.basis.memories.length, 8, 'Lexical selection stays capped at eight');
+  assert.strictEqual(stageContext.basis.memories.some(memory => memory.memory_id === lexicalId), true, 'Lexical match is included');
+  assert.strictEqual(stageContext.basis.memories.some(memory => memory.memory_id === newerTieId), true, 'Always-ranked fallback survives lexical search');
+  assert.strictEqual(
+    new Set(stageContext.basis.memories.map(memory => memory.memory_id)).size,
+    stageContext.basis.memories.length,
+    'Lexical and ranked memory reads are deduplicated'
+  );
+  assert.strictEqual(await readStageOneCanonContext(missingOutlineCampaignId), null, 'Stage 1 does not invent a missing outline');
+
+  const reorderedA = { z: [{ b: 'line 1\r\nline 2', a: 1 }], a: true };
+  const reorderedB = { a: true, z: [{ a: 1, b: 'line 1\nline 2' }] };
+  assert.strictEqual(stableCanonBasisJson(reorderedA), stableCanonBasisJson(reorderedB), 'Digest basis sorts keys and normalizes lines');
+  assert.strictEqual(digestCanonBasis(reorderedA), digestCanonBasis(reorderedB), 'Equivalent normalized canon has one digest');
+  assert.match(stageContext.digest, /^[a-f0-9]{64}$/, 'Canon basis digest is SHA-256 hex');
+  const deterministicallyRankedMemoryIds = [...stageContext.basis.memories]
+    .sort((a, b) => (b.importance - a.importance) || (b.memory_id - a.memory_id))
+    .map(memory => memory.memory_id);
+  assert.deepStrictEqual(
+    stageContext.basis.memories.map(memory => memory.memory_id),
+    deterministicallyRankedMemoryIds,
+    'The selected canon memories remain ordered by importance then recency'
+  );
+
+  const repeatedContext = await readStageOneCanonContext(campaignId, { memoryQuery: 'wizard' });
+  assert.strictEqual(repeatedContext.digest, stageContext.digest, 'Unchanged selected canon yields a stable digest');
+  await db.run(
+    `UPDATE turns SET narrative = 'Narrative 1010 changed by later GM ruling'
+      WHERE campaign_id = ? AND turn_number = 1010`,
+    [campaignId]
+  );
+  const changedContext = await readStageOneCanonContext(campaignId, { memoryQuery: 'wizard' });
+  assert.notStrictEqual(changedContext.digest, stageContext.digest, 'A selected canon change invalidates stale review');
+
+  const mcpOutline = await handleToolCall('get_campaign_outline', { campaign_id: campaignId });
+  assert.deepStrictEqual(JSON.parse(mcpOutline.content[0].text), outline, 'MCP outline adapter returns shared validated data');
+  const sharedMcpHistory = await readCampaignHistory(campaignId, { window: 'earliest', limit: 2 });
+  const expectedHistoryText = sharedMcpHistory
+    .map(row => `[Turn ${row.turn_number}]\nPLAYER: ${row.player_action || '(Start Campaign)'}\nGM: ${row.gm_narrative}\n---`)
+    .join('\n\n');
+  const mcpHistory = await handleToolCall('get_campaign_history', { campaign_id: campaignId, limit: 2 });
+  assert.strictEqual(mcpHistory.content[0].text, expectedHistoryText, 'MCP keeps earliest-history text format over shared rows');
+  const sharedMcpMemories = await readCampaignMemories(campaignId, { query: 'wizard', limit: MAX_MEMORY_LIMIT });
+  const expectedMemoryText = sharedMcpMemories
+    .map(row => `- [Importance ${row.importance}] [${row.created_at}] [Tags: ${row.keywords || 'None'}]: ${row.summary}`)
+    .join('\n');
+  const mcpMemories = await handleToolCall('search_memories', { campaign_id: campaignId, query: 'wizard' });
+  assert.strictEqual(mcpMemories.content[0].text, expectedMemoryText, 'MCP memory text is an adapter over the shared ranked search');
+  const limitedMcpMemories = await handleToolCall('search_memories', {
+    campaign_id: campaignId,
+    query: 'ranked',
+    limit: 1
+  });
+  assert.strictEqual(
+    limitedMcpMemories.content[0].text.split('\\n').length,
+    1,
+    'MCP memory search honors its explicit bounded limit'
+  );
+  const missingQueryMemories = await handleToolCall('search_memories', { campaign_id: campaignId });
+  assert.match(
+    missingQueryMemories.content[0].text,
+    /query must be a non-empty string/,
+    'A malformed MCP call cannot turn a missing query into an unfiltered memory read'
+  );
+  assert.strictEqual(
+    missingQueryMemories.content[0].text.includes('ranked memory'),
+    false,
+    'The malformed MCP error does not disclose campaign memory text'
+  );
+  const missingMcpOutline = await handleToolCall('get_campaign_outline', { campaign_id: missingOutlineCampaignId });
+  assert.strictEqual(missingMcpOutline.content[0].text, 'Campaign outline not found.');
+
+  const scoped = scopeStateForSeat({
+    party: [{ id: 1, name: 'Seat Character' }],
+    currentQuest: { active_quest: 'Safe quest', quest_description: 'Safe description' },
+    turn: { number: 1, narrative: 'Player-safe narration.' },
+    canon_context: changedContext.basis,
+    canon_basis_digest: changedContext.digest
+  }, 1);
+  const scopedText = JSON.stringify(scoped);
+  assert.strictEqual(scopedText.includes(privateSetting), false, 'Raw canon basis never rides in a seat payload');
+  assert.strictEqual(scopedText.includes(changedContext.digest), false, 'Freshness digest remains GM-private');
+
+  const engineSource = fs.readFileSync(new URL('./rpg-engine.js', import.meta.url), 'utf8');
+  const takeTurnSource = engineSource.slice(
+    engineSource.indexOf('export async function takeTurn'),
+    engineSource.indexOf('export async function getCampaignState')
+  );
+  assert.strictEqual(takeTurnSource.includes('readCampaignOutline(campaignId)'), true, 'Council uses shared outline helper');
+  assert.strictEqual(takeTurnSource.includes('readCampaignHistory(campaignId'), true, 'Council uses shared history helper');
+  assert.strictEqual(takeTurnSource.includes('readCampaignMemories(campaignId'), true, 'Council uses shared memory helper');
+  assert.strictEqual(/fetch\s*\(|\/api\/mcp|https?:\/\//.test(takeTurnSource), false, 'Council never loops through MCP or HTTP');
+  assert.strictEqual(takeTurnSource.includes('state_changes_json'), true, 'Council still consumes structured turn mechanics');
+
+  const campaignContextSource = fs.readFileSync(new URL('./campaign-context.js', import.meta.url), 'utf8');
+  assert.strictEqual(
+    /fetch\s*\(|EventSource|\/api\/mcp|https?:\/\//.test(campaignContextSource),
+    false,
+    'The portability canon helper contains no HTTP, SSE, or self-MCP transport'
+  );
+
+  const serverSource = fs.readFileSync(new URL('./server.js', import.meta.url), 'utf8');
+  const mcpRouterSource = serverSource.slice(
+    serverSource.indexOf('export async function handleToolCall'),
+    serverSource.indexOf('// Terminal error handler')
+  );
+  assert.strictEqual(mcpRouterSource.includes('readCampaignOutline(args.campaign_id)'), true);
+  assert.strictEqual(mcpRouterSource.includes('readCampaignHistory(args.campaign_id'), true);
+  assert.strictEqual(mcpRouterSource.includes('readCampaignMemories(args.campaign_id'), true);
+}
+
 // Run all test functions
 async function runAll() {
   try {
@@ -4362,6 +4670,7 @@ async function runAll() {
     testResolveAgentConfig();
     await testRulesetCanon();
     await testAbilityIdentity();
+    await testCampaignContext();
     await testTurnOrder();
     await testStructuredLocations();
     await testHeroicPointer();

@@ -41,6 +41,13 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const imagesDir = path.join(__dirname, 'data', 'images');
 import { assignNpcVoiceProfile, createNarratorVoiceProfile } from './tts-providers.js';
 import { getGMSystemInstruction, getOutlineSystemInstruction } from './rpg-prompts.js';
+import {
+  STAGE_ONE_HISTORY_LIMIT,
+  STAGE_ONE_MEMORY_LIMIT,
+  readCampaignHistory,
+  readCampaignMemories,
+  readCampaignOutline
+} from './campaign-context.js';
 
 // Export these so index/test scripts still have direct access
 export { parseJsonSafe, createFallbackSvg };
@@ -1527,9 +1534,8 @@ export async function takeTurn(campaignId, playerAction, apiConfig, submittingCh
   const campaign = await db.get(`SELECT * FROM campaigns WHERE id = ?`, [campaignId]);
   if (!campaign) throw new Error(`Campaign ${campaignId} not found.`);
 
-  const outlineRow = await db.get(`SELECT * FROM campaign_outlines WHERE campaign_id = ?`, [campaignId]);
-  if (!outlineRow) throw new Error(`Campaign outline not found for campaign ${campaignId}.`);
-  const outline = validateOutlineData(JSON.parse(outlineRow.outline_json));
+  const outline = await readCampaignOutline(campaignId);
+  if (!outline) throw new Error(`Campaign outline not found for campaign ${campaignId}.`);
 
   // Phase 3 M2: the party, the round-robin order, and who is speaking. The
   // SPEAKING character (which browser typed) supplies the perspective for
@@ -1556,17 +1562,13 @@ export async function takeTurn(campaignId, playerAction, apiConfig, submittingCh
   );
 
   // Fetch last 6 turns for immediate context
-  const pastTurns = await db.all(
-    `SELECT * FROM turns WHERE campaign_id = ? ORDER BY turn_number DESC LIMIT 6`,
-    [campaignId]
-  );
-  pastTurns.reverse();
+  const pastTurns = (await readCampaignHistory(campaignId, {
+    window: 'latest',
+    limit: STAGE_ONE_HISTORY_LIMIT
+  })).map(turn => ({ ...turn, narrative: turn.gm_narrative }));
 
   // Fetch campaign memories (Top importance + recency ranked)
-  const memories = await db.all(
-    `SELECT * FROM memories WHERE campaign_id = ? ORDER BY importance DESC, id DESC LIMIT 8`,
-    [campaignId]
-  );
+  const memories = await readCampaignMemories(campaignId, { limit: STAGE_ONE_MEMORY_LIMIT });
 
   const currentTurnNumber = pastTurns.length > 0 ? pastTurns[pastTurns.length - 1].turn_number + 1 : 1;
   const currentAct = campaign.current_act || 1;

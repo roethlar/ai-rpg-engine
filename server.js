@@ -33,6 +33,14 @@ import {
   getTurnAudioSegment,
   publicTurnAudioManifest
 } from './audio-store.js';
+import {
+  MAX_HISTORY_LIMIT,
+  MAX_MEMORY_LIMIT,
+  MAX_MEMORY_QUERY_LENGTH,
+  readCampaignHistory,
+  readCampaignMemories,
+  readCampaignOutline
+} from './campaign-context.js';
 
 dotenv.config();
 
@@ -1001,24 +1009,29 @@ app.post('/api/mcp/message', async (req, res) => {
               inputSchema: { type: 'object', properties: {} }
             },
             {
-              name: 'get_campaign_outline',
+        name: 'get_campaign_outline',
               description: 'Retrieve the 2-4 hour quest outline, main NPCs, settings, and acts structure of a campaign.',
               inputSchema: {
                 type: 'object',
                 properties: {
-                  campaign_id: { type: 'integer', description: 'The unique campaign ID' }
+              campaign_id: { type: 'integer', minimum: 1, description: 'The unique campaign ID' }
                 },
                 required: ['campaign_id']
               }
             },
             {
-              name: 'get_campaign_history',
-              description: 'Fetch the full chronological narrative log and choices of player actions and GM stories.',
+        name: 'get_campaign_history',
+              description: 'Fetch a bounded chronological narrative log of player actions and GM stories.',
               inputSchema: {
                 type: 'object',
                 properties: {
-                  campaign_id: { type: 'integer', description: 'The unique campaign ID' },
-                  limit: { type: 'integer', description: 'Number of turns to fetch (default: all)' }
+              campaign_id: { type: 'integer', minimum: 1, description: 'The unique campaign ID' },
+              limit: {
+                type: 'integer',
+                minimum: 0,
+                maximum: MAX_HISTORY_LIMIT,
+                description: `Number of earliest turns to fetch (default/max: ${MAX_HISTORY_LIMIT})`
+              }
                 },
                 required: ['campaign_id']
               }
@@ -1035,13 +1048,24 @@ app.post('/api/mcp/message', async (req, res) => {
               }
             },
             {
-              name: 'search_memories',
+        name: 'search_memories',
               description: 'Search campaign long-term memories for important plot points, character events, or summaries.',
               inputSchema: {
                 type: 'object',
                 properties: {
-                  campaign_id: { type: 'integer', description: 'The unique campaign ID' },
-                  query: { type: 'string', description: 'Keyword query search terms' }
+              campaign_id: { type: 'integer', minimum: 1, description: 'The unique campaign ID' },
+              query: {
+                type: 'string',
+                    minLength: 1,
+                    maxLength: MAX_MEMORY_QUERY_LENGTH,
+                description: 'Keyword query search terms'
+                  },
+                  limit: {
+                    type: 'integer',
+                    minimum: 0,
+                    maximum: MAX_MEMORY_LIMIT,
+                    description: `Maximum matching memories to fetch (default/max: ${MAX_MEMORY_LIMIT})`
+                  }
                 },
                 required: ['campaign_id', 'query']
               }
@@ -1072,7 +1096,7 @@ app.post('/api/mcp/message', async (req, res) => {
 });
 
 // Helper for MCP Tools router
-async function handleToolCall(toolName, args) {
+export async function handleToolCall(toolName, args) {
   let contentText = '';
 
   try {
@@ -1090,22 +1114,21 @@ async function handleToolCall(toolName, args) {
       }
 
       case 'get_campaign_outline': {
-        const row = await db.get(`SELECT * FROM campaign_outlines WHERE campaign_id = ?`, [args.campaign_id]);
-        contentText = row ? JSON.stringify(JSON.parse(row.outline_json), null, 2) : 'Campaign outline not found.';
+        const outline = await readCampaignOutline(args.campaign_id);
+        contentText = outline ? JSON.stringify(outline, null, 2) : 'Campaign outline not found.';
         break;
       }
 
       case 'get_campaign_history': {
-        const rawLimit = args.limit !== undefined ? parseInt(args.limit, 10) : 1000;
-        const limit = isNaN(rawLimit) ? 1000 : rawLimit;
-        const rows = await db.all(
-          `SELECT turn_number, player_action, narrative FROM turns WHERE campaign_id = ? ORDER BY turn_number ASC LIMIT ?`,
-          [args.campaign_id, limit]
-        );
+        const limit = args.limit === undefined ? MAX_HISTORY_LIMIT : args.limit;
+        const rows = await readCampaignHistory(args.campaign_id, {
+          window: 'earliest',
+          limit
+        });
         if (rows.length === 0) {
           contentText = 'No history turns found for this campaign.';
         } else {
-          contentText = rows.map(r => `[Turn ${r.turn_number}]\nPLAYER: ${r.player_action || '(Start Campaign)'}\nGM: ${r.narrative}\n---`).join('\n\n');
+          contentText = rows.map(r => `[Turn ${r.turn_number}]\nPLAYER: ${r.player_action || '(Start Campaign)'}\nGM: ${r.gm_narrative}\n---`).join('\n\n');
         }
         break;
       }
@@ -1136,11 +1159,13 @@ async function handleToolCall(toolName, args) {
       }
 
       case 'search_memories': {
-        const query = `%${args.query}%`;
-        const rows = await db.all(
-          `SELECT summary, importance, keywords, created_at FROM memories WHERE campaign_id = ? AND (summary LIKE ? OR keywords LIKE ?) ORDER BY importance DESC, id DESC`,
-          [args.campaign_id, query, query]
-        );
+        if (typeof args.query !== 'string' || args.query.trim() === '') {
+          throw new Error('query must be a non-empty string.');
+        }
+        const rows = await readCampaignMemories(args.campaign_id, {
+          query: args.query,
+          limit: args.limit === undefined ? MAX_MEMORY_LIMIT : args.limit
+        });
         contentText = rows.length > 0 
           ? rows.map(r => `- [Importance ${r.importance}] [${r.created_at}] [Tags: ${r.keywords || 'None'}]: ${r.summary}`).join('\n')
           : `No memories found matching "${args.query}"`;

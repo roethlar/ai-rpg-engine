@@ -2890,7 +2890,7 @@ valid CSS). Its project branch refs were deleted after CT landed; the postmortem
 
 ---
 
-## Phase PT: Cross-genre portability, Stage 1 — PLAN APPROVED (owner "yes", 2026-07-31); S1.1 LANDED; S1.2 READY
+## Phase PT: Cross-genre portability, Stage 1 — PLAN APPROVED (owner "yes", 2026-07-31); S1.1-S1.2 LANDED; GATE 4 NEXT
 
 **Design authority**: .agents/review/archetype-portability-matrix-v3.1.md, as amended by
 the 2026-07-31 one-persistent-character and live-canon Gate-3 rulings. This section supplies
@@ -2911,7 +2911,7 @@ state.
 
 - **S1.1 Ability IDs — LANDED at 9343e79.** Engine-issued globally unique IDs, legacy backfill,
   ID-first ability_updates matching, and manual-copy/bundle regression coverage.
-- **S1.2 Shared canon retrieval and freshness — READY (§6).** Extract the existing MCP and Council
+- **S1.2 Shared canon retrieval and freshness — LANDED.** Extracted the existing MCP and Council
   reads into a transport-neutral `campaign-context.js` module, then have both current consumers call
   those direct helpers. The portability pack contains validated outline/setting, latest
   six turns returned chronological, and top eight relevant memories ordered by importance then
@@ -2920,11 +2920,14 @@ state.
   stale-draft detection. Raw canon and retrieval anchors remain GM-private. MCP adapters may pass
   their own bounded limits/search inputs; portability pins the Stage 1 defaults. Internal code must
   not call MCP/SSE/HTTP, and this slice adds no DB setting schema, endpoint, UI, or editor.
-  Files: rpg-engine.js (shared structured helpers/canon pack/digest), server.js (MCP adapters over
-  helpers), test.js (outline validation, ordering/bounds, parity, privacy, digest, no-loopback
-  guards); db.js only if an existing read must be centralized, with no migration.
+  Files: `campaign-context.js` (shared structured readers/canon pack/digest), `rpg-engine.js`
+  (Council consumer), `server.js` (MCP adapters over helpers), and `test.js` (outline validation,
+  ordering/bounds, parity, privacy, digest, no-loopback guards); no DB migration.
   Exit: helper/MCP parity, deterministic bounds and digest, live reads reflect later GM canon, and
   no player/seat response contains raw canon or anchors.
+  Guard proof: changing the Stage 1 history selector from latest to earliest fails the dedicated
+  test with turns 1-6 instead of 1005-1010; restoring latest returns the suite to green.
+
 - **S1.3 GM wording proposal plus structural validation (§6.2-6.3).** Given only requested missing
   slots, canonical character abilities, and the GM-private canon pack, the GM proposes wording and
   a player-safe fit explanation. The engine validates known character/ability IDs, exact bounded

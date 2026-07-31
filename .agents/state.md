@@ -20,7 +20,7 @@ to `docs/history/state-archive.md`.
   2026-07-27, enacting its three declared Chapter 1 refinements and closing the D2 catalog-design
   gate. `.agents/review/rules-system-plan-intake.md` owns the remaining decision queue; no rules
   code before a concrete phase and an owner-approved plan.
-- **PHASE PT IS APPROVED AND RUNNING; GATE 3 IS CLOSED AND S1.2 IS READY.** D3
+- **PHASE PT IS APPROVED AND RUNNING; S1.1-S1.2 ARE LANDED AND GATE 4 IS NEXT.** D3
   records one persistent character active in exactly one campaign: mechanics and progression
   travel; first entry fills missing Stage 1 name/ability bindings; returns reuse saved wording
   exactly and review only newly gained abilities lacking destination wording. Portability reads
@@ -45,9 +45,9 @@ to `docs/history/state-archive.md`.
 
 ## Next
 
-**NEXT:** Implement Phase PT S1.2: extract shared direct campaign-context reads, pin the Stage 1
-bounds and deterministic digest, preserve MCP behavior, keep raw canon GM-private, add parity,
-ordering, privacy, freshness, and no-loopback tests, then run the anti-vacuity proof and npm test.
+**NEXT:** Pose Gate 4 in plain product language: decide which pieces of character wording Stage 1
+may name before S1.3 can validate the GM's proposed wording against a closed set of targets.
+
 - Continue the owner decision queue one item at a time from the canonical queue in
   `.agents/review/rules-system-plan-intake.md`.
 - The first approved UI backlog slice is `jt-1` (prevent stale cross-campaign Journal responses);
@@ -62,7 +62,7 @@ ordering, privacy, freshness, and no-loopback tests, then run the anti-vacuity p
 ## Blockers
 
 - No product-code defect blocks development.
-- Phase PT has no decision blocker through S1.2; Gates 4-7 still gate only their affected later slices.
+- Phase PT S1.3 is blocked on Gate 4, then Gate 5; Gates 6-7 gate only their affected later slices.
 - Broader Chapter 1/2 effect-catalog runtime implementation remains blocked until promoted into
   a concrete owner-approved phase; the D2 catalog-design gate is closed.
 - Phase V closure requires the owner's real-session voice verdict.
@@ -70,7 +70,9 @@ ordering, privacy, freshness, and no-loopback tests, then run the anti-vacuity p
 
 ## Verification
 
-- Automated: `npm test` — green at `c0bedb6` on 2026-07-31.
+- Automated: `npm test` — green for Phase PT S1.2 on 2026-07-31.
+- S1.2 guard proof: changing the Stage 1 history window from latest to earliest failed the dedicated
+  test with turns 1-6 instead of 1005-1010; restoring latest returned the full suite to green.
 - Browser: not run during the 2026-07-31 catchup; no trigger surface changed. See
   `.agents/repo-guidance.md` (Verification) for required surfaces and the coverage boundary.
 - Guard-proof requirements and anti-vacuity practice live in `AGENTS.md` and

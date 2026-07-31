@@ -2,7 +2,7 @@
 
 **Status**: ACTIVE working draft. **Gates 1-3 (§16) adopted/approved by the owner 2026-07-31** —
 recorded in `.agents/decisions.md`. Gates 4-7 remain unruled. Phase PT is approved in `plan.md`;
-S1.1 is landed and S1.2 is ready. Gate 1's one-persistent-character amendment and Gate 3's
+S1.1 and S1.2 are landed. Gate 1's one-persistent-character amendment and Gate 3's
 live-canon ruling control any older wording retained as historical evidence below.
 
 **Date**: 2026-07-27
@@ -615,7 +615,7 @@ Each stage needs its owner-approved phase plan. Phase PT approves Stage 1 in the
 | Slice | Work | Exit |
 |---|---|---|
 | S1.1 | Ability IDs: mint, backfill legacy rows, match ability_updates by ID with legacy name fallback (§4.4) | **LANDED**: renaming no longer forks an ability; legacy rows still match |
-| S1.2 | Shared canonical-context retrieval and freshness (§6) | Direct helpers return validated outline/setting, latest six turns chronological, and top eight relevant memories by importance then recency; MCP and portability share helpers; deterministic digest detects stale drafts; no self-network call or new campaign schema |
+| S1.2 | **LANDED:** Shared canonical-context retrieval and freshness (§6) | Direct helpers return validated outline/setting, latest six turns chronological, and top eight relevant memories by importance then recency; MCP and portability share helpers; deterministic digest detects stale drafts; no self-network call or new campaign schema |
 | S1.3 | Canon-grounded GM wording proposal plus structural validation (§6.2-6.3) | GM judges fictional fit; engine admits only requested known IDs/slots, expected shape, and expression-only text; player-safe explanation does not leak raw canon |
 | S1.4 | Lazy campaign vocabulary and per-(character, campaign) bindings (§5) | Vocabulary is created only when a missing binding needs it; two characters coexist; approved wording is reusable and contains no mechanics or canon copy |
 | S1.5 | Identity onboarding, families, slots, pins, restart-safe approval (§8.1) | New and legacy characters get one approved identity record without a class menu |
@@ -623,7 +623,7 @@ Each stage needs its owner-approved phase plan. Phase PT approves Stage 1 in the
 | S1.7 | Narration binding and leak checks (§9) | No unapproved cross-campaign term or GM-private canon material reaches Council/seat context |
 | S1.8 | Canonical mechanic projection, last (§2.1) | GM context overlays active destination wording on one mechanic record; no destination mechanic copy; player saw every wording change |
 
-S1.2 is ready because Gate 3 is closed. Its implementation seam begins at the existing MCP reads
+S1.2 is landed. Its implementation seam begins at the existing MCP reads
 (server.js:920+, tool declarations around 1004-1047, reads around 1074-1150) and the Council context
 assembly already using outline, memories, and recent turns (rpg-engine.js:570-646). Extract those
 reads into a transport-neutral `campaign-context.js` module used directly by both consumers; do not make an internal MCP, SSE, or HTTP request.
@@ -782,4 +782,4 @@ Taken in chat one at a time and recorded durably.
 8. **D5 ability packaging — FUTURE.** Stage 2 only.
 9. **D13/D16 non-ability state — FUTURE.** Stage 4 only.
 
-Gate 3 is closed and S1.2 is ready. Gates 4-7 remain required only before their affected slices.
+Gate 3 is closed and S1.2 is landed. Gates 4-7 remain required only before their affected slices.
