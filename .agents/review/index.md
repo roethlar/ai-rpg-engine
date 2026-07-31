@@ -399,3 +399,31 @@ round — the reviewer found a sibling crash path, fixed and re-accepted).
 CLOSED: all four branches merged to master on the owner's explicit go
 (merge commits eb5bec3/57c2451/d8fbab0/6123dff), content-verified on master,
 branches deleted after verification. Verdict trail lives in each finding doc.
+
+---
+
+## Openreview (2026-07-31, reviewer: kimi)
+
+Owner-dispatched `openreview` with kimi k3 max over pinned range `8320db7..770b3e5` — this
+session's records batch: catchup hygiene sweep, npm 12 `allowScripts` fix, D15 evidence
+captures, D3 gate-1 decision record, post-gate-1 seam amendments.
+
+Reviewer: kimi / kimi-code/k3 / max / frontier (inline, session-only)
+Dispatch notes: kimi CLI 0.31.0, `-p --agent-file --output-format stream-json`; prompt mode
+exposes no effort flag, so effort was pinned via a temporary `default_effort = "max"` on the k3
+config entry (backed up, restored after the run, restore verified); the agent-file tool
+allowlist cannot scope `Bash` to git-only, so the no-write boundary rode the agent contract —
+post-run check: no leftover worktree, no tree mutation. Verdict envelope validated fail-closed:
+SHAs match the dispatched pins, `capability_ok` true (reviewer read repo files and ran
+`npm test` green in its own disposable head-SHA worktree).
+
+Verdict: **findings** (1). The reviewer also independently verified the `allowScripts`
+entries fully cover the tree, the §1.1 amendment map's cross-references hold, and the
+machines.md removal was factually correct on this machine.
+
+| ID | Severity | Impact (one line) | Status | Branch |
+|----|----------|-------------------|--------|--------|
+| rq-1 | LOW | Intake D3 row still said Stage 1 seam-blocked, contradicting state.md after `770b3e5` | `[x]` fixed on master (same commit as this record) | none (docs sync) |
+
+Intake: 1/1 admitted, 0 declined. Docs-only fix closed in lockstep with this record per the
+repo's docs-only verification rule; detail in `.agents/review/findings/rq-1.md`.
