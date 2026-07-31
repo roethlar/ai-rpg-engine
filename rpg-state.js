@@ -324,20 +324,28 @@ export function validateTurnData(raw, currentAct = 1, tableStyle = null) {
       const name = typeof ability.name === 'string' ? ability.name.trim() : '';
       if (!name) return;
 
+      const normalized = {
+        name,
+        description: typeof ability.description === 'string' && ability.description.trim() !== ''
+          ? ability.description.trim()
+          : 'A developing capability.',
+        tier: typeof ability.tier === 'string' && ability.tier.trim() !== ''
+          ? ability.tier.trim()
+          : 'emerging',
+        source: typeof ability.source === 'string' && ability.source.trim() !== ''
+          ? ability.source.trim()
+          : 'in-game development'
+      };
+      // Ability ids are engine-issued: a model may echo one back to name the
+      // ability it means (it never has to, and never invents one). The engine
+      // matches on it and mints when it is absent or unknown, so an id here is
+      // carried as an opaque bounded string, never required or trusted.
+      const abilityId = typeof ability.id === 'string' ? ability.id.trim().slice(0, 64) : '';
+      if (abilityId) normalized.id = abilityId;
+
       validated.ability_updates.push({
         action,
-        ability: {
-          name,
-          description: typeof ability.description === 'string' && ability.description.trim() !== ''
-            ? ability.description.trim()
-            : 'A developing capability.',
-          tier: typeof ability.tier === 'string' && ability.tier.trim() !== ''
-            ? ability.tier.trim()
-            : 'emerging',
-          source: typeof ability.source === 'string' && ability.source.trim() !== ''
-            ? ability.source.trim()
-            : 'in-game development'
-        },
+        ability: normalized,
         note: typeof update.note === 'string' ? update.note.trim() : ''
       });
     });

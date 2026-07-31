@@ -2,6 +2,7 @@ import * as db from './db.js';
 import { AIClient, resolveAgentConfig } from './api-client.js';
 import fs from 'fs';
 import path from 'path';
+import { randomUUID } from 'crypto';
 import { fileURLToPath } from 'url';
 import {
   parseJsonSafe,
@@ -103,19 +104,63 @@ function parseJsonObject(value, fallback = {}) {
   }
 }
 
+/**
+ * Ability identity (S1.1): an ability IS its engine-issued opaque id, never
+ * its display name — renaming used to be indistinguishable from inventing a
+ * second ability, so a renamed ability forked on the next level-up. Ids are
+ * minted exactly once at first existence (character seeding, an
+ * `ability_updates` insert, or the legacy backfill below) and carried
+ * unchanged through branch, copy, and fork. Models never have to emit one.
+ */
+function mintAbilityId() {
+  return randomUUID();
+}
+
+function abilityIdOf(ability) {
+  return typeof ability?.id === 'string' && ability.id.trim() !== '' ? ability.id.trim() : null;
+}
+
+/**
+ * One-shot legacy backfill: rows written before ids existed are keyed by the
+ * name they currently carry in this profile, so they heal on the next touch
+ * — a load, a seeding copy, or a fork replay — and keep that id from then on.
+ */
+export function ensureAbilityIds(abilities) {
+  if (!Array.isArray(abilities)) return [];
+  return abilities.map(ability => {
+    if (!ability || typeof ability !== 'object') return ability;
+    return abilityIdOf(ability) ? ability : { ...ability, id: mintAbilityId() };
+  });
+}
+
+function findAbilityIndex(abilities, ability) {
+  // Name matching survives ONLY as the legacy fallback: rows minted before
+  // ids, and updates carrying none. An id the engine does not know is
+  // treated as absent (mint fresh), never as an error.
+  const id = abilityIdOf(ability);
+  if (id) {
+    const byId = abilities.findIndex(item => abilityIdOf(item) === id);
+    if (byId !== -1) return byId;
+  }
+  return abilities.findIndex(item => item.name.toLowerCase() === ability.name.toLowerCase());
+}
+
 function normalizeAbility(ability) {
   if (!ability || typeof ability.name !== 'string' || ability.name.trim() === '') {
     return null;
   }
-  return {
+  const normalized = {
     name: ability.name.trim(),
     description: ability.description || 'A developing capability.',
     tier: ability.tier || 'emerging',
     source: ability.source || 'in-game development'
   };
+  const id = abilityIdOf(ability);
+  if (id) normalized.id = id;
+  return normalized;
 }
 
-function applyAbilityUpdates(character, turnData, turnNumber) {
+export function applyAbilityUpdates(character, turnData, turnNumber) {
   if (!Array.isArray(character.abilities)) character.abilities = [];
   const updates = Array.isArray(turnData.ability_updates) ? turnData.ability_updates : [];
   if (updates.length === 0) return;
@@ -124,17 +169,21 @@ function applyAbilityUpdates(character, turnData, turnNumber) {
   for (const update of updates) {
     const ability = normalizeAbility(update.ability || {});
     if (!ability) continue;
-    const existingIndex = character.abilities.findIndex(item => item.name.toLowerCase() === ability.name.toLowerCase());
+    const existingIndex = findAbilityIndex(character.abilities, ability);
 
     if (update.action === 'remove') {
       if (existingIndex !== -1) character.abilities.splice(existingIndex, 1);
     } else if (existingIndex !== -1) {
+      const existing = character.abilities[existingIndex];
       character.abilities[existingIndex] = {
-        ...character.abilities[existingIndex],
-        ...ability
+        ...existing,
+        ...ability,
+        // Identity stays the engine's: a matched row keeps its own id, and a
+        // legacy row matched by name gains one here.
+        id: abilityIdOf(existing) || mintAbilityId()
       };
     } else {
-      character.abilities.push(ability);
+      character.abilities.push({ ...ability, id: mintAbilityId() });
     }
 
     if (update.note) {
@@ -172,7 +221,7 @@ function hydrateCharacterRow(row) {
     initiative: row.initiative ?? null,
     inventory: parseJsonArray(row.inventory_json),
     attributes: parseJsonObject(row.attributes_json),
-    abilities: parseJsonArray(row.abilities_json),
+    abilities: ensureAbilityIds(parseJsonArray(row.abilities_json)),
     progression_notes: row.progression_notes || '',
     player_character_id: row.player_character_id
   };
@@ -1155,7 +1204,8 @@ Give the player character 4 to 8 starting abilities fitting their concept and th
     : defaultAttributesForConcept(resolvedCharacterArchetype);
 
   const inventory = sourceProfile ? parseJsonArray(sourceProfile.inventory_json) : createStarterInventory();
-  const abilities = sourceProfile ? parseJsonArray(sourceProfile.abilities_json) : [];
+  // Branch and copy carry the source's ability records verbatim, ids included.
+  const abilities = ensureAbilityIds(sourceProfile ? parseJsonArray(sourceProfile.abilities_json) : []);
   const progressionNotes = sourceProfile?.progression_notes || '';
 
   // Construct initial NPC list in-memory to build system instruction
@@ -2094,7 +2144,7 @@ export async function joinCampaign(campaignId, { characterName, characterClass, 
     level: sourceProfile?.level ?? 1,
     inventory: sourceProfile ? parseJsonArray(sourceProfile.inventory_json) : createStarterInventory(),
     attributes,
-    abilities: sourceProfile ? parseJsonArray(sourceProfile.abilities_json) : [],
+    abilities: ensureAbilityIds(sourceProfile ? parseJsonArray(sourceProfile.abilities_json) : []),
     progression_notes: sourceProfile?.progression_notes || ''
   };
 
@@ -2333,7 +2383,20 @@ export async function importCampaign(rawBundle) {
     );
 
     const characterIdMap = new Map();
+    // Imported ability records are new records in this store, so they get
+    // fresh engine-issued ids — remapped consistently, so rows that shared an
+    // id in the bundle still share one here. Bundles written before ids
+    // simply have theirs minted.
+    const abilityIdMap = new Map();
+    const remapAbilityIds = (abilities) => (Array.isArray(abilities) ? abilities : []).map(ability => {
+      if (!ability || typeof ability !== 'object') return ability;
+      const sourceId = abilityIdOf(ability);
+      if (!sourceId) return { ...ability, id: mintAbilityId() };
+      if (!abilityIdMap.has(sourceId)) abilityIdMap.set(sourceId, mintAbilityId());
+      return { ...ability, id: abilityIdMap.get(sourceId) };
+    });
     for (const character of bundle.characters) {
+      character.abilities = remapAbilityIds(character.abilities);
       let profileId = null;
       if (character.status === 'active') {
         const profileResult = await db.run(
@@ -2484,7 +2547,7 @@ export async function forkCampaign(campaignId, turnNumber, newTitle) {
       level: baseline?.level ?? 1,
       inventory: Array.isArray(baseline?.inventory) ? baseline.inventory : createStarterInventory(),
       attributes: JSON.parse(row.attributes_json),
-      abilities: Array.isArray(baseline?.abilities) ? baseline.abilities : [],
+      abilities: ensureAbilityIds(Array.isArray(baseline?.abilities) ? baseline.abilities : []),
       progression_notes: baseline?.progression_notes || ''
     });
   }

@@ -3354,6 +3354,130 @@ async function testRulesetCanon() {
 }
 
 // -------------------------------------------------------------
+// Test: ability identity — engine-issued ids (Phase PT S1.1)
+// -------------------------------------------------------------
+async function testAbilityIdentity() {
+  console.log(' - Running ability identity tests...');
+  const db = await import('./db.js');
+  const rpg = await import('./rpg-engine.js');
+
+  const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+  const update = (ability, action = 'add') => ({ ability_updates: [{ action, ability }] });
+
+  // A brand-new ability is born with an engine-issued id.
+  const character = { abilities: [] };
+  rpg.applyAbilityUpdates(character, update({ name: 'Quick Draw', description: 'Snap shot.' }), 1);
+  const quickDrawId = character.abilities[0].id;
+  assert.strictEqual(UUID.test(quickDrawId), true, 'A new ability is minted with an engine-issued id');
+
+  // THE DEFECT THIS SLICE CLOSES: identity was the lowercased display name,
+  // so renaming an ability was indistinguishable from inventing a second one.
+  rpg.applyAbilityUpdates(character, update({ id: quickDrawId, name: 'Fast Nock', description: 'Snap loose.' }, 'improve'), 2);
+  assert.strictEqual(character.abilities.length, 1, 'Renaming through the id updates in place — it must never fork');
+  assert.strictEqual(character.abilities[0].id, quickDrawId, 'The id is stable across a rename');
+  assert.strictEqual(character.abilities[0].name, 'Fast Nock', 'The display name is the only thing that changed');
+
+  // Legacy rows (written before ids) still match by name — and heal as they match.
+  const legacy = { abilities: [{ name: 'Iron Stomach', description: 'Eats anything.', tier: 'trained', source: 'play' }] };
+  rpg.applyAbilityUpdates(legacy, update({ name: 'iron stomach', description: 'Eats anything, twice.' }, 'improve'), 3);
+  assert.strictEqual(legacy.abilities.length, 1, 'A pre-id row still matches on its name');
+  const healedId = legacy.abilities[0].id;
+  assert.strictEqual(UUID.test(healedId), true, 'A row matched by the legacy name fallback gains its id');
+  assert.strictEqual(legacy.abilities[0].description, 'Eats anything, twice.', 'The fallback match still applies the update');
+
+  // Re-applying the same update is a no-op on identity: no re-mint, no duplicate.
+  rpg.applyAbilityUpdates(legacy, update({ name: 'iron stomach', description: 'Eats anything, twice.' }, 'improve'), 4);
+  assert.strictEqual(legacy.abilities.length, 1, 'Re-applying an update never duplicates the row');
+  assert.strictEqual(legacy.abilities[0].id, healedId, 'Re-applying an update never re-mints the id');
+
+  // An id this engine never issued is treated as ABSENT (never as an error):
+  // the name fallback runs, and the engine's own id survives.
+  rpg.applyAbilityUpdates(character, update({ id: 'model-invented-id', name: 'Fast Nock', description: 'Faster.' }, 'improve'), 5);
+  assert.strictEqual(character.abilities.length, 1, 'An unknown id falls back to the name rather than failing');
+  assert.strictEqual(character.abilities[0].id, quickDrawId, 'A model-invented id never overwrites an engine-issued one');
+  rpg.applyAbilityUpdates(character, update({ id: 'model-invented-id', name: 'Powder Burn' }), 6);
+  const powderBurnId = character.abilities[1].id;
+  assert.strictEqual(UUID.test(powderBurnId), true, 'An insert always mints — a model id is never adopted');
+
+  // Removal matches on id too, even when the display name has moved on.
+  rpg.applyAbilityUpdates(character, { ability_updates: [{ action: 'remove', ability: { id: powderBurnId, name: 'Renamed Since' } }] }, 7);
+  assert.strictEqual(character.abilities.length, 1, 'Removal matches on id, not on the display name');
+
+  // Validation accepts an echoed id but never requires one: the engine mints.
+  const validated = validateTurnData({
+    input_kind: 'committed_action', narrative: 'N.',
+    ability_updates: [
+      { action: 'improve', ability: { name: 'Fast Nock', id: `  ${quickDrawId}  ` } },
+      { action: 'add', ability: { name: 'No Id Needed' } },
+      { action: 'add', ability: { name: 'Junk Id', id: 42 } }
+    ]
+  }, 1);
+  assert.strictEqual(validated.ability_updates[0].ability.id, quickDrawId, 'A model-echoed id survives validation, trimmed');
+  assert.strictEqual('id' in validated.ability_updates[1].ability, false, 'Models are never required to emit an id');
+  assert.strictEqual('id' in validated.ability_updates[2].ability, false, 'A non-string id is dropped, not an error');
+
+  // The one-shot backfill mints only where an id is missing.
+  const backfilled = rpg.ensureAbilityIds([{ name: 'A' }, { name: 'B', id: 'already-issued' }]);
+  assert.strictEqual(UUID.test(backfilled[0].id), true, 'A legacy row heals on touch');
+  assert.strictEqual(backfilled[1].id, 'already-issued', 'A row that has an id keeps it — minting happens once');
+
+  await db.initDb();
+
+  // Copy into a campaign carries ability ids unchanged (branch lineage).
+  const campaignId = (await db.run(
+    `INSERT INTO campaigns (title, genre, summary, current_act) VALUES ('t','g','s',1)`
+  )).id;
+  await db.run(`INSERT INTO campaign_outlines (campaign_id, outline_json) VALUES (?, ?)`,
+    [campaignId, JSON.stringify({ acts: [], starting_quest: { title: 'q', description: 'd' }, theme_colors: {} })]);
+  const sourceAbilities = [
+    { id: 'source-ability-1', name: 'Quick Draw', description: 'Snap shot.', tier: 'trained', source: 'play' },
+    { name: 'Trail Sense', description: 'Reads sign.', tier: 'emerging', source: 'play' } // legacy: no id yet
+  ];
+  const profileId = (await db.run(
+    `INSERT INTO player_characters (name, archetype, status, health, max_health, mana, max_mana, xp, level,
+      inventory_json, attributes_json, abilities_json, progression_notes)
+     VALUES ('Asha', 'Gunslinger', 'available', 10, 10, 5, 5, 0, 1, '[]', '{}', ?, '')`,
+    [JSON.stringify(sourceAbilities)]
+  )).id;
+
+  await rpg.joinCampaign(campaignId, { characterProfileId: profileId, characterMode: 'copy' });
+  const copiedRow = await db.get(
+    `SELECT abilities_json FROM characters WHERE campaign_id = ? ORDER BY id DESC LIMIT 1`, [campaignId]);
+  const copied = JSON.parse(copiedRow.abilities_json);
+  assert.strictEqual(copied[0].id, 'source-ability-1', 'A copy carries the source ability id unchanged');
+  assert.strictEqual(UUID.test(copied[1].id), true, 'A legacy row is backfilled as it is copied');
+
+  // Import: ability records land as NEW records with fresh ids, remapped
+  // consistently so rows that shared an id in the bundle still share one.
+  const fixture = JSON.parse(fs.readFileSync(new URL('./test-fixtures/campaign-bundle-v1.json', import.meta.url)));
+  const bundle = JSON.parse(JSON.stringify(fixture));
+  const shared = { id: 'bundle-ability-1', name: 'Quick Draw', description: 'Snap shot.', tier: 'trained', source: 'play' };
+  bundle.characters[0].abilities_json = JSON.stringify([
+    shared,
+    { name: 'Written Before Ids', description: 'Legacy bundle row.', tier: 'emerging', source: 'play' }
+  ]);
+  bundle.characters.push({
+    ...bundle.characters[0], source_id: 99, name: 'Asha (branch)', status: 'released',
+    abilities_json: JSON.stringify([shared])
+  });
+  const importedState = await rpg.importCampaign(bundle);
+  const importedRows = await db.all(
+    `SELECT abilities_json FROM characters WHERE campaign_id = ? ORDER BY id ASC`, [importedState.campaignId]);
+  const importedAbilities = JSON.parse(importedRows[0].abilities_json);
+  const branchAbilities = JSON.parse(importedRows[1].abilities_json);
+  assert.strictEqual(UUID.test(importedAbilities[0].id), true, 'Imported rows get freshly minted engine-issued ids');
+  assert.notStrictEqual(importedAbilities[0].id, 'bundle-ability-1', 'A bundle id is never adopted as-is');
+  assert.strictEqual(branchAbilities[0].id, importedAbilities[0].id,
+    'One bundle id remaps to one new id across every row that shared it');
+  assert.strictEqual(UUID.test(importedAbilities[1].id), true, 'A bundle written before ids imports cleanly, minting as it lands');
+
+  // Old bundles carrying no ability ids at all still import without failing.
+  const idlessBundle = JSON.parse(JSON.stringify(fixture));
+  const idlessState = await rpg.importCampaign(idlessBundle);
+  assert.strictEqual(typeof idlessState.campaignId, 'number', 'A pre-id bundle imports cleanly');
+}
+
+// -------------------------------------------------------------
 // Test: multi-voice narration — script validation, sticky NPC voices (Phase 2)
 // -------------------------------------------------------------
 async function testVoiceScript() {
@@ -4237,6 +4361,7 @@ async function runAll() {
     testRefereeDiceFlow();
     testResolveAgentConfig();
     await testRulesetCanon();
+    await testAbilityIdentity();
     await testTurnOrder();
     await testStructuredLocations();
     await testHeroicPointer();

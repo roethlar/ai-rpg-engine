@@ -2887,7 +2887,7 @@ valid CSS). Its project branch refs were deleted after CT landed; the postmortem
 
 ---
 
-## Phase PT: Cross-genre portability, Stage 1 — PLAN APPROVED (owner "yes", 2026-07-31); S1.1 IN PROGRESS
+## Phase PT: Cross-genre portability, Stage 1 — PLAN APPROVED (owner "yes", 2026-07-31); S1.1 LANDED; S1.2 AWAITS GATE 3
 
 **Design authority**: `.agents/review/archetype-portability-matrix-v3.1.md` (as amended §1.1).
 This section adds implementation coordinates only; mechanics, schemas, flows, and the full

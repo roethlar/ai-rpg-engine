@@ -46,9 +46,11 @@ to `docs/history/state-archive.md`.
 
 ## Next
 
-**CURRENT WORK:** Phase PT plan approved (owner 2026-07-31). S1.1 (ability ids) in progress,
-coded by Opus/Sonnet subagents per owner instruction; gates 3-7 arrive in chat one at a time as
-their slices come up (3 before S1.2; 4-5 before S1.3; 6-7 before S1.5).
+**CURRENT WORK:** Phase PT S1.1 (ability ids) is landed and guard-proofed: id-first matching
+with legacy name fallback and heal-on-touch backfill; ids survive branch/copy; import remints
+consistently. Coded by an Opus subagent, verified and guard-proofed by the orchestrator (revert
+leg observed failing, restore leg green). **NEXT OWNER ACTION: gate 3** — the nine capability
+axes (v3.1 §6.1) — before S1.2 lands; then gates 4-5 before S1.3, 6-7 before S1.5.
 
 - Continue the rules intake queue one owner decision at a time; D5 and D13 are also ready now
   that D2 is signed off.
