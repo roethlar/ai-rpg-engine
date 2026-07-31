@@ -20,13 +20,15 @@ review occurs only when the owner invokes a current review operator.
   transition. Models emit validated identifiers and enums, never arithmetic.
 - D0 settled the overall frame: a versioned fixed house chassis plus generated
   campaign flavor. D1's resolution chapter and D2's effect catalog are owner-signed;
-- D3 gates 1-2 and Phase PT are approved; gate 1 is amended to one persistent character ID active
-  in exactly one campaign. Mechanics and progression travel on that record; first entry fills every
-  missing Stage 1 name or ability binding; returns reuse saved wording exactly and translate only
-  newly gained abilities missing destination wording.
-  Approval atomically moves membership; cancel, stale review, or failure leaves it unchanged.
-  Existing manual copy and bundle export/import are separate from portability. Campaign-setting
-  authority is settled; Gate 3 is next, and D13/D16 remain deferred.
+- D3 Gates 1-3 and Phase PT are approved. Gate 1 establishes one persistent character
+  active in exactly one campaign; mechanics/progression travel, first entry fills missing Stage 1
+  name/ability bindings, and returns reuse saved wording exactly while reviewing only newly gained
+  abilities without destination wording. Gate 3 reads live destination outline/setting, latest six
+  turns chronological, and top eight relevant memories by importance then recency through helpers
+  shared directly with MCP. The GM judges fictional fit, the engine validates structure, and the
+  player approves wording. The draft's deterministic canon-basis digest is freshness metadata, not
+  canon. No second settings checklist, classifier, permission table, editor, sync workflow, or
+  self-network call. S1.1 is landed and S1.2 is ready; D13/D16 remain deferred.
 - Chapter 2 r24 is the canonical effect-verb vocabulary. Generated abilities may
   select legal effects and supply flavor, but may not invent mechanics.
 - Tactical positioning must be explicit engine state. The leading option is a
@@ -72,7 +74,7 @@ owner-approved wording in `.agents/decisions.md` and the eventual plan status.
 | D0 | Overall frame | Bespoke fixed chassis plus campaign flavor skins | **DECIDED 2026-07-12** — fixed house chassis + generated flavor skins; see `.agents/decisions.md`. Unblocks D1, D2, D4, D6, D11, D12, D14. |
 | D1 | Dice engine | Keep d20, but prove the curve before wiring | **DECIDED 2026-07-16, then superseded same day** by the signed-off resolution chapter (`docs/rules/resolution.md` @ `8f7862d`): d100 meet-or-beat with licensed edge texture; die-agnostic core carries forward. See `.agents/decisions.md` sign-off entry. Unblocks D8. |
 | D2 | Ability representation | Fixed effect catalog, genre-spread prototype first | **DECIDED 2026-07-16; CATALOG SIGNED OFF 2026-07-27** — complications are free text with optional contextual suggestions, never a fixed complication table; any mechanical consequence maps to an engine **verb** (state operation) from the deliberately wide, canonical Chapter 2 r24 catalog (`docs/rules/effects.md`). Model trust is tuned via the ledgered stakes license, never by unledgered effects. The catalog-document design gate is satisfied; rules code still requires a concrete phase and owner-approved plan. Unblocks D3, D5, D13. |
-| D3 | Archetype boundary | Stable chassis archetypes, flavor-skinned | V3.1 portability plan drafted 2026-07-27 (`.agents/review/archetype-portability-matrix-v3.1.md`); v1, v2, and v3 retained as evidence. V3 replaced v2's mechanical-equivalence fingerprint with immutable mechanics plus per-campaign expression bindings; v3.1 fixed nine review findings. **GATE 1 ADOPTED, THEN AMENDED 2026-07-31** (recorded in `.agents/decisions.md`): one persistent character ID is active in exactly one campaign; mechanics and progression travel on that record; first entry fills every missing Stage 1 name or ability binding; returns reuse saved wording exactly and translate only newly gained abilities missing destination wording. Portability never duplicates that record. Approval atomically moves membership; cancel, stale review, or failure leaves it unchanged. Existing manual copy and bundle export/import are separate from portability. **GATE 2 APPROVED 2026-07-31** (owner: "go"): Stage 1 is in fixed S1.1 → S1.8 order; the post-gate-1 seams are closed in v3.1 §1.1. Gates 3-7 ride their slices, one at a time. Phase PT in `plan.md` is approved and running; S1.1 landed at `9343e79`, S1.2 awaits Gate 3. D2 prerequisite is satisfied. D13/D16 remain deferred. |
+| D3 | Archetype boundary | Stable chassis archetypes, flavor-skinned | V3.1 portability plan drafted 2026-07-27 (.agents/review/archetype-portability-matrix-v3.1.md); older drafts remain evidence. **GATES 1-3 SETTLED 2026-07-31**: one persistent character is active in exactly one campaign; mechanics/progression travel; saved per-campaign wording is reused exactly; only missing wording is reviewed. Gate 3 rejects a second setting model and instead reads live outline/setting, latest six turns chronological, and top eight relevant memories by importance then recency through direct helpers shared with MCP. The GM judges fit, the engine validates known IDs/shape/no mechanics/no new slots, and the player approves wording. A deterministic canon-basis digest detects stale drafts but is not canon; raw canon remains GM-private. Phase PT is approved and running; S1.1 landed at 9343e79 and S1.2 is ready. Gates 4-7 ride their affected slices. D2 prerequisite is satisfied; D13/D16 remain deferred. |
 | D4 | Attribute count | Keep STR/AGI/INT/WIL | Pending owner decision |
 | D5 | Player spend economy | One Strain/Effort pool plus HP and XP | Ready — D2 catalog signed off 2026-07-27 |
 | D6 | Tactical space | Zones over existing location occupancy | Pending owner decision |

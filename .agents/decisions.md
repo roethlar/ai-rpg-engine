@@ -1194,8 +1194,9 @@ one-record projection amendment below. No slice is standalone.
 
 The gate authorizes drafting the concrete phase plan (files to change, success metrics,
 verification) for its own separate approval; no code is authorized until that plan is approved.
-Remaining v3.1 §16 gates (3: capability axes, 4: slot taxonomy, 5: families, 6: onboarding
-shape, 7: campaign-specific name expression; history remains deferred to D13/D16) ride the slices
+Remaining v3.1 §16 gates (3: campaign canon basis, subsequently settled below without axes;
+4: slot taxonomy, 5: families, 6: onboarding shape, 7: campaign-specific name expression;
+history remains deferred to D13/D16) ride the slices
 they govern and come to chat one at a time
 before the affected slice lands.
 
@@ -1226,8 +1227,8 @@ Refines:
 The 2026-06-11 player-authority decision remains active: players may question the GM, but the GM's
 word on world facts is final. This ruling narrows "owner settings" for Phase PT: campaign
 worldbuilding is not an ordinary settings surface. It supersedes v3.1 amendment C's host-edit and
-affected-player revalidation workflow; the capability declaration's internal representation remains
-for Gate 3.
+affected-player revalidation workflow. The later Gate 3 entry below settles portability's canon
+basis without a second setting record.
 
 ### 2026-07-31 - Rules D3 gate 1 amendment: one persistent character, one active campaign (owner decision)
 
@@ -1266,3 +1267,41 @@ carries the experience with it. no alternate versions." This also resolves the r
 to a prior campaign cannot produce a different incarnation because the same character returns and
 its saved campaign expression is reused; only newly gained abilities without destination wording
 require translation.
+
+### 2026-07-31 - Rules D3 gate 3: portability reads live campaign canon; no second setting model (owner decision)
+
+Portability decides how a character is described in a destination campaign from that campaign's
+existing canon: its outline and setting, a bounded slice of played history, and relevant durable
+memories. It does **not** create or maintain `capability_json`, magic/firearms/technology axes,
+predicate grammar, a genre classifier, seeded permission tables, or any other checklist that could
+disagree with the campaign itself.
+
+The engine and MCP tools must share direct internal read helpers. Internal portability code never
+calls the server's own MCP SSE or HTTP endpoint. The Stage 1 portability canon pack uses the
+Council-aligned defaults: the latest six turns returned in chronological order and the top eight
+relevant memories ordered by importance then recency, alongside the canonical outline/setting.
+The helpers may accept explicit bounds or search inputs so MCP tools can retain their public
+behavior without duplicating the reads.
+
+The GM judges whether proposed wording honestly fits that canon. The engine validates only the
+bounded contract: known character and ability IDs, expected shape, no mechanics, and no new
+expression slots. The player approves the wording before the move commits. `player_action` is an
+action or claim, not canon by itself; GM narration, committed memories, and the campaign
+outline/setting ground the review. Raw canon excerpts and retrieval anchors remain GM-private; the
+player sees the proposed wording and the GM's player-safe explanation, not the hidden canon pack.
+
+Reads are live, so later GM worldbuilding is naturally present the next time wording is proposed.
+There is no settings editor, synchronization workflow, or retroactive correction path in this
+stage. A persisted movement draft may store a deterministic digest of the exact canon basis solely
+to detect stale review before approval. The digest is not campaign canon and never invalidates
+already approved per-campaign wording, which is reused exactly when the same character returns.
+
+This closes Gate 3 and makes S1.2 ready under the approved Phase PT order. S1.2 supplies shared
+canonical-context retrieval and deterministic freshness; S1.3 supplies canon-grounded wording
+proposal plus structural validation; S1.4 establishes campaign vocabulary lazily from the same
+canon when a missing binding first requires it. Gates 4-7 remain open for their affected slices.
+
+Reason:
+Owner 2026-07-31 rejected a second structured setting checklist: the campaign data the MCP already
+exposes is the authority, the GM settles fictional fit from that worldbuilding, and live reads avoid
+an editor or synchronization problem.

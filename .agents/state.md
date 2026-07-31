@@ -20,14 +20,16 @@ to `docs/history/state-archive.md`.
   2026-07-27, enacting its three declared Chapter 1 refinements and closing the D2 catalog-design
   gate. `.agents/review/rules-system-plan-intake.md` owns the remaining decision queue; no rules
   code before a concrete phase and an owner-approved plan.
-- **PHASE PT IS APPROVED AND RUNNING; S1.2 AWAITS GATE 3 ONLY.** D3 gate 1 now records one
-  persistent character, active in exactly one campaign: mechanics and progression travel; first
-  entry fills every missing Stage 1 name or ability binding; returns reuse saved wording exactly and
-  translate only newly gained abilities lacking destination wording.
-  There are no portability branches or alternate versions. Campaign setting authority is also
-  settled in `.agents/decisions.md`: the creator chooses at creation, GM worldbuilding stands,
-  and ordinary play has no host/player setting-correction control. Phase PT in `plan.md` owns the
-  landed S1.1 history, fixed slice order, remaining-gate routing, and coding assignment.
+- **PHASE PT IS APPROVED AND RUNNING; GATE 3 IS CLOSED AND S1.2 IS READY.** D3
+  records one persistent character active in exactly one campaign: mechanics and progression
+  travel; first entry fills missing Stage 1 name/ability bindings; returns reuse saved wording
+  exactly and review only newly gained abilities lacking destination wording. Portability reads
+  live destination outline/setting, latest six turns chronological, and top eight relevant
+  memories by importance then recency through direct helpers shared with MCP. The GM judges fit,
+  the engine validates shape/IDs/no mechanics/no new slots, and the player approves wording. A
+  deterministic canon-basis digest detects stale drafts but is not canon. There is no second
+  settings checklist, classifier, editor, sync workflow, self-network call, branch, or alternate
+  character. Phase PT in `plan.md` owns the fixed slice order and coding assignments.
 - **PHASE V CODE IS COMPLETE; THE OWNER VOICE PLAYTEST IS PENDING.** The live contract is one
   campaign-canonical narrator, server-resolved NPC voices, shared host/seat synthesis, and
   save-once replay. `.agents/review/index.md` owns the accepted implementation trail. The phase
@@ -43,10 +45,9 @@ to `docs/history/state-archive.md`.
 
 ## Next
 
-**NEXT:** Pose Gate 3 from the v3.1 draft one plain question at a time, beginning with whether the
-engine needs a structured capability declaration at all. If it does, Gate 3 must then settle its
-contents and how it follows forward-only GM worldbuilding. S1.2 starts only after Gate 3 closes.
-
+**NEXT:** Implement Phase PT S1.2: extract shared direct campaign-context reads, pin the Stage 1
+bounds and deterministic digest, preserve MCP behavior, keep raw canon GM-private, add parity,
+ordering, privacy, freshness, and no-loopback tests, then run the anti-vacuity proof and npm test.
 - Continue the owner decision queue one item at a time from the canonical queue in
   `.agents/review/rules-system-plan-intake.md`.
 - The first approved UI backlog slice is `jt-1` (prevent stale cross-campaign Journal responses);
@@ -61,7 +62,7 @@ contents and how it follows forward-only GM worldbuilding. S1.2 starts only afte
 ## Blockers
 
 - No product-code defect blocks development.
-- Phase PT S1.2 is blocked only on Gate 3; the campaign-setting authority question is settled.
+- Phase PT has no decision blocker through S1.2; Gates 4-7 still gate only their affected later slices.
 - Broader Chapter 1/2 effect-catalog runtime implementation remains blocked until promoted into
   a concrete owner-approved phase; the D2 catalog-design gate is closed.
 - Phase V closure requires the owner's real-session voice verdict.

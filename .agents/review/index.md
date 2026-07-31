@@ -92,17 +92,18 @@ custom, implementation-ready system and plan. Read-only intake reviewed pinned
 snapshot `526aa5c` with Claude Code 2.1.207 (`claude-opus-4-8`, high effort,
 structured output). Verdict: `ready_for_owner_decisions` — **not** plan
 acceptance. It admitted 14 plan gaps (5 HIGH) and produced a 15-decision queue.
-D0-D2 are decided; D3 gates 1-2 and Phase PT are approved, with S1.1 landed. Gate 1 is
-amended to one persistent character ID active in exactly one campaign: mechanics and progression
-travel on that record; first entry fills every missing Stage 1 name or ability binding; returns
-reuse saved wording exactly and translate only newly gained abilities missing destination wording.
-Approval atomically moves membership; cancel, stale
-review, or failure leaves it unchanged. Existing manual copy and bundle export/import are separate
-from portability. Campaign-setting authority is settled; Gate 3 is next, and D13/D16 remain
-deferred. Other rules work still requires promotion into a concrete approved phase; cross-harness
-review occurs only when the owner invokes it.
+D0-D2 are decided; D3 Gates 1-3 and Phase PT are approved, with S1.1 landed and
+S1.2 ready. One persistent character ID is active in exactly one campaign; mechanics/progression
+travel, first entry fills missing Stage 1 name/ability bindings, and returns reuse saved wording
+exactly while reviewing only newly gained abilities without destination wording. Gate 3 rejects a
+second setting model: portability reads live outline/setting, latest six turns chronological, and
+top eight relevant memories by importance then recency through direct helpers shared with MCP. The
+GM judges fictional fit, the engine validates structure, and the player approves wording. A
+deterministic canon-basis digest detects stale drafts but is not canon. Raw canon remains
+GM-private. D13/D16 remain deferred. Other rules work still requires promotion into a concrete
+approved phase; cross-harness review occurs only when the owner invokes it.
 
-Detailed intake and decision queue:
+Detailed intake decision queue:
 `.agents/review/rules-system-plan-intake.md`.
 
 ---
