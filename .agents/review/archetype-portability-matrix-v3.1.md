@@ -1,6 +1,7 @@
 # Cross-genre character portability — v3.1
 
-**Status**: DRAFT v3.1 for owner review. Authorizes no product-code change. D3 remains unruled.
+**Status**: ACTIVE working draft. **Gate 1 (§16) adopted by the owner 2026-07-31** — recorded in
+`.agents/decisions.md`. Gates 2-7 remain unruled. Authorizes no product-code change.
 
 **Date**: 2026-07-27
 

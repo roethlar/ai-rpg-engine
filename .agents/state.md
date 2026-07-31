@@ -20,24 +20,17 @@ to `docs/history/state-archive.md`.
   2026-07-27, enacting its three declared Chapter 1 refinements and closing the D2 catalog-design
   gate. `.agents/review/rules-system-plan-intake.md` owns the remaining decision queue; no rules
   code before a concrete phase and an owner-approved plan.
-- **D3 HAS A REVIEWED V3.1 PLAN, NOT AN OWNER DECISION.**
-  `.agents/review/archetype-portability-matrix-v3.1.md` is the active working draft; v1, v2, v3,
-  and `.agents/review/archetype-portability-matrix-review.md` are retained evidence. V3 replaced
-  v2's mechanical-equivalence fingerprint with an immutable-mechanics thesis — Translate copies the
-  mechanical record verbatim and rebinds only expression — and v3.1 fixed nine review findings
-  against it (per-character bindings, a formal requirement predicate grammar, corrected pin
-  coverage, the literal-pin/leak-test contradiction, new-character onboarding, ability-id scope,
-  declaration lifecycle, and a narrowed round-trip claim). It also withdraws v3's claim that
-  expression-only translation is mechanically risk-free: the ruleset sheet is the adjudicating
-  model's canon rulebook (`rpg-prompts.js:101-109`), so canon-prose rewrites ship last and gated.
-- **THE V3.1 CORE IS READY FOR AN OWNER RULING; STAGE 1 IS NOT YET COLD-IMPLEMENTABLE.**
-  The latest read recommends adopting gate 1's immutable-mechanics plus per-campaign-bindings
-  architecture. Before gate 2, revise three remaining seams: S1.8 cannot derive ruleset
-  `cost`/`effect`/`limits` from profile abilities safely before D5 defines their canonical link;
-  new-character onboarding needs a persisted approval draft rather than the synchronous `new`
-  route; and tightening campaign capabilities must require each affected player's approval, not
-  host-only resolution. Also define a legal expression candidate as a known semantic key whose
-  engine-owned predicate passes, with its term remaining player-approved.
+- **D3 GATE 1 IS OWNER-ADOPTED (2026-07-31; recorded in `.agents/decisions.md`).** Immutable
+  mechanics plus per-campaign expression bindings, three modes (Continue/Branch/Translate),
+  mandatory player approval. `.agents/review/archetype-portability-matrix-v3.1.md` is the active
+  working draft; v1, v2, v3, and the review file are retained evidence. Gates 2-7 remain unruled;
+  no product code is authorized.
+- **STAGE 1 IS NOT YET COLD-IMPLEMENTABLE.** Before gate 2, revise three remaining seams: S1.8
+  cannot derive ruleset `cost`/`effect`/`limits` from profile abilities safely before D5 defines
+  their canonical link; new-character onboarding needs a persisted approval draft rather than the
+  synchronous `new` route; and tightening campaign capabilities must require each affected
+  player's approval, not host-only resolution. Also define a legal expression candidate as a known
+  semantic key whose engine-owned predicate passes, with its term remaining player-approved.
 - **PHASE V CODE IS COMPLETE; THE OWNER VOICE PLAYTEST IS PENDING.** The live contract is one
   campaign-canonical narrator, server-resolved NPC voices, shared host/seat synthesis, and
   save-once replay. `.agents/review/index.md` owns the accepted implementation trail. The phase
@@ -53,11 +46,9 @@ to `docs/history/state-archive.md`.
 
 ## Next
 
-**FIRST OWNER ACTION:** Review `.agents/review/archetype-portability-matrix-v3.1.md`. First rule
-only on the core architecture: mechanics copied verbatim plus per-campaign expression bindings,
-distinct Continue/Branch/Translate modes, translated branch creation, and mandatory player
-approval. Recommendation: adopt gate 1. No D3 decision is recorded until the owner rules; Stage 1
-remains blocked on the three seams recorded above and no slice is proposed as standalone.
+**CURRENT WORK:** Revise the three Stage 1 seams in the v3.1 draft (recorded in `## Now`) so the
+plan is cold-implementable, then put gate 2 (Stage 1 as a phase, S1.1 → S1.8 order) to the owner.
+No slice is proposed as standalone.
 
 - Continue the rules intake queue one owner decision at a time; D5 and D13 are also ready now
   that D2 is signed off.

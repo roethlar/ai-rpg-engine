@@ -1149,3 +1149,32 @@ content. It refines — does not supersede — resolution chapter §1.5: catalog
 and point-budget validation stand, with the catalog understood as a wide state-verb vocabulary.
 The genre-spread coverage proof carries forward as a drafting-stage obligation on the verb set
 (reviewer recommendation; not separately owner-ruled).
+
+### 2026-07-31 - Rules D3 gate 1: cross-genre portability core — immutable mechanics, per-campaign expression bindings (owner decision)
+
+When a character moves between campaigns, the mechanical record — ability records and their
+packaging, costs, limits, attributes, progression (level, XP, tiers) — is **copied verbatim**:
+never re-derived, never model-touched. Only expression rebinds, and it rebinds **per campaign**:
+a campaign-scope shared vocabulary (semantic key → destination term) plus character-scope bindings
+(identity, ability display names and prose, specializations, pins). Movement is always one of
+three modes — Continue (same profile into a compatible campaign), Branch (exact copy with
+lineage), Translate (cross-genre incarnation, created as a new branch) — and no mode mutates the
+source character. Translation requires **mandatory player approval** of the exact card before
+play begins.
+
+This adopts gate 1 of the active working draft
+(`.agents/review/archetype-portability-matrix-v3.1.md` §16) and settles the foundation only.
+Gates 2-7 — Stage 1 as a phase, capability axes, slot taxonomy, family set, onboarding shape,
+name/history policy — remain unruled. No product code is authorized by this decision.
+
+Reason:
+Owner 2026-07-31: "adopt", after in-chat examination of the design (sorcerer/wizard separation via
+per-character cost shapes, class decomposition into family + source + mechanics, creation flow,
+progression carry-over). Recommendation basis: the smallest design testable by structural
+identity (`assert.deepStrictEqual(translated.mechanics, source.mechanics)`), and the shape D0's
+one-rulebook rule already implies.
+
+Supersedes:
+v2's candidate-generation-plus-equivalence-proof apparatus
+(`.agents/review/archetype-portability-matrix-v2.md`, retained as evidence). The v3.1 draft's
+remaining owner gates are unaffected.
