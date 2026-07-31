@@ -25,12 +25,14 @@ to `docs/history/state-archive.md`.
   mandatory player approval. `.agents/review/archetype-portability-matrix-v3.1.md` is the active
   working draft; v1, v2, v3, and the review file are retained evidence. Gates 2-7 remain unruled;
   no product code is authorized.
-- **STAGE 1 IS NOT YET COLD-IMPLEMENTABLE.** Before gate 2, revise three remaining seams: S1.8
-  cannot derive ruleset `cost`/`effect`/`limits` from profile abilities safely before D5 defines
-  their canonical link; new-character onboarding needs a persisted approval draft rather than the
-  synchronous `new` route; and tightening campaign capabilities must require each affected
-  player's approval, not host-only resolution. Also define a legal expression candidate as a known
-  semantic key whose engine-owned predicate passes, with its term remaining player-approved.
+- **THE STAGE 1 SEAMS ARE CLOSED** (post-gate-1 amendments 2026-07-31, mapped in §1.1 of the v3.1
+  draft): S1.8 narrowed to byte-identical carryover of source ruleset entries with no derivation
+  before D5; new-character onboarding gained a persisted, hash-bound approval draft; tightening a
+  campaign declaration now requires each affected player's own resolution, never host-imposed;
+  and "legal expression candidate" is formally defined (known semantic key, engine-evaluated
+  predicate, player-approved term). The amendments are agent-drafted and unreviewed
+  (cross-harness review stays off by default). Gate 2 — Stage 1 as a phase, S1.1 → S1.8 — is
+  ready for the owner.
 - **PHASE V CODE IS COMPLETE; THE OWNER VOICE PLAYTEST IS PENDING.** The live contract is one
   campaign-canonical narrator, server-resolved NPC voices, shared host/seat synthesis, and
   save-once replay. `.agents/review/index.md` owns the accepted implementation trail. The phase
@@ -46,9 +48,10 @@ to `docs/history/state-archive.md`.
 
 ## Next
 
-**CURRENT WORK:** Revise the three Stage 1 seams in the v3.1 draft (recorded in `## Now`) so the
-plan is cold-implementable, then put gate 2 (Stage 1 as a phase, S1.1 → S1.8 order) to the owner.
-No slice is proposed as standalone.
+**NEXT OWNER ACTION:** Gate 2 — approve Stage 1 as a phase in the S1.1 → S1.8 order (the order is
+load-bearing). A yes authorizes drafting the concrete phase plan (files to change, success
+metrics) for separate approval; no code moves on the gate alone. No slice is proposed as
+standalone.
 
 - Continue the rules intake queue one owner decision at a time; D5 and D13 are also ready now
   that D2 is signed off.

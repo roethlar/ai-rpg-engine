@@ -32,6 +32,19 @@ Unchanged from v3: the immutable-mechanics thesis (§3), the three modes, capabi
 permission as the sole definition of "no honest equivalent", pins, the card, the narration binding,
 and the staged delivery shape.
 
+### 1.1 Amendments after gate 1 (2026-07-31)
+
+Gate 1 was adopted by the owner 2026-07-31 (`.agents/decisions.md`). Before gate 2, the read that
+recommended adoption named three seams plus one missing definition; all four are folded into the
+body below and mapped here so the delta is checkable:
+
+| # | Seam | Fix | § |
+|---|---|---|---|
+| A | S1.8 derived ruleset `cost`/`effect`/`limits` from profile abilities, but no canonical link between the two surfaces exists before D5 | S1.8 narrowed: destination sheet entries are **copied byte-for-byte from source ruleset entries** (id-keyed after S1.1, name-keyed legacy fallback) with only the display name rebound; incoming abilities with no source entry are carried **underived** and disclosed on the card; derivation waits for Stage 2 / D5 | §11 |
+| B | New-character onboarding rode the synchronous `new` route, so its capability-summary approval could not survive a reload | Every flow containing a player-approval step persists a draft: Translate **and** onboarding. `existing` and `copy` (no approval step) stay synchronous | §8.1, §13 |
+| C | Tightening a campaign declaration was host-resolved, letting a host rewrite other players' characters | Tightening revalidation is resolved **per affected character, by that character's player**; the edit commits only when every affected player has resolved, or the host abandons it | §6.4 |
+| D | "Candidate" was used without a closed definition | A **legal expression candidate** is a known semantic key (campaign vocabulary or seed taxonomy — never model-minted) whose engine-owned predicate passes against the current declaration, with its bound term still player-approved | §6.3 |
+
 ---
 
 ## 2. Grounding: what actually ships today
@@ -508,6 +521,13 @@ Rules:
 
 ### 6.3 The check
 
+**Definition (amendment D).** A **legal expression candidate** for a slot is a semantic key that
+is (a) **known** — present in the campaign vocabulary or in the seed taxonomy for the campaign's
+genre class; models select among known keys and never mint one — and (b) **permitted** — its
+engine-owned `requires` predicate evaluates true against the current capability declaration,
+fail-closed per §6.2. Legality is computed by the engine alone; the *term* bound to a legal
+candidate remains player-approved on the card. Everything below quantifies over legal candidates.
+
 ```
 candidates(slot) = { row in seed(slot, genreClass) | evaluate(row.requires, declaration) }
 ```
@@ -542,7 +562,7 @@ A declaration edited after characters have bound can silently invalidate their b
 |---|---|
 | Before the first binding commits | Freely editable by the host |
 | After the first binding commits, **loosening** (raising any axis) | Applies immediately. Strictly widens candidate sets; no existing binding can become illegal |
-| After the first binding commits, **tightening** (lowering any axis) | Requires a revalidation pass that names every binding that would become illegal, per character. The host resolves each — pin as exception, rebind, or abandon the edit — before the edit commits. Never silent |
+| After the first binding commits, **tightening** (lowering any axis) | Requires a revalidation pass that names every binding that would become illegal, per character. **Each affected character's player resolves their own bindings** — pin as exception or rebind; the host resolves only characters the host owns, and may abandon the edit at any point. The edit commits only after every affected player has resolved. Never silent, never host-imposed on another player's character. Each player sees only their own affected bindings (§9 seat rule) |
 
 Every edit increments `declarationVersion`; every binding records the version it was validated
 against, so staleness is detectable rather than inferred.
@@ -612,6 +632,12 @@ free-text concept (or existing archetype + ability list)
 
 The 22 families remain invisible at every entry point. If a candidate translation would change the
 family composition, that is a rebuild, not a translation.
+
+**Persistence (amendment B).** The propose → summarize → approve sequence is a draft, not a live
+request: the proposed families, slots, candidate pins, capability summary, and approval state
+persist and survive a reload, with approval hash-bound to what the player actually saw — the same
+discipline §13 applies to the translation card. Nothing inferred becomes canonical while the draft
+is open.
 
 ### 8.2 Three modes
 
@@ -748,7 +774,7 @@ validation, and approval machinery lands *before* anything rewrites canon prose.
 | S1.5 | Onboarding: concept → families/slots → capability summary → approval, all three entry points (§8.1) | A new character gets an identity record without seeing a class menu |
 | S1.6 | Translate mode: verbatim copy, filter, card, hash-bound approval, cancel and resume (§8.3-8.5) | Play cannot begin before approval; source untouched |
 | S1.7 | Narration binding and the leak check (§9) | No unapproved source term reaches destination council context |
-| S1.8 | Close the §2.1 defect: destination ruleset generation receives the incoming character's abilities as **re-express, do not replace** — at campaign creation only, output diffed on the card, player-approved | A reused profile's rule sheet describes *her* abilities in destination language, and she saw every word change |
+| S1.8 | Close the §2.1 defect, narrowed by amendment A: for each incoming ability that has a **source ruleset entry** (id-keyed after S1.1; name-keyed legacy fallback), the destination sheet carries that entry with `cost`, `effect`, and `limits` **byte-identical** and only the display name rebound through the ability binding. Incoming abilities with **no** source entry get no derived entry — they remain profile-prose abilities expressed through bindings, disclosed on the card as "carried without a rule-sheet entry". At campaign creation only; output diffed on the card; player-approved | A reused profile's rule sheet names *her* abilities in destination language with their mechanics byte-identical to the source sheet; nothing is derived from profile prose; she saw every word change |
 
 S1.8 was S1.6 in v3 and was proposed as a standalone quick win. That was wrong: the ruleset sheet is
 the adjudicating model's canon rulebook (`rpg-prompts.js:101-109`), so an unconstrained
@@ -792,12 +818,13 @@ assert.deepStrictEqual(translated.mechanics, source.mechanics);
 | Ability ids | Match on id after rename; legacy name-keyed rows still match; ids survive Branch, Translate, export, and import remapping |
 | Predicates | `all`/`any`/`gte`/`eq`/`not`, empty `all` true, empty `any` false, depth cap, unknown axis or value fails closed; every seed row evaluates against every genre class |
 | Filter | Non-empty binds; empty-and-pinned yields exception; empty-and-unpinned yields `needs_choice`; each §6.3 guard case as a fixture |
-| Declaration lifecycle | Loosening applies immediately; tightening reports every affected binding and blocks until resolved; `declarationVersion` staleness detected |
+| Declaration lifecycle | Loosening applies immediately; tightening reports every affected binding and blocks until **each affected character's player** resolves their own (host resolves only host-owned characters); a host cannot commit a tightening over another player's unresolved binding; `declarationVersion` staleness detected |
 | Two scopes | Two characters in one campaign each keep their own identity; shared terms shared; specialization does not rewrite the shared entry; late joiner cannot alter established terms |
 | Model containment | Adversarial fixtures: invented ability ids, numbers in prose, new slots, edits to pinned slots, rewrites of shared vocabulary, bindings outside the candidate set — all rejected, bounded retry, honest non-playable failure |
 | Narration | Leak check per §9's set difference, including a case where an approved literal pin **must** appear and must not be flagged |
 | Card | Every changed term appears; no unchosen alternative hidden; approval hash-bound and idempotent |
-| Draft flow | ready / needs_choice / stale / retry / cancel; restart-safe; play cannot precede approval |
+| Draft flow | ready / needs_choice / stale / retry / cancel; restart-safe; play cannot precede approval. Onboarding drafts: survive reload; approval hash-bound; nothing inferred becomes canonical while open |
+| S1.8 byte identity | Each destination sheet entry with a source counterpart deep-equals it on `cost`/`effect`/`limits`; an incoming ability without a source entry produces no derived entry and appears on the card as carried-underived |
 | Compatibility | Legacy profiles: Continue and Branch unchanged; old bundles import; new bundles round-trip vocabulary, bindings, pins, provenance, ability ids; unknown schema fails closed |
 | Seat isolation | Bindings, pins, provenance, alternatives do not cross seats; re-run leak and route guards per `.agents/repo-guidance.md` |
 
@@ -834,8 +861,10 @@ bindings exactly as campaign members are snapshotted today.
 **Draft**: Translate needs destination vocabulary before approval and must survive a reload, so it
 needs a persisted `campaign_creation_drafts` record — id, status, genre and table settings, source
 profile id and hashes, generated outline/ruleset/declaration/vocabulary, card and card hash, player
-choices, timestamps, idempotency and commit result. `new`, `existing`, and `copy` keep their current
-synchronous route; only Translate requires the draft flow.
+choices, timestamps, idempotency and commit result. The rule (amendment B): **every flow that
+contains a player-approval step persists a draft** — Translate, and new-character onboarding
+(§8.1, whose draft carries the proposed identity record and capability summary). `existing` and
+`copy` contain no approval step and keep their current synchronous route.
 
 **Endpoints**: `POST /api/campaign-drafts`, `GET /api/campaign-drafts/:id`,
 `POST /api/campaign-drafts/:id/choices`, `POST /api/campaign-drafts/:id/approve` (card hash plus
