@@ -2,7 +2,8 @@
 
 **Status**: ACTIVE working draft. **Gates 1-2 (§16) adopted/approved by the owner 2026-07-31** —
 recorded in `.agents/decisions.md`. Gates 3-7 remain unruled. Phase PT is approved in `plan.md`;
-remaining gates govern their affected slices.
+remaining gates govern their affected slices. Gate 1's one-persistent-character amendment controls
+any older wording below.
 
 **Date**: 2026-07-27
 
@@ -19,17 +20,17 @@ checked without re-reading the whole document.
 
 | # | v3 defect | Fix | §|
 |---|---|---|---|
-| 1 | One shared campaign lexicon with generic keys (`role`, `identity:name`) cannot hold two characters — the second overwrites the first | Split into **campaign-scope vocabulary** (`role:marksman`, `implement:sidearm` — semantic key, shared) and **character-scope bindings** (identity, pins, ability expression, which vocabulary entries this character uses) | §5 |
-| 2 | "Stage 1 is mechanically risk-free — nothing mechanical can break" | **Withdrawn.** The ruleset sheet is injected as `CAMPAIGN RULES (CANON — these must never drift)` and the model adjudicates from it (`rpg-prompts.js:101-109`); profile ability prose is also in context (`rpg-prompts.js:156`). No *engine-executed* mechanics exist yet, but the prose **is** the operative rulebook. S1.6 moves last, behind ids, bindings, validation, and player approval, and is confined to campaign-creation time | §2, §11 |
+| 1 | One shared campaign lexicon with generic keys (`role`, `identity:name`) cannot hold two characters — the second overwrites the first | Split into **campaign-scope vocabulary** (`role:marksman`, `implement:sidearm` — semantic key, shared) and **character-scope bindings** (eligible name wording, pins, and ability expression that references shared vocabulary without a separate `uses` row) | §5 |
+| 2 | "Stage 1 is mechanically risk-free — nothing mechanical can break" | **Withdrawn.** The ruleset sheet is injected as `CAMPAIGN RULES (CANON — these must never drift)` and the model adjudicates from it (`rpg-prompts.js:101-109`); character ability prose is also in context (`rpg-prompts.js:156`). No *engine-executed* ability mechanics exist yet, but prose **is** the operative rulebook. S1.8 ships last, behind ids, bindings, validation, and player approval, and runs only during the campaign-entry handoff before activation — never as a rewrite of approved wording during play | §2, §11 |
 | 3 | The §6.2 filter supported only conjunctions of `>=` thresholds, while the seed tables used `or`, `=`, and prose inheritance | Small formal predicate grammar: `all`, `any`, `gte`, `eq`, `not`. Inheritance is expanded literally in the data; no prose references survive | §6.2 |
 | 4 | §7 claimed every v2 anchor kind "already exists" in the slot taxonomy — relationship, weakness, oath, and allegiance did not | Four slot families added explicitly (`identity:oath`, `identity:allegiance`, `relationship:<key>`, `weakness:<key>`). The overclaim is deleted and replaced by a coverage table | §5.2, §7 |
-| 5 | Literal pins permit source terms in play, but the leak test rejected *every* source term — the two contradicted | An approved literal pin **is** a destination binding (provenance `player-pin`). The test asserts no *unapproved* source vocabulary, computed as source terms minus the approved binding set | §9 |
-| 6 | New-character initialization missing; only legacy profiles and Translate had an onboarding path | One onboarding mechanism, three entry points: new character, legacy profile, Translate. Concept → proposed families and slots → plain-language capability summary → player approval. Never a class menu | §8.1 |
-| 7 | Ability-ID scope and assignment undefined | Globally unique, engine-issued, minted once, carried unchanged through branches and translations, remapped on import | §4.4 |
+| 5 | Literal pins permit wording also used in another campaign, but the leak test rejected *every* such term — the two contradicted | An approved literal pin **is** a destination binding (provenance `player-pin`). The test asserts no *unapproved* cross-campaign wording, computed as other-campaign terms minus the approved binding set | §9 |
+| 6 | New-character initialization was missing; only legacy profiles had a translation-time onboarding path | One identity onboarding serves new and legacy characters: concept → proposed families and slots → plain-language summary → player approval. Later campaign moves read that same identity record. Never a class menu | §8.1 |
+| 7 | Ability-ID scope assignment undefined | Globally unique, engine-issued, minted once, retained on the same persistent character across campaign moves, and remapped only by bundle import | §4.4 |
 | 8 | Capability declaration editable at any time, silently invalidating existing bindings | Superseded by the 2026-07-31 authority ruling: ordinary play has no host/player declaration editor; GM worldbuilding moves forward in fiction, never by retroactive settings rewrite | §6.4 |
-| 9 | Round-trip claim ("W→F→W restores the original bindings exactly") was false for a *new* origin-genre campaign | Narrowed: mechanics are identical at every hop unconditionally; binding restoration is claimed only when translating back into the **original campaign** | §12 |
+| 9 | Round-trip claim ("W→F→W restores original bindings exactly") was scoped to an "original" profile rather than the persistent character | Corrected: returning to any previously visited campaign reuses that character's saved bindings exactly; only abilities gained since the prior visit need new bindings | §8, §12 |
 
-Unchanged from v3: the immutable-mechanics thesis (§3), the three modes, capability-filtered
+Unchanged from v3: the immutable-mechanics thesis (§3), capability-filtered
 permission as the sole definition of "no honest equivalent", pins, the card, the narration binding,
 and the staged delivery shape.
 
@@ -41,10 +42,11 @@ body below and mapped here so the delta is checkable:
 
 | # | Seam | Fix | § |
 |---|---|---|---|
-| A | S1.8 derived ruleset `cost`/`effect`/`limits` from profile abilities, but no canonical link between the two surfaces exists before D5 | S1.8 narrowed: destination sheet entries are **copied byte-for-byte from source ruleset entries** (id-keyed after S1.1, name-keyed legacy fallback) with only the display name rebound; incoming abilities with no source entry are carried **underived** and disclosed on the card; derivation waits for Stage 2 / D5 | §11 |
-| B | New-character onboarding rode the synchronous `new` route, so its capability-summary approval could not survive a reload | Every flow containing a player-approval step persists a draft: Translate **and** onboarding. `existing` and `copy` (no approval step) stay synchronous | §8.1, §13 |
+| A | S1.8 derived ruleset `cost`/`effect`/`limits` from character prose, but the two shipped ability surfaces had no canonical link before D5 | S1.8 establishes a stable mechanic reference for any linked ability and projects that one canonical record into GM context with the destination display binding. It persists no destination mechanics copy. An ability with no canonical mechanic entry remains underived and is disclosed on the card; fuller packaging waits for Stage 2 / D5 | §11 |
+| B | New-character onboarding rode the synchronous `new` route, so its capability-summary approval could not survive reload | Every flow containing a player-approval step persists a draft: onboarding and any campaign move needing new bindings. `existing` and explicit manual `copy` (no approval step) stay synchronous; manual copy is not portability | §8.1, §13 |
 | C | Tightening a campaign declaration was host-resolved, letting a host rewrite other players' characters | **Superseded by the 2026-07-31 authority ruling:** no ordinary host/player declaration edit surface; the creator chooses at creation and later GM worldbuilding evolves only through play | §6.4 |
 | D | "Candidate" was used without a closed definition | A **legal expression candidate** is a known semantic key (campaign vocabulary or seed taxonomy — never model-minted) whose engine-owned predicate passes against the current declaration, with its bound term still player-approved | §6.3 |
+| E | Gate 1 still described Continue/Branch/Translate as three result profiles | One persistent character record moves between campaigns. The same id, mechanics, and progression travel; only per-campaign expression bindings differ. Saved bindings are reused exactly, and portability creates no branch, alternate version, or merge | §3, §4, §8, §10-§14 |
 
 ---
 
@@ -68,8 +70,12 @@ Verified against working-tree head.
 - **Reuse and copy carry the character verbatim** (`rpg-engine.js:1153-1159`,
   `rpg-engine.js:2086-2099`) into a campaign whose ruleset was regenerated **for the new genre from
   the archetype string alone** (`rpg-engine.js:1143`).
-- Profiles persist archetype, attributes, inventory, abilities, progression, checkout, lineage
-  (`db.js:240-265`); campaigns persist genre and `ruleset_json` (`db.js:92-95`, `db.js:121`).
+- **Shipped storage still reflects the old model**: profiles persist archetype, attributes,
+  inventory, abilities, progression, checkout, and explicit manual-copy lineage
+  (`db.js:240-265`); campaigns persist genre and `ruleset_json`
+  (`db.js:92-95`, `db.js:121`). That is implementation evidence, not the approved portability
+  result. Phase PT must keep portability on one canonical character record and leave manual copy
+  separate.
 
 ### 2.1 The shipped defect, and the correct risk statement
 
@@ -83,10 +89,12 @@ mechanics — nothing in `rpg-state.js` or the catalog runs them. But the **mode
 and both ability surfaces are its rulebook. Re-expressing that prose therefore *can* change how the
 game adjudicates, even though no engine number moves. Two consequences:
 
-1. Re-expression is **only** legal at campaign creation, before any turn resolves. The canon sheet
-   says "never drift"; a mid-campaign rewrite is exactly drift.
-2. Re-expression must be **constrained and player-approved**, never a free model pass. S1.6 ships
-   last, behind the card (§11).
+1. Re-expression is legal only during the destination campaign-entry handoff, before the
+   character becomes active there. A return may add a missing binding for an ability gained
+   elsewhere, but it never rewrites an already approved destination binding during play.
+2. Re-expression must be constrained and player-approved, never a free model pass. S1.8 ships last,
+   behind the card (§11).
+
 
 ### 2.2 Durable constraints
 
@@ -102,33 +110,34 @@ game adjudicates, even though no engine number moves. Two consequences:
 
 ## 3. Thesis: mechanics do not translate, because they do not change
 
-D0 says one rulebook across all campaigns. Chapter 2 says abilities are selections from a versioned
-catalog. A cross-genre move therefore **cannot** change mechanics: the same catalog is in force on
-both sides.
+D0 says one rulebook applies across campaigns. Chapter 2 says abilities are selections from a
+versioned catalog. A cross-genre move therefore cannot change mechanics: the same catalog is in
+force on both sides.
 
-v2 built an apparatus to generate a destination candidate and prove it equivalent to the source.
-That apparatus has no stable operating point: if the candidate reuses the source's templates the
-fingerprint is preserved trivially and the proof proved a rename; if it selects different
-operations the fingerprint cannot match and every interesting case returns `incompatible`.
+v2 tried to generate a destination ability and prove it equivalent to the source. That has no stable
+operating point: a generated candidate either copies the source mechanics, making the proof
+ceremonial, or changes them, making the proof false.
 
-**The rule**: Translate copies the mechanical record byte-for-byte and produces a separate,
-per-campaign expression binding. Equivalence is not proven; it is structural.
+**Portability never copies the mechanical record.** The same persistent character record, with the
+same id, abilities, packaging, attributes, and progression, moves from one active campaign to
+another. Only expression bindings are stored per campaign. Equivalence is not inferred or proved;
+there is no second mechanical record to compare.
 
-Two problems remain, and they are the real ones:
+Two real problems remain:
 
-1. **Naming** — the destination world needs its own words, used consistently by every system that
-   speaks to the player → §5.
-2. **Permission** — the destination fiction may not host the shape at all → §6.
+1. **Naming** — each campaign needs its own words, used consistently whenever the system speaks to
+   the player → §5.
+2. **Permission** — the destination fiction may not honestly host a particular expression → §6.
 
-Everything v2 called "no honest equivalent" is problem 2.
+Everything v2 called "no honest equivalent" belongs to problem 2.
 
 ### 3.1 When mechanics genuinely must change
 
 | Case | Disposition |
 |---|---|
-| Destination pins a different `catalog_version` | Not translatable. Chapter 2 §1.1 makes version change an owner-approved migration; two catalogs are never live at once. Offer Branch into a same-version campaign, or cancel |
-| A slot has no legal candidate and the player will not pin it | **Rebuild** — a separate, future, player-driven respec. Translate never silently narrows |
-| The player wants different mechanics | Rebuild. A feature request, not a translation |
+| Destination pins a different `catalog_version` | The move cannot commit. Chapter 2 §1.1 makes a version change an owner-approved migration; the character may move only after the campaigns share the migrated version, or the player cancels |
+| A slot has no legal candidate and the player will not pin it | **Rebuild** — separate, future, player-driven respec of the same character. A move never silently narrows the character |
+| The player wants different mechanics | Rebuild. That is a character-change feature, not translation |
 
 ---
 
@@ -136,65 +145,92 @@ Everything v2 called "no honest equivalent" is problem 2.
 
 ### 4.1 Campaign capability declaration
 
-Proposed ordered axes describing what the destination fiction can host. The Setup GM derives the
-typed declaration from the creator's setting choice at creation. It is engine support for
-portability, not an ordinary host/player setting surface. Gate 3 owns the remaining shape. See §6.
+Proposed ordered facts describing what the destination fiction can host. The Setup GM derives them
+from the creator's setting choice at campaign creation. They support portability internally; they
+are not an ordinary host/player setting surface. Gate 3 owns the remaining shape. See §6.
 
-### 4.2 Campaign vocabulary (campaign-scope)
+### 4.2 Campaign vocabulary (campaign scope)
 
 Semantic key → destination term, with requirement predicates and provenance. Shared by every
 character in the campaign. See §5.2.
 
-### 4.3 Character identity record (profile-scope)
+### 4.3 Persistent character and campaign bindings
 
+```text
+mechanics — ability records, packaging, progression, and attributes.
+            Owned by the engine. One canonical record travels with the character.
+            Portability never copies, re-derives, or lets a model touch it.
+            D5 later defines the fuller ability package.
+
+identity  — families and functional slots classify what the character's abilities need to
+            express. They are not campaign bindings and do not assert equipment, history,
+            relationships, or other D13/D16 state.
+
+bindings  — expression only, stored per (character, campaign):
+            Stage 1 contains ability display names, ability prose, and pins
+            limited to Stage-1-eligible ability expression. It contains name wording only if
+            Gate 7 admits it. A return reuses saved bindings exactly. A move proposes only
+            destination bindings that are missing.
+
+pins      — the player's non-negotiable name or ability wording. Owned by the player. §7.
 ```
-mechanics    — ability records, packaging, progression, attributes.
-               Owned by the engine and the D5 contract.
-               COPIED VERBATIM BY TRANSLATE. Never re-derived, never model-touched.
 
-bindings     — per (character, campaign): which vocabulary entries this character uses,
-               plus this character's own identity, ability expression, and specializations.
-               THE ONLY THING TRANSLATE PRODUCES.
-
-pins         — the player's non-negotiables, as pinned slots. Owned by the player. §7.
-```
+Persistent identity taxonomy, not a campaign-local binding:
 
 ```json
 {
   "schemaVersion": 1,
+  "characterId": "pc_7f2",
   "abilityIds": ["a41", "a42"],
   "families": { "primary": "marksman", "secondary": ["duelist"] },
-  "slots": ["role:marksman", "source:precision-projectile", "implement:sidearm",
-            "implement:long-range", "resource:ammunition",
-            "identity:name", "identity:origin", "ability:a41", "ability:a42"],
-  "pins": [
-    { "slot": "implement:sidearm", "policy": "literal",
-      "reason": "Inherited from her father" }
-  ],
-  "provenance": { "originCampaignId": 12, "originGenre": "Weird West frontier",
-                  "originRole": "Gunslinger", "translatedAt": "2026-07-27" }
+  "expressionSlots": [
+    "role:marksman",
+    "source:precision-projectile",
+    "implement:sidearm",
+    "implement:long-range",
+    "resource:ammunition",
+    "ability:a41",
+    "ability:a42"
+  ]
 }
 ```
 
-The kernel stores **no mechanical vocabulary of its own** — no `reach`, `targetShape`, `delivery`,
-`tempo`, `setup`, `costShapeRef`, `reliabilityBand`, or fingerprint. Those live on the ability
-record (D5's packaging) or belong to D6's spatial vocabulary; v2 would have created a second,
-drifting copy of both.
+Stage 1 campaign binding:
+
+```json
+{
+  "schemaVersion": 1,
+  "characterId": "pc_7f2",
+  "campaignId": 41,
+  "vocabularyVersion": 1,
+  "abilities": [
+    { "abilityId": "a41", "term": "Quick Draw", "prose": "She acts before her foe can react." }
+  ],
+  "literalPins": [
+    { "slot": "ability:a41", "term": "Quick Draw", "reason": "Player keeps this ability wording" }
+  ]
+}
+```
+
+The character record stores **no second mechanical vocabulary** — no `reach`, `targetShape`,
+`delivery`, `tempo`, `setup`, `costShapeRef`, `reliabilityBand`, or fingerprint. Where present, those
+live on the canonical mechanic record/reference; D5 later owns fuller ability packaging and D6 owns
+spatial vocabulary. Duplicating them into campaign bindings would create a drifting mechanical copy.
 
 ### 4.4 Ability identity
 
-Today identity is the lowercased display name (`rpg-engine.js:127`). Renaming *is* the operation, so
-a translated character forks her abilities on the next level-up: the destination's "Fast Nock" and
-the profile's "Quick Draw" become two abilities. This is a hard precondition, not a nicety.
+Today an ability is matched by lowercased display name (`rpg-engine.js:127`). If a campaign calls
+"Quick Draw" "Fast Nock", the next level-up can mistakenly create a second ability. Stable ids are
+therefore a hard precondition, not a nicety.
 
 | Property | Rule |
 |---|---|
-| Scope | **Globally unique**, engine-issued. Not profile-scoped: a branch and its source legitimately share ids, which is what makes mechanics deep-equality meaningful and lineage traceable |
-| Minting | Once, at first existence — Setup generation, an `ability_updates` insert, or the one-shot legacy backfill (keyed by current name within the profile) |
-| Stability | Carried unchanged through Branch and Translate. A translated branch's ability records are the source's records, ids included |
-| Matching | `applyAbilityUpdates` matches on id; name matching survives only as the legacy fallback for rows with no id |
-| Display | Never the identity. Display names live in bindings, keyed `ability:<id>` |
-| Portability | Bundles carry ability ids; import remaps them under the same entity mapping applied to the rows, and remaps every `ability:<id>` binding key with them — the same discipline Chapter 2 §1.1 requires of persisted tokens |
+| Scope | **Globally unique when minted**, engine-issued, and not campaign-scoped. The one persistent character keeps the same ids everywhere |
+| Minting | Once, on first existence — Setup generation, an `ability_updates` insert, or one-shot legacy backfill keyed by the current name within the profile |
+| Stability | The ids remain on the same ability records while the character moves; expression bindings never replace them |
+| Matching | `applyAbilityUpdates` matches on id; name matching survives only as a fallback for legacy rows without an id |
+| Display | Never identity. Display names live in bindings keyed by `ability:<id>` |
+| Import/manual copy | Bundles remap ids under the existing entity mapping. Explicit manual character copy retains its shipped behavior but is not a portability path |
 
 ---
 
@@ -230,36 +266,29 @@ and expression.
 }
 ```
 
-**Character scope — bindings**, per (character, campaign):
+**Character scope — bindings**, per (character, campaign). Ability rows may draw wording from shared
+campaign vocabulary through the persistent identity taxonomy; Stage 1 stores no separate `uses` or
+specialization row. The `identity` member shown below exists only if Gate 7 admits campaign-specific
+name wording:
 
 ```json
 {
   "characterId": 88, "campaignId": 41, "vocabularyVersion": 1,
-  "uses": ["role:marksman", "source:precision-projectile",
-           "implement:sidearm", "implement:long-range", "resource:ammunition"],
-  "specializations": [
-    { "key": "role:marksman", "term": "Ranger of the March Wardens",
-      "reason": "second marksman at this table" }
-  ],
-  "identity": {
-    "name": "Cassidy of Blackwater",
-    "appearance": "…player-approved text…",
-    "origin": "…player-approved sentence, or the explicit choice 'unstated'…"
-  },
+  "identity": { "name": "Cassidy of Blackwater" },
   "abilities": [
     { "abilityId": "a41", "term": "Fast Nock",
       "prose": "She has an arrow away before the string stops humming." }
   ],
   "literalPins": [
-    { "slot": "implement:sidearm", "term": "her father's revolver",
+    { "slot": "ability:a41", "term": "Fast Nock",
       "approvedAt": "…", "exception": true }
   ]
 }
 ```
 
-**Specialization rule**: two characters of the same family share the campaign term by default —
-that is the point of shared vocabulary. Either may specialize to an approved variant; the shared
-entry is never rewritten by a specialization.
+Stage 1 has no separate role-title specialization. Ability-specific term and prose stay on that
+ability's binding, and the shared campaign entry is never rewritten. Any later role-title
+specialization requires its own approved scope.
 
 ### 5.3 Slot taxonomy
 
@@ -272,11 +301,11 @@ entry is never rewritten by a specialization.
 | Institution | `institution:<key>` | campaign | genre defaults | Orders, guilds, corps, agencies, cabals |
 | Damage language | `damage-language` | campaign | genre defaults | How harm reads in narration |
 | Ability | `ability:<abilityId>` | character | model | Display name plus flavor prose for one ability record |
-| Identity | `identity:name`, `identity:appearance`, `identity:origin` | character | source profile | Pinned `ask` by default (§10) |
-| Oath | `identity:oath` | character | source profile | An ethical or sworn constraint, distinct from `source:faith-oath` (a power source) |
-| Allegiance | `identity:allegiance` | character | source profile | Which side or body this person belongs to |
-| Relationship | `relationship:<key>` | character | source profile | A named bond. Pinning prevents silent translation; **carrying relationships into destination canon remains D13/D16** |
-| Weakness | `weakness:<key>` | character | source profile | A characteristic vulnerability, taboo, or tradeoff |
+| Identity | `identity:name`, `identity:appearance`, `identity:origin` | character | persistent character | Only `identity:name` is eligible for Gate 7 / Stage 1; appearance and origin are reserved for D13/D16 |
+| Oath | `identity:oath` | character | reserved | Taxonomy placeholder only; no Stage 1 persistence, pin, or transport before D13/D16 |
+| Allegiance | `identity:allegiance` | character | reserved | Taxonomy placeholder only; no Stage 1 persistence, pin, or transport before D13/D16 |
+| Relationship | `relationship:<key>` | character | reserved | Taxonomy placeholder only; no Stage 1 persistence, pin, or transport before D13/D16 |
+| Weakness | `weakness:<key>` | character | reserved | Taxonomy placeholder only; no Stage 1 persistence, pin, or transport before D13/D16 |
 
 Twelve families. The last four exist because §7's coverage claim required them (finding 4); they are
 expression and pin targets only, and none of them asserts mechanical state.
@@ -549,8 +578,9 @@ Every hard case in v2 §18 falls out of this one rule:
 - **Fireball with no network** — the netrunner's `prepared-system` is satisfied via
   `networks ≥ local`, but the ability's `area-implement` in a `supernatural: absent` campaign binds
   a physical heavy weapon. The player sees exactly that swap and may pin literal magic instead.
-- **Sentient familiar into a drone world** — `implement:companion-sentient` needs
-  `companions ≥ sentient`; declaration says `mundane`; empty; player chooses.
+- **Sentient-companion-themed ability in a drone world** — `implement:companion-sentient` needs
+  `companions ≥ sentient`; declaration says `mundane`; empty; player chooses. This filters ability
+  wording only; no companion entity or relationship moves in Stage 1.
 - **Scale mismatch** — a fleet admiral's `scale: interstellar` against `scale: local` is the same
   empty-set case on the `scale` axis.
 - **Patron without institutions** — `status-authority` needs `institutions ≥ local`; same rule.
@@ -577,135 +607,168 @@ A host-only administrative campaign editor is a separate Future Topic, not part 
 
 ## 7. Pins
 
-An anchor is a pinned slot.
+In Stage 1, an anchor is a pinned name or ability-expression slot.
 
 ```json
-{ "slot": "implement:sidearm", "policy": "literal", "reason": "Inherited from her father" }
+{ "slot": "ability:a41", "policy": "literal", "reason": "Player keeps the ability name 'Quick Draw'" }
 ```
 
 | Policy | Meaning |
 |---|---|
-| `literal` | This binding does not change. The destination hosts the source term as an exception, recorded as an approved destination binding (§9) |
+| `literal` | This binding does not change. The destination hosts the chosen term as an exception, recorded as an approved destination binding (§9) |
 | `ask` | Never auto-bound. Always surfaced as an explicit choice |
 | *(unpinned)* | Freely bindable from the filtered candidate set, shown on the card |
 
-`identity:*` slots default to `ask`.
+`identity:name` defaults to `ask` if Gate 7 admits campaign-specific name wording. Other identity and non-ability slots have no Stage 1 pin policy.
 
 **Coverage** — v3 claimed every v2 anchor kind "already exists" in the taxonomy. Four did not. The
 corrected mapping:
 
 | v2 anchor kind | v3.1 slot | Status |
 |---|---|---|
-| power-source | `source:<pattern>` | present in v3 |
-| signature-item | `implement:<function>` | present in v3 |
-| companion | `implement:companion` / `implement:companion-sentient` | present in v3; sentience split out (§5.8) |
-| identity | `identity:name`, `identity:appearance` | present in v3 |
-| body | `identity:appearance` + `source:body-alteration` | present in v3 |
-| faith | `source:faith-oath` | present in v3 |
-| oath | `identity:oath` | **added** — an ethical constraint is not a power source |
-| allegiance | `identity:allegiance` | **added** |
-| relationship | `relationship:<key>` | **added** — pin semantics only; destination canon remains D13/D16 |
-| weakness | `weakness:<key>` | **added** |
+| power-source | `source:<pattern>` | Stage 1 ability-expression taxonomy only; does not establish oath or history |
+| signature-item | `implement:<function>` | May describe an ability's delivery; durable item identity and inventory are reserved for D13/D16 |
+| companion | `implement:companion` / `implement:companion-sentient` | May classify an ability; companion entity and relationship state are reserved for D13/D16 |
+| identity | `identity:name`, `identity:appearance` | `identity:name` is Gate-7-eligible; appearance is reserved for D13/D16 |
+| body | `identity:appearance` + `source:body-alteration` | Ability source may be classified; appearance and body state are reserved for D13/D16 |
+| faith | `source:faith-oath` | Ability source may be classified; belief, oath, and history are reserved for D13/D16 |
+| oath | `identity:oath` | **reserved** — taxonomy only; D13/D16 owns persistence and transport |
+| allegiance | `identity:allegiance` | **reserved** — taxonomy only; D13/D16 owns persistence and transport |
+| relationship | `relationship:<key>` | **reserved** — taxonomy only; D13/D16 owns persistence and transport |
+| weakness | `weakness:<key>` | **reserved** — taxonomy only; D13/D16 owns persistence and transport |
+
+The oath, allegiance, relationship, weakness, appearance, origin, durable-item, and companion-state
+meanings are taxonomy placeholders for later gates. Functional source or implement keys in Stage 1
+classify ability expression only; they do not establish or transport those facts. Stage 1 does not
+pin, persist, translate, or transport deferred state unless the relevant D13/D16 decision explicitly
+brings it into scope.
 
 ---
 
-## 8. Initialization and flow
+## 8. Character initialization and campaign movement
 
-### 8.1 One onboarding mechanism, three entry points
+### 8.1 One identity-onboarding mechanism
 
-v3 gave legacy profiles a slot-onboarding path at Translate time and said nothing about how a *new*
-character acquires families and slots — v2 at least flagged this as open (its D3-B). One mechanism
-serves all three cases:
+v3 gave legacy profiles a slot-onboarding path at translation time but did not say how a new
+character acquires families and slots. One mechanism serves both cases:
 
-```
-free-text concept (or existing archetype + ability list)
-  -> model proposes: primary family, ≤2 secondaries, occupied slots, candidate pins
-  -> engine validates structure only (known families, known slots, no numbers, no mechanics)
+```text
+free-text concept (or a legacy archetype + ability list)
+ -> model proposes: primary family, ≤2 secondaries, occupied slots,
+    candidate pins for Stage-1-eligible name or ability-expression slots only
+  -> engine validates structure only: known families, known slots, no numbers, no mechanics
   -> player reviews a PLAIN-LANGUAGE CAPABILITY SUMMARY:
-       "You solve problems at range and pick your moment."
+       "You solve problems at range by picking your moment."
        "You depend on a weapon you must reload."
        "You are vulnerable once someone closes the distance."
-     — never a family list, never a class menu, never the 22 ids
-  -> player approves or corrects
-  -> stored as the character's identity record
+     — never a family list, class menu, or 22 internal ids
+  -> player approves or corrects it
+  -> engine stores it on the one persistent character record
 ```
 
 | Entry point | When | Notes |
 |---|---|---|
-| **New character** | Campaign creation, after the concept box (`public/index.html:305-307`) | The concept box is unchanged. The summary is new, and it is the first moment the player confirms who this person is mechanically |
-| **Legacy profile** | First Translate on a profile with no identity record | Proposes from the stored archetype string and ability list. Nothing inferred becomes canonical without approval |
-| **Translate** | Every translation | Reads the existing identity record; never re-derives families and never asks the player to pick one |
+| **New character** | Campaign creation, after the concept box (`public/index.html:305-307`) | The concept box stays. The summary is the first moment the player confirms who this person is mechanically |
+| **Legacy character** | First campaign move when the character has no identity record | Proposes from the stored archetype string and ability list. Nothing inferred becomes canonical without approval |
+| **Later campaign move** | Every later move | Reads the existing identity record; never re-derives families or asks the player to pick one |
 
-The 22 families remain invisible at every entry point. If a candidate translation would change the
-family composition, that is a rebuild, not a translation.
+The 22 families remain invisible at every entry point. If a proposed expression would change family
+composition, that is rebuild, not portability.
 
-**Persistence (amendment B).** The propose → summarize → approve sequence is a draft, not a live
-request: the proposed families, slots, candidate pins, capability summary, and approval state
-persist and survive a reload, with approval hash-bound to what the player actually saw — the same
-discipline §13 applies to the translation card. Nothing inferred becomes canonical while the draft
-is open.
+**Persistence (amendment B).** Any propose → summarize → approve sequence is a persisted draft, not
+a live request: proposed families, slots, Stage-1-eligible name or ability-expression pins, the
+plain-language summary, and approval
+state survive reload, and approval is bound to the exact content the player saw. Explicit manual
+`copy` remains the current synchronous feature because it has no approval step; it is not a
+portability path.
 
-### 8.2 Three modes
+### 8.2 One character move, with or without new wording
 
-| Mode | Player meaning | Source mutation | Result |
-|---|---|---|---|
-| **Continue** | Same person, same sheet, compatible campaign | Checkout only | Exact existing profile (today's `existing`) |
-| **Branch** | Exact parallel copy | None | Verbatim copy with lineage (today's `copy`) |
-| **Translate** | Destination-genre incarnation of the same character | None | New branch: mechanics verbatim, new bindings |
+Portability has one result: the same character becomes active in the destination campaign. The
+destination may be an existing campaign or a new campaign still being drafted.
 
-Translate never fires because a profile merely looks genre-incompatible.
+| Path | When | Result |
+|---|---|---|
+| **First entry** | The character has no saved bindings for this destination | Fill the name/ability expression bindings Gate 7 admits to Stage 1, then move the same character |
+| **Return with no new abilities** | Every current ability already has an approved destination binding | Reuse all saved destination wording exactly and move the same character |
+| **Return with new abilities** | The character gained abilities since the prior visit | Reuse all saved wording exactly; propose and approve only the missing destination bindings for those abilities; then move the same character |
+
+Neither path creates a profile, branch, incarnation, lineage record, or merge. The character remains
+active in the current campaign until the destination move commits. Returning to an existing campaign
+never recreates that campaign, its rules, history, or opening scene.
 
 ### 8.3 Flow
 
 ```text
-source profile (identity record present, or onboarding first — §8.1)
-  -> destination campaign draft: creator's setting choice -> genre class
-                                                        -> capability declaration (engine-owned;
-                                                           Gate 3 owns visibility/evolution)
-                                              -> vocabulary (generated or existing)
-  -> engine copies the mechanical record verbatim; hashes it
-  -> engine enumerates the character's slots; applies the §6.3 filter
-  -> model proposes bindings for non-empty, unpinned slots (terms and prose only)
-  -> engine validates: every binding names a legal candidate; no numbers; no new slots;
-     no ability id invented; pinned slots untouched; shared vocabulary not rewritten
-       invalid       -> one bounded retry, then honest failure (never playable)
-       empty slots   -> card in `needs_choice`
-       otherwise     -> card in `ready`
+persistent character, active in one campaign
+  -> choose destination:
+       existing campaign -> load its stored facts, vocabulary, bindings, and current scene
+       new campaign      -> persist a creation/move draft; generate and validate all campaign
+                            material before any membership switch
+  -> verify the same catalog version; otherwise cancel or await an owner-approved migration (§3.1)
+  -> load saved (character, destination campaign) expression bindings
+  -> determine missing bindings:
+       first entry -> only the name/ability expression slots Gate 7 admits to Stage 1
+       return      -> only abilities gained since the prior visit with no destination binding
+  -> if missing is empty: present move confirmation using saved wording exactly
+  -> otherwise:
+       engine applies the §6.3 filter only to missing bindings
+       model proposes terms and prose only for non-empty, unpinned missing bindings
+       engine validates: legal candidate names; no numbers; no new slots or ability ids;
+                         pins untouched; shared vocabulary not rewritten
+       invalid -> one bounded retry, then honest failure
+       empty candidate set -> card in `needs_choice`
+       otherwise -> card in `ready`
   -> player approves the exact card hash
-  -> engine rechecks freshness: source, vocabularyVersion, Gate-3 capability revision/hash, card hash
-  -> atomic commit: translated profile + bindings + campaign member
-  -> opening scene generation, with bindings in council context (§9)
+  -> engine rechecks the same character id and mechanics/progression revision,
+     destination vocabulary version, Gate-3 capability revision/hash, and card hash
+  -> prepare and validate everything needed after commit:
+       existing campaign -> current-scene/join presentation only; no opening-scene regeneration
+       new campaign      -> complete opening-scene and campaign material
+  -> one transaction:
+       create new campaign material only when destination is new
+       persist newly approved destination bindings
+       deactivate current campaign membership
+       activate destination membership for the same character id
+       mark the draft committed
+  -> existing destination loads its current scene; new destination returns its opening scene
 ```
+
+Cancel, stale review, invalid output, exhausted retry, or any preparation/transaction failure leaves
+the character and current campaign membership unchanged.
 
 ### 8.4 Outcomes
 
 | Status | Meaning | Allowed next |
 |---|---|---|
-| `ready` | Every slot bound; mechanics identical | Approve, pin a slot, or cancel |
-| `needs_choice` | ≥1 slot has an empty candidate set | Pin, accept a disclosed adaptation, rebuild, or cancel |
-| `invalid` | Model output off-contract | Internal bounded retry; never shown as playable |
-| `stale` | Source, vocabulary, declaration, or card hash changed | Recompute and review |
-| `committed` | Persisted exactly once | Load campaign |
+| `ready` | Every required first-entry binding, or every newly gained ability on return, has a saved or proposed destination binding; the mechanical record is unchanged | Approve, pin a missing ability expression, or cancel |
+| `needs_choice` | At least one required name/ability expression has an empty candidate set | Pin, accept a disclosed adaptation, rebuild, or cancel |
+| `invalid` | Model output is off-contract | Internal bounded retry; never playable |
+| `stale` | Character mechanics/progression, destination vocabulary/declaration, or the card changed | Recompute and review |
+| `committed` | Any new campaign material, new bindings, and the same character's active-campaign switch persisted exactly once | Load the destination campaign without recreating existing campaign state |
+| `cancelled` | The player cancelled before commit | Remain in the current campaign |
 
-v2's `incompatible` is gone as a distinct outcome: the only true incompatibility is a
-catalog-version mismatch (§3.1), caught before a card is built.
+The only true incompatibility is a catalog-version mismatch (§3.1), caught before a card is built.
 
-### 8.5 The translation card
+### 8.5 Translation card
 
-Plain language, every change visible:
+Plain language, with only real changes shown:
 
-1. **You are still** — the recognition line, from the family's decision loop (§5.6).
-2. **You can still** — preserved signature affordances.
-3. **These changed name** — every old → new term, including implements and resources.
-4. **These are your pins** — literal exceptions the destination will host as unusual.
-5. **These need your decision** — every empty candidate set, naming the axis that emptied it.
-6. **Your costs and limits are unchanged** — stated as fact, because they structurally are.
-7. **Your progression carries as** — tier and weight, unchanged.
+1. **You still** — recognition line from the family's decision loop (§5.6).
+2. **Already established here** — saved destination wording that will be reused exactly.
+3. **These need a name here** — on first entry, only the name/ability expressions Gate 7 admits;
+   on return, only abilities gained since the prior visit with no destination binding.
+4. **These pins remain literal** — approved name or ability-expression exceptions the destination
+   will host as unusual.
+5. **These need your decision** — every empty candidate set, naming the fact that emptied it.
+6. **Your costs and limits are unchanged** — a stated fact, structurally true.
+7. **Your progression travels with you** — the same level, XP, and tiers remain on the character.
 
-Actions: **Approve exact candidate**, **Pin a slot**, **Choose an offered alternative**, **Cancel**.
-Approval carries the card hash and an idempotency key.
+Actions: **Approve this move**, **Pin a missing ability expression**, **Choose an offered
+alternative**, or **Cancel**. Approval carries the card hash and an idempotency key.
 
 ---
+
 
 ## 9. Narration binding
 
@@ -714,21 +777,21 @@ LLM-led RPG; the words are the product.
 
 1. The character's bindings plus the campaign's shared vocabulary are injected into council context
    as the **naming authority**.
-2. **Unapproved source vocabulary is excluded.** Origin terms live in `provenance` (§10), which is
-   not part of turn context.
-3. **An approved literal pin is a destination binding**, provenance `player-pin`. Her father's
-   revolver is *in* the destination binding set, so it is legal in narration and legal in the leak
-   test — v3's contradiction (finding 5) was that it forbade every source term while §6.3 permitted
-   literal pins.
-4. `ability_updates` write to destination ability ids and destination display names. A new ability
-   minted in play creates a new `ability:<id>` binding in this campaign only.
+2. **Unapproved wording from other campaigns is excluded.** It remains only in those campaigns'
+   saved bindings and is not part of the active turn context.
+3. **An approved literal pin is a destination binding**, provenance `player-pin`. The ability name
+   "Quick Draw" is *in* the destination binding set, so it is legal in narration and in the leak
+   test — v3's contradiction (finding 5) was that it rejected any wording also used in another
+   campaign while §6.3 permitted literal pins.
+4. `ability_updates` write stable ability ids and the current campaign's display names. A new
+   ability minted in play creates a new `ability:<id>` binding in this campaign only.
 5. Renaming an already-bound entry mid-campaign is rejected (§5.4), which is also what
    `rpg-prompts.js:102`'s "must never drift" requires.
 
 **The leak check, stated precisely:**
 
 ```
-leaked = terms(sourceBindings) − terms(destinationBindings ∪ approvedLiteralPins)
+leaked = terms(otherCampaignBindings) − terms(activeCampaignBindings ∪ approvedLiteralPins)
 assert: no member of `leaked` appears in the assembled council context
 ```
 
@@ -736,154 +799,186 @@ A cheap string assertion over a fixture, and the single highest-value test in th
 is the one the player experiences.
 
 Seat isolation applies unchanged: a seat receives its own character's bindings and the shared
-vocabulary, never another character's pins, provenance, or unchosen alternatives
+vocabulary, never another character's pins, binding provenance, or unchosen alternatives
 (`.agents/repo-guidance.md`, Runtime Contracts).
 
 ---
 
-## 10. Name, history, and provenance
+## 10. Name and ability wording; all other character state deferred
 
-This is profile **text**, not mechanical state, so no rules decision gates it.
+Gate 7 owns the Stage 1 name policy. This section proposes only expression behavior; it does not
+authorize history or other character-state transport.
 
-| Item | Rule |
+| Item | Stage 1 boundary |
 |---|---|
-| Character name | `identity:name`, pinned `ask`. The card offers: keep verbatim; accept a proposed reframing; or edit freely. Silence keeps it |
-| Appearance | `identity:appearance`, pinned `ask`. Genre-inappropriate specifics surface individually, never bulk-rewritten |
-| Origin history | **Never rewritten.** Stored as `provenance`: origin campaign id, origin genre, origin role term, translation date. Out-of-world truth; not campaign canon; not in turn context |
-| In-world origin framing | `identity:origin`, pinned `ask`. One or two player-approved sentences, or the explicit choice "unstated" |
-| Oath, allegiance | `identity:oath`, `identity:allegiance`, pinned `ask`. An oath never becomes institutional loyalty automatically |
-| Relationships | `relationship:<key>` exists so a bond can be **pinned** against silent translation. Carrying relationships into destination canon remains D13/D16 |
-| Weaknesses | `weakness:<key>`, expression only. A weakness never becomes a strength, structurally, because mechanics do not move |
-| Inventory nouns | Translatable today as `implement:*` bindings; today's items are free text `{name, type, description, quantity}` |
-| Inventory **mechanics** — condition, provenance, wealth, registry records | D16. Not claimed |
+| Character name | If Gate 7 admits a campaign-specific name binding, the card may offer keep verbatim, accept proposed wording, or edit. A saved destination name is reused exactly on return |
+| Ability display name and prose | Stored per `(character, campaign)` and keyed by stable ability id. Existing rows are reused exactly; on return, only newly gained abilities can require new rows |
+| Appearance, origin, history, biographical provenance, oaths, allegiance, relationships, weaknesses, inventory nouns, and inventory mechanics | **Deferred wholesale to D13/D16.** Stage 1 does not translate, pin, transport, persist, inject, or promise bundle round-trip behavior for them |
 
-Renaming inventory happens **at branch time into a fresh campaign**, so Chapter 2's name-key
-resolution (`docs/rules/effects.md` §1, §2.3) never sees a rename inside a live campaign — an
-additional reason Translate must branch rather than mutate.
+The broader slot-taxonomy rows in §5/§7 are future vocabulary placeholders. Until their owner gates
+close, Stage 1 implements only the name/ability expression slots Gate 7 explicitly approves.
 
 ---
 
 ## 11. Staged delivery
 
-Each stage needs its own owner-approved phase and plan; none is authorized here.
+Each stage needs its own owner-approved phase plan; none is authorized merely by this document.
 
-### Stage 1 — expression translation over today's free-text profiles
+### Stage 1 — expression translation over today's free-text characters
 
-No rules-queue dependency. **Order matters** and is now enforced by finding 2: the identity, binding,
-validation, and approval machinery lands *before* anything rewrites canon prose.
+No rules-queue dependency. Order matters: identity, bindings, validation, and approval machinery land
+before anything rewrites canon prose.
 
 | Slice | Work | Exit |
 |---|---|---|
 | S1.1 | Ability ids: mint, migrate legacy rows, match `ability_updates` on id with name fallback (§4.4) | Renaming no longer forks an ability; legacy rows still match |
-| S1.2 | Capability declaration: derive from the creator's setting choice, type, store, enforce the authority boundary (§6.1, §6.4) | Creation-time declaration round-trips; no ordinary host/player mutation path exists; Gate-3 snapshot/evolution contract holds |
-| S1.3 | Predicate evaluator + seed tables (§6.2) | Pure, total, fail-closed; every seed row evaluates |
-| S1.4 | Vocabulary and bindings: two scopes, immutability, specialization (§5) | Two characters coexist; a late joiner cannot alter established terms |
-| S1.5 | Onboarding: concept → families/slots → capability summary → approval, all three entry points (§8.1) | A new character gets an identity record without seeing a class menu |
-| S1.6 | Translate mode: verbatim copy, filter, card, hash-bound approval, cancel and resume (§8.3-8.5) | Play cannot begin before approval; source untouched |
-| S1.7 | Narration binding and the leak check (§9) | No unapproved source term reaches destination council context |
-| S1.8 | Close the §2.1 defect, narrowed by amendment A: for each incoming ability that has a **source ruleset entry** (id-keyed after S1.1; name-keyed legacy fallback), the destination sheet carries that entry with `cost`, `effect`, and `limits` **byte-identical** and only the display name rebound through the ability binding. Incoming abilities with **no** source entry get no derived entry — they remain profile-prose abilities expressed through bindings, disclosed on the card as "carried without a rule-sheet entry". At campaign creation only; output diffed on the card; player-approved | A reused profile's rule sheet names *her* abilities in destination language with their mechanics byte-identical to the source sheet; nothing is derived from profile prose; she saw every word change |
+| S1.2 | Campaign capability facts: derive from creator's setting choice, type, store, enforce the authority boundary (§6.1, §6.4) | Creation-time record round-trips; Gate-3 snapshot/evolution behavior holds; no ordinary host/player rewrite route |
+| S1.3 | Predicate evaluator and genre seed tables (§6.2, §5.5-5.9) | Every seed row evaluates fail-closed; grammar guards pass |
+| S1.4 | Campaign vocabulary plus per-(character, campaign) expression bindings (§5) | Two characters coexist; saved bindings are immutable and reusable; no mechanics/progression snapshot is stored per campaign |
+| S1.5 | Identity onboarding, families, slots, pins, and restart-safe approval (§8.1) | New and legacy characters get one approved identity record without a class menu |
+| S1.6 | Drafted move of the persistent character (§8.2-8.5) | Same character id before and after; exactly one active campaign; return reuses saved wording; only missing ability bindings are proposed; every non-approved outcome leaves current membership unchanged |
+| S1.7 | Narration binding and leak check (§9) | No unapproved term reaches destination council context |
+| S1.8 | Close the §2.1 defect without copying mechanics: after S1.1, link any matching ruleset ability to one canonical mechanic record/reference on the persistent character. At GM-context assembly, project that record's `cost`, `effect`, and `limits` and overlay only the active campaign's display binding. Persist no destination mechanical row. An ability with no canonical mechanic entry remains profile prose, disclosed on the card. Campaign-entry handoff only | GM context names the character's abilities in destination language while resolving mechanics from the same canonical record; the player saw every wording change |
 
-S1.8 was S1.6 in v3 and was proposed as a standalone quick win. That was wrong: the ruleset sheet is
-the adjudicating model's canon rulebook (`rpg-prompts.js:101-109`), so an unconstrained
-re-expression pass changes how the game rules, invisibly. It ships last, gated by the card, and
-never after turn 1.
+S1.8 was once proposed as a standalone quick win. That was wrong: the ruleset sheet is the
+adjudicating model's canon rulebook (`rpg-prompts.js:101-109`), so an unconstrained re-expression
+pass changes how the game rules invisibly. It ships last and is card-gated. It runs only during the
+campaign-entry handoff, including a return that needs wording for a newly gained ability; it never
+rewrites approved rows while the character is active in that campaign.
+
 
 ### Stage 2 — catalog-bound abilities
 
-Depends on D5. Mechanics become catalog-bound records; the copy step becomes a literal record copy
-and the byte-identity invariant (§12) becomes exact. Requirement predicates may move from vocabulary
-rows onto ability records where D5 gives them a home. No change to vocabulary, card, or flow.
+Depends on D5. Mechanics become catalog-bound records on the same persistent character. A campaign
+move still never copies or reconstructs them; the unchanged record makes the identity invariant
+exact. Requirement predicates may move from vocabulary rows onto ability records where D5 gives
+them a home. The vocabulary, card, and move flow do not change.
 
 ### Stage 3 — rebuild
 
-Depends on D5 and an owner decision that rebuild is wanted. A separate player-driven respec, entered
-from a `needs_choice` card or an ordinary character screen. Explicitly not translation.
+Depends on D5 and on an owner decision that rebuild is wanted. It is a separate player-driven respec
+of the same character, entered from a `needs_choice` card or ordinary character management. It is
+not an automatic translation and never creates an alternate version.
 
 ### Stage 4 — non-ability state
 
-Depends on D13/D16: inventory condition, provenance, wealth, item registry records, relationships in
-destination canon. Until then, nothing claims a *complete* character has ported.
+Depends on D13/D16. Inventory, relationships, history, and other non-ability state are intentionally
+not decided by the one-character ability-portability contract.
 
 ---
 
 ## 12. Verification
 
-Entry point: `node test.js` (`npm test`). Every new behavior test takes the AGENTS.md guard proof —
-revert the change, prove the test fails, restore, prove the suite passes.
+Entry point: `node test.js` (`npm test`). Every new behavior test takes the AGENTS.md guard proof:
+revert the change, prove the test fails, restore it, prove the suite passes.
 
-**The invariant that replaces v2's fingerprint suite:**
+**The invariant replaces the prior two-record comparison entirely:**
 
 ```js
-// Stage 1: display-bearing fields excluded; Stage 2: whole record.
-assert.deepStrictEqual(translated.mechanics, source.mechanics);
+const idBefore = character.id;
+const mechanicsBefore = structuredClone(character.mechanics);
+await approveCampaignMove(character.id, destinationCampaignId);
+
+assert.strictEqual(character.id, idBefore);
+assert.deepStrictEqual(character.mechanics, mechanicsBefore);
+assert.strictEqual(character.activeCampaignId, destinationCampaignId);
+assert.strictEqual(activeMembershipCount(character.id), 1);
 ```
 
 | Area | Required coverage |
 |---|---|
-| Identity | Mechanics deep-equal across translation; source unmutated; lineage recorded |
-| Round trip | **Mechanics identical at every hop, unconditionally.** Binding restoration claimed **only** when translating back into the *original* campaign — a fresh campaign of the origin genre legitimately generates different terms, and v3's unqualified W→F→W claim was false |
-| Ability ids | Match on id after rename; legacy name-keyed rows still match; ids survive Branch, Translate, export, and import remapping |
-| Predicates | `all`/`any`/`gte`/`eq`/`not`, empty `all` true, empty `any` false, depth cap, unknown axis or value fails closed; every seed row evaluates against every genre class |
-| Filter | Non-empty binds; empty-and-pinned yields exception; empty-and-unpinned yields `needs_choice`; each §6.3 guard case as a fixture |
-| Declaration authority | Creator chooses at creation; no absent-player approval; no ordinary host/player mutation path; established fiction cannot be retroactively replaced; any Gate-3 GM-evolution revision/freshness contract is enforced |
-| Two scopes | Two characters in one campaign each keep their own identity; shared terms shared; specialization does not rewrite the shared entry; late joiner cannot alter established terms |
-| Model containment | Adversarial fixtures: invented ability ids, numbers in prose, new slots, edits to pinned slots, rewrites of shared vocabulary, bindings outside the candidate set — all rejected, bounded retry, honest non-playable failure |
-| Narration | Leak check per §9's set difference, including a case where an approved literal pin **must** appear and must not be flagged |
-| Card | Every changed term appears; no unchosen alternative hidden; approval hash-bound and idempotent |
-| Draft flow | ready / needs_choice / stale / retry / cancel; restart-safe; play cannot precede approval. Onboarding drafts: survive reload; approval hash-bound; nothing inferred becomes canonical while open |
-| S1.8 byte identity | Each destination sheet entry with a source counterpart deep-equals it on `cost`/`effect`/`limits`; an incoming ability without a source entry produces no derived entry and appears on the card as carried-underived |
-| Compatibility | Legacy profiles: Continue and Branch unchanged; old bundles import; new bundles round-trip vocabulary, bindings, pins, provenance, ability ids; unknown schema fails closed |
-| Seat isolation | Bindings, pins, provenance, alternatives do not cross seats; re-run leak and route guards per `.agents/repo-guidance.md` |
+| Identity | Same character id before and after every move; one canonical record and no duplicate or reconciliation state |
+| Mechanics/progression | One canonical record remains unchanged by translation and carries all later level/XP/tier changes |
+| Round trip | Returning to any previously visited campaign reuses its saved bindings exactly |
+| New abilities | An ability gained after leaving a campaign keeps its id and mechanics; on return only its missing destination binding is proposed |
+| Atomic move | Approval persists new bindings and switches active membership exactly once; cancel, stale review, invalid output, failed retry, and transaction failure leave the current campaign unchanged |
+| Ability ids | Match on id after rename; legacy name-keyed rows still match; ids remain stable across campaign moves. Existing manual copy and bundle export/import retain separate regression coverage |
+| Predicates | `all`/`any`/`gte`/`eq`/`not`; empty `all` true; empty `any` false; depth cap; unknown axis/value fail closed; every seed row evaluates against every genre class |
+| Filter | Non-empty binds; empty-and-pinned yields an exception; empty-and-unpinned yields `needs_choice`; each §6.3 guard case has a fixture |
+| Declaration authority | Creator chooses at creation; no absent-player approval; no ordinary host/player mutation path; established fiction is never retroactively replaced; any Gate-3 GM-evolution freshness contract is enforced |
+| Two scopes | Two characters in one campaign keep separate identities; shared terms stay shared; ability-specific wording does not rewrite a shared entry; a late joiner cannot alter established terms |
+| Model containment | Adversarial fixtures: numbers, mechanics, unknown semantic keys, new ids, and pin rewrites are rejected; bounded retry exhaustion cannot commit |
+| Narration | The §9 set-difference leak test passes, including the approved-literal-pin case |
+| Onboarding | New and legacy characters get the same structural validation and plain-language approval; no class/family menu leaks |
+| Drafts | Onboarding and campaign-move drafts are restart-safe and hash-bound; nothing becomes canonical while open |
+| S1.8 canonical projection | A linked ability keeps one stable mechanic reference; no destination row stores `cost`/`effect`/`limits`; assembled GM context projects those fields from the canonical record and overlays only destination wording. An ability without a canonical mechanic entry produces no derived mechanics and is disclosed on the card |
+| Compatibility | Existing explicit manual copy is tested as a separate feature; old bundles import; new bundles round-trip the persistent character, active campaign, vocabulary, name/ability bindings, pins, ability ids, and canonical mechanic references; unknown schema fails closed. History, biographical provenance, relationships, and inventory transport remain outside this Stage 1 claim |
+| Seat isolation | Name/ability bindings, pins, binding provenance, and alternatives do not cross seats; rerun the leak/route guards in `.agents/repo-guidance.md` |
 
 **Manual / playtest** (the phase review gate in `.agents/repo-guidance.md` applies):
 
-1. Western gunslinger → high fantasy. 2. Fantasy wizard → cyberpunk, physical-output swap visible.
-3. Rogue → three destinations. 4. Pilot → vehicle-poor destination produces a choice, not a silent
-downgrade. 5. Sentient companion → technological destination requires a choice. 6. Cancel, reload,
-resume, retry. 7. Translate from an active source leaves the source untouched. 8. Two translated
-characters at one table keep distinct identities and shared world vocabulary. 9. A late joiner
-translates without shifting established vocabulary. 10. **Ten turns of real play with no vocabulary
-reversion**, including a literal-pinned item appearing naturally in narration.
+1. Western gunslinger → high fantasy.
+2. Fantasy wizard → cyberpunk → the same fantasy campaign: exact fantasy wording returns; only a
+   cyberpunk-earned ability needs a new fantasy expression.
+3. Rogue → three destinations, always one character and one active campaign.
+4. Pilot → vehicle-poor destination produces a choice, not a silent downgrade.
+5. A sentient-companion-themed ability → technological destination requires an expression choice;
+   no companion entity or relationship is transported.
+6. Cancel, reload, resume, retry, and forced validation failure all leave the current campaign active.
+7. Approval moves the same character and preserves mechanics, XP, and later progression.
+8. Two moved characters at one table keep distinct identities and shared world vocabulary.
+9. A late joiner moves in without shifting established vocabulary.
+10. Ten turns of real play show no vocabulary reversion, including literal-pinned ability wording
+    appearing naturally in narration.
 
-Bar: before the first turn the player can state what the character can do, what changed, what it
-costs, and what remains impossible — and after ten turns the narrator still speaks the destination's
-language.
+Bar: before the character's first turn after entry or return, the player can state what the
+character can do, what wording changed, what it costs, and what remains impossible. After ten
+subsequent turns, the narrator still speaks the destination's language.
 
 ---
 
 ## 13. Persistence sketch
 
-Names are proposals; an approved phase may rename while preserving the contract.
+Names are proposals; an approved slice may rename them while preserving the contract.
 
-**Profile** (`player_characters`, nullable additions): `identity_json` (families, slots, pins,
-provenance), `translated_from_character_id` — Translate lineage, kept distinct from
-`copied_from_character_id`, which stays exact-Branch lineage.
+**Character**: one canonical row containing the stable character id, `identity_json` limited in
+Stage 1 to families plus Gate-7-approved name/ability-expression slots and pins limited to those
+eligible slots, mechanics,
+attributes, level/XP/tiers, a mechanics/progression revision, and the active campaign id.
+Portability adds no duplicate or reconciliation record and no campaign-local mechanics/progression
+copy. Existing explicit manual-copy metadata, if retained, remains separate and does not participate
+in movement. History, biographical provenance, relationships, and inventory state are absent from
+this Stage 1 persistence contract and remain D13/D16.
 
-**Campaign** (nullable additions): `capability_json`, `vocabulary_json`, `vocabulary_version`.
-Gate 3 decides whether forward-only GM evolution requires a separate capability revision field.
+**Campaign**: `capability_json`, `capability_revision` only if Gate 3 requires forward GM
+evolution, `vocabulary_json`, and `vocabulary_version`.
 
-**Bindings**: per (character, campaign). The campaign-local `characters` row snapshots the approved
-bindings exactly as campaign members are snapshotted today.
+**Bindings**: campaign-local Stage 1 expression rows keyed by `(character_id, campaign_id)`:
+semantic key, destination term/prose, requirement predicate reference, binding provenance
+(`generated` | `player-pin` | `player-choice`), destination campaign vocabulary
+version, and a binding-set revision. They contain no mechanics, progression, biography,
+relationships, or inventory state. Approved rows are retained while inactive and reused exactly
+when that character returns.
 
-**Draft**: Translate needs destination vocabulary before approval and must survive a reload, so it
-needs a persisted `campaign_creation_drafts` record — id, status, genre and table settings, source
-profile id and hashes, generated outline/ruleset/declaration/vocabulary, card and card hash, player
-choices, timestamps, idempotency and commit result. The rule (amendment B): **every flow that
-contains a player-approval step persists a draft** — Translate, and new-character onboarding
-(§8.1, whose draft carries the proposed identity record and capability summary). `existing` and
-`copy` contain no approval step and keep their current synchronous route.
+**Active membership**: a uniqueness constraint or equivalent transaction guard ensures one active
+campaign membership per character. Historical bindings do not count as active membership.
 
-**Endpoints**: `POST /api/campaign-drafts`, `GET /api/campaign-drafts/:id`,
-`POST /api/campaign-drafts/:id/choices`, `POST /api/campaign-drafts/:id/approve` (card hash plus
-idempotency key), `POST /api/campaign-drafts/:id/cancel`. All host-authorized.
+**Drafts**:
 
-**Commit ordering**: generate and validate outside the write transaction → persist draft and hashes
-→ on approval re-read and reject stale or consumed state → generate remaining opening-scene material
-against the approved card → one write transaction creating the translated profile, lineage,
-campaign, outline, ruleset, vocabulary, bindings, party member, locations, NPCs, turn state, then
-marking the draft committed → an identical retry returns the committed result.
+- An existing-campaign move draft stores the persistent character id, current mechanics/progression
+  revision, destination campaign id and revisions, only missing name/ability-expression bindings,
+  the exact card/hash, player choices, timestamps, status, and an idempotent commit result. It stores
+  no campaign outline, rules, history, or opening scene and never recreates the destination.
+- A new-campaign creation draft stores the same movement fields plus the new campaign material.
+  All required campaign material and its entry scene are generated and validated before the
+  membership-switch transaction.
+- New-character onboarding remains a persisted approval draft. Explicit manual `copy` remains
+  separate and synchronous where it has no approval step.
+
+**Endpoints** may retain the current `/api/campaign-drafts` namespace or gain a move-specific
+namespace, but must expose create/read/choose/approve/cancel with the exact card hash and idempotency
+key. All remain host-authorized under the current product boundary.
+
+**Commit ordering**: generate and validate everything required after commit outside a write
+transaction → persist draft revisions and hashes → on approval reread and reject stale/consumed
+state → one write transaction conditionally creates new campaign material, stores any new
+destination bindings, deactivates old membership, activates destination membership for the same
+character id, and marks the draft committed → an identical retry returns the committed result.
+Entering an existing campaign loads its current state; it never generates another opening scene.
+Any preparation or transaction failure leaves old membership untouched.
 
 ---
+
 
 ## 14. Non-goals
 
@@ -891,39 +986,41 @@ marking the draft committed → an identical retry returns the committed result.
 - A player-facing menu of 22 families, or open primary-plus-two-secondary multiclassing.
 - Model-generated numbers, operations, costs, or mechanical permissions.
 - Silent conversion of a pinned slot.
-- Mutating the source character in place.
+- Changing mechanics, progression, or canonical character identity as part of campaign movement.
 - Rewriting canon ruleset prose after play has begun.
 - Claiming complete portability before D13/D16 settle non-ability state.
 - Changing the settled D0 rulebook per campaign.
-- Mechanical rebuild inside Translate.
+- Mechanical rebuild inside a campaign move.
 - Implementing any part of this plan before a concrete phase and its owner gates are approved.
 
 ---
 
 ## 15. Honest risks against v3.1
 
-1. **Two scopes cost more than one.** The split (finding 1) is correct but adds a join, a
-   specialization path, and two version fields. A single-character table would have been simpler and
-   wrong.
-2. **Vocabulary generation costs a call.** Mitigation: fold into the existing outline call
-   (`rpg-engine.js:1113`), or generate lazily on first Translate. Unmitigated it adds creation
-   latency.
-3. **Slot taxonomy grew 8 → 12** to fix the pin overclaim. Each addition is a schema change and seed
-   rows per genre class. Needs a standing rule: new slots arrive by owner decision, not convenience.
-4. **"Mechanics never change" will feel harsh.** A player whose signature move has no destination
-   home is told to pin or rebuild. Honest, and D0 — but a worse *feeling* than a plausible silent
-   substitution, which is exactly why v2 reached for one. The card's wording carries this weight and
-   should be playtested as copy, not just as data.
-5. **A wrong declaration mis-filters.** Gate 3 must settle creation-time confirmation, visibility,
-   and whether forward GM worldbuilding can revise the internal declaration. Empty sets still name
-   what failed; there is deliberately no live settings override.
-6. **S1.8 still rewrites canon prose**, even gated. The diff card is the whole safety mechanism; if
-   players click through it, drift ships anyway. Worth a dedicated playtest observation.
-7. **The 22 families remain unvalidated by play.** Reviewed design vocabulary, not evidence. Only
-   the §12 playtests can promote them.
-8. **Genre classification of free text is fuzzy.** It affects only seed selection and proposed
-   defaults, never mechanics. Gate 3 must settle the creation-time confirmation path; it does not
-   become an after-creation settings control.
+1. **Two binding scopes cost more than one.** The split (finding 1) is correct but adds a join and
+   two version fields. One combined vocabulary/binding table would be
+   simpler and wrong.
+2. **Vocabulary generation costs a call.** Mitigation: fold it into the existing outline call
+   (`rpg-engine.js:1113`) or generate lazily when a destination first needs bindings. Unmitigated,
+   it adds move latency.
+3. **The slot taxonomy grew from 8 to 12.** That fixes the pin-coverage overclaim, but each addition
+   becomes a schema change plus seed rows per genre class. New slots must arrive by owner decision,
+   not convenience.
+4. **"Mechanics never change" can feel harsh.** A player whose signature move has no destination home
+   must pin it or rebuild. That is honest under D0 but may feel worse than a plausible silent
+   substitution; the card's wording needs playtest evidence, not just data validation.
+5. **Wrong campaign facts mis-filter.** Gate 3 must settle creation-time visibility and how
+   forward-only GM worldbuilding updates the internal record. Empty sets still identify the failed
+   fact; there is deliberately no live settings override.
+6. **S1.8 still changes words in GM context**, even though it projects one canonical mechanic
+   record instead of copying it. The card is the safety mechanism; if players click through it,
+   misleading expression can still ship. Observe this specifically in playtest.
+
+7. **The 22 families remain unvalidated in play.** They are reviewed design vocabulary, not evidence.
+   Only §12 playtests can promote them.
+8. **Free-text genre classification is fuzzy.** It affects seed defaults, never mechanics. Gate 3
+   must settle the creation-time confirmation path without turning it into an after-creation settings
+   control.
 
 ---
 
@@ -931,21 +1028,25 @@ marking the draft committed → an identical retry returns the committed result.
 
 Taken in chat one at a time and recorded durably. This plan infers none of them.
 
-1. **The architecture** — mechanics copied verbatim plus per-campaign bindings, replacing v2's
-   candidate-plus-equivalence-proof. Everything depends on this. *Recommendation: adopt.* It is
-   smaller, decidable, testable by structural identity, and it is what D0 already implies.
-2. **Stage 1 as a phase**, in the S1.1 → S1.8 order. The order is load-bearing, not stylistic.
-3. **The capability declaration** (§6.1, §6.4) — whether structured axes exist; if so, their exact
-   set, creation-time confirmation and visibility, and whether the stored value is a fixed snapshot
-   or follows forward-only GM worldbuilding. It is never an ordinary host/player settings control.
-4. **The slot taxonomy** (§5.3) — twelve families, and the rule for adding more.
-5. **Families and their internal-only status** (§5.6) — approve, refine, or cut Generalist.
-6. **Onboarding shape** (§8.1) — plain-language capability summary at character creation, answering
-   v2's deferred D3-B without a class menu.
-7. **Name and history policy** (§10) — settled here rather than deferred, because it is text.
+1. **The architecture** — one persistent character, active in exactly one campaign; the same
+   mechanics and progression record travels; per-campaign expression bindings persist and are
+   reused exactly; only missing destination bindings are translated. Portability creates no
+   duplicate or reconciliation state. This supersedes every earlier multi-record design.
+2. **The Stage 1 phase**, in S1.1 → S1.8 order. The order is load-bearing, not stylistic.
+3. **The campaign facts used for translation** (§6.1, §6.4) — whether a small structured internal
+   record exists; if so, its exact fields, creation-time visibility, and how it follows forward-only
+   GM worldbuilding without becoming an ordinary host/player settings control.
+4. **The slot taxonomy** (§5.3) — twelve families and the rule for adding more.
+5. **The family set** — internal-only (§5.6), not a player-facing class system.
+6. **The onboarding shape** (§8.1) — plain-language summary, never a family menu.
+7. **Campaign-specific name expression** (§10) — whether Stage 1 permits it and how the card
+   presents it. History, biographical provenance, relationships, inventory, and all other
+   non-ability state remain deferred to D13/D16.
+
 8. **D5 ability packaging** — Stage 2 only.
 9. **D13/D16 non-ability state** — Stage 4 only.
 
-Gates 1 and 2 are settled in `.agents/decisions.md`. Gate 3 is next; remaining gates must be
-ruled before their affected slices. Unlike v3, **no slice is proposed standalone**: S1.8's
-quick-win framing was the defect finding 2 caught.
+Gates 1 and 2 are settled in `.agents/decisions.md`; Gate 1 includes the later
+one-persistent-character amendment. Gate 3 is next. Remaining gates must be ruled before their
+affected slices. Unlike v3, no slice is proposed standalone: S1.8's former quick-win framing was the
+defect that finding 2 caught.

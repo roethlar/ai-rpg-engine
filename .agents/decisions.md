@@ -1152,6 +1152,9 @@ The genre-spread coverage proof carries forward as a drafting-stage obligation o
 
 ### 2026-07-31 - Rules D3 gate 1: cross-genre portability core — immutable mechanics, per-campaign expression bindings (owner decision)
 
+**Status: superseded in part later the same day.** The one-persistent-character amendment below and
+the amended v3.1 draft control every conflict; this entry is retained as decision history.
+
 When a character moves between campaigns, the mechanical record — ability records and their
 packaging, costs, limits, attributes, progression (level, XP, tiers) — is **copied verbatim**:
 never re-derived, never model-touched. Only expression rebinds, and it rebinds **per campaign**:
@@ -1165,7 +1168,8 @@ play begins.
 This adopts gate 1 of the active working draft
 (`.agents/review/archetype-portability-matrix-v3.1.md` §16) and settles the foundation only.
 Gates 2-7 — Stage 1 as a phase, capability axes, slot taxonomy, family set, onboarding shape,
-name/history policy — remain unruled. No product code is authorized by this decision.
+and campaign-specific name expression — remain unruled. History remains deferred to D13/D16.
+No product code is authorized by this decision.
 
 Reason:
 Owner 2026-07-31: "adopt", after in-chat examination of the design (sorcerer/wizard separation via
@@ -1185,13 +1189,14 @@ Stage 1 of the cross-genre portability plan — expression translation over toda
 profiles — is approved as a phase, in the fixed slice order S1.1 → S1.8
 (`.agents/review/archetype-portability-matrix-v3.1.md` §11, as amended §1.1). The order is
 load-bearing: identity, binding, validation, and approval machinery land before anything touches
-canon prose, and S1.8 (rule-sheet carryover, narrowed to byte-identical carry by amendment A)
-ships last. No slice is standalone.
+canon prose, and S1.8 ships last. Its then-current byte-identical-carry framing is superseded by the
+one-record projection amendment below. No slice is standalone.
 
 The gate authorizes drafting the concrete phase plan (files to change, success metrics,
 verification) for its own separate approval; no code is authorized until that plan is approved.
 Remaining v3.1 §16 gates (3: capability axes, 4: slot taxonomy, 5: families, 6: onboarding
-shape, 7: name/history policy) ride the slices they govern and come to chat one at a time
+shape, 7: campaign-specific name expression; history remains deferred to D13/D16) ride the slices
+they govern and come to chat one at a time
 before the affected slice lands.
 
 Reason:
@@ -1223,3 +1228,41 @@ word on world facts is final. This ruling narrows "owner settings" for Phase PT:
 worldbuilding is not an ordinary settings surface. It supersedes v3.1 amendment C's host-edit and
 affected-player revalidation workflow; the capability declaration's internal representation remains
 for Gate 3.
+
+### 2026-07-31 - Rules D3 gate 1 amendment: one persistent character, one active campaign (owner decision)
+
+A portable character is exactly **one persistent character record**, active in exactly one campaign
+at a time. Moving that character never creates a branch, copy, alternate incarnation, or later
+merge. The same character id, mechanics, abilities, attributes, level, XP, tiers, and subsequent
+progression travel with the character.
+
+Campaign-specific expression remains stored per `(character, campaign)`. On first entry, every
+missing Stage 1 name or ability binding needs wording and player approval. On return, previously
+approved bindings are reused exactly; only abilities gained since the character last left that
+campaign and therefore lacking a destination binding need new wording and approval. Entering an
+existing campaign never recreates its rules, history, current scene, or opening scene; campaign
+material is created only when the destination campaign itself is new. A draft, cancellation, stale
+result, or failed translation leaves
+the character active in the current campaign unchanged; approval atomically stores the new bindings
+and switches that same character's active campaign.
+
+This amends D3 gate 1 without reopening its retained foundations: mechanics never translate or fork,
+expression alone is campaign-specific, and player approval is mandatory before translated wording
+enters play. It specifically supersedes the earlier gate-1 wording that described three portability
+result modes, copied mechanics into a new profile, Branch lineage, a translated branch, or a source
+character left behind. Existing explicit manual character-copy behavior is a separate shipped
+feature, not a portability mode or an alternate state of the moving character. Inventory,
+relationships, history, and other non-ability state remain deferred to D13/D16 rather than inferred
+here.
+
+The same-record rule also supersedes gate 2's "byte-identical carry" wording for campaign rule
+sheets: GM context must project mechanics from the character's one canonical mechanic record and
+overlay campaign wording. It must not persist a destination mechanics copy. This keeps Stage 1's
+mechanics invariant while fuller ability packaging remains D5.
+
+Reason:
+Owner 2026-07-31 rejected branched instances: "one character, only active in one campaign at a time,
+carries the experience with it. no alternate versions." This also resolves the round trip: returning
+to a prior campaign cannot produce a different incarnation because the same character returns and
+its saved campaign expression is reused; only newly gained abilities without destination wording
+require translation.

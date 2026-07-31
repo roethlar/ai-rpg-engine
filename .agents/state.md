@@ -20,7 +20,11 @@ to `docs/history/state-archive.md`.
   2026-07-27, enacting its three declared Chapter 1 refinements and closing the D2 catalog-design
   gate. `.agents/review/rules-system-plan-intake.md` owns the remaining decision queue; no rules
   code before a concrete phase and an owner-approved plan.
-- **PHASE PT IS APPROVED AND RUNNING; S1.2 AWAITS GATE 3 ONLY.** Campaign setting authority is
+- **PHASE PT IS APPROVED AND RUNNING; S1.2 AWAITS GATE 3 ONLY.** D3 gate 1 now records one
+  persistent character, active in exactly one campaign: mechanics and progression travel; first
+  entry fills every missing Stage 1 name or ability binding; returns reuse saved wording exactly and
+  translate only newly gained abilities lacking destination wording.
+  There are no portability branches or alternate versions. Campaign setting authority is also
   settled in `.agents/decisions.md`: the creator chooses at creation, GM worldbuilding stands,
   and ordinary play has no host/player setting-correction control. Phase PT in `plan.md` owns the
   landed S1.1 history, fixed slice order, remaining-gate routing, and coding assignment.
