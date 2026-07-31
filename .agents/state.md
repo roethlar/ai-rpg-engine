@@ -42,12 +42,12 @@ to `docs/history/state-archive.md`.
   campaign-canonical narrator, server-resolved NPC voices, shared host/seat synthesis, and
   save-once replay. `.agents/review/index.md` owns the accepted implementation trail. The phase
   remains open until a real session confirms the voice experience is better.
-- **THE OWNER-APPROVED UI BACKLOG REMAINS UNSTARTED AS OF `e1f8e7c`.**
+- **THE OWNER-APPROVED UI BACKLOG REMAINS UNSTARTED AS OF `8320db7`.**
   `.agents/review/index.md` owns the exact findings and order; resume at `jt-1`.
 - **THE REMOTE TWO-HUMAN MULTIPLAYER PLAYTEST REMAINS PENDING.** App-side seat work is landed;
   connectivity is owner-handled and out of repo scope. Seat isolation must be re-tested whenever a
   field crosses a seat payload, audio, or error boundary.
-- **KNOWN PARKED DEFECT, REVERIFIED AT `e1f8e7c`:** `map-render.js:142` draws the location title
+- **KNOWN PARKED DEFECT, REVERIFIED AT `8320db7`:** `map-render.js:142` draws the location title
   as an unclipped SVG `<text>`. A long location name can overrun the canvas; the landed `map-1`
   fix deliberately covered area labels only.
 
@@ -77,12 +77,16 @@ remains blocked on the three seams recorded above and no slice is proposed as st
   catalog-design gate itself is closed.
 - Phase V closure requires the owner's real-session voice verdict.
 - Multiplayer network exposure is owner-handled infrastructure.
-- Machine-local css-2 cleanup on `nagatha` requires explicit destructive go; see
-  `.agents/machines.md`.
 
 ## Verification
 
-- Automated: `npm test` — green against code head `e1f8e7c` on 2026-07-26.
+- Automated: `npm test` — green against code head `8320db7` on 2026-07-30 (no code changes since
+  `e1f8e7c`; docs-only commits between).
+- After a fresh `npm install`, npm's install-scripts gate (npm bundled with Node 26) blocks
+  sqlite3's native build and the suite fails to load the binding. One-off unblock:
+  `npm config set allow-scripts=sqlite3 --location=user`, `npm rebuild sqlite3`, then delete the
+  config key. The durable fix — an `allowScripts` entry in `package.json` — is a tracked change
+  awaiting an owner go.
 - Browser: `npm run test:browser` remains required before merging changes to
   `public/styles.css` or `public/theme-vars.js`; it does not cover `app.js` theme wiring or
   `map-render.js`. No fresh browser verdict was established during this catchup.
