@@ -11,8 +11,8 @@ and current implementation seams.
 This was a read-only structured intake pass under
 `.agents/playbooks/reviewloop.md`. The custom plan-intake schema returned
 `ready_for_owner_decisions`: it is not the playbook's later `accepted` verdict
-on a concrete plan. The plan must be written after the decisions below, then
-re-reviewed against a pinned plan snapshot.
+on a concrete plan. A plan must be written after the applicable decisions below; cross-harness
+review occurs only when the owner invokes a current review operator.
 
 ## Conclusions safe to plan from
 
@@ -20,7 +20,7 @@ re-reviewed against a pinned plan snapshot.
   transition. Models emit validated identifiers and enums, never arithmetic.
 - D0 settled the overall frame: a versioned fixed house chassis plus generated
   campaign flavor. D1's resolution chapter and D2's effect catalog are owner-signed;
-  D3's archetype boundary is the next owner decision.
+  D3 gates 1-2 and Phase PT are approved, and gate 3 is next after the host-authority discussion.
 - Chapter 2 r24 is the canonical effect-verb vocabulary. Generated abilities may
   select legal effects and supply flavor, but may not invent mechanics.
 - Tactical positioning must be explicit engine state. The leading option is a
@@ -66,12 +66,12 @@ owner-approved wording in `.agents/decisions.md` and the eventual plan status.
 | D0 | Overall frame | Bespoke fixed chassis plus campaign flavor skins | **DECIDED 2026-07-12** — fixed house chassis + generated flavor skins; see `.agents/decisions.md`. Unblocks D1, D2, D4, D6, D11, D12, D14. |
 | D1 | Dice engine | Keep d20, but prove the curve before wiring | **DECIDED 2026-07-16, then superseded same day** by the signed-off resolution chapter (`docs/rules/resolution.md` @ `8f7862d`): d100 meet-or-beat with licensed edge texture; die-agnostic core carries forward. See `.agents/decisions.md` sign-off entry. Unblocks D8. |
 | D2 | Ability representation | Fixed effect catalog, genre-spread prototype first | **DECIDED 2026-07-16; CATALOG SIGNED OFF 2026-07-27** — complications are free text with optional contextual suggestions, never a fixed complication table; any mechanical consequence maps to an engine **verb** (state operation) from the deliberately wide, canonical Chapter 2 r24 catalog (`docs/rules/effects.md`). Model trust is tuned via the ledgered stakes license, never by unledgered effects. The catalog-document design gate is satisfied; rules code still requires a concrete phase and owner-approved plan. Unblocks D3, D5, D13. |
-| D3 | Archetype boundary | Stable chassis archetypes, flavor-skinned | V3.1 portability plan drafted 2026-07-27 (`.agents/review/archetype-portability-matrix-v3.1.md`); v1, v2, and v3 retained as evidence. V3 replaced v2's mechanical-equivalence fingerprint with immutable mechanics plus per-campaign expression bindings; v3.1 fixed nine review findings against it. **GATE 1 ADOPTED 2026-07-31** (owner: "adopt"; recorded in `.agents/decisions.md`): mechanics copied verbatim, per-campaign expression bindings, three modes, mandatory player approval. **GATE 2 APPROVED 2026-07-31** (owner: "go"): Stage 1 is a phase in the fixed S1.1 → S1.8 order; the three seams are closed by the post-gate-1 amendments (v3.1 §1.1). Gates 3-7 ride their slices, one at a time. Phase plan drafted in `plan.md` (Phase PT); code waits on its approval. D2 prerequisite is satisfied. |
+| D3 | Archetype boundary | Stable chassis archetypes, flavor-skinned | V3.1 portability plan drafted 2026-07-27 (`.agents/review/archetype-portability-matrix-v3.1.md`); v1, v2, and v3 retained as evidence. V3 replaced v2's mechanical-equivalence fingerprint with immutable mechanics plus per-campaign expression bindings; v3.1 fixed nine review findings against it. **GATE 1 ADOPTED 2026-07-31** (owner: "adopt"; recorded in `.agents/decisions.md`): mechanics copied verbatim, per-campaign expression bindings, three modes, mandatory player approval. **GATE 2 APPROVED 2026-07-31** (owner: "go"): Stage 1 is a phase in the fixed S1.1 → S1.8 order; the three seams are closed by the post-gate-1 amendments (v3.1 §1.1). Gates 3-7 ride their slices, one at a time. Phase PT in `plan.md` is approved and running; S1.1 landed at `9343e79`, and S1.2 awaits Gate 3. D2 prerequisite is satisfied. |
 | D4 | Attribute count | Keep STR/AGI/INT/WIL | Pending owner decision |
 | D5 | Player spend economy | One Strain/Effort pool plus HP and XP | Ready — D2 catalog signed off 2026-07-27 |
 | D6 | Tactical space | Zones over existing location occupancy | Pending owner decision |
 | D7 | Initiative/reactions | Seed then fixed rotation; no v1 reactions | Pending D6 |
-| D8 | Opposition | Model chooses level/role/flavor; engine derives stats | Pending D1 |
+| D8 | Opposition | Model chooses level/role/flavor; engine derives stats | Ready — D1 is signed off |
 | D9 | Dying/death | Visible countdown plus player-chosen outcome | Pending D11 |
 | D10 | Recovery | Partial scene refresh plus explicit party rest | Pending D5 |
 | D11 | Mid-resolution choices | One offer/deadline/default state machine | Pending owner decision |
@@ -115,4 +115,3 @@ UI, seat-boundary, tactical-map, export/fork, guard-proof, and playtest work.
 - Exact currency values, tier numbers, archetype list, death options, and
   action-economy depth are game-design hypotheses until simulated and
   playtested; reviewer agreement is not evidence of feel.
-

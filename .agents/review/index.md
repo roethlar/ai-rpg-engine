@@ -1,6 +1,6 @@
 # Review status
 
-Workflow: see `.agents/playbooks/reviewloop.md`.
+Current workflow: see the 2026-07-26 cross-harness review decision in `.agents/decisions.md`.
 Per-finding detail: see `.agents/review/findings/<id>.md`.
 
 ## Accepted admin model-registry plan loop (2026-07-15)
@@ -33,10 +33,10 @@ extension at `0f36f0f920e2e26a0783840e49ad8144f797dec5`. Review trail:
 
 ## Active loop (started 2026-07-13 with reviewer Codex) — owner-reported bugs
 
-Owner decision 2026-07-12: **all** code goes through this loop with an independent reviewer; no
-exemption for small, obvious, or owner-approved changes (`.agents/decisions.md`). The 2026-07-14
-division-of-labour decision later made Codex the default implementer and Claude the default reviewer;
-dated verdicts below retain the role actually used at the time.
+Historical process at this loop's start: the 2026-07-12 owner decision sent **all** code through an
+independent review loop, and the 2026-07-14 division-of-labour decision assigned default roles.
+The 2026-07-26 owner decision superseded that policy: cross-harness review is now opt-in. Dated
+verdicts below retain the workflow and roles actually used at the time.
 
 | ID | Severity | Impact (one line) | Status | Branch |
 |----|----------|-------------------|--------|--------|
@@ -92,9 +92,9 @@ custom, implementation-ready system and plan. Read-only intake reviewed pinned
 snapshot `526aa5c` with Claude Code 2.1.207 (`claude-opus-4-8`, high effort,
 structured output). Verdict: `ready_for_owner_decisions` — **not** plan
 acceptance. It admitted 14 plan gaps (5 HIGH) and produced a 15-decision queue.
-D0 is decided: fixed bespoke chassis plus generated flavor. D1 (the die) is the
-next owner ask. No rules code is authorized before the remaining decisions are recorded,
-a concrete phase is written, and Claude accepts that pinned plan snapshot.
+D0-D2 are decided; D3 gates 1-2 and Phase PT are approved, with S1.1 landed. Gate 3 is next after
+the host-authority discussion. Other rules work still requires promotion into a concrete approved
+phase; cross-harness review occurs only when the owner invokes it.
 
 Detailed intake and decision queue:
 `.agents/review/rules-system-plan-intake.md`.

@@ -20,16 +20,8 @@ to `docs/history/state-archive.md`.
   2026-07-27, enacting its three declared Chapter 1 refinements and closing the D2 catalog-design
   gate. `.agents/review/rules-system-plan-intake.md` owns the remaining decision queue; no rules
   code before a concrete phase and an owner-approved plan.
-- **D3 GATE 1 IS OWNER-ADOPTED (2026-07-31; recorded in `.agents/decisions.md`).** Immutable
-  mechanics plus per-campaign expression bindings, three modes (Continue/Branch/Translate),
-  mandatory player approval. `.agents/review/archetype-portability-matrix-v3.1.md` is the active
-  working draft; v1, v2, v3, and the review file are retained evidence. Gates 2-7 remain unruled;
-  no product code is authorized.
-- **PHASE PT IS APPROVED AND RUNNING; S1.1 IS LANDED AT `9343e79`** (gate 1 adopted, gate 2 +
-  plan approved, all 2026-07-31; decisions recorded). S1.1: engine-issued ability ids, id-first
-  matching with legacy name fallback and heal-on-touch; guard proof executed both legs. Coding
-  is dispatched to Opus/Sonnet subagents (owner instruction, recorded in the Phase PT status
-  line). Gates 4-5 ride S1.3, 6-7 ride S1.5. D5 is not a Stage 1 dependency.
+- **PHASE PT IS APPROVED AND RUNNING; S1.2 AWAITS GATE 3.** Phase PT in `plan.md` owns
+  the landed S1.1 history, fixed slice order, remaining-gate routing, and coding assignment.
 - **GATE 3 (CAPABILITY AXES) IS ON HOLD BEHIND AN OPEN DESIGN CONVERSATION — NOT A DECISION.**
   The owner is talking out the host-authority model and explicitly said "I did not make a rule.
   I'm talking this out." Position in progress: "the GM is the one who controls the ruleset…
@@ -44,12 +36,12 @@ to `docs/history/state-archive.md`.
   campaign-canonical narrator, server-resolved NPC voices, shared host/seat synthesis, and
   save-once replay. `.agents/review/index.md` owns the accepted implementation trail. The phase
   remains open until a real session confirms the voice experience is better.
-- **THE OWNER-APPROVED UI BACKLOG REMAINS UNSTARTED AS OF `8320db7`.**
+- **THE OWNER-APPROVED UI BACKLOG REMAINS UNSTARTED, REVERIFIED AT `c0bedb6`.**
   `.agents/review/index.md` owns the exact findings and order; resume at `jt-1`.
 - **THE REMOTE TWO-HUMAN MULTIPLAYER PLAYTEST REMAINS PENDING.** App-side seat work is landed;
   connectivity is owner-handled and out of repo scope. Seat isolation must be re-tested whenever a
   field crosses a seat payload, audio, or error boundary.
-- **KNOWN PARKED DEFECT, REVERIFIED AT `8320db7`:** `map-render.js:142` draws the location title
+- **KNOWN PARKED DEFECT, REVERIFIED AT `c0bedb6`:** `map-render.js:142` draws the location title
   as an unclipped SVG `<text>`. A long location name can overrun the canvas; the landed `map-1`
   fix deliberately covered area labels only.
 
@@ -57,11 +49,11 @@ to `docs/history/state-archive.md`.
 
 **NEXT:** Resume the host-authority talk-out with the owner (see `## Now`) — words only, no
 records until the owner rules. When it settles: fold the outcome into the v3.1 draft's
-§6.1/§6.4 and Phase PT S1.2, then re-pose gate 3 (the nine capability axes). S1.2 starts only
+§6.1/§6.4 and Phase PT S1.2, then re-pose gate 3 (the capability axes). S1.2 starts only
 after both.
 
-- Continue the rules intake queue one owner decision at a time; D5 and D13 are also ready now
-  that D2 is signed off.
+- Continue the owner decision queue one item at a time from the canonical queue in
+  `.agents/review/rules-system-plan-intake.md`.
 - The first approved UI backlog slice is `jt-1` (prevent stale cross-campaign Journal responses);
   select it when UI implementation should resume.
 - The concrete mapping candidate is the parked location-title overflow defect; draft and approve
@@ -74,21 +66,17 @@ after both.
 ## Blockers
 
 - No product-code defect blocks development.
-- Rules implementation remains blocked on a concrete phase and owner-approved code plan; the
-  catalog-design gate itself is closed.
+- Phase PT S1.2 is blocked until the host-authority discussion settles and the owner rules Gate 3.
+- Broader Chapter 1/2 effect-catalog runtime implementation remains blocked until promoted into
+  a concrete owner-approved phase; the D2 catalog-design gate is closed.
 - Phase V closure requires the owner's real-session voice verdict.
 - Multiplayer network exposure is owner-handled infrastructure.
 
 ## Verification
 
-- Automated: `npm test` — green against code head `8320db7` on 2026-07-30 (no code changes since
-  `e1f8e7c`; docs-only commits between).
-- npm 12+ (bundled with Node 26) blocks dependency install scripts by default; `package.json`
-  carries `allowScripts` entries for sqlite3 and fsevents so a fresh `npm install` builds the
-  sqlite3 native binding (owner-approved 2026-07-30).
-- Browser: `npm run test:browser` remains required before merging changes to
-  `public/styles.css` or `public/theme-vars.js`; it does not cover `app.js` theme wiring or
-  `map-render.js`. No fresh browser verdict was established during this catchup.
+- Automated: `npm test` — green at `c0bedb6` on 2026-07-31.
+- Browser: not run during the 2026-07-31 catchup; no trigger surface changed. See
+  `.agents/repo-guidance.md` (Verification) for required surfaces and the coverage boundary.
 - Guard-proof requirements and anti-vacuity practice live in `AGENTS.md` and
   `.agents/decisions.md`; the codereview playbook applies only when explicitly invoked.
 - Live seat verification uses a throwaway store: mint seat → `/api/seat/session` → leak-scan the

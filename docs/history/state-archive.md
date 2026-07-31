@@ -254,3 +254,16 @@ machine-local evidence, if any, belongs only in `.agents/machines.md`.
 
 Archive note: the owner abandoned this proposal later on 2026-07-26. Its final artifact moved to
 `docs/history/runtime-greenfield-plan-abandoned.md`; it has no current authority.
+
+## Rotated 2026-07-31 (catchup)
+
+- **D3 GATE 1 IS OWNER-ADOPTED (2026-07-31; recorded in `.agents/decisions.md`).** Immutable
+  mechanics plus per-campaign expression bindings, three modes (Continue/Branch/Translate),
+  mandatory player approval. `.agents/review/archetype-portability-matrix-v3.1.md` is the active
+  working draft; v1, v2, v3, and the review file are retained evidence. Gates 2-7 remain unruled;
+  no product code is authorized.
+- **PHASE PT IS APPROVED AND RUNNING; S1.1 IS LANDED AT `9343e79`** (gate 1 adopted, gate 2 +
+  plan approved, all 2026-07-31; decisions recorded). S1.1: engine-issued ability ids, id-first
+  matching with legacy name fallback and heal-on-touch; guard proof executed both legs. Coding
+  is dispatched to Opus/Sonnet subagents (owner instruction, recorded in the Phase PT status
+  line). Gates 4-5 ride S1.3, 6-7 ride S1.5. D5 is not a Stage 1 dependency.

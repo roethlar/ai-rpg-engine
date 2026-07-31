@@ -1,7 +1,8 @@
 # Cross-genre character portability — v3.1
 
-**Status**: ACTIVE working draft. **Gate 1 (§16) adopted by the owner 2026-07-31** — recorded in
-`.agents/decisions.md`. Gates 2-7 remain unruled. Authorizes no product-code change.
+**Status**: ACTIVE working draft. **Gates 1-2 (§16) adopted/approved by the owner 2026-07-31** —
+recorded in `.agents/decisions.md`. Gates 3-7 remain unruled. Phase PT is approved in `plan.md`;
+remaining gates govern their affected slices.
 
 **Date**: 2026-07-27
 
@@ -935,5 +936,6 @@ Taken in chat one at a time and recorded durably. This plan infers none of them.
 8. **D5 ability packaging** — Stage 2 only.
 9. **D13/D16 non-ability state** — Stage 4 only.
 
-The first ruling is gate 1. Nothing below it is actionable. Unlike v3, **no slice is proposed as
-standalone**: S1.8's quick-win framing was the defect finding 2 caught.
+Gates 1 and 2 are settled in `.agents/decisions.md`. Gate 3 is next; remaining gates must be
+ruled before their affected slices. Unlike v3, **no slice is proposed standalone**: S1.8's
+quick-win framing was the defect finding 2 caught.
