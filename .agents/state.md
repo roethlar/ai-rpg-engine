@@ -25,12 +25,21 @@ to `docs/history/state-archive.md`.
   mandatory player approval. `.agents/review/archetype-portability-matrix-v3.1.md` is the active
   working draft; v1, v2, v3, and the review file are retained evidence. Gates 2-7 remain unruled;
   no product code is authorized.
-- **D3 GATE 2 IS OWNER-APPROVED (2026-07-31): STAGE 1 IS A PHASE — PHASE PT.** The three seams
-  are closed by the post-gate-1 amendments (v3.1 §1.1; openreviewed by kimi k3 max over
-  `8320db7..770b3e5`, one LOW records finding fixed as rq-1). The concrete phase plan is drafted
-  as Phase PT in `plan.md` and **awaits owner plan approval — no code until it lands**. Gates
-  3-7 ride their slices (3 before S1.2; 4-5 before S1.3; 6-7 before S1.5), one decision at a
-  time. D5 is not a Stage 1 dependency.
+- **PHASE PT IS APPROVED AND RUNNING; S1.1 IS LANDED AT `9343e79`** (gate 1 adopted, gate 2 +
+  plan approved, all 2026-07-31; decisions recorded). S1.1: engine-issued ability ids, id-first
+  matching with legacy name fallback and heal-on-touch; guard proof executed both legs. Coding
+  is dispatched to Opus/Sonnet subagents (owner instruction, recorded in the Phase PT status
+  line). Gates 4-5 ride S1.3, 6-7 ride S1.5. D5 is not a Stage 1 dependency.
+- **GATE 3 (CAPABILITY AXES) IS ON HOLD BEHIND AN OPEN DESIGN CONVERSATION — NOT A DECISION.**
+  The owner is talking out the host-authority model and explicitly said "I did not make a rule.
+  I'm talking this out." Position in progress: "the GM is the one who controls the ruleset…
+  the host controls the environment, not the game." Open threads from the discussion:
+  corrections-as-appeal-to-the-GM instead of settings levers; the host already picks the GM's
+  brain (model/provider config) so host trust is load-bearing regardless; whether a "table /
+  session zero" consent organ is needed for world-level premise or the campaign creator just is
+  session zero. A premature decision record + §6.1 draft edit were made and fully reverted —
+  decisions.md and the v3.1 draft carry NOTHING from this conversation. S1.2 must not start
+  until gate 3 rules AND this settles (it shapes S1.2's declaration edit surfaces).
 - **PHASE V CODE IS COMPLETE; THE OWNER VOICE PLAYTEST IS PENDING.** The live contract is one
   campaign-canonical narrator, server-resolved NPC voices, shared host/seat synthesis, and
   save-once replay. `.agents/review/index.md` owns the accepted implementation trail. The phase
@@ -46,11 +55,10 @@ to `docs/history/state-archive.md`.
 
 ## Next
 
-**CURRENT WORK:** Phase PT S1.1 (ability ids) is landed and guard-proofed: id-first matching
-with legacy name fallback and heal-on-touch backfill; ids survive branch/copy; import remints
-consistently. Coded by an Opus subagent, verified and guard-proofed by the orchestrator (revert
-leg observed failing, restore leg green). **NEXT OWNER ACTION: gate 3** — the nine capability
-axes (v3.1 §6.1) — before S1.2 lands; then gates 4-5 before S1.3, 6-7 before S1.5.
+**NEXT:** Resume the host-authority talk-out with the owner (see `## Now`) — words only, no
+records until the owner rules. When it settles: fold the outcome into the v3.1 draft's
+§6.1/§6.4 and Phase PT S1.2, then re-pose gate 3 (the nine capability axes). S1.2 starts only
+after both.
 
 - Continue the rules intake queue one owner decision at a time; D5 and D13 are also ready now
   that D2 is signed off.
