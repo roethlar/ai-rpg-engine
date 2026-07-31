@@ -82,11 +82,9 @@ remains blocked on the three seams recorded above and no slice is proposed as st
 
 - Automated: `npm test` — green against code head `8320db7` on 2026-07-30 (no code changes since
   `e1f8e7c`; docs-only commits between).
-- After a fresh `npm install`, npm's install-scripts gate (npm bundled with Node 26) blocks
-  sqlite3's native build and the suite fails to load the binding. One-off unblock:
-  `npm config set allow-scripts=sqlite3 --location=user`, `npm rebuild sqlite3`, then delete the
-  config key. The durable fix — an `allowScripts` entry in `package.json` — is a tracked change
-  awaiting an owner go.
+- npm 12+ (bundled with Node 26) blocks dependency install scripts by default; `package.json`
+  carries `allowScripts` entries for sqlite3 and fsevents so a fresh `npm install` builds the
+  sqlite3 native binding (owner-approved 2026-07-30).
 - Browser: `npm run test:browser` remains required before merging changes to
   `public/styles.css` or `public/theme-vars.js`; it does not cover `app.js` theme wiring or
   `map-render.js`. No fresh browser verdict was established during this catchup.
