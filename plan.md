@@ -608,6 +608,11 @@ Raised during planning but deliberately deferred. **Per project rule, nothing he
   configuration to `/admin` behind `ADMIN_SECRET`; Phase S added per-seat credentials. Full user
   accounts and long-term character ownership remain future topics. README owns the current flow.
 
+- **Host-only campaign editor — DEFERRED 2026-07-31.** A possible administrative tool for directly
+  inspecting or editing a campaign is separate from ordinary GM/player interaction and from Phase
+  PT. It needs its own future phase, authority boundaries, and canon-preservation design before any
+  implementation; nothing here authorizes it.
+
 - **Model fallback tiering — LANDED.** Phase I2 retries transient failures once, then uses the
   configured backup tier per call while preserving Council-role boundaries. Surviving failures
   surface outside the GM voice and restore the player's input.
@@ -658,15 +663,14 @@ Raised during planning but deliberately deferred. **Per project rule, nothing he
 
 - **Portable characters & campaigns — format DECIDED, PROMOTED 2026-07-04** (versioned single-file JSON bundle, export first, forward importability required; implementation is Phase P in the 2026-07-04 Queue; ownership/auth interactions stay future). Original discussion: Open question raised 2026-06-15. Goal: a character and/or a full campaign should be exportable as a self-contained, restorable artifact that can move between deployments — backup, host migration, handing a save to another player/operator, resuming elsewhere — with continuity intact. **Distinct from the cross-campaign persistence topic above:** that one is about reusing a character across campaigns *within a single deployment* (the check-in/out lock); this one is about crossing the deployment boundary. For continuity to survive a move, the artifact must carry the *structured* state the Council consults, not transient prompt text — campaign outline, turn/state history, memories, NPCs (relationship + accumulated notes), character sheets, ruleset/known-abilities facts, and (once they exist) location state and voice/visual identity anchors. A portable artifact is therefore a versioned serialization of that structured state. Open questions: artifact format (single-file bundle vs. DB dump) and how it tracks the SQLite→Postgres direction; **schema versioning / migration** so an export from an older engine still imports (this is the load-bearing hard part, and it couples to every state-shape change made by other topics); scope (character-only vs. whole-campaign export); interaction with user ownership/auth and the one-active-campaign-per-character lock (who may import, and how to avoid duplicate "live" copies of the same character); and **trust posture for imported artifacts** — externally supplied campaign/character data is untrusted input and must be treated as data, never as instructions to the Council or engine (same boundary as the bootstrap-packet rule in AGENTS.md and the player-chat-never-to-GM rule above). Provenance: surfaced while scouting an external agent-identity project (`ethagent`, an Ethereum/ERC-8004 system for owning AI agents as wallet-held tokens with encrypted IPFS-backed memory). Nothing from it was adopted — its on-chain ownership / encryption / IPFS / ENS stack is irrelevant to narrative coherence, and the engine's structured DB state already does the memory job far better — but it prompted the portability idea, which would be built natively against the engine's own state store, not borrowed.
 
-- **Cross-genre character translation — D3 DRAFT v3.1 (2026-07-27).** The active working plan is
-  `.agents/review/archetype-portability-matrix-v3.1.md`; v1, v2, and v3 are retained evidence.
-  It proposes that mechanics never translate because D0 already fixes one chassis: Translate
-  copies the mechanical record verbatim and produces only per-campaign expression bindings, so
-  portability becomes a naming problem (a campaign-owned vocabulary) plus a permission problem
-  (a capability declaration filtered by a formal predicate grammar). Continue/Branch/Translate
-  stay distinct, Translate branches, and player approval is mandatory. No D3 decision or code
-  authorization exists; the capability axes, slot taxonomy, character-creation onboarding, and
-  D13/D16 non-ability state remain explicit owner gates.
+- **Cross-genre character translation — PHASE PT APPROVED, GATES REMAIN (2026-07-31).** The active
+  working plan is `.agents/review/archetype-portability-matrix-v3.1.md`; v1, v2, and v3 are retained
+  evidence. D3 gates 1-2 and the Phase PT plan are approved; S1.1 is landed. Mechanics copy verbatim
+  while per-campaign expression bindings translate the words, with mandatory player approval. The
+  creator chooses the campaign setting at creation; once play begins, GM worldbuilding stands and
+  there is no ordinary host/player setting-correction control. Gate 3 now owns the capability
+  declaration's existence, shape, visibility, and forward GM-canon lifecycle before S1.2; later
+  gates still own the slot taxonomy, families, onboarding, and name/history policy.
 
 - **Friends & Fables — comparative direction (owner, 2026-07-12).** The owner reviewed
   Friends & Fables and pulled five directions from it. Recorded here with the corrections
@@ -2889,16 +2893,18 @@ valid CSS). Its project branch refs were deleted after CT landed; the postmortem
 
 ## Phase PT: Cross-genre portability, Stage 1 — PLAN APPROVED (owner "yes", 2026-07-31); S1.1 LANDED; S1.2 AWAITS GATE 3
 
-**Design authority**: `.agents/review/archetype-portability-matrix-v3.1.md` (as amended §1.1).
+**Design authority**: `.agents/review/archetype-portability-matrix-v3.1.md` (as amended §1.1 and
+the 2026-07-31 campaign-setting authority ruling).
 This section adds implementation coordinates only; mechanics, schemas, flows, and the full
 verification matrix live there and are not restated. Decisions trail:
-`.agents/decisions.md` (D3 gate 1 adopted, gate 2 approved, both 2026-07-31).
+`.agents/decisions.md` (D3 gates 1-2 and campaign-setting authority, all 2026-07-31).
 
 **Status line (plan contract):** plan approved by the owner 2026-07-31 ("yes"); implementation
 authorized in slice order, coding dispatched to Opus/Sonnet subagents (owner instruction
 2026-07-31). Remaining design gates ride their slices and come to chat one at a time before the
 affected slice lands:
-gate 3 (capability axes, v3.1 §6.1) before S1.2; gate 4 (slot taxonomy §5.3) and gate 5
+gate 3 (capability declaration shape and GM-canon lifecycle, v3.1 §6.1/§6.4) before S1.2;
+gate 4 (slot taxonomy §5.3) and gate 5
 (families §5.6) before S1.3; gate 6 (onboarding shape §8.1) and gate 7 (name/history policy §10)
 before S1.5. D5 is NOT a Stage 1 dependency (amendment A narrowed S1.8 to byte-identical carry).
 
@@ -2912,15 +2918,17 @@ slice standalone:**
   `rpg-state.js` (accept/validate `id`), `test.js` (rename-in-place, legacy fallback, id
   survival through Branch/copy/export/import).
   Exit: renaming no longer forks an ability; suite green.
-- **S1.2 Capability declaration** (§6.1, §6.4 as amended C). Campaign columns `capability_json`,
-  `declaration_version` (nullable); derived at creation from genre; typed nine-axis validation;
-  host-visible and host-editable; tightening resolution is per affected player.
-  Files: `db.js` (campaign columns), `rpg-engine.js` (creation derivation), `rpg-state.js`
-  (axis/enum validation), `server.js` (host endpoints; per-player tightening resolution),
-  `public/index.html` + `public/app.js` (host view/edit; no `styles.css` change anticipated —
-  if styling is touched, `npm run test:browser` becomes required), `test.js` (lifecycle rules).
-  Exit: declaration round-trips; tightening names affected bindings per character and blocks on
-  each affected player; loosening immediate.
+- **S1.2 Capability declaration** (§6.1, §6.4; revised by the 2026-07-31 authority ruling).
+  The creator chooses the setting at creation; the Setup GM derives a typed internal declaration.
+  Ordinary play has no host/player edit endpoint or settings UI, and no retroactive rewrite path.
+  Gate 3 must settle whether structured axes exist; if so, their exact shape, creation-time
+  confirmation and visibility, and whether the stored value is a fixed snapshot or follows
+  forward-only GM worldbuilding. A revision field exists only if Gate 3 requires one.
+  Provisional files until Gate 3 closes: `db.js` (campaign storage), `rpg-engine.js` (creation
+  derivation), `rpg-state.js` (validation), `test.js` (authority and persistence guards). No
+  `server.js` mutation endpoint or `public/*` settings surface belongs to S1.2.
+  Exit: the creator's setting produces the Gate-3-approved typed record; it round-trips; ordinary
+  host/player routes cannot mutate it; any approved GM-evolution freshness contract is enforced.
 - **S1.3 Predicate evaluator + seed tables** (§6.2, §5.6-5.9). New module `rpg-portability.js`:
   pure, total, fail-closed evaluator (`all`/`any`/`gte`/`eq`/`not`, depth cap 3); seed data for
   12 slot families × 10 genre classes; genre classifier target (§5.5).

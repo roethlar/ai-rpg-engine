@@ -20,7 +20,7 @@ review occurs only when the owner invokes a current review operator.
   transition. Models emit validated identifiers and enums, never arithmetic.
 - D0 settled the overall frame: a versioned fixed house chassis plus generated
   campaign flavor. D1's resolution chapter and D2's effect catalog are owner-signed;
-  D3 gates 1-2 and Phase PT are approved, and gate 3 is next after the host-authority discussion.
+  D3 gates 1-2 and Phase PT are approved, campaign-setting authority is settled, and gate 3 is next.
 - Chapter 2 r24 is the canonical effect-verb vocabulary. Generated abilities may
   select legal effects and supply flavor, but may not invent mechanics.
 - Tactical positioning must be explicit engine state. The leading option is a

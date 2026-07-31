@@ -20,18 +20,10 @@ to `docs/history/state-archive.md`.
   2026-07-27, enacting its three declared Chapter 1 refinements and closing the D2 catalog-design
   gate. `.agents/review/rules-system-plan-intake.md` owns the remaining decision queue; no rules
   code before a concrete phase and an owner-approved plan.
-- **PHASE PT IS APPROVED AND RUNNING; S1.2 AWAITS GATE 3.** Phase PT in `plan.md` owns
-  the landed S1.1 history, fixed slice order, remaining-gate routing, and coding assignment.
-- **GATE 3 (CAPABILITY AXES) IS ON HOLD BEHIND AN OPEN DESIGN CONVERSATION — NOT A DECISION.**
-  The owner is talking out the host-authority model and explicitly said "I did not make a rule.
-  I'm talking this out." Position in progress: "the GM is the one who controls the ruleset…
-  the host controls the environment, not the game." Open threads from the discussion:
-  corrections-as-appeal-to-the-GM instead of settings levers; the host already picks the GM's
-  brain (model/provider config) so host trust is load-bearing regardless; whether a "table /
-  session zero" consent organ is needed for world-level premise or the campaign creator just is
-  session zero. A premature decision record + §6.1 draft edit were made and fully reverted —
-  decisions.md and the v3.1 draft carry NOTHING from this conversation. S1.2 must not start
-  until gate 3 rules AND this settles (it shapes S1.2's declaration edit surfaces).
+- **PHASE PT IS APPROVED AND RUNNING; S1.2 AWAITS GATE 3 ONLY.** Campaign setting authority is
+  settled in `.agents/decisions.md`: the creator chooses at creation, GM worldbuilding stands,
+  and ordinary play has no host/player setting-correction control. Phase PT in `plan.md` owns the
+  landed S1.1 history, fixed slice order, remaining-gate routing, and coding assignment.
 - **PHASE V CODE IS COMPLETE; THE OWNER VOICE PLAYTEST IS PENDING.** The live contract is one
   campaign-canonical narrator, server-resolved NPC voices, shared host/seat synthesis, and
   save-once replay. `.agents/review/index.md` owns the accepted implementation trail. The phase
@@ -47,10 +39,9 @@ to `docs/history/state-archive.md`.
 
 ## Next
 
-**NEXT:** Resume the host-authority talk-out with the owner (see `## Now`) — words only, no
-records until the owner rules. When it settles: fold the outcome into the v3.1 draft's
-§6.1/§6.4 and Phase PT S1.2, then re-pose gate 3 (the capability axes). S1.2 starts only
-after both.
+**NEXT:** Pose Gate 3 from the v3.1 draft one plain question at a time, beginning with whether the
+engine needs a structured capability declaration at all. If it does, Gate 3 must then settle its
+contents and how it follows forward-only GM worldbuilding. S1.2 starts only after Gate 3 closes.
 
 - Continue the owner decision queue one item at a time from the canonical queue in
   `.agents/review/rules-system-plan-intake.md`.
@@ -66,7 +57,7 @@ after both.
 ## Blockers
 
 - No product-code defect blocks development.
-- Phase PT S1.2 is blocked until the host-authority discussion settles and the owner rules Gate 3.
+- Phase PT S1.2 is blocked only on Gate 3; the campaign-setting authority question is settled.
 - Broader Chapter 1/2 effect-catalog runtime implementation remains blocked until promoted into
   a concrete owner-approved phase; the D2 catalog-design gate is closed.
 - Phase V closure requires the owner's real-session voice verdict.

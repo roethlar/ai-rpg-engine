@@ -267,3 +267,16 @@ Archive note: the owner abandoned this proposal later on 2026-07-26. Its final a
   matching with legacy name fallback and heal-on-touch; guard proof executed both legs. Coding
   is dispatched to Opus/Sonnet subagents (owner instruction, recorded in the Phase PT status
   line). Gates 4-5 ride S1.3, 6-7 ride S1.5. D5 is not a Stage 1 dependency.
+
+## Rotated 2026-07-31 (campaign-setting authority ruling)
+
+- **GATE 3 (CAPABILITY AXES) IS ON HOLD BEHIND AN OPEN DESIGN CONVERSATION — NOT A DECISION.**
+  The owner is talking out the host-authority model and explicitly said "I did not make a rule.
+  I'm talking this out." Position in progress: "the GM is the one who controls the ruleset…
+  the host controls the environment, not the game." Open threads from the discussion:
+  corrections-as-appeal-to-the-GM instead of settings levers; the host already picks the GM's
+  brain (model/provider config) so host trust is load-bearing regardless; whether a "table /
+  session zero" consent organ is needed for world-level premise or the campaign creator just is
+  session zero. A premature decision record + §6.1 draft edit were made and fully reverted —
+  decisions.md and the v3.1 draft carry NOTHING from this conversation. S1.2 must not start
+  until gate 3 rules AND this settles (it shapes S1.2's declaration edit surfaces).

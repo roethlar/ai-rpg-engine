@@ -26,7 +26,7 @@ checked without re-reading the whole document.
 | 5 | Literal pins permit source terms in play, but the leak test rejected *every* source term — the two contradicted | An approved literal pin **is** a destination binding (provenance `player-pin`). The test asserts no *unapproved* source vocabulary, computed as source terms minus the approved binding set | §9 |
 | 6 | New-character initialization missing; only legacy profiles and Translate had an onboarding path | One onboarding mechanism, three entry points: new character, legacy profile, Translate. Concept → proposed families and slots → plain-language capability summary → player approval. Never a class menu | §8.1 |
 | 7 | Ability-ID scope and assignment undefined | Globally unique, engine-issued, minted once, carried unchanged through branches and translations, remapped on import | §4.4 |
-| 8 | Capability declaration editable at any time, silently invalidating existing bindings | Free until the first binding commits; thereafter loosening applies immediately, tightening requires a revalidation pass that names every affected binding | §6.4 |
+| 8 | Capability declaration editable at any time, silently invalidating existing bindings | Superseded by the 2026-07-31 authority ruling: ordinary play has no host/player declaration editor; GM worldbuilding moves forward in fiction, never by retroactive settings rewrite | §6.4 |
 | 9 | Round-trip claim ("W→F→W restores the original bindings exactly") was false for a *new* origin-genre campaign | Narrowed: mechanics are identical at every hop unconditionally; binding restoration is claimed only when translating back into the **original campaign** | §12 |
 
 Unchanged from v3: the immutable-mechanics thesis (§3), the three modes, capability-filtered
@@ -43,7 +43,7 @@ body below and mapped here so the delta is checkable:
 |---|---|---|---|
 | A | S1.8 derived ruleset `cost`/`effect`/`limits` from profile abilities, but no canonical link between the two surfaces exists before D5 | S1.8 narrowed: destination sheet entries are **copied byte-for-byte from source ruleset entries** (id-keyed after S1.1, name-keyed legacy fallback) with only the display name rebound; incoming abilities with no source entry are carried **underived** and disclosed on the card; derivation waits for Stage 2 / D5 | §11 |
 | B | New-character onboarding rode the synchronous `new` route, so its capability-summary approval could not survive a reload | Every flow containing a player-approval step persists a draft: Translate **and** onboarding. `existing` and `copy` (no approval step) stay synchronous | §8.1, §13 |
-| C | Tightening a campaign declaration was host-resolved, letting a host rewrite other players' characters | Tightening revalidation is resolved **per affected character, by that character's player**; the edit commits only when every affected player has resolved, or the host abandons it | §6.4 |
+| C | Tightening a campaign declaration was host-resolved, letting a host rewrite other players' characters | **Superseded by the 2026-07-31 authority ruling:** no ordinary host/player declaration edit surface; the creator chooses at creation and later GM worldbuilding evolves only through play | §6.4 |
 | D | "Candidate" was used without a closed definition | A **legal expression candidate** is a known semantic key (campaign vocabulary or seed taxonomy — never model-minted) whose engine-owned predicate passes against the current declaration, with its bound term still player-approved | §6.3 |
 
 ---
@@ -136,8 +136,9 @@ Everything v2 called "no honest equivalent" is problem 2.
 
 ### 4.1 Campaign capability declaration
 
-Nine ordered axes describing what the destination fiction can host. Model-proposed from the genre
-string at creation, engine-typed, player-visible, host-editable under §6.4. See §6.
+Proposed ordered axes describing what the destination fiction can host. The Setup GM derives the
+typed declaration from the creator's setting choice at creation. It is engine support for
+portability, not an ordinary host/player setting surface. Gate 3 owns the remaining shape. See §6.
 
 ### 4.2 Campaign vocabulary (campaign-scope)
 
@@ -233,7 +234,7 @@ and expression.
 
 ```json
 {
-  "characterId": 88, "campaignId": 41, "vocabularyVersion": 1, "declarationVersion": 1,
+  "characterId": 88, "campaignId": 41, "vocabularyVersion": 1,
   "uses": ["role:marksman", "source:precision-projectile",
            "implement:sidearm", "implement:long-range", "resource:ammunition"],
   "specializations": [
@@ -289,13 +290,13 @@ expression and pin targets only, and none of them asserts mechanical state.
 3. **Shared by every character.** A late joiner binds to the existing vocabulary and therefore
    cannot alter established terms — structural, not a rule.
 4. **Versioned** with the campaign; exported and imported with it. Bindings record the
-   `vocabularyVersion` and `declarationVersion` they were validated against.
+   `vocabularyVersion` and whatever capability snapshot/revision contract Gate 3 adopts.
 
 ### 5.5 Genre classes
 
 Free-text genre is classified into one primary class plus free tone modifiers, purely to select seed
-rows and default axes. Misclassification is recoverable: the result is player-visible and editable,
-and it never touches mechanics.
+rows and proposed default axes; it never touches mechanics. Gate 3 must settle any creation-time
+confirmation and visibility. There is no after-creation player/host correction control.
 
 | Code | Genre class | Default expression assumptions |
 |---|---|---|
@@ -479,8 +480,10 @@ model adjudicates from prose (§2.1).
 
 ### 6.1 Axes
 
-Fixed, small, ordered. Model-proposed from the genre string at campaign creation; engine-typed;
-host-visible and host-editable under §6.4.
+Proposed as fixed, small, and ordered. The Setup GM derives them from the creator's setting choice at
+campaign creation and the engine types them. Gate 3 must settle the exact axes, creation-time
+confirmation, visibility, and whether the stored declaration is a snapshot or follows forward-only
+GM worldbuilding. It is never an ordinary host/player settings control (§6.4).
 
 | Axis | Ordered values |
 |---|---|
@@ -555,18 +558,20 @@ Every hard case in v2 §18 falls out of this one rule:
 The check never judges fiction. It evaluates a closed predicate over ordered enums. Every judgment
 is either seed data reviewed once by the owner, or a player choice on the card.
 
-### 6.4 Declaration lifecycle
+### 6.4 Authority and lifecycle
 
-A declaration edited after characters have bound can silently invalidate their bindings. Rule:
+The creator chooses the campaign's initial setting at creation, before any other player joins. The
+Setup GM derives the declaration from that request. The declaration supports the portability engine;
+it is not a setting screen.
 
-| Phase | Behavior |
-|---|---|
-| Before the first binding commits | Freely editable by the host |
-| After the first binding commits, **loosening** (raising any axis) | Applies immediately. Strictly widens candidate sets; no existing binding can become illegal |
-| After the first binding commits, **tightening** (lowering any axis) | Requires a revalidation pass that names every binding that would become illegal, per character. **Each affected character's player resolves their own bindings** — pin as exception or rebind; the host resolves only characters the host owns, and may abandon the edit at any point. The edit commits only after every affected player has resolved. Never silent, never host-imposed on another player's character. Each player sees only their own affected bindings (§9 seat rule) |
+Once play begins, the GM's worldbuilding and rulings stand. A player may ask why something is true;
+the GM may explain it, affirm it, or evolve the world forward through later play. Established fiction
+is never retroactively replaced. Players either accept the GM's worldbuilding or start a new
+campaign. No ordinary player or host action edits the declaration.
 
-Every edit increments `declarationVersion`; every binding records the version it was validated
-against, so staleness is detectable rather than inferred.
+Gate 3 must settle whether the stored declaration is a creation-time snapshot or internal state that
+can follow forward-only GM worldbuilding, and what revision or freshness field that behavior needs.
+A host-only administrative campaign editor is a separate Future Topic, not part of Stage 1.
 
 ---
 
@@ -654,8 +659,9 @@ Translate never fires because a profile merely looks genre-incompatible.
 
 ```text
 source profile (identity record present, or onboarding first — §8.1)
-  -> destination campaign draft: genre string -> genre class
-                                              -> capability declaration (player-visible)
+  -> destination campaign draft: creator's setting choice -> genre class
+                                                        -> capability declaration (engine-owned;
+                                                           Gate 3 owns visibility/evolution)
                                               -> vocabulary (generated or existing)
   -> engine copies the mechanical record verbatim; hashes it
   -> engine enumerates the character's slots; applies the §6.3 filter
@@ -666,7 +672,7 @@ source profile (identity record present, or onboarding first — §8.1)
        empty slots   -> card in `needs_choice`
        otherwise     -> card in `ready`
   -> player approves the exact card hash
-  -> engine rechecks freshness: source, vocabularyVersion, declarationVersion, card hash
+  -> engine rechecks freshness: source, vocabularyVersion, Gate-3 capability revision/hash, card hash
   -> atomic commit: translated profile + bindings + campaign member
   -> opening scene generation, with bindings in council context (§9)
 ```
@@ -769,7 +775,7 @@ validation, and approval machinery lands *before* anything rewrites canon prose.
 | Slice | Work | Exit |
 |---|---|---|
 | S1.1 | Ability ids: mint, migrate legacy rows, match `ability_updates` on id with name fallback (§4.4) | Renaming no longer forks an ability; legacy rows still match |
-| S1.2 | Capability declaration: derive, type, store, expose, lifecycle rules (§6.1, §6.4) | Declaration round-trips; tightening reports affected bindings; loosening is immediate |
+| S1.2 | Capability declaration: derive from the creator's setting choice, type, store, enforce the authority boundary (§6.1, §6.4) | Creation-time declaration round-trips; no ordinary host/player mutation path exists; Gate-3 snapshot/evolution contract holds |
 | S1.3 | Predicate evaluator + seed tables (§6.2) | Pure, total, fail-closed; every seed row evaluates |
 | S1.4 | Vocabulary and bindings: two scopes, immutability, specialization (§5) | Two characters coexist; a late joiner cannot alter established terms |
 | S1.5 | Onboarding: concept → families/slots → capability summary → approval, all three entry points (§8.1) | A new character gets an identity record without seeing a class menu |
@@ -819,7 +825,7 @@ assert.deepStrictEqual(translated.mechanics, source.mechanics);
 | Ability ids | Match on id after rename; legacy name-keyed rows still match; ids survive Branch, Translate, export, and import remapping |
 | Predicates | `all`/`any`/`gte`/`eq`/`not`, empty `all` true, empty `any` false, depth cap, unknown axis or value fails closed; every seed row evaluates against every genre class |
 | Filter | Non-empty binds; empty-and-pinned yields exception; empty-and-unpinned yields `needs_choice`; each §6.3 guard case as a fixture |
-| Declaration lifecycle | Loosening applies immediately; tightening reports every affected binding and blocks until **each affected character's player** resolves their own (host resolves only host-owned characters); a host cannot commit a tightening over another player's unresolved binding; `declarationVersion` staleness detected |
+| Declaration authority | Creator chooses at creation; no absent-player approval; no ordinary host/player mutation path; established fiction cannot be retroactively replaced; any Gate-3 GM-evolution revision/freshness contract is enforced |
 | Two scopes | Two characters in one campaign each keep their own identity; shared terms shared; specialization does not rewrite the shared entry; late joiner cannot alter established terms |
 | Model containment | Adversarial fixtures: invented ability ids, numbers in prose, new slots, edits to pinned slots, rewrites of shared vocabulary, bindings outside the candidate set — all rejected, bounded retry, honest non-playable failure |
 | Narration | Leak check per §9's set difference, including a case where an approved literal pin **must** appear and must not be flagged |
@@ -853,8 +859,8 @@ Names are proposals; an approved phase may rename while preserving the contract.
 provenance), `translated_from_character_id` — Translate lineage, kept distinct from
 `copied_from_character_id`, which stays exact-Branch lineage.
 
-**Campaign** (nullable additions): `capability_json`, `declaration_version`, `vocabulary_json`,
-`vocabulary_version`.
+**Campaign** (nullable additions): `capability_json`, `vocabulary_json`, `vocabulary_version`.
+Gate 3 decides whether forward-only GM evolution requires a separate capability revision field.
 
 **Bindings**: per (character, campaign). The campaign-local `characters` row snapshots the approved
 bindings exactly as campaign members are snapshotted today.
@@ -908,14 +914,16 @@ marking the draft committed → an identical retry returns the committed result.
    home is told to pin or rebuild. Honest, and D0 — but a worse *feeling* than a plausible silent
    substitution, which is exactly why v2 reached for one. The card's wording carries this weight and
    should be playtested as copy, not just as data.
-5. **A wrong declaration mis-filters.** Mitigated by host visibility, editability, and empty sets
-   naming the axis that emptied them — never eliminated.
+5. **A wrong declaration mis-filters.** Gate 3 must settle creation-time confirmation, visibility,
+   and whether forward GM worldbuilding can revise the internal declaration. Empty sets still name
+   what failed; there is deliberately no live settings override.
 6. **S1.8 still rewrites canon prose**, even gated. The diff card is the whole safety mechanism; if
    players click through it, drift ships anyway. Worth a dedicated playtest observation.
 7. **The 22 families remain unvalidated by play.** Reviewed design vocabulary, not evidence. Only
    the §12 playtests can promote them.
-8. **Genre classification of free text is fuzzy.** Mitigated by affecting only seed selection and
-   default axes, both visible and editable, never mechanics.
+8. **Genre classification of free text is fuzzy.** It affects only seed selection and proposed
+   defaults, never mechanics. Gate 3 must settle the creation-time confirmation path; it does not
+   become an after-creation settings control.
 
 ---
 
@@ -927,7 +935,9 @@ Taken in chat one at a time and recorded durably. This plan infers none of them.
    candidate-plus-equivalence-proof. Everything depends on this. *Recommendation: adopt.* It is
    smaller, decidable, testable by structural identity, and it is what D0 already implies.
 2. **Stage 1 as a phase**, in the S1.1 → S1.8 order. The order is load-bearing, not stylistic.
-3. **The capability axes** (§6.1) — nine ordered enums, or a different set.
+3. **The capability declaration** (§6.1, §6.4) — whether structured axes exist; if so, their exact
+   set, creation-time confirmation and visibility, and whether the stored value is a fixed snapshot
+   or follows forward-only GM worldbuilding. It is never an ordinary host/player settings control.
 4. **The slot taxonomy** (§5.3) — twelve families, and the rule for adding more.
 5. **Families and their internal-only status** (§5.6) — approve, refine, or cut Generalist.
 6. **Onboarding shape** (§8.1) — plain-language capability summary at character creation, answering

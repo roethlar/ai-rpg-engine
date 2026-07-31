@@ -1199,3 +1199,27 @@ Owner 2026-07-31: "go", on the recommendation to approve gate 2 immediately afte
 adoption and the post-gate-1 seam amendments closed Stage 1's cold-implementability gaps
 (openreviewed same day: kimi k3 max over `8320db7..770b3e5`, one LOW records finding, fixed
 as rq-1).
+
+### 2026-07-31 - Campaign setting authority: creator chooses at creation; GM worldbuilding stands (owner decision)
+
+The campaign creator chooses the initial setting when creating the campaign; other players have not
+joined yet and do not approve it. Once play begins, the GM's worldbuilding and rulings stand. A
+player may ask why something is true; the GM may explain it, affirm it, or recalibrate organically
+through later play, but established fiction is never retroactively replaced. Players either accept
+the GM's worldbuilding or start a new campaign.
+
+Ordinary play has no host or player setting-correction control. A host-only administrative campaign
+editor is a separate, deferred product question and is not authorized by this decision.
+
+Reason:
+Owner 2026-07-31: "creator chooses" because other players have not joined when the campaign is
+created; if questioned, the GM's justified ruling settles the matter. Any GM recalibration must
+happen organically in the game rather than by declaring prior fiction false. Players who reject the
+worldbuilding can start a new campaign. A host-only admin editor may be considered in a later stage.
+
+Refines:
+The 2026-06-11 player-authority decision remains active: players may question the GM, but the GM's
+word on world facts is final. This ruling narrows "owner settings" for Phase PT: campaign
+worldbuilding is not an ordinary settings surface. It supersedes v3.1 amendment C's host-edit and
+affected-player revalidation workflow; the capability declaration's internal representation remains
+for Gate 3.

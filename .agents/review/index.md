@@ -92,8 +92,8 @@ custom, implementation-ready system and plan. Read-only intake reviewed pinned
 snapshot `526aa5c` with Claude Code 2.1.207 (`claude-opus-4-8`, high effort,
 structured output). Verdict: `ready_for_owner_decisions` — **not** plan
 acceptance. It admitted 14 plan gaps (5 HIGH) and produced a 15-decision queue.
-D0-D2 are decided; D3 gates 1-2 and Phase PT are approved, with S1.1 landed. Gate 3 is next after
-the host-authority discussion. Other rules work still requires promotion into a concrete approved
+D0-D2 are decided; D3 gates 1-2 and Phase PT are approved, with S1.1 landed. Campaign-setting
+authority is settled; Gate 3 is next. Other rules work still requires promotion into a concrete approved
 phase; cross-harness review occurs only when the owner invokes it.
 
 Detailed intake and decision queue:
