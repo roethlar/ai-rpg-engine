@@ -6,11 +6,16 @@ to `docs/history/state-archive.md`.
 
 ## Now
 
-- **FABLE ACCEPTED THE REPAIRED GATE 5 RESTRICTIVE CLASS-MODEL PLAN; G5-A AWAITS OWNER RULING.** The
+- **GATE 5'S RESTRICTIVE CLASS MODEL NEEDS REVISION BEFORE AN OWNER RULING.**
+  The owner explicitly rejected §7's prose-to-model-selected-mechanics flow and retrying generation
+  as its correction. The next design must keep creation and progression short without making AI
+  inference authoritative; deterministic class/package selection is proposed but not owner-approved.
+  Do not present the current G5-A as ready for ruling. The
   owner-requested context-rich `claude-fable-5` high-effort review of draft `d00c34f` reopened four
   concrete plan gaps. Dedicated commits carried `pt-5`, exposed the fixed-order consequence and
-  separate reorder choice, defined subclass, and covered stale intake restatements. A fresh
-  high-effort repair-delta review accepted `ed91b95` with no comments, exact SHA pins,
+  separate reorder choice, defined subclass, and covered stale intake restatements. An unauthorized
+  high-effort repair-delta review accepted `ed91b95`; its verdict is provenance only and grants no
+  authority for another external-model call. It recorded no comments, exact SHA pins,
   `guard_confirmed: true`, and `capability_ok: true`. `.agents/review/gate-5-class-model-plan.md`
   owns the reviewed plan; `.agents/review/index.md` and `.agents/review/findings/g5p-*.md` own the
   review trail. No taxonomy decision or code is approved; the active 2026-07-31 singular-archetype
@@ -81,9 +86,10 @@ to `docs/history/state-archive.md`.
 
 ## Next
 
-**NEXT:** Present G5-A's classification ontology and supersession boundary as one owner decision,
-including the cost that the fixed Phase PT order leaves S1.6–S1.8 blocked behind the restrictive
-class program. S1.5 remains blocked; `pt-5` description scope still requires a separate ruling.
+**NEXT:** Continue Gate 5 design with the owner in words: settle a reliable, low-friction character
+creation and progression authority model. The current proposal is explicit curated class/package
+selection with deterministic engine validation and AI limited to explanation/filtering, but it is not
+yet approved. Do not revise the plan or invoke another reviewer without the owner's explicit go.
 
 - Ask the owner to approve or reject the drafted Phase PT review repair plan. No code repair is
   authorized before that ruling. If approved, implement PT-R1 (`pt-1`) and PT-R2 (`pt-3`) in
@@ -105,8 +111,9 @@ class program. S1.5 remains blocked; `pt-5` description scope still requires a s
 
 - Phase PT progression is held while the drafted two-slice repair plan awaits owner approval;
   `.agents/review/index.md` owns the admitted findings and `plan.md` owns the proposed repairs.
-- Phase PT S1.4 is landed. Gate 5's replacement classification ruling, downstream exact class
-  catalogs/balance gates, and `pt-5` description-scope ruling block S1.5 Creator/onboarding work.
+- Phase PT S1.4 is landed. Gate 5 first needs an owner-approved replacement for the rejected
+  prose-to-mechanics creation flow; its classification ruling, downstream exact class catalogs/balance
+  gates, and the `pt-5` description-scope ruling block S1.5 Creator/onboarding work.
 - Broader Chapter 1/2 effect-catalog runtime implementation remains blocked until promoted into
   a concrete owner-approved phase; the D2 catalog-design gate is closed.
 - Phase V closure requires the owner's real-session voice verdict.
