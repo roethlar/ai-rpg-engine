@@ -2928,7 +2928,10 @@ progression, skills/feats, derived roles, backgrounds/status, assets, and player
 all landed S1.1-S1.4 and campaign-movement contracts; and replacing the singular one-of-22
 `archetypeId` only after a new owner ruling. The owner also requested a context-rich
 `claude-fable-5` review at high effort. Until review and ruling, the active 2026-07-31 Gate 6 shape
-above remains authority, the Fable roster remains evidence only, and S1.5 stays blocked.
+above remains authority, the Fable roster remains evidence only, and S1.5 stays blocked. Because
+the owner-settled slice order is S1.1 → S1.8, S1.6–S1.8 are also blocked behind this extended S1.5
+chain unless the owner separately approves a reorder for existing free-text characters; G5-A does
+not itself amend the order.
 
 ### Phase PT openreview repairs — DRAFT; implementation requires owner approval
 

@@ -318,6 +318,24 @@ Approve or reject the §3 separation and §2.2 supersession boundary. Approval r
 one-of-22 archetype model as the intended class identity, but approves no class names, mechanics,
 schema migration, or product code.
 
+**Scheduling consequence**: the owner-settled Phase PT order remains S1.1 → S1.8. Extending S1.5
+behind the restrictive-class prerequisites therefore also blocks S1.6 campaign movement, S1.7
+narration binding, and S1.8 mechanic projection—the remaining Stage 1 payoff. G5-A approval does
+not silently amend that order.
+
+After G5-A, present one separate owner decision, **G5-Order**:
+
+- **Preserve the fixed order (recommended for correctness).** S1.6–S1.8 wait for replacement S1.5,
+  avoiding a provisional identity contract that later class work would need to reinterpret. Cost:
+  all remaining Phase PT work waits behind the restrictive-class program.
+- **Reorder for existing free-text characters.** Move S1.6–S1.8 ahead of replacement S1.5 under a
+  new owner-approved plan amendment. This requires an explicit legacy identity contract, keeps new
+  restrictive onboarding blocked, and forbids later S1.5 from retroactively reclassifying those
+  characters without D13's player-approved migration. Benefit: existing characters receive
+  movement and ability-presentation portability before the class program completes.
+
+Silence chooses neither option; the fixed order remains authority until G5-Order is ruled.
+
 ### 8.2 Required rules prerequisites
 
 After G5-A, settle the existing rules queue one decision at a time:
