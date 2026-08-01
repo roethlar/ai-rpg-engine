@@ -47,6 +47,11 @@ to `docs/history/state-archive.md`.
   shared storage awaits a later producer. Canon-echo comparison neutralizes Unicode formatting while
   preserving legitimate script/emoji shaping; unsafe invisible and bidi controls fail at both proposal
   and persistence boundaries. No route, UI, movement, narration, or mechanic path changed.
+- **PHASE PT REVIEW REPAIRS ARE OPEN; GATE 5'S ROSTER IS STILL UNSETTLED.** The owner rejected
+  the reduced roster because a shared tactical result does not imply a shared mechanical chassis:
+  a Barbarian and Battle Mage cannot be conflated when only one requires spell mechanics.
+  `.agents/review/index.md` owns the admitted implementation findings from the 2026-08-01
+  `claude-fable-5` openreview. No repair or replacement roster is authorized yet.
 - **PHASE V CODE IS COMPLETE; THE OWNER VOICE PLAYTEST IS PENDING.** The live contract is one
   campaign-canonical narrator, server-resolved NPC voices, shared host/seat synthesis, and
   save-once replay. `.agents/review/index.md` owns the accepted implementation trail. The phase
@@ -62,8 +67,9 @@ to `docs/history/state-archive.md`.
 
 ## Next
 
-**NEXT:** Present Phase PT Gate 5's exact player-facing archetype roster for one owner ruling; that
-decision is the only prerequisite before S1.5 Creator/onboarding can be planned and implemented.
+**NEXT:** Ask the owner whether to approve a small repair plan for the admitted Phase PT review
+findings before further Stage 1 work. No code repair is authorized. After that ruling, return to
+Gate 5 with a roster that keeps mechanically distinct chassis distinct.
 
 - Continue the owner decision queue one item at a time from the canonical queue in
   `.agents/review/rules-system-plan-intake.md`.
@@ -78,9 +84,10 @@ decision is the only prerequisite before S1.5 Creator/onboarding can be planned 
 
 ## Blockers
 
-- No product-code defect blocks development.
-- Phase PT S1.4 is landed. Gate 5's exact archetype roster blocks S1.5
-  Creator/onboarding work only.
+- Phase PT progression is held on admitted openreview findings until the owner authorizes a
+  repair plan or explicitly accepts the risk; `.agents/review/index.md` owns the details.
+- Phase PT S1.4 is landed. Gate 5's exact archetype roster separately blocks S1.5
+  Creator/onboarding work.
 - Broader Chapter 1/2 effect-catalog runtime implementation remains blocked until promoted into
   a concrete owner-approved phase; the D2 catalog-design gate is closed.
 - Phase V closure requires the owner's real-session voice verdict.
