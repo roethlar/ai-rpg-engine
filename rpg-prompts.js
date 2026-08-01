@@ -5,6 +5,71 @@ import { THEME_FONT_OPTIONS } from './rpg-state.js';
 import { VOICE_DELIVERY_VALUES } from './tts-providers.js';
 
 /**
+ * Phase PT S1.3: private GM review for campaign-specific ability wording.
+ * The caller supplies only the requested ability presentations and the
+ * destination campaign's private canon basis. Character identity and
+ * mechanics deliberately have no place in this prompt contract.
+ */
+export function getStageOneAbilityWordingSystemInstruction() {
+  return `You are the destination campaign's Game Master. Judge how each requested existing ability can be described honestly in this campaign's established fiction.
+
+Return one strict JSON object and no other text:
+{
+  "schema_version": 1,
+  "campaign_id": 41,
+  "character_id": 88,
+  "abilities": [
+    {
+      "ability_id": "exact-requested-id",
+      "status": "ready",
+      "term": "Campaign-appropriate display name",
+      "prose": "Concise fictional presentation only.",
+      "fit_explanation": "Concise player-safe reason this wording fits."
+    },
+    {
+      "ability_id": "another-exact-requested-id",
+      "status": "needs_choice",
+      "fit_explanation": "Concise player-safe reason no honest wording is ready."
+    }
+  ]
+}
+
+Contract:
+- Echo campaign_id, character_id, and every requested ability_id exactly. Return every requested ability exactly once and no others.
+- A ready row has exactly ability_id, status, term, prose, and fit_explanation. A needs_choice row has exactly ability_id, status, and fit_explanation; never invent placeholder wording.
+- You may keep source wording when canon supports it, translate it into established language, or introduce a canon-consistent expression. Fictional fit is your GM judgment.
+- Treat player_action entries as attempted actions or player claims, not established world facts. The outline, GM narration, and committed memories ground your ruling.
+- term is at most 80 characters. prose and fit_explanation are each at most 500 characters. They may describe appearance, sensation, or fictional expression, but they are non-authoritative flavor: they never change a stat, spend a resource, resolve damage, award XP, or alter any other mechanic. Do not assert digits, mechanical quantities, costs, limits, dice, measurements, bonuses, penalties, cooldowns, or mechanical outcomes. Every real mechanical consequence is resolved separately by the Council against the character's canonical mechanics.
+- Do not add an ability or change its mechanical identity; term and prose are presentation wording only. Do not output slots, pins, alternatives, evidence, canon excerpts, or campaign/character facts as separate data. Do not output archetype/family, character name, class, role/profession, title, identity, inventory, stats, tier, source, mechanics, or canon metadata.
+- The canon basis is GM-private. Give only a short player-safe explanation; never quote hidden canon or mention retrieval anchors, ranks, memory/turn IDs, timestamps, or the canon digest. The required campaign_id, character_id, and ability_id values belong only in their specified JSON identity fields, never in player-facing text.`;
+}
+
+export function getStageOneAbilityWordingPrompt({
+  campaignId,
+  characterId,
+  abilities,
+  canonBasis,
+  correction = false
+}) {
+  const payload = {
+    campaign_id: campaignId,
+    character_id: characterId,
+    requested_abilities: abilities.map(ability => ({
+      ability_id: ability.id,
+      name: ability.name,
+      description: ability.description
+    })),
+    gm_private_canon_basis: canonBasis
+  };
+
+  const correctionText = correction
+    ? '\n\nYour previous response did not satisfy the contract. Return a fresh, complete JSON object matching the schema exactly. Do not discuss the error or repeat any prior response.'
+    : '';
+
+  return `Review these requested abilities against the GM-private destination canon.\n${JSON.stringify(payload)}${correctionText}`;
+}
+
+/**
  * System Instruction Compiler for the campaign-outline Setup call.
  * Phase T1 (decision 2026-07-03): the outline carries the campaign's full
  * visual theme — colors and a font pairing from the bundled pool — generated

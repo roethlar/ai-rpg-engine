@@ -4350,6 +4350,430 @@ async function testSeatVisibility() {
 }
 
 // -------------------------------------------------------------
+// Test: strict ability-wording proposal seam (Phase PT S1.3)
+// -------------------------------------------------------------
+async function testStageOneAbilityWordingProposal() {
+  console.log(' - Running Stage 1 ability-wording proposal tests...');
+  const db = await import('./db.js');
+  const {
+    proposeStageOneAbilityWording,
+    STAGE_ONE_ABILITY_REQUEST_LIMIT,
+    validateStageOneAbilityWordingProposal
+  } = await import('./rpg-engine.js');
+
+  await db.initDb();
+
+  const privateOutlineMarker = 'hidden violet monastery beneath the salt harbor where silent bells wake only for the exiled moon';
+  const privateHistoryMarker = 'private history says the glass ferryman opens a drowned passage beneath the western tide gate';
+  const privateMemoryMarker = 'private memory records the copper choir answering only when the nameless beacon turns inland';
+  const privateShortFact = 'The duke is the lich.';
+  const privateSourceCampaignMarker = 'private source campaign marker where the old forest keeps a wholly different forbidden road';
+  const privateCharacterName = 'PRIVATE_CHARACTER_NAME_ELMINSTER';
+  const privateArchetype = 'PRIVATE_ARCHETYPE_CONTROLLER';
+  const unrelatedAbilityName = 'PRIVATE_UNRELATED_ABILITY_STARFALL';
+
+  const campaignId = (await db.run(
+    `INSERT INTO campaigns (title, genre, summary, current_act)
+     VALUES ('Stage One Proposal', 'science fantasy', 'proposal test', 1)`
+  )).id;
+  await db.run(
+    `INSERT INTO campaign_outlines (campaign_id, outline_json) VALUES (?, ?)`,
+    [campaignId, JSON.stringify({
+      title: 'Stage One Proposal',
+      setting: privateOutlineMarker,
+      acts: [{ act: 1, title: 'Arrival', objective: 'Find the gate', key_events: ['Open it'] }],
+      major_locations: [{ name: 'Salt Harbor', description: 'A storm-dark quay.' }],
+      starting_quest: { title: 'The Gate', description: 'Find the hidden gate.' },
+      theme_colors: {}
+    })]
+  );
+  await db.run(
+    `INSERT INTO turns (campaign_id, turn_number, player_action, narrative, state_changes_json)
+     VALUES (?, 1, 'I claim the moon is a machine.', ?, '{}')`,
+    [campaignId, privateHistoryMarker]
+  );
+  await db.run(
+    `INSERT INTO memories (campaign_id, turn_number, importance, summary, keywords)
+     VALUES (?, 1, 5, ?, 'choir,beacon')`,
+    [campaignId, privateMemoryMarker]
+  );
+  await db.run(
+    `INSERT INTO memories (campaign_id, turn_number, importance, summary, keywords)
+     VALUES (?, 1, 4, ?, 'duke,secret')`,
+    [campaignId, privateShortFact]
+  );
+
+  const sourceCampaignId = (await db.run(
+    `INSERT INTO campaigns (title, genre, summary, current_act)
+     VALUES ('Stage One Source', 'forest fantasy', 'source isolation test', 1)`
+  )).id;
+  await db.run(
+    `INSERT INTO campaign_outlines (campaign_id, outline_json) VALUES (?, ?)`,
+    [sourceCampaignId, JSON.stringify({
+      title: 'Stage One Source',
+      setting: privateSourceCampaignMarker,
+      starting_quest: { title: 'Remain', description: 'Stay in the old forest.' }
+    })]
+  );
+
+  const abilityA = {
+    id: 'ability-alpha-stage-one',
+    name: 'Arcane Hand',
+    description: 'Move a distant object through focused will.',
+    tier: 'PRIVATE_TIER_EXPERT',
+    source: 'PRIVATE_SOURCE_ANCIENT_TUTOR'
+  };
+  const abilityB = {
+    id: 'ability-beta-stage-one',
+    name: 'Veil Step',
+    description: 'Pass unseen through a watched threshold.',
+    tier: 'trained',
+    source: 'play'
+  };
+  const unrelatedAbility = {
+    id: 'ability-unrelated-stage-one',
+    name: unrelatedAbilityName,
+    description: 'PRIVATE_UNRELATED_DESCRIPTION',
+    tier: 'master',
+    source: 'PRIVATE_UNRELATED_SOURCE'
+  };
+  const unrelatedLegacyAbility = {
+    name: 'PRIVATE_UNREQUESTED_LEGACY_WITHOUT_ID',
+    description: 'This unrelated legacy row must not block a requested stable id.'
+  };
+  const characterId = (await db.run(
+    `INSERT INTO player_characters (
+       name, archetype, status, active_campaign_id, origin_campaign_id,
+       health, max_health, mana, max_mana, xp, level,
+       inventory_json, attributes_json, abilities_json, progression_notes
+     ) VALUES (?, ?, 'checked_out', ?, ?, 10, 10, 5, 5, 0, 1, ?, ?, ?, ?)`,
+    [
+      privateCharacterName,
+      privateArchetype,
+      sourceCampaignId,
+      sourceCampaignId,
+      JSON.stringify([{ name: 'PRIVATE_INVENTORY_RELIC' }]),
+      JSON.stringify({ strength: 'PRIVATE_ATTRIBUTE_VALUE' }),
+      JSON.stringify([abilityA, abilityB, unrelatedAbility, unrelatedLegacyAbility]),
+      'PRIVATE_PROGRESSION_NOTES'
+    ]
+  )).id;
+
+  const localOnlyCharacterId = 900000000;
+  await db.run(
+    `INSERT INTO characters (
+       id, campaign_id, name, class, health, max_health, mana, max_mana,
+       xp, level, inventory_json, attributes_json, abilities_json, progression_notes
+     ) VALUES (?, ?, 'LOCAL_ONLY_CHARACTER', 'LOCAL_ONLY_CLASS', 10, 10, 5, 5,
+       0, 1, '[]', '{}', ?, '')`,
+    [
+      localOnlyCharacterId,
+      campaignId,
+      JSON.stringify([{ id: 'local-only-ability', name: 'Local Only', description: 'Not a profile.' }])
+    ]
+  );
+
+  const readyRow = (abilityId, term, prose, fitExplanation) => ({
+    ability_id: abilityId,
+    status: 'ready',
+    term,
+    prose,
+    fit_explanation: fitExplanation
+  });
+  const choiceRow = (abilityId, fitExplanation) => ({
+    ability_id: abilityId,
+    status: 'needs_choice',
+    fit_explanation: fitExplanation
+  });
+  const responseObject = abilities => ({
+    schema_version: 1,
+    campaign_id: campaignId,
+    character_id: characterId,
+    abilities
+  });
+  const validRows = () => [
+    readyRow(
+      abilityA.id,
+      'Neural Weave',
+      'Focused intent moves a nearby object through a quiet signal.',
+      'The established fiction supports will expressed through local interfaces.'
+    ),
+    readyRow(
+      abilityB.id,
+      'Shadow Passage',
+      'A brief fold in attention carries the traveler past a watched threshold.',
+      'Subtle passage fits the campaign without changing what the ability does.'
+    )
+  ];
+
+  const makeClient = responses => ({
+    calls: [],
+    async sendPrompt(args) {
+      this.calls.push(args);
+      const response = responses.shift();
+      if (response instanceof Error) throw response;
+      return response;
+    }
+  });
+  const snapshotStore = async () => ({
+    campaigns: await db.all(`SELECT * FROM campaigns ORDER BY id`),
+    outlines: await db.all(`SELECT * FROM campaign_outlines ORDER BY campaign_id`),
+    profiles: await db.all(`SELECT * FROM player_characters ORDER BY id`),
+    characters: await db.all(`SELECT * FROM characters ORDER BY id`),
+    turns: await db.all(`SELECT * FROM turns ORDER BY id`),
+    memories: await db.all(`SELECT * FROM memories ORDER BY id`)
+  });
+
+  const storeBefore = await snapshotStore();
+  const request = Object.freeze({
+    campaignId,
+    characterId,
+    requestedAbilityIds: Object.freeze([abilityA.id, abilityB.id]),
+    apiConfig: Object.freeze({})
+  });
+  const requestBefore = structuredClone(request);
+  const validClient = makeClient([
+    JSON.stringify(responseObject([...validRows()].reverse()))
+  ]);
+  const proposal = await proposeStageOneAbilityWording(request, { client: validClient });
+  assert.strictEqual(validClient.calls.length, 1, 'Valid first response uses one logical model call');
+  assert.deepStrictEqual(request, requestBefore, 'Proposal does not mutate its request');
+  assert.deepStrictEqual(
+    proposal.abilities.map(ability => ability.abilityId),
+    [abilityA.id, abilityB.id],
+    'Reverse-order model rows normalize to requested order'
+  );
+  assert.deepStrictEqual(
+    proposal.abilities.map(ability => ability.slot),
+    [`ability:${abilityA.id}`, `ability:${abilityB.id}`],
+    'Engine derives every ability slot'
+  );
+  assert.match(proposal.canonBasisDigest, /^[a-f0-9]{64}$/, 'Internal proposal carries freshness digest');
+  assert.strictEqual('canonBasis' in proposal, false, 'Raw canon basis is never returned');
+  const proposalText = JSON.stringify(proposal);
+  for (const marker of [privateOutlineMarker, privateHistoryMarker, privateMemoryMarker, privateShortFact]) {
+    assert.strictEqual(proposalText.includes(marker), false, 'Validated result never returns raw private canon');
+  }
+
+  const firstPrompt = validClient.calls[0].prompt;
+  assert.strictEqual(firstPrompt.includes(privateOutlineMarker), true, 'GM receives private outline canon');
+  assert.strictEqual(firstPrompt.includes(privateHistoryMarker), true, 'GM receives private history canon');
+  assert.strictEqual(firstPrompt.includes(privateMemoryMarker), true, 'GM receives private memory canon');
+  assert.strictEqual(firstPrompt.includes(privateShortFact), true, 'GM receives short private canon for fit review');
+  assert.strictEqual(firstPrompt.includes(privateSourceCampaignMarker), false, 'Prompt reads destination canon, never the character active source campaign');
+  assert.strictEqual(firstPrompt.includes(abilityA.name), true, 'Requested canonical ability enters prompt');
+  assert.strictEqual(firstPrompt.includes(abilityB.name), true, 'Every requested canonical ability enters prompt');
+  for (const marker of [
+    privateCharacterName,
+    privateArchetype,
+    unrelatedAbilityName,
+    'PRIVATE_UNRELATED_DESCRIPTION',
+    'PRIVATE_UNRELATED_SOURCE',
+    'PRIVATE_UNREQUESTED_LEGACY_WITHOUT_ID',
+    'PRIVATE_TIER_EXPERT',
+    'PRIVATE_SOURCE_ANCIENT_TUTOR',
+    'PRIVATE_INVENTORY_RELIC',
+    'PRIVATE_ATTRIBUTE_VALUE',
+    'PRIVATE_PROGRESSION_NOTES'
+  ]) {
+    assert.strictEqual(firstPrompt.includes(marker), false, `Prompt excludes unrelated character data: ${marker}`);
+  }
+  assert.strictEqual(validClient.calls[0].jsonMode, true, 'Proposal requests JSON mode');
+  assert.strictEqual(
+    validClient.calls[0].systemInstruction.includes('needs_choice'),
+    true,
+    'System contract explains unresolved fictional fit'
+  );
+  assert.deepStrictEqual(await snapshotStore(), storeBefore, 'Proposal performs no database writes');
+
+  const invalidRawMarker = 'PRIVATE_INVALID_MODEL_RESPONSE_MUST_NOT_RETURN';
+  const invalidWithCost = responseObject(validRows());
+  invalidWithCost.abilities[0].cost = invalidRawMarker;
+  const retryClient = makeClient([
+    JSON.stringify(invalidWithCost),
+    JSON.stringify(responseObject(validRows()))
+  ]);
+  const retried = await proposeStageOneAbilityWording(request, { client: retryClient });
+  assert.strictEqual(retryClient.calls.length, 2, 'One contract failure gets exactly one retry');
+  assert.strictEqual(retried.abilities.length, 2, 'Valid retry returns normalized proposal');
+  assert.strictEqual(
+    retryClient.calls[1].prompt.includes(invalidRawMarker),
+    false,
+    'Correction never includes raw model output'
+  );
+  assert.strictEqual(
+    retryClient.calls[1].prompt.includes('previous response did not satisfy the contract'),
+    true,
+    'Retry uses a generic correction'
+  );
+  assert.strictEqual(
+    retryClient.calls[0].prompt.includes(privateOutlineMarker)
+      && retryClient.calls[1].prompt.includes(privateOutlineMarker),
+    true,
+    'Both attempts reuse the same canon basis'
+  );
+
+  const exhaustedRawMarker = 'PRIVATE_EXHAUSTED_RAW_RESPONSE';
+  const invalidWithSlot = responseObject(validRows());
+  invalidWithSlot.abilities[1].slot = `ability:${abilityB.id}`;
+  const exhaustedClient = makeClient([
+    `not json ${exhaustedRawMarker}`,
+    JSON.stringify(invalidWithSlot)
+  ]);
+  await assert.rejects(
+    () => proposeStageOneAbilityWording(request, { client: exhaustedClient }),
+    error => {
+      assert.strictEqual(error.code, 'STAGE_ONE_PROPOSAL_FAILED');
+      assert.strictEqual(error.message, 'The GM could not produce a valid ability wording proposal.');
+      assert.strictEqual(error.message.includes(exhaustedRawMarker), false);
+      assert.strictEqual(error.message.includes(privateOutlineMarker), false);
+      assert.strictEqual('rawText' in error, false, 'Public failure carries no raw model response');
+      return true;
+    }
+  );
+  assert.strictEqual(exhaustedClient.calls.length, 2, 'Two invalid responses never trigger a third call');
+
+  const transportError = new Error('transport unavailable');
+  const transportClient = makeClient([transportError]);
+  await assert.rejects(
+    () => proposeStageOneAbilityWording(request, { client: transportClient }),
+    error => error === transportError,
+    'Transport errors escape instead of consuming the contract retry'
+  );
+  assert.strictEqual(transportClient.calls.length, 1, 'Transport failure is one logical call');
+
+  const zeroCallClient = makeClient([]);
+  for (const invalidRequest of [
+    { campaignId, characterId, requestedAbilityIds: ['unknown-ability'] },
+    { campaignId, characterId, requestedAbilityIds: [abilityA.id, abilityA.id] },
+    { campaignId, characterId: localOnlyCharacterId, requestedAbilityIds: ['local-only-ability'] },
+    {
+      campaignId,
+      characterId,
+      requestedAbilityIds: Array.from(
+        { length: STAGE_ONE_ABILITY_REQUEST_LIMIT + 1 },
+        (_, index) => `ability-over-limit-${index}`
+      )
+    }
+  ]) {
+    await assert.rejects(
+      () => proposeStageOneAbilityWording(invalidRequest, { client: zeroCallClient }),
+      error => error.code === 'STAGE_ONE_PROPOSAL_INPUT_INVALID',
+      'Invalid preflight fails safely'
+    );
+  }
+  assert.strictEqual(zeroCallClient.calls.length, 0, 'Invalid preflight performs zero model calls');
+
+  const expected = Object.freeze({
+    campaignId,
+    characterId,
+    requestedAbilityIds: Object.freeze([abilityA.id, abilityB.id]),
+    canonBasis: Object.freeze({
+      outline: Object.freeze({ setting: privateOutlineMarker }),
+      history: Object.freeze([{ gm_narrative: privateHistoryMarker }]),
+      memories: Object.freeze([
+        { summary: privateMemoryMarker },
+        { summary: privateShortFact }
+      ])
+    })
+  });
+  const expectedBefore = structuredClone(expected);
+  const validChoiceObject = responseObject([
+    validRows()[0],
+    choiceRow(abilityB.id, 'No honest destination wording is ready from the established fiction.')
+  ]);
+  const normalizedChoice = validateStageOneAbilityWordingProposal(
+    JSON.stringify(validChoiceObject),
+    expected
+  );
+  assert.deepStrictEqual(
+    normalizedChoice.abilities[1],
+    {
+      slot: `ability:${abilityB.id}`,
+      abilityId: abilityB.id,
+      status: 'needs_choice',
+      fitExplanation: 'No honest destination wording is ready from the established fiction.'
+    },
+    'needs_choice has explanation but no invented term or prose'
+  );
+  assert.deepStrictEqual(expected, expectedBefore, 'Pure validator does not mutate expected contract');
+  const fencedChoice = validateStageOneAbilityWordingProposal(
+    `\`\`\`json\n${JSON.stringify(validChoiceObject)}\n\`\`\``,
+    expected
+  );
+  assert.deepStrictEqual(fencedChoice, normalizedChoice, 'Provider-added JSON fences do not weaken the inner contract');
+  const flavorOnlyObject = responseObject(validRows());
+  flavorOnlyObject.abilities[0].prose = 'You drink the whiskey and feel tipsy, then notice yourself getting tired.';
+  assert.doesNotThrow(
+    () => validateStageOneAbilityWordingProposal(JSON.stringify(flavorOnlyObject), expected),
+    'Fictional sensation remains valid flavor when it asserts no mechanical consequence'
+  );
+
+  const mutateResponse = mutator => {
+    const value = responseObject(validRows());
+    mutator(value);
+    return JSON.stringify(value);
+  };
+  const invalidContracts = [
+    ['malformed JSON', '{"schema_version": 1,'],
+    ['missing requested id', mutateResponse(value => { value.abilities.pop(); })],
+    ['duplicate requested id', mutateResponse(value => { value.abilities[1].ability_id = abilityA.id; })],
+    ['unknown id', mutateResponse(value => { value.abilities[1].ability_id = 'unknown-ability'; })],
+    ['case-altered id', mutateResponse(value => { value.abilities[0].ability_id = abilityA.id.toUpperCase(); })],
+    ['whitespace-altered id', mutateResponse(value => { value.abilities[0].ability_id = ` ${abilityA.id}`; })],
+    ['wrong campaign id', mutateResponse(value => { value.campaign_id = campaignId + 1; })],
+    ['wrong character id', mutateResponse(value => { value.character_id = characterId + 1; })],
+    ['wrong schema version', mutateResponse(value => { value.schema_version = 2; })],
+    ['extra top-level field', mutateResponse(value => { value.archetype = 'Controller'; })],
+    ['model-supplied slot', mutateResponse(value => { value.abilities[0].slot = `ability:${abilityA.id}`; })],
+    ['model-supplied cost', mutateResponse(value => { value.abilities[0].cost = 'free'; })],
+    ['model-supplied archetype', mutateResponse(value => { value.abilities[0].archetype = 'Controller'; })],
+    ['model-supplied canon basis', mutateResponse(value => { value.abilities[0].canonBasis = {}; })],
+    ['numeric wording', mutateResponse(value => { value.abilities[0].term = 'Signal Seven 7'; })],
+    ['nonnumeric mechanic', mutateResponse(value => { value.abilities[0].prose = 'Spend mana to move the object.'; })],
+    ['nonnumeric cost', mutateResponse(value => { value.abilities[0].prose = 'This expression has no cost.'; })],
+    ['spelled quantity mechanic', mutateResponse(value => { value.abilities[0].prose = 'It reaches seven meters and affects three foes.'; })],
+    ['resource operation mechanic', mutateResponse(value => { value.abilities[0].prose = 'Expend stamina to restore health and double movement speed.'; })],
+    ['resource-healing claim', mutateResponse(value => { value.abilities[0].prose = 'Burn stamina to heal yourself and sprint farther.'; })],
+    ['synonym resource claim', mutateResponse(value => { value.abilities[0].prose = 'Sacrifice vitality to mend wounds and move farther.'; })],
+    ['strength change claim', mutateResponse(value => { value.abilities[0].prose = 'Increase strength.'; })],
+    ['agility change claim', mutateResponse(value => { value.abilities[0].prose = 'Raise agility.'; })],
+    ['intellect change claim', mutateResponse(value => { value.abilities[0].prose = 'Lower intellect.'; })],
+    ['cadence mechanic', mutateResponse(value => { value.abilities[0].fit_explanation = 'Available once per scene.'; })],
+    ['ready missing term', mutateResponse(value => { delete value.abilities[0].term; })],
+    ['needs_choice with wording', mutateResponse(value => { value.abilities[0].status = 'needs_choice'; })],
+    ['unknown status', mutateResponse(value => { value.abilities[0].status = 'invalid'; })],
+    ['blank text', mutateResponse(value => { value.abilities[0].term = '   '; })],
+    ['non-string text', mutateResponse(value => { value.abilities[0].prose = { text: 'No' }; })],
+    ['overlong text', mutateResponse(value => { value.abilities[0].term = 'x'.repeat(81); })],
+    ['control character', mutateResponse(value => { value.abilities[0].prose = 'Quiet\nSignal'; })],
+    ['long private canon echo', mutateResponse(value => { value.abilities[0].fit_explanation = privateOutlineMarker; })],
+    ['short private canon echo', mutateResponse(value => { value.abilities[0].fit_explanation = privateShortFact; })]
+  ];
+  for (const [label, raw] of invalidContracts) {
+    assert.throws(
+      () => validateStageOneAbilityWordingProposal(raw, expected),
+      error => error.code === 'STAGE_ONE_PROPOSAL_INVALID'
+        && !error.message.includes(privateOutlineMarker),
+      `${label} fails closed with a safe error`
+    );
+  }
+
+  const engineSource = fs.readFileSync(new URL('./rpg-engine.js', import.meta.url), 'utf8');
+  const proposalStart = engineSource.indexOf('export async function proposeStageOneAbilityWording');
+  const proposalEnd = engineSource.indexOf('/**\n * Phase 3 M1', proposalStart);
+  const proposalSource = engineSource.slice(proposalStart, proposalEnd);
+  assert.strictEqual(proposalSource.includes('getPlayerCharacter(characterId)'), true, 'Persistent profile is authoritative');
+  assert.strictEqual(proposalSource.includes('ensureAbilityIds'), false, 'Preflight never invents missing stable ids');
+  assert.strictEqual(proposalSource.includes('readStageOneCanonContext(campaignId)'), true, 'Proposal uses shared canon helper');
+  assert.strictEqual(proposalSource.includes("resolveAgentConfig(apiConfig, 'continuity')"), true, 'Default proposer uses the continuity role');
+  assert.strictEqual((proposalSource.match(/readStageOneCanonContext\(campaignId\)/g) || []).length, 1, 'Canon basis is read once for both attempts');
+  assert.strictEqual(/fetch\s*\(|\/api\/mcp|https?:\/\//.test(proposalSource), false, 'Proposal never loops through MCP or HTTP');
+  assert.strictEqual(/applyCharacterUpdate|applyAbilityUpdates|db\.run|\b(?:INSERT|UPDATE|DELETE)\b/.test(proposalSource), false, 'Presentation proposal cannot apply a mechanical or database change');
+  assert.deepStrictEqual(await snapshotStore(), storeBefore, 'All proposal paths remain read-only');
+}
+
+// -------------------------------------------------------------
 // Test: shared campaign canon context (Phase PT S1.2)
 // -------------------------------------------------------------
 async function testCampaignContext() {
@@ -4670,6 +5094,7 @@ async function runAll() {
     testResolveAgentConfig();
     await testRulesetCanon();
     await testAbilityIdentity();
+    await testStageOneAbilityWordingProposal();
     await testCampaignContext();
     await testTurnOrder();
     await testStructuredLocations();

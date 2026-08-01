@@ -1348,3 +1348,24 @@ and any Stage 1 campaign-local `role:<family>`, class-name, role/profession-titl
 translation. Proper-name/alias policy and player-driven title-edit workflow remain outside this ruling.
 It narrows Stage 1 proposal and validation to requested known ability IDs and ability-presentation
 fields; exact archetype enumeration gates onboarding, not S1.3.
+
+### 2026-07-31 - Portability wording is non-authoritative; canonical mechanics govern every consequence (owner decision)
+
+**Status: Active.**
+
+Stage 1 ability wording may describe appearance, sensation, or fictional expression, but it is
+presentation only. It is never parsed or applied as a mechanic. Any actual number or stat change,
+damage, resource spend, XP award, cost, limit, or other mechanical consequence must be validated
+by the GM Council against the character's canonical mechanics through the normal adjudication
+path. Portability wording cannot hand-wave, replace, or create that authority.
+
+The S1.3 engine boundary strictly validates identity, shape, bounds, status variants, and extra
+fields, and rejects high-confidence numeric/stat/rule claims before player review. It does not
+pretend a finite natural-language lint can classify every semantic paraphrase. Flavor such as
+feeling tipsy or tired remains valid when it asserts no mechanical consequence; canonical state
+remains unchanged unless the Council separately validates and applies one.
+
+Reason:
+Owner clarification 2026-07-31: “the underlying mechanics cannot be hand-waved. the GM, or one
+of the council, needs to validate mechanics every time any number or stat changes, damage is done,
+exp is awarded, etc. flavor is fine ... but you lose 2 hp HAS to be backed mechanically.”

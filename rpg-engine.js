@@ -40,13 +40,19 @@ import { generateImage, validateIdentityAnchor } from './image-providers.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const imagesDir = path.join(__dirname, 'data', 'images');
 import { assignNpcVoiceProfile, createNarratorVoiceProfile } from './tts-providers.js';
-import { getGMSystemInstruction, getOutlineSystemInstruction } from './rpg-prompts.js';
+import {
+  getGMSystemInstruction,
+  getOutlineSystemInstruction,
+  getStageOneAbilityWordingPrompt,
+  getStageOneAbilityWordingSystemInstruction
+} from './rpg-prompts.js';
 import {
   STAGE_ONE_HISTORY_LIMIT,
   STAGE_ONE_MEMORY_LIMIT,
   readCampaignHistory,
   readCampaignMemories,
-  readCampaignOutline
+  readCampaignOutline,
+  readStageOneCanonContext
 } from './campaign-context.js';
 
 // Export these so index/test scripts still have direct access
@@ -206,6 +212,394 @@ export function applyAbilityUpdates(character, turnData, turnNumber) {
 async function getPlayerCharacter(profileId) {
   if (!profileId) return null;
   return db.get(`SELECT * FROM player_characters WHERE id = ?`, [profileId]);
+}
+
+const STAGE_ONE_PROPOSAL_SCHEMA_VERSION = 1;
+// A single proposal remains one bounded contract with at most one correction.
+// Later movement orchestration may request deterministic batches, but this
+// seam never hides an unbounded number of model calls inside one invocation.
+export const STAGE_ONE_ABILITY_REQUEST_LIMIT = 12;
+const STAGE_ONE_ABILITY_ID_LIMIT = 128;
+const STAGE_ONE_TERM_LIMIT = 80;
+const STAGE_ONE_PROSE_LIMIT = 500;
+const STAGE_ONE_EXPLANATION_LIMIT = 500;
+const STAGE_ONE_PROMPT_BYTE_LIMIT = 64 * 1024;
+const STAGE_ONE_RESPONSE_BYTE_LIMIT = 64 * 1024;
+const STAGE_ONE_CANON_ECHO_CHARACTER_LIMIT = 80;
+const STAGE_ONE_CANON_ECHO_TOKEN_LIMIT = 4;
+
+function stageOneProposalError(code, message) {
+  const error = new Error(message);
+  error.code = code;
+  return error;
+}
+
+function invalidStageOneRequest() {
+  return stageOneProposalError(
+    'STAGE_ONE_PROPOSAL_INPUT_INVALID',
+    'Ability wording proposal request is invalid.'
+  );
+}
+
+function invalidStageOneContract() {
+  return stageOneProposalError(
+    'STAGE_ONE_PROPOSAL_INVALID',
+    'Ability wording proposal did not match the required contract.'
+  );
+}
+
+function isPositiveSafeInteger(value) {
+  return Number.isSafeInteger(value) && value > 0;
+}
+
+function isStrictAbilityId(value) {
+  return typeof value === 'string'
+    && value.length > 0
+    && value.length <= STAGE_ONE_ABILITY_ID_LIMIT
+    && value === value.trim()
+    && !/[\u0000-\u001f\u007f-\u009f]/u.test(value);
+}
+
+function exactObjectKeys(value, expectedKeys) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  const actual = Object.keys(value).sort();
+  const expected = [...expectedKeys].sort();
+  return actual.length === expected.length
+    && actual.every((key, index) => key === expected[index]);
+}
+
+function normalizeStageOneText(value, limit) {
+  if (typeof value !== 'string') throw invalidStageOneContract();
+  const normalized = value.normalize('NFC').trim();
+  if (
+    normalized.length === 0
+    || normalized.length > limit
+    || /[\u0000-\u001f\u007f-\u009f]/u.test(normalized)
+  ) {
+    throw invalidStageOneContract();
+  }
+  return normalized;
+}
+
+// Presentation text is never parsed or applied as mechanics. These patterns
+// reject high-confidence rule claims before player review; they are a lint
+// boundary, not a claim that arbitrary natural-language semantics can be
+// classified exhaustively. Canonical engine state and Council adjudication
+// remain the only authority for every actual mechanical consequence.
+const STAGE_ONE_MECHANICS_PATTERNS = [
+  /\p{N}/u,
+  /\b(?:hp|xp|mana|hit points?|experience points?|damage|armor class|difficulty class|dc|costs?|cooldowns?|bonuses?|penalt(?:y|ies)|modifiers?|advantage|disadvantage|saving throws?|skill checks?|attack rolls?|damage rolls?|spell slots?|charges?|action economy)\b/iu,
+  /\b(?:zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred|thousand|million|first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|single|double|triple|quadruple|half|quarter)\b.{0,16}\b(?:hp|xp|mana|health|stamina|energy|vitality|damage|armor|meters?|feet|foot|yards?|miles?|squares?|hexes?|seconds?|minutes?|hours?|turns?|rounds?|scenes?|targets?|creatures?|foes?|enemies?|allies?|uses?|charges?)\b/iu,
+  /\b(?:once|twice|one time|two times|three times)\s+(?:per|each|every)\s+(?:turn|round|scene|rest|day)\b/iu,
+  /\b(?:per|each|every)\s+(?:turn|round|scene|rest|day)\b/iu,
+  /\b(?:free|bonus)\s+action\b/iu,
+  /\bautomatic(?:ally)?\s+(?:succeeds?|success)\b/iu,
+  /\bignore[sd]?\s+(?:armor|resistance|cover)\b/iu,
+  /\b(?:burn|expend|sacrifice|spend|pay|trade|costs?|consume[sd]?|restore|recover|gain|lose|drain|refill)\b.{0,32}\b(?:mana|health|stamina|energy|vitality|vigor|hp|charges?|actions?|resources?|blood|life)\b/iu,
+  /\b(?:heal|cure|mend)\b.{0,20}\b(?:self|yourself|wounds?|injuries?|health|vitality)\b/iu,
+  /\b(?:increase|decrease|reduce|boost|lower|raise|double|triple|halve|add|subtract)\b.{0,32}\b(?:movement|speed|range|duration|damage|armor|health|stamina|energy|mana|strength|agility|intellect|willpower|initiative|level|experience|xp|uses?|charges?)\b/iu,
+  /\b(?:move|run|sprint|travel)\b.{0,16}\b(?:farther|further|faster|extra)\b/iu,
+  /\b(?:cost|effect|operation|target|range|duration|limit)\s*[:=]/iu,
+  /\b(?:add|remove|set|multiply|divide|roll|reroll|deal|restore|reduce|increase|decrease)_[a-z0-9_]+\b/iu
+];
+
+function assertStageOnePresentationOnly(text) {
+  if (STAGE_ONE_MECHANICS_PATTERNS.some(pattern => pattern.test(text))) {
+    throw invalidStageOneContract();
+  }
+  if (/\b(?:archetype|family|character name|class|role|profession|self-title|title|pin|slot|canon basis|digest)\s*[:=]/iu.test(text)) {
+    throw invalidStageOneContract();
+  }
+}
+
+function collectCanonStrings(value, output = []) {
+  if (typeof value === 'string') {
+    output.push(value);
+  } else if (Array.isArray(value)) {
+    for (const item of value) collectCanonStrings(item, output);
+  } else if (value && typeof value === 'object') {
+    for (const item of Object.values(value)) collectCanonStrings(item, output);
+  }
+  return output;
+}
+
+function normalizeEchoText(value) {
+  return value
+    .normalize('NFKC')
+    .toLocaleLowerCase('en-US')
+    .replace(/[^\p{L}\p{N}]+/gu, ' ')
+    .trim()
+    .replace(/\s+/g, ' ');
+}
+
+function containsPrivateCanonEcho(value, normalizedCanonStrings) {
+  const candidate = normalizeEchoText(value);
+  if (!candidate) return false;
+
+  if (candidate.length >= STAGE_ONE_CANON_ECHO_CHARACTER_LIMIT) {
+    for (let start = 0; start <= candidate.length - STAGE_ONE_CANON_ECHO_CHARACTER_LIMIT; start++) {
+      const fragment = candidate.slice(start, start + STAGE_ONE_CANON_ECHO_CHARACTER_LIMIT);
+      if (normalizedCanonStrings.some(canon => canon.includes(fragment))) return true;
+    }
+  }
+
+  // Best-effort verbatim-excerpt guard, not a visibility classifier. Short
+  // established terms still have to remain usable, and today's canon rows do
+  // not say which facts are player-visible. The prompt carries the semantic
+  // non-disclosure duty; this catches copied phrases of four or more tokens
+  // and long fragments without pretending paraphrase detection is possible.
+  const tokens = candidate.split(' ');
+  if (tokens.length >= STAGE_ONE_CANON_ECHO_TOKEN_LIMIT) {
+    for (let start = 0; start <= tokens.length - STAGE_ONE_CANON_ECHO_TOKEN_LIMIT; start++) {
+      const fragment = tokens
+        .slice(start, start + STAGE_ONE_CANON_ECHO_TOKEN_LIMIT)
+        .join(' ');
+      if (normalizedCanonStrings.some(canon => canon.includes(fragment))) return true;
+    }
+  }
+
+  return false;
+}
+
+function validateStageOneExpected(expected) {
+  if (
+    !expected
+    || !isPositiveSafeInteger(expected.campaignId)
+    || !isPositiveSafeInteger(expected.characterId)
+    || !Array.isArray(expected.requestedAbilityIds)
+    || expected.requestedAbilityIds.length === 0
+    || expected.requestedAbilityIds.length > STAGE_ONE_ABILITY_REQUEST_LIMIT
+    || expected.requestedAbilityIds.some(id => !isStrictAbilityId(id))
+    || new Set(expected.requestedAbilityIds).size !== expected.requestedAbilityIds.length
+    || !expected.canonBasis
+    || typeof expected.canonBasis !== 'object'
+    || Array.isArray(expected.canonBasis)
+  ) {
+    throw invalidStageOneContract();
+  }
+}
+
+/**
+ * Strict, pure Stage-1 model boundary. It accepts raw JSON text, validates an
+ * exact requested-id set, and derives engine-owned slots. It never mutates or
+ * persists anything and never returns the private canon basis.
+ */
+export function validateStageOneAbilityWordingProposal(raw, expected) {
+  validateStageOneExpected(expected);
+  if (
+    typeof raw !== 'string'
+    || Buffer.byteLength(raw, 'utf8') > STAGE_ONE_RESPONSE_BYTE_LIMIT
+  ) {
+    throw invalidStageOneContract();
+  }
+
+  let parsed;
+  try {
+    parsed = parseJsonSafe(raw);
+  } catch {
+    throw invalidStageOneContract();
+  }
+
+  if (!exactObjectKeys(parsed, ['schema_version', 'campaign_id', 'character_id', 'abilities'])) {
+    throw invalidStageOneContract();
+  }
+  if (
+    parsed.schema_version !== STAGE_ONE_PROPOSAL_SCHEMA_VERSION
+    || parsed.campaign_id !== expected.campaignId
+    || parsed.character_id !== expected.characterId
+    || !Array.isArray(parsed.abilities)
+    || parsed.abilities.length !== expected.requestedAbilityIds.length
+  ) {
+    throw invalidStageOneContract();
+  }
+
+  const requestedIds = new Set(expected.requestedAbilityIds);
+  const rowsById = new Map();
+  const normalizedCanonStrings = collectCanonStrings(expected.canonBasis)
+    .map(normalizeEchoText)
+    .filter(Boolean);
+
+  for (const row of parsed.abilities) {
+    if (!row || typeof row !== 'object' || Array.isArray(row)) {
+      throw invalidStageOneContract();
+    }
+    const id = row.ability_id;
+    if (!isStrictAbilityId(id) || !requestedIds.has(id) || rowsById.has(id)) {
+      throw invalidStageOneContract();
+    }
+
+    let normalized;
+    if (row.status === 'ready') {
+      if (!exactObjectKeys(row, ['ability_id', 'status', 'term', 'prose', 'fit_explanation'])) {
+        throw invalidStageOneContract();
+      }
+      const term = normalizeStageOneText(row.term, STAGE_ONE_TERM_LIMIT);
+      const prose = normalizeStageOneText(row.prose, STAGE_ONE_PROSE_LIMIT);
+      const fitExplanation = normalizeStageOneText(
+        row.fit_explanation,
+        STAGE_ONE_EXPLANATION_LIMIT
+      );
+      for (const text of [term, prose, fitExplanation]) {
+        assertStageOnePresentationOnly(text);
+        if (containsPrivateCanonEcho(text, normalizedCanonStrings)) {
+          throw invalidStageOneContract();
+        }
+      }
+      normalized = {
+        slot: `ability:${id}`,
+        abilityId: id,
+        status: 'ready',
+        term,
+        prose,
+        fitExplanation
+      };
+    } else if (row.status === 'needs_choice') {
+      if (!exactObjectKeys(row, ['ability_id', 'status', 'fit_explanation'])) {
+        throw invalidStageOneContract();
+      }
+      const fitExplanation = normalizeStageOneText(
+        row.fit_explanation,
+        STAGE_ONE_EXPLANATION_LIMIT
+      );
+      assertStageOnePresentationOnly(fitExplanation);
+      if (containsPrivateCanonEcho(fitExplanation, normalizedCanonStrings)) {
+        throw invalidStageOneContract();
+      }
+      normalized = {
+        slot: `ability:${id}`,
+        abilityId: id,
+        status: 'needs_choice',
+        fitExplanation
+      };
+    } else {
+      throw invalidStageOneContract();
+    }
+
+    rowsById.set(id, normalized);
+  }
+
+  return {
+    schemaVersion: STAGE_ONE_PROPOSAL_SCHEMA_VERSION,
+    campaignId: expected.campaignId,
+    characterId: expected.characterId,
+    abilities: expected.requestedAbilityIds.map(id => rowsById.get(id))
+  };
+}
+
+function requestedStageOneAbilities(profile, requestedAbilityIds) {
+  if (
+    !Array.isArray(requestedAbilityIds)
+    || requestedAbilityIds.length === 0
+    || requestedAbilityIds.length > STAGE_ONE_ABILITY_REQUEST_LIMIT
+    || requestedAbilityIds.some(id => !isStrictAbilityId(id))
+    || new Set(requestedAbilityIds).size !== requestedAbilityIds.length
+  ) {
+    throw invalidStageOneRequest();
+  }
+
+  const canonicalAbilities = parseJsonArray(profile.abilities_json);
+  const requestedIds = new Set(requestedAbilityIds);
+  const byId = new Map();
+  for (const ability of canonicalAbilities) {
+    if (!ability || typeof ability !== 'object' || Array.isArray(ability)) continue;
+    if (!isStrictAbilityId(ability.id) || !requestedIds.has(ability.id)) continue;
+    if (byId.has(ability.id)) throw invalidStageOneRequest();
+    byId.set(ability.id, ability);
+  }
+
+  return requestedAbilityIds.map(id => {
+    const ability = byId.get(id);
+    if (!ability || typeof ability.name !== 'string' || ability.name.trim() === '') {
+      throw invalidStageOneRequest();
+    }
+    const name = ability.name.normalize('NFC').trim();
+    const description = typeof ability.description === 'string'
+      ? ability.description.normalize('NFC').trim()
+      : '';
+    if (
+      name.length > 200
+      || description.length > 2000
+      || /[\u0000-\u001f\u007f-\u009f]/u.test(name)
+      || /[\u0000-\u001f\u007f-\u009f]/u.test(description)
+    ) {
+      throw invalidStageOneRequest();
+    }
+    return { id, name, description };
+  });
+}
+
+/**
+ * Read-only S1.3 proposal seam. The persistent player-character profile is
+ * authoritative; campaign-local character rows are never accepted here.
+ */
+export async function proposeStageOneAbilityWording(
+  { campaignId, characterId, requestedAbilityIds, apiConfig } = {},
+  { client = null } = {}
+) {
+  if (!isPositiveSafeInteger(campaignId) || !isPositiveSafeInteger(characterId)) {
+    throw invalidStageOneRequest();
+  }
+
+  const profile = await getPlayerCharacter(characterId);
+  if (!profile) throw invalidStageOneRequest();
+  const abilities = requestedStageOneAbilities(profile, requestedAbilityIds);
+  const canonContext = await readStageOneCanonContext(campaignId);
+  if (!canonContext) {
+    throw stageOneProposalError(
+      'STAGE_ONE_PROPOSAL_CONTEXT_UNAVAILABLE',
+      'Ability wording proposal context is unavailable.'
+    );
+  }
+
+  const expected = {
+    campaignId,
+    characterId,
+    requestedAbilityIds: abilities.map(ability => ability.id),
+    canonBasis: canonContext.basis
+  };
+  const systemInstruction = getStageOneAbilityWordingSystemInstruction();
+  const prompts = [false, true].map(correction => getStageOneAbilityWordingPrompt({
+    campaignId,
+    characterId,
+    abilities,
+    canonBasis: canonContext.basis,
+    correction
+  }));
+  if (prompts.some(prompt => Buffer.byteLength(prompt, 'utf8') > STAGE_ONE_PROMPT_BYTE_LIMIT)) {
+    throw stageOneProposalError(
+      'STAGE_ONE_PROPOSAL_CONTEXT_TOO_LARGE',
+      'Ability wording proposal context is too large.'
+    );
+  }
+  const proposalClient = client || new AIClient(resolveAgentConfig(apiConfig, 'continuity'));
+
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const raw = await proposalClient.sendPrompt({
+      systemInstruction,
+      prompt: prompts[attempt],
+      jsonMode: true
+    });
+    try {
+      const proposal = validateStageOneAbilityWordingProposal(raw, expected);
+      return {
+        ...proposal,
+        canonBasisDigest: canonContext.digest
+      };
+    } catch (error) {
+      if (error?.code !== 'STAGE_ONE_PROPOSAL_INVALID') throw error;
+      if (attempt === 1) {
+        throw stageOneProposalError(
+          'STAGE_ONE_PROPOSAL_FAILED',
+          'The GM could not produce a valid ability wording proposal.'
+        );
+      }
+    }
+  }
+
+  throw stageOneProposalError(
+    'STAGE_ONE_PROPOSAL_FAILED',
+    'The GM could not produce a valid ability wording proposal.'
+  );
 }
 
 /**

@@ -20,7 +20,7 @@ to `docs/history/state-archive.md`.
   2026-07-27, enacting its three declared Chapter 1 refinements and closing the D2 catalog-design
   gate. `.agents/review/rules-system-plan-intake.md` owns the remaining decision queue; no rules
   code before a concrete phase and an owner-approved plan.
-- **PHASE PT IS APPROVED AND RUNNING; S1.1-S1.2 ARE LANDED AND S1.3 IS READY.** D3
+- **PHASE PT IS APPROVED AND RUNNING; S1.1-S1.3 ARE LANDED AND S1.4 IS READY.** D3
   records one persistent character active in exactly one campaign: mechanics and progression
   travel; first entry fills missing ability-presentation bindings; returns reuse saved ability
   wording exactly and review only newly gained abilities lacking destination wording. Archetype is
@@ -33,7 +33,10 @@ to `docs/history/state-archive.md`.
   live destination outline/setting, latest six turns chronological, and top eight relevant
   memories by importance then recency through direct helpers shared with MCP. The GM judges fit,
   the engine validates exact requested known ability IDs and allowlisted display-name/prose fields,
-  and the player approves wording. A
+  and the player approves wording. S1.3's proposal seam is read-only, derives ability slots
+  internally, permits one generic contract retry, and treats wording as non-authoritative flavor.
+  Every actual number/stat/resource change, damage result, or XP award remains canonical-Council
+  authority. A
   deterministic canon-basis digest detects stale drafts but is not canon. There is no second
   settings checklist, classifier, editor, sync workflow, self-network call, branch, or alternate
   character. Phase PT in `plan.md` owns the fixed slice order and coding assignments.
@@ -52,9 +55,8 @@ to `docs/history/state-archive.md`.
 
 ## Next
 
-**NEXT:** Implement S1.3 as an internal ability-only proposal and strict-validation seam over
-existing stable ability IDs; accept no archetype, family, character-name, title, or arbitrary-slot
-output.
+**NEXT:** Implement S1.4 lazy per-campaign ability vocabulary and per-character ability bindings
+over S1.3's validated proposal, preserving every approved return-campaign wording exactly.
 
 - Continue the owner decision queue one item at a time from the canonical queue in
   `.agents/review/rules-system-plan-intake.md`.
@@ -79,12 +81,14 @@ output.
 
 ## Verification
 
-- Docs-only D3 gate sync: `git diff --check` and the active-record stale-language scan are green
-  on 2026-07-31. Runtime tests were not rerun because no shipped file changed.
-- Automated: `npm test` — green for Phase PT S1.2 on 2026-07-31.
-- S1.2 guard proof: changing the Stage 1 history window from latest to earliest failed the dedicated
-  test with turns 1-6 instead of 1005-1010; restoring latest returned the full suite to green.
-- Browser: not run during the 2026-07-31 catchup; no trigger surface changed. See
+- Automated: `node test.js` — green through Phase PT S1.3 on 2026-07-31.
+- S1.3 guard proof: temporarily allowing a nested model-supplied `cost` field failed the suite at
+  the invalid-first retry assertion; restoring the strict row allowlist returned the full suite green.
+- Read-only adversarial review confirmed flavor-only sensation passes, explicit numeric/stat/resource
+  claims fail, and the proposal has no DML or mechanics-application path.
+- Privacy boundary is structural plus verbatim-overlap lint: raw canon/basis/anchors never return.
+  Canon has no visibility metadata, so semantic secret paraphrases cannot be proven impossible.
+- Manual/browser playtest: not run; S1.3 is an internal-only seam with no route or UI. See
   `.agents/repo-guidance.md` (Verification) for required surfaces and the coverage boundary.
 - Guard-proof requirements and anti-vacuity practice live in `AGENTS.md` and
   `.agents/decisions.md`; the codereview playbook applies only when explicitly invoked.

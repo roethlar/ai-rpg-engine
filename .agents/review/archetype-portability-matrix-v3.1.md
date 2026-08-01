@@ -4,8 +4,8 @@
 owner 2026-07-31** — recorded in `.agents/decisions.md`. Gate 5 remains open only for the exact
 archetype roster. Stage 1 Gate 7's answer is no automatic character-name or title translation;
 future proper-name/alias policy and player-driven title-edit workflow remain unruled. Phase PT is approved
-in `plan.md`; S1.1 and S1.2 are landed, and
-S1.3 is ready. The one-persistent-character, live-canon, stable-archetype, and ability-only
+in `plan.md`; S1.1 through S1.3 are landed, and
+S1.4 is ready. The one-persistent-character, live-canon, stable-archetype, and ability-only
 rulings control any older wording retained as historical evidence below.
 
 **Date**: 2026-07-27
@@ -420,7 +420,11 @@ player-safe fit explanation. The engine validates:
 - output has the expected bounded shape;
 - every returned ability ID was requested exactly once, and only allowlisted display-name/prose
   fields are present; `ability:<id>` is derived internally rather than accepted from the model;
-- wording contains no numbers, costs, limits, operations, or other mechanics;
+- wording is non-authoritative presentation and is never parsed or applied as mechanics;
+  high-confidence numeric, stat, resource, cost, limit, operation, or other rule claims fail
+  before player review, while ordinary fictional sensation remains flavor;
+- every actual number/stat/resource change, damage result, XP award, cost, or other consequence
+  still requires normal Council validation against canonical mechanics;
 - no archetype, class label, role/profession title, self-title, character name, new ability,
   character fact, or campaign fact is smuggled into the response; and
 - saved bindings and pins are not rewritten.
@@ -634,8 +638,8 @@ Each stage needs its owner-approved phase plan. Phase PT approves Stage 1 in the
 |---|---|---|
 | S1.1 | Ability IDs: mint, backfill legacy rows, match ability_updates by ID with legacy name fallback (§4.4) | **LANDED**: renaming no longer forks an ability; legacy rows still match |
 | S1.2 | **LANDED:** Shared canonical-context retrieval and freshness (§6) | Direct helpers return validated outline/setting, latest six turns chronological, and top eight relevant memories by importance then recency; MCP and portability share helpers; deterministic digest detects stale drafts; no self-network call or new campaign schema |
-| S1.3 | **READY:** Canon-grounded GM ability-wording proposal plus structural validation (§6.2-6.3) | GM judges fictional fit; engine accepts only exact requested known ability IDs and allowlisted display-name/prose fields; player-safe explanation does not leak raw canon; no archetype-enumeration dependency |
-| S1.4 | Lazy campaign ability vocabulary and per-(character, campaign) ability bindings (§5) | Vocabulary is created only when a missing ability binding needs it; two characters coexist; approved wording is reusable and contains no title, mechanics, or canon copy |
+| S1.3 | **LANDED:** Canon-grounded GM ability-wording proposal plus structural validation (§6.2-6.3) | GM judges fictional fit; engine accepts only exact requested known ability IDs and allowlisted display-name/prose fields; player-safe explanation does not leak raw canon; presentation cannot apply mechanics; no archetype-enumeration dependency |
+| S1.4 | **READY:** Lazy campaign ability vocabulary and per-(character, campaign) ability bindings (§5) | Vocabulary is created only when a missing ability binding needs it; two characters coexist; approved wording is reusable, contains no title or canon copy, and is never mechanical authority |
 | S1.5 | Creator archetype mapping, ability pins, and restart-safe approval (§8.1) | Once Gate 5 settles the exact roster, Creator maps concept to a stable player-facing archetype ID, tailors its campaign description, may show public local profession-name examples, and preserves the player's own title |
 | S1.6 | Drafted move of the persistent character (§8.2-8.5) | Same ID, exactly one active campaign, existing campaign never recreated; every non-approved result preserves current membership |
 | S1.7 | Ability narration binding and leak checks (§9) | No unapproved cross-campaign ability term or GM-private canon material reaches Council/seat context |
@@ -644,7 +648,7 @@ Each stage needs its owner-approved phase plan. Phase PT approves Stage 1 in the
 S1.2 is landed. MCP and Council consumers use the transport-neutral `campaign-context.js` readers
 directly; portability makes no internal MCP, SSE, or HTTP request.
 
-S1.3 is ready without Gate 5: it operates only on existing stable ability IDs, derives each
+S1.3 landed without Gate 5: it operates only on existing stable ability IDs, derives each
 `ability:<id>` target internally, and accepts no archetype, family, name, title, or arbitrary slot
 field. The exact archetype roster gates S1.5 Creator/onboarding work instead.
 
@@ -821,4 +825,4 @@ Taken in chat one at a time and recorded durably.
 8. **D5 ability packaging — FUTURE.** Stage 2 only.
 9. **D13/D16 non-ability state — FUTURE.** Stage 4 only.
 
-S1.3 is unblocked and ready. Only S1.5's Creator/onboarding work still awaits Gate 5's exact roster.
+S1.3 is landed and S1.4 is ready. Only S1.5's Creator/onboarding work still awaits Gate 5's exact roster.

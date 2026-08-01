@@ -92,8 +92,8 @@ custom, implementation-ready system and plan. Read-only intake reviewed pinned
 snapshot `526aa5c` with Claude Code 2.1.207 (`claude-opus-4-8`, high effort,
 structured output). Verdict: `ready_for_owner_decisions` — **not** plan
 acceptance. It admitted 14 plan gaps (5 HIGH) and produced a 15-decision queue.
-D0-D2 are decided; D3 Gates 1-4, 6, and Stage 1 Gate 7 and Phase PT are approved, with S1.1 and
-S1.2 landed. Stage 1 Gate 7's answer is no automatic character-name/title translation; broader
+D0-D2 are decided; D3 Gates 1-4, 6, and Stage 1 Gate 7 and Phase PT are approved, with S1.1 through
+S1.3 landed and S1.4 ready. Stage 1 Gate 7's answer is no automatic character-name/title translation; broader
 proper-name/alias policy and player-driven title-edit workflow remain future.
 One persistent character ID is active in exactly one campaign; mechanics/progression travel, first
 entry fills missing ability-presentation bindings, and returns reuse saved ability wording exactly
@@ -106,8 +106,19 @@ deterministic canon-basis digest detects stale drafts but is not canon. Raw cano
 GM-private. Archetypes are stable and player-facing; the Creator maps a concept to a known
 archetype ID, tailors its campaign description, may show public local profession-name examples,
 and preserves the player's separate title. The exact archetype roster remains open for S1.5
-Creator/onboarding work, not S1.3. **S1.3 is ready.** D13/D16 remain deferred. Other rules work still requires promotion into a concrete
+Creator/onboarding work, not S1.3. D13/D16 remain deferred. Other rules work still requires promotion into a concrete
 approved phase; cross-harness review occurs only when the owner invokes it.
+
+S1.3 landed a read-only ability-wording proposal seam over persistent player-character IDs. It
+sends only requested stable ability IDs/name/prose plus destination canon, derives slots internally,
+strictly allowlists response fields and statuses, reorders exact IDs, and permits one generic retry.
+Presentation text cannot write or apply mechanics; high-confidence numeric/stat/rule claims fail,
+while every actual consequence remains canonical-Council authority under the 2026-07-31 owner
+ruling. Full `node test.js` passed. Guard proof: temporarily allowing nested model `cost` made the
+retry-count test fail; restoring the strict allowlist returned the suite green. No playtest was
+possible for this internal-only seam; S1.6 later exposes the approval card. Raw canon containers,
+anchors, and long/verbatim excerpts are structurally excluded; because canon lacks visibility
+metadata, no deterministic validator can prove that every semantic paraphrase is player-safe.
 
 Detailed intake decision queue:
 `.agents/review/rules-system-plan-intake.md`.
