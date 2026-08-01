@@ -6,7 +6,7 @@ to `docs/history/state-archive.md`.
 
 ## Now
 
-- **THE CORRECT GENRE-MAPPING DESIGN OPENREVIEW IS COMPLETE, BUT GATE 5 REMAINS OPEN.** Fable reviewed the documentation-only range `9e4916d49cb052381f322e07d8714fdd88949076..810a008f2905bcaf8771d1fee3aef016d4bae6e1`. Its shared-vocabulary candidate is superseded by landed S1.4; its campaign-tailored-description move-boundary finding is admitted as `pt-5`. The exact roster still awaits owner judgment; `.agents/review/index.md` owns provenance.
+- **FABLE PRODUCED A CONCRETE GENRE-MAPPING CANDIDATE; GATE 5 REMAINS OPEN.** The corrected design-only openreview over `9e4916d49cb052381f322e07d8714fdd88949076..810a008f2905bcaf8771d1fee3aef016d4bae6e1` admitted `pt-5` and declined the shared-vocabulary candidate as superseded. The owner-directed high-effort codereview fallback retained 22 names, proposed stable slug IDs and mechanical-chassis definitions, and separated Barbarian (`arch.bruiser`) from Battle Mage (`arch.artillery`). The proposal is reviewer evidence, not approved; `.agents/review/archetype-roster-fable-candidate.md` owns it.
 
 - **CROSS-HARNESS REVIEW IS OFF BY DEFAULT** (owner decision 2026-07-26,
   `.agents/decisions.md`). Do not invoke an external reviewer unless the owner explicitly requests
@@ -72,9 +72,9 @@ to `docs/history/state-archive.md`.
 
 ## Next
 
-**NEXT:** Record the owner-requested Fable codereview mapping candidate, then present its exact
-roster and cross-genre examples for owner judgment. Do not treat a reviewer proposal as a settled
-Gate 5 roster.
+**NEXT:** Present Fable's exact roster and cross-genre examples for owner judgment. Gate 5 remains
+open until the owner adopts, revises, or rejects the proposal; `pt-5` description scope requires a
+separate ruling before S1.5.
 
 - Ask the owner to approve or reject the drafted Phase PT review repair plan. No code repair is
   authorized before that ruling. If approved, implement PT-R1 (`pt-1`) and PT-R2 (`pt-3`) in

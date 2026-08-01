@@ -530,3 +530,19 @@ Transport: Claude CLI 2.1.220, headless JSON-schema mode, launch-local Read/Grep
 Intake: 1 of 2 admitted, 1 declined. The open finding is detailed in
 `.agents/review/findings/pt-5.md`; the historical candidate is retained in
 `.agents/review/pt-4.contested.md`.
+
+## Codereview mapping fallback (2026-08-01, reviewer: claude)
+
+The corrected-scope openreview returned no archetype roster, so the owner-directed fallback ran
+`codereview claude claude-fable-5 high` over the same pinned design range. Fable returned a valid
+`reopened` verdict with `guard_confirmed: true`, `capability_ok: true`, and both SHA pins matched.
+
+Reviewer: claude / claude-fable-5 / high / standard (inline, session-only)
+
+The reviewer recommends retaining the 22 candidate names and count while replacing ordinals with
+stable slug IDs and replacing tactical-result definitions with mechanical-chassis definitions. It
+maps Barbarian to `arch.bruiser` and Battle Mage to `arch.artillery`, with explicit hybrid and
+secondary rules. Full candidate and provenance:
+`.agents/review/archetype-roster-fable-candidate.md`.
+
+This is reviewer evidence, not an approved Gate 5 roster.
