@@ -392,7 +392,10 @@ If G5-A is approved, the same docs-only commit must:
 - add the precise superseding decision to `.agents/decisions.md`;
 - amend `.agents/review/archetype-portability-matrix-v3.1.md` only where it currently requires one
   known archetype ID and a 22-row candidate;
-- update D3 in `.agents/review/rules-system-plan-intake.md` with the new open-gate sequence;
+- amend every one-ID restatement in `.agents/review/rules-system-plan-intake.md`: the “Conclusions
+  safe to plan from” D3 bullet, admitted finding F4's “stable known player-facing archetype IDs”
+  resolution, and the owner-decision-queue D3 row. Change only the superseded classification claims
+  and preserve each entry's unrelated settled portability constraints;
 - update Phase PT status and S1.5 in `plan.md`;
 - close or carry forward `.agents/review/findings/pt-5.md` according to its separate owner ruling,
   and update every `pt-5` blocker restatement in `plan.md` and `.agents/state.md`;
