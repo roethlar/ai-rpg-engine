@@ -114,6 +114,12 @@ names and levels persist across campaigns and are never genre-translated. A play
 name such as `Wizard`, `Paladin`, or `Netrunner` is not replaced by `Controller`, `Defender`, or
 `Patron` merely because the party or setting changes.
 
+A **subclass** is an optional, engine-known specialization owned by one class catalog entry. It is
+selected within that class's level track, has explicit prerequisites and feature
+grants/replacements, and receives no independent level or advancement budget. Subclass is not a
+fallback label for a concept that fails class admission; every subclass feature is priced inside
+its parent class progression.
+
 ### 3.2 Skills and feats
 
 Skills are ranked, engine-known capabilities purchased through a common advancement budget. Feats
@@ -181,7 +187,11 @@ This is a logical contract, not authorization for a database migration:
   "schemaVersion": 1,
   "chassisVersion": "<pinned-rules-version>",
   "classLevels": [
-    { "classId": "<engine-known-class-id>", "level": 7 }
+    {
+      "classId": "<engine-known-class-id>",
+      "subclassId": "<optional-engine-known-subclass-id>",
+      "level": 7
+    }
   ],
   "skillRanks": [
     { "skillId": "skill.leadership", "rank": 2 }
@@ -208,6 +218,7 @@ candidate passes only if all answers are concrete and mechanically testable.
 | Repeated decisions | What decisions recur during ordinary play, rather than only in one campaign premise or downtime scene? |
 | Action and resource cost | What actions, reactions, charges, pools, setup, or opportunity costs govern its strongest effects? |
 | Advancement | What changes at each progression band, and what remains inaccessible without taking this class? |
+| Subclass boundary | If subclasses exist, which parent-class features do they grant, replace, or gate, and how do they stay within the parent class budget? |
 | Multiclass boundary | What is gained at entry, what is delayed or lost, and how are one-level dips prevented from buying the full chassis? |
 | Cross-pillar floor | What can the class contribute in combat, exploration, and social/world interaction, including a deliberate weakness where relevant? |
 | Missing-subsystem fallback | What remains playable when no vehicle, mystery, followers, crafting time, wilderness scarcity, or institutional network is present? |
@@ -356,9 +367,9 @@ After G5-A, settle the existing rules queue one decision at a time:
 
 ### 8.3 G5-B — exact class roster and catalogs
 
-Produce the exact versioned class roster, skill catalog, feat catalog, per-class admission records,
-multiclass rules, and target build schema. No fixed class count is assumed. Every rejected candidate
-is routed to another layer with a reason.
+Produce the exact versioned class roster, class-owned subclass entries and selection rules, skill
+catalog, feat catalog, per-class admission records, multiclass rules, and target build schema. No
+fixed class count is assumed. Every rejected candidate is routed to another layer with a reason.
 
 ### 8.4 G5-C — mechanical and adversarial validation
 
