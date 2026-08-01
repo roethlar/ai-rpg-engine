@@ -525,6 +525,8 @@ Transport: Claude CLI 2.1.220, headless JSON-schema mode, launch-local Read/Grep
 | ID | Severity | Impact (one line) | Status | Branch |
 |----|----------|-------------------|--------|--------|
 | pt-4 | HIGH | The historical design required shared campaign vocabulary after narrowing away its only bounded producer | `[-]` declined as superseded by the landed S1.4 no-producer boundary | none |
+| pt-5 | MEDIUM | A campaign-tailored archetype description is frozen across moves without a settled destination surface | `[ ]` admitted; design ruling not authorized | none |
 
-Candidate 1 of 2 triaged: 0 admitted, 1 declined. Detail:
+Intake: 1 of 2 admitted, 1 declined. The open finding is detailed in
+`.agents/review/findings/pt-5.md`; the historical candidate is retained in
 `.agents/review/pt-4.contested.md`.

@@ -6,7 +6,7 @@ to `docs/history/state-archive.md`.
 
 ## Now
 
-- **THE CORRECT GENRE-MAPPING DESIGN OPENREVIEW RANGE IS PINNED, BUT GATE 5 REMAINS OPEN.** Review the documentation-only archetype-presentation change at `9e4916d49cb052381f322e07d8714fdd88949076..810a008f2905bcaf8771d1fee3aef016d4bae6e1`, not the later S1.1-S1.4 implementation. Grok produced no valid verdict after two capability failures. Kimi `kimi-code/k3` at max returned a schema-valid clean verdict with no findings, but proposed no alternative genre mapping or roster; `.agents/review/index.md` owns provenance at `5f0202a`. Fable has not been rerun on the corrected scope. The exact roster still awaits owner judgment.
+- **THE CORRECT GENRE-MAPPING DESIGN OPENREVIEW IS COMPLETE, BUT GATE 5 REMAINS OPEN.** Fable reviewed the documentation-only range `9e4916d49cb052381f322e07d8714fdd88949076..810a008f2905bcaf8771d1fee3aef016d4bae6e1`. Its shared-vocabulary candidate is superseded by landed S1.4; its campaign-tailored-description move-boundary finding is admitted as `pt-5`. The exact roster still awaits owner judgment; `.agents/review/index.md` owns provenance.
 
 - **CROSS-HARNESS REVIEW IS OFF BY DEFAULT** (owner decision 2026-07-26,
   `.agents/decisions.md`). Do not invoke an external reviewer unless the owner explicitly requests
@@ -72,10 +72,9 @@ to `docs/history/state-archive.md`.
 
 ## Next
 
-**NEXT:** Ask whether the owner wants Fable openreviewed over the corrected design-only range or
-wants an explicit genre-mapping design exercise. Those are different tasks, and neither is
-authorized by this handoff. Do not present Kimi's clean consistency verdict as a settled Gate 5
-roster.
+**NEXT:** Record the owner-requested Fable codereview mapping candidate, then present its exact
+roster and cross-genre examples for owner judgment. Do not treat a reviewer proposal as a settled
+Gate 5 roster.
 
 - Ask the owner to approve or reject the drafted Phase PT review repair plan. No code repair is
   authorized before that ruling. If approved, implement PT-R1 (`pt-1`) and PT-R2 (`pt-3`) in
@@ -97,8 +96,8 @@ roster.
 
 - Phase PT progression is held while the drafted two-slice repair plan awaits owner approval;
   `.agents/review/index.md` owns the admitted findings and `plan.md` owns the proposed repairs.
-- Phase PT S1.4 is landed. Gate 5's exact archetype roster separately blocks S1.5
-  Creator/onboarding work.
+- Phase PT S1.4 is landed. Gate 5's exact archetype roster and `pt-5` description-scope ruling
+  separately block S1.5 Creator/onboarding work.
 - Broader Chapter 1/2 effect-catalog runtime implementation remains blocked until promoted into
   a concrete owner-approved phase; the D2 catalog-design gate is closed.
 - Phase V closure requires the owner's real-session voice verdict.
