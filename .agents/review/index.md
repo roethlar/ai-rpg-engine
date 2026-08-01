@@ -466,3 +466,25 @@ machines.md removal was factually correct on this machine.
 
 Intake: 1/1 admitted, 0 declined. Docs-only fix closed in lockstep with this record per the
 repo's docs-only verification rule; detail in `.agents/review/findings/rq-1.md`.
+
+---
+
+## Openreview (2026-08-01, reviewer: claude)
+
+Owner-dispatched `openreview` with literal model `claude-fable-5` at max effort over
+the complete landed Phase PT implementation range
+`263f3be67a0f9d7d87b3ae212faf86f39c69a397..f75bcc16c5614cad1d9ccb7ba18362019910db2a`
+(S1.1 through S1.4).
+
+Reviewer: claude / claude-fable-5 / max / frontier (competitive; owner-selected)
+
+Transport: Claude CLI 2.1.220, headless JSON-schema mode, launch-local read/Grep/Glob,
+git, and `node test.js` grant, inside a detached disposable worktree. The valid envelope
+UUID was `2ac741a2-4378-4e07-a565-c84fad72e7a3`; both SHA pins matched and
+`capability_ok` was true. An earlier otherwise structured result with `capability_ok: false`
+was discarded fail-closed because its disposable worktree lacked `node_modules`; no candidate
+from that invalid result entered intake.
+
+| ID | Severity | Impact (one line) | Status | Branch |
+|----|----------|-------------------|--------|--------|
+| pt-1 | MEDIUM | A contract-valid renamed ability improvement can create a second canonical ability because the live GM never receives the existing ID | `[ ]` admitted; repair not authorized | none |

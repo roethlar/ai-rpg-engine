@@ -636,7 +636,7 @@ Each stage needs its owner-approved phase plan. Phase PT approves Stage 1 in the
 
 | Slice | Work | Exit |
 |---|---|---|
-| S1.1 | Ability IDs: mint, backfill legacy rows, match ability_updates by ID with legacy name fallback (§4.4) | **LANDED**: renaming no longer forks an ability; legacy rows still match |
+| S1.1 | Ability IDs: mint, backfill legacy rows, match ability_updates by ID with legacy name fallback (§4.4) | **LANDED WITH OPEN REVIEW FINDING pt-1**: the ID machinery exists, but the live GM contract omits IDs, so a renamed improvement can still fork an ability; legacy rows still match |
 | S1.2 | **LANDED:** Shared canonical-context retrieval and freshness (§6) | Direct helpers return validated outline/setting, latest six turns chronological, and top eight relevant memories by importance then recency; MCP and portability share helpers; deterministic digest detects stale drafts; no self-network call or new campaign schema |
 | S1.3 | **LANDED:** Canon-grounded GM ability-wording proposal plus structural validation (§6.2-6.3) | GM judges fictional fit; engine accepts only exact requested known ability IDs and allowlisted display-name/prose fields; player-safe explanation does not leak raw canon; presentation cannot apply mechanics; no archetype-enumeration dependency |
 | S1.4 | **LANDED:** Lazy campaign ability vocabulary and per-(character, campaign) ability bindings (§5) | Character-local wording is immutable and reusable; shared storage is versioned but accepts no runtime creation until an engine-owned semantic-key producer exists; two characters coexist; no title, canon container, or mechanics copy is stored |

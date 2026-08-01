@@ -2921,8 +2921,10 @@ player-driven title-edit workflow is also future. D13/D16 still defer non-abilit
 
 **Slice order is load-bearing (owner Gate 2): S1.1 → S1.8.** One slice per commit series.
 
-- **S1.1 Ability IDs — LANDED at 9343e79.** Engine-issued globally unique IDs, legacy backfill,
-  ID-first ability_updates matching, and manual-copy/bundle regression coverage.
+- **S1.1 Ability IDs — LANDED at 9343e79; OPEN REVIEW FINDING pt-1.** Engine-issued globally unique IDs, legacy backfill,
+  ID-first ability_updates matching, and manual-copy/bundle regression coverage. The live GM
+  prompt does not expose or request those IDs, so a renamed improvement can still fork one
+  ability; `.agents/review/findings/pt-1.md` owns the admitted defect and no repair is authorized.
 - **S1.2 Shared canon retrieval and freshness — LANDED.** Extracted the existing MCP and Council
   reads into a transport-neutral `campaign-context.js` module, then have both current consumers call
   those direct helpers. The portability pack contains validated outline/setting, latest
