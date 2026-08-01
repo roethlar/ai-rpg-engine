@@ -20,7 +20,7 @@ to `docs/history/state-archive.md`.
   2026-07-27, enacting its three declared Chapter 1 refinements and closing the D2 catalog-design
   gate. `.agents/review/rules-system-plan-intake.md` owns the remaining decision queue; no rules
   code before a concrete phase and an owner-approved plan.
-- **PHASE PT IS APPROVED AND RUNNING; S1.1-S1.3 ARE LANDED AND S1.4 IS READY.** D3
+- **PHASE PT IS APPROVED AND RUNNING; S1.1-S1.4 ARE LANDED AND S1.5 AWAITS GATE 5.** D3
   records one persistent character active in exactly one campaign: mechanics and progression
   travel; first entry fills missing ability-presentation bindings; returns reuse saved ability
   wording exactly and review only newly gained abilities lacking destination wording. Archetype is
@@ -40,6 +40,13 @@ to `docs/history/state-archive.md`.
   deterministic canon-basis digest detects stale drafts but is not canon. There is no second
   settings checklist, classifier, editor, sync workflow, self-network call, branch, or alternate
   character. Phase PT in `plan.md` owns the fixed slice order and coding assignments.
+  S1.4 stores immutable character/campaign/ability wording separately from versioned campaign
+  vocabulary, gives every direct SQLite operation explicit transaction ownership, and round-trips
+  active linked rows through bundle v2 while v1 imports empty portability state. Because S1.3 emits
+  no engine-owned campaign semantic keys, runtime shared batches are rejected rather than inferred from prose;
+  shared storage awaits a later producer. Canon-echo comparison neutralizes Unicode formatting while
+  preserving legitimate script/emoji shaping; unsafe invisible and bidi controls fail at both proposal
+  and persistence boundaries. No route, UI, movement, narration, or mechanic path changed.
 - **PHASE V CODE IS COMPLETE; THE OWNER VOICE PLAYTEST IS PENDING.** The live contract is one
   campaign-canonical narrator, server-resolved NPC voices, shared host/seat synthesis, and
   save-once replay. `.agents/review/index.md` owns the accepted implementation trail. The phase
@@ -55,8 +62,8 @@ to `docs/history/state-archive.md`.
 
 ## Next
 
-**NEXT:** Implement S1.4 lazy per-campaign ability vocabulary and per-character ability bindings
-over S1.3's validated proposal, preserving every approved return-campaign wording exactly.
+**NEXT:** Present Phase PT Gate 5's exact player-facing archetype roster for one owner ruling; that
+decision is the only prerequisite before S1.5 Creator/onboarding can be planned and implemented.
 
 - Continue the owner decision queue one item at a time from the canonical queue in
   `.agents/review/rules-system-plan-intake.md`.
@@ -72,7 +79,7 @@ over S1.3's validated proposal, preserving every approved return-campaign wordin
 ## Blockers
 
 - No product-code defect blocks development.
-- Phase PT S1.3 has no decision blocker. Gate 5's exact archetype roster blocks S1.5
+- Phase PT S1.4 is landed. Gate 5's exact archetype roster blocks S1.5
   Creator/onboarding work only.
 - Broader Chapter 1/2 effect-catalog runtime implementation remains blocked until promoted into
   a concrete owner-approved phase; the D2 catalog-design gate is closed.
@@ -81,14 +88,23 @@ over S1.3's validated proposal, preserving every approved return-campaign wordin
 
 ## Verification
 
-- Automated: `node test.js` — green through Phase PT S1.3 on 2026-07-31.
+- Automated: `node test.js` — green through Phase PT S1.4 on 2026-07-31.
+- S1.4 guard proof: temporarily disabling the campaign-vocabulary UPDATE trigger failed the new
+  immutable-row assertion. Separately weakening direct-operation queue ownership, stale-owner expiry,
+  Unicode-format echo normalization, proposal/persistence alignment, or shaping support made its
+  corresponding regression fail; restoring each returned the full suite green.
+- S1.4 adversarial coverage proves missing-only exact reuse, two-character isolation, no runtime
+  arbitrary shared keys, atomic conflict/idempotency behavior, owned read/export snapshots with stale
+  async-owner rejection, Unicode canon-copy resistance without an English-only presentation boundary,
+  mechanics/canon/title/inventory exclusion, bundle v1→v2 compatibility and exact ID remapping,
+  counter headroom, and unchanged host/seat payloads.
 - S1.3 guard proof: temporarily allowing a nested model-supplied `cost` field failed the suite at
   the invalid-first retry assertion; restoring the strict row allowlist returned the full suite green.
 - Read-only adversarial review confirmed flavor-only sensation passes, explicit numeric/stat/resource
   claims fail, and the proposal has no DML or mechanics-application path.
 - Privacy boundary is structural plus verbatim-overlap lint: raw canon/basis/anchors never return.
   Canon has no visibility metadata, so semantic secret paraphrases cannot be proven impossible.
-- Manual/browser playtest: not run; S1.3 is an internal-only seam with no route or UI. See
+- Manual/browser playtest: not run; S1.3-S1.4 are internal-only seams with no route or UI. See
   `.agents/repo-guidance.md` (Verification) for required surfaces and the coverage boundary.
 - Guard-proof requirements and anti-vacuity practice live in `AGENTS.md` and
   `.agents/decisions.md`; the codereview playbook applies only when explicitly invoked.

@@ -1,6 +1,7 @@
 import sqlite3 from 'sqlite3';
 import path from 'path';
 import fs from 'fs';
+import { AsyncLocalStorage } from 'async_hooks';
 import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -18,13 +19,28 @@ if (!fs.existsSync(dataDir)) {
 
 const db = new sqlite3.Database(dbPath);
 
-// sqlite3 serializes individual statements, but multi-statement transactions
-// still need an application-level queue so concurrent BEGIN/COMMIT blocks do not
-// interleave on the same connection.
-let writeTransactionQueue = Promise.resolve();
+// sqlite3 serializes individual statements, but every operation must also share
+// this application-level queue. Otherwise a direct run/get/all call can execute
+// inside another task's multi-statement transaction on the shared connection and
+// be committed or rolled back by the wrong request.
+let transactionQueue = Promise.resolve();
+const transactionContext = new AsyncLocalStorage();
+
+function queueOperation(taskFn) {
+  if (transactionContext.getStore()?.active) return taskFn();
+  const next = transactionQueue.catch(() => {}).then(taskFn);
+  transactionQueue = next.catch(() => {});
+  return next;
+}
+
+function nestedTransactionError() {
+  const error = new Error('Nested database transactions are not supported.');
+  error.code = 'DB_NESTED_TRANSACTION';
+  return error;
+}
 
 // Helper to run query with promise
-export function run(sql, params = []) {
+function runOnConnection(sql, params = []) {
   return new Promise((resolve, reject) => {
     db.run(sql, params, function (err) {
       if (err) reject(err);
@@ -33,8 +49,12 @@ export function run(sql, params = []) {
   });
 }
 
+export function run(sql, params = []) {
+  return queueOperation(() => runOnConnection(sql, params));
+}
+
 // Helper to get single row
-export function get(sql, params = []) {
+function getOnConnection(sql, params = []) {
   return new Promise((resolve, reject) => {
     db.get(sql, params, (err, row) => {
       if (err) reject(err);
@@ -43,8 +63,12 @@ export function get(sql, params = []) {
   });
 }
 
+export function get(sql, params = []) {
+  return queueOperation(() => getOnConnection(sql, params));
+}
+
 // Helper to get multiple rows
-export function all(sql, params = []) {
+function allOnConnection(sql, params = []) {
   return new Promise((resolve, reject) => {
     db.all(sql, params, (err, rows) => {
       if (err) reject(err);
@@ -53,32 +77,64 @@ export function all(sql, params = []) {
   });
 }
 
+export function all(sql, params = []) {
+  return queueOperation(() => allOnConnection(sql, params));
+}
+
 /**
  * Closes the connection. The suite calls this before unlinking its temp DB:
  * SQLite holds the file (plus -wal/-shm) open, and on Windows an open handle
  * makes the unlink fail, leaving the temp store behind (sv-1 review).
  */
 export function closeDb() {
-  return new Promise((resolve, reject) => {
+  return queueOperation(() => new Promise((resolve, reject) => {
     db.close(err => (err ? reject(err) : resolve()));
+  }));
+}
+
+function queueTransaction(kind, beginSql, taskFn) {
+  if (transactionContext.getStore()?.active) {
+    return Promise.reject(nestedTransactionError());
+  }
+
+  const next = transactionQueue.catch(() => {}).then(() => {
+    const owner = { kind, active: true };
+    return transactionContext.run(owner, async () => {
+      try {
+        await runOnConnection(beginSql);
+        try {
+          const result = await taskFn();
+          await runOnConnection('COMMIT;');
+          return result;
+        } catch (err) {
+          try {
+            await runOnConnection('ROLLBACK;');
+          } catch {
+            // Preserve the task/commit error that caused the rollback attempt.
+          }
+          throw err;
+        }
+      } finally {
+        // Async descendants inherit this object even after run() returns. Only
+        // the live transaction owner may bypass the shared operation queue.
+        owner.active = false;
+      }
+    });
   });
+
+  transactionQueue = next.catch(() => {});
+  return next;
 }
 
 export function withWriteTransaction(taskFn) {
-  const next = writeTransactionQueue.catch(() => {}).then(async () => {
-    await run('BEGIN IMMEDIATE;');
-    try {
-      const result = await taskFn();
-      await run('COMMIT;');
-      return result;
-    } catch (err) {
-      await run('ROLLBACK;');
-      throw err;
-    }
-  });
+  return queueTransaction('write', 'BEGIN IMMEDIATE;', taskFn);
+}
 
-  writeTransactionQueue = next.catch(() => {});
-  return next;
+// Read snapshots use the same queue as every direct operation and write
+// transaction. This keeps the single connection's BEGIN/COMMIT ownership
+// explicit and prevents unrelated writes from joining a reader transaction.
+export function withReadTransaction(taskFn) {
+  return queueTransaction('read', 'BEGIN;', taskFn);
 }
 
 // Initialize database schema
@@ -266,6 +322,75 @@ export async function initDb() {
 
   await run(`
     CREATE INDEX IF NOT EXISTS idx_player_characters_status ON player_characters (status)
+  `);
+
+  // Phase PT S1.4: campaign-shared expression vocabulary is created only
+  // when an approved ability binding needs it. An absent state row means
+  // vocabulary version 0; campaign creation itself writes nothing here.
+  await run(`
+    CREATE TABLE IF NOT EXISTS campaign_vocabulary_state (
+      campaign_id INTEGER PRIMARY KEY,
+      vocabulary_version INTEGER NOT NULL
+        CHECK (vocabulary_version BETWEEN 0 AND 9007199254740990),
+      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (campaign_id) REFERENCES campaigns(id) ON DELETE CASCADE
+    )
+  `);
+
+  await run(`
+    CREATE TABLE IF NOT EXISTS campaign_vocabulary_entries (
+      campaign_id INTEGER NOT NULL,
+      semantic_key TEXT NOT NULL CHECK (length(semantic_key) BETWEEN 1 AND 128),
+      term TEXT NOT NULL CHECK (length(term) BETWEEN 1 AND 80),
+      provenance TEXT NOT NULL CHECK (provenance = 'gm-canon-review'),
+      vocabulary_version INTEGER NOT NULL
+        CHECK (vocabulary_version BETWEEN 1 AND 9007199254740990),
+      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (campaign_id, semantic_key),
+      FOREIGN KEY (campaign_id) REFERENCES campaigns(id) ON DELETE CASCADE
+    )
+  `);
+
+  await run(`
+    CREATE TABLE IF NOT EXISTS character_ability_bindings (
+      player_character_id INTEGER NOT NULL,
+      campaign_id INTEGER NOT NULL,
+      ability_id TEXT NOT NULL CHECK (length(ability_id) BETWEEN 1 AND 128),
+      term TEXT NOT NULL CHECK (length(term) BETWEEN 1 AND 80),
+      prose TEXT NOT NULL CHECK (length(prose) BETWEEN 1 AND 500),
+      provenance TEXT NOT NULL CHECK (provenance IN ('generated', 'player-pin', 'player-choice')),
+      vocabulary_version INTEGER NOT NULL
+        CHECK (vocabulary_version BETWEEN 0 AND 9007199254740990),
+      binding_set_revision INTEGER NOT NULL
+        CHECK (binding_set_revision BETWEEN 1 AND 9007199254740990),
+      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (player_character_id, campaign_id, ability_id),
+      FOREIGN KEY (player_character_id) REFERENCES player_characters(id) ON DELETE CASCADE,
+      FOREIGN KEY (campaign_id) REFERENCES campaigns(id) ON DELETE CASCADE
+    )
+  `);
+
+  await run(`
+    CREATE INDEX IF NOT EXISTS idx_character_ability_bindings_campaign
+    ON character_ability_bindings (campaign_id, player_character_id)
+  `);
+
+  // Approved wording is append-only. Ownership deletion still uses the
+  // foreign-key cascades above; only in-place rewrites are prohibited here.
+  await run(`
+    CREATE TRIGGER IF NOT EXISTS trg_campaign_vocabulary_entries_immutable
+    BEFORE UPDATE ON campaign_vocabulary_entries
+    BEGIN
+      SELECT RAISE(ABORT, 'approved campaign vocabulary is immutable');
+    END
+  `);
+
+  await run(`
+    CREATE TRIGGER IF NOT EXISTS trg_character_ability_bindings_immutable
+    BEFORE UPDATE ON character_ability_bindings
+    BEGIN
+      SELECT RAISE(ABORT, 'approved character ability binding is immutable');
+    END
   `);
 
   // Backfill reusable character profiles for campaigns created before the

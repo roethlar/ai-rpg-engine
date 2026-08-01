@@ -93,7 +93,7 @@ snapshot `526aa5c` with Claude Code 2.1.207 (`claude-opus-4-8`, high effort,
 structured output). Verdict: `ready_for_owner_decisions` — **not** plan
 acceptance. It admitted 14 plan gaps (5 HIGH) and produced a 15-decision queue.
 D0-D2 are decided; D3 Gates 1-4, 6, and Stage 1 Gate 7 and Phase PT are approved, with S1.1 through
-S1.3 landed and S1.4 ready. Stage 1 Gate 7's answer is no automatic character-name/title translation; broader
+S1.4 landed and S1.5 awaiting Gate 5. Stage 1 Gate 7's answer is no automatic character-name/title translation; broader
 proper-name/alias policy and player-driven title-edit workflow remain future.
 One persistent character ID is active in exactly one campaign; mechanics/progression travel, first
 entry fills missing ability-presentation bindings, and returns reuse saved ability wording exactly
@@ -119,6 +119,21 @@ retry-count test fail; restoring the strict allowlist returned the suite green. 
 possible for this internal-only seam; S1.6 later exposes the approval card. Raw canon containers,
 anchors, and long/verbatim excerpts are structurally excluded; because canon lacks visibility
 metadata, no deterministic validator can prove that every semantic paraphrase is player-safe.
+
+S1.4 landed immutable per-character/campaign/ability display/prose rows plus versioned shared
+campaign vocabulary storage. S1.3 has no engine-owned semantic-key output, so runtime shared batches
+fail closed instead of minting arbitrary immutable terms; character-local approved wording works now.
+Every direct SQLite operation shares transaction ownership with approvals and read/export snapshots;
+expired async owner tokens cannot join a later transaction. Exact retries are idempotent, conflicts
+are atomic, and bundle v2 remaps profile/ability IDs while v1 imports empty portability state. Canon
+echo checks neutralize all Unicode formatting/default-ignorable characters while storage preserves
+legitimate non-Latin and emoji shaping and rejects unsafe invisible/bidi controls at both S1.3 and
+S1.4 boundaries. Adversarial review closed the partial-read/export and stale-owner races,
+counter-headroom boundary, Unicode/outline-copy guard, and per-ability remap proof with zero remaining
+findings. Full `node test.js` passed. Guard mutations independently made the immutability trigger,
+operation ownership, stale-owner expiry, Unicode echo, proposal/persistence alignment, and shaping
+regressions fail before restoration. No playtest was run because S1.4 adds no route or UI, and
+existing host/seat state remains byte-scope unchanged.
 
 Detailed intake decision queue:
 `.agents/review/rules-system-plan-intake.md`.

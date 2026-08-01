@@ -31,6 +31,11 @@ import {
   PACING_TARGETS,
   validateCampaignBundle,
   CAMPAIGN_BUNDLE_VERSION,
+  containsStageOnePrivateCanonEcho,
+  hasStageOneUnsafePresentationCharacters,
+  isStageOneAbilityPresentationOnly,
+  normalizeCampaignVocabularyEntries,
+  normalizeCharacterAbilityBindings,
   LOCATION_CANVAS,
   TABLE_TALK_KINDS
 } from './rpg-state.js';
@@ -225,8 +230,6 @@ const STAGE_ONE_PROSE_LIMIT = 500;
 const STAGE_ONE_EXPLANATION_LIMIT = 500;
 const STAGE_ONE_PROMPT_BYTE_LIMIT = 64 * 1024;
 const STAGE_ONE_RESPONSE_BYTE_LIMIT = 64 * 1024;
-const STAGE_ONE_CANON_ECHO_CHARACTER_LIMIT = 80;
-const STAGE_ONE_CANON_ECHO_TOKEN_LIMIT = 4;
 
 function stageOneProposalError(code, message) {
   const error = new Error(message);
@@ -274,7 +277,7 @@ function normalizeStageOneText(value, limit) {
   if (
     normalized.length === 0
     || normalized.length > limit
-    || /[\u0000-\u001f\u007f-\u009f]/u.test(normalized)
+    || hasStageOneUnsafePresentationCharacters(normalized)
   ) {
     throw invalidStageOneContract();
   }
@@ -286,79 +289,10 @@ function normalizeStageOneText(value, limit) {
 // boundary, not a claim that arbitrary natural-language semantics can be
 // classified exhaustively. Canonical engine state and Council adjudication
 // remain the only authority for every actual mechanical consequence.
-const STAGE_ONE_MECHANICS_PATTERNS = [
-  /\p{N}/u,
-  /\b(?:hp|xp|mana|hit points?|experience points?|damage|armor class|difficulty class|dc|costs?|cooldowns?|bonuses?|penalt(?:y|ies)|modifiers?|advantage|disadvantage|saving throws?|skill checks?|attack rolls?|damage rolls?|spell slots?|charges?|action economy)\b/iu,
-  /\b(?:zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred|thousand|million|first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|single|double|triple|quadruple|half|quarter)\b.{0,16}\b(?:hp|xp|mana|health|stamina|energy|vitality|damage|armor|meters?|feet|foot|yards?|miles?|squares?|hexes?|seconds?|minutes?|hours?|turns?|rounds?|scenes?|targets?|creatures?|foes?|enemies?|allies?|uses?|charges?)\b/iu,
-  /\b(?:once|twice|one time|two times|three times)\s+(?:per|each|every)\s+(?:turn|round|scene|rest|day)\b/iu,
-  /\b(?:per|each|every)\s+(?:turn|round|scene|rest|day)\b/iu,
-  /\b(?:free|bonus)\s+action\b/iu,
-  /\bautomatic(?:ally)?\s+(?:succeeds?|success)\b/iu,
-  /\bignore[sd]?\s+(?:armor|resistance|cover)\b/iu,
-  /\b(?:burn|expend|sacrifice|spend|pay|trade|costs?|consume[sd]?|restore|recover|gain|lose|drain|refill)\b.{0,32}\b(?:mana|health|stamina|energy|vitality|vigor|hp|charges?|actions?|resources?|blood|life)\b/iu,
-  /\b(?:heal|cure|mend)\b.{0,20}\b(?:self|yourself|wounds?|injuries?|health|vitality)\b/iu,
-  /\b(?:increase|decrease|reduce|boost|lower|raise|double|triple|halve|add|subtract)\b.{0,32}\b(?:movement|speed|range|duration|damage|armor|health|stamina|energy|mana|strength|agility|intellect|willpower|initiative|level|experience|xp|uses?|charges?)\b/iu,
-  /\b(?:move|run|sprint|travel)\b.{0,16}\b(?:farther|further|faster|extra)\b/iu,
-  /\b(?:cost|effect|operation|target|range|duration|limit)\s*[:=]/iu,
-  /\b(?:add|remove|set|multiply|divide|roll|reroll|deal|restore|reduce|increase|decrease)_[a-z0-9_]+\b/iu
-];
-
 function assertStageOnePresentationOnly(text) {
-  if (STAGE_ONE_MECHANICS_PATTERNS.some(pattern => pattern.test(text))) {
+  if (!isStageOneAbilityPresentationOnly(text)) {
     throw invalidStageOneContract();
   }
-  if (/\b(?:archetype|family|character name|class|role|profession|self-title|title|pin|slot|canon basis|digest)\s*[:=]/iu.test(text)) {
-    throw invalidStageOneContract();
-  }
-}
-
-function collectCanonStrings(value, output = []) {
-  if (typeof value === 'string') {
-    output.push(value);
-  } else if (Array.isArray(value)) {
-    for (const item of value) collectCanonStrings(item, output);
-  } else if (value && typeof value === 'object') {
-    for (const item of Object.values(value)) collectCanonStrings(item, output);
-  }
-  return output;
-}
-
-function normalizeEchoText(value) {
-  return value
-    .normalize('NFKC')
-    .toLocaleLowerCase('en-US')
-    .replace(/[^\p{L}\p{N}]+/gu, ' ')
-    .trim()
-    .replace(/\s+/g, ' ');
-}
-
-function containsPrivateCanonEcho(value, normalizedCanonStrings) {
-  const candidate = normalizeEchoText(value);
-  if (!candidate) return false;
-
-  if (candidate.length >= STAGE_ONE_CANON_ECHO_CHARACTER_LIMIT) {
-    for (let start = 0; start <= candidate.length - STAGE_ONE_CANON_ECHO_CHARACTER_LIMIT; start++) {
-      const fragment = candidate.slice(start, start + STAGE_ONE_CANON_ECHO_CHARACTER_LIMIT);
-      if (normalizedCanonStrings.some(canon => canon.includes(fragment))) return true;
-    }
-  }
-
-  // Best-effort verbatim-excerpt guard, not a visibility classifier. Short
-  // established terms still have to remain usable, and today's canon rows do
-  // not say which facts are player-visible. The prompt carries the semantic
-  // non-disclosure duty; this catches copied phrases of four or more tokens
-  // and long fragments without pretending paraphrase detection is possible.
-  const tokens = candidate.split(' ');
-  if (tokens.length >= STAGE_ONE_CANON_ECHO_TOKEN_LIMIT) {
-    for (let start = 0; start <= tokens.length - STAGE_ONE_CANON_ECHO_TOKEN_LIMIT; start++) {
-      const fragment = tokens
-        .slice(start, start + STAGE_ONE_CANON_ECHO_TOKEN_LIMIT)
-        .join(' ');
-      if (normalizedCanonStrings.some(canon => canon.includes(fragment))) return true;
-    }
-  }
-
-  return false;
 }
 
 function validateStageOneExpected(expected) {
@@ -415,9 +349,6 @@ export function validateStageOneAbilityWordingProposal(raw, expected) {
 
   const requestedIds = new Set(expected.requestedAbilityIds);
   const rowsById = new Map();
-  const normalizedCanonStrings = collectCanonStrings(expected.canonBasis)
-    .map(normalizeEchoText)
-    .filter(Boolean);
 
   for (const row of parsed.abilities) {
     if (!row || typeof row !== 'object' || Array.isArray(row)) {
@@ -441,7 +372,7 @@ export function validateStageOneAbilityWordingProposal(raw, expected) {
       );
       for (const text of [term, prose, fitExplanation]) {
         assertStageOnePresentationOnly(text);
-        if (containsPrivateCanonEcho(text, normalizedCanonStrings)) {
+        if (containsStageOnePrivateCanonEcho(text, expected.canonBasis)) {
           throw invalidStageOneContract();
         }
       }
@@ -462,7 +393,7 @@ export function validateStageOneAbilityWordingProposal(raw, expected) {
         STAGE_ONE_EXPLANATION_LIMIT
       );
       assertStageOnePresentationOnly(fitExplanation);
-      if (containsPrivateCanonEcho(fitExplanation, normalizedCanonStrings)) {
+      if (containsStageOnePrivateCanonEcho(fitExplanation, expected.canonBasis)) {
         throw invalidStageOneContract();
       }
       normalized = {
@@ -600,6 +531,378 @@ export async function proposeStageOneAbilityWording(
     'STAGE_ONE_PROPOSAL_FAILED',
     'The GM could not produce a valid ability wording proposal.'
   );
+}
+
+function stageOneBindingStoreError(code, message) {
+  const error = new Error(message);
+  error.code = code;
+  return error;
+}
+
+function invalidStageOneBindingStoreInput() {
+  return stageOneBindingStoreError(
+    'STAGE_ONE_BINDING_INPUT_INVALID',
+    'Ability wording binding request is invalid.'
+  );
+}
+
+function conflictingStageOneBinding() {
+  return stageOneBindingStoreError(
+    'STAGE_ONE_BINDING_CONFLICT',
+    'Approved ability wording cannot be changed.'
+  );
+}
+
+function staleStageOneVocabulary() {
+  return stageOneBindingStoreError(
+    'STAGE_ONE_VOCABULARY_STALE',
+    'Campaign ability vocabulary changed before approval.'
+  );
+}
+
+function hydrateStageOneVocabularyEntry(row) {
+  return {
+    key: row.semantic_key,
+    term: row.term,
+    provenance: row.provenance,
+    vocabularyVersion: row.vocabulary_version,
+    createdAt: row.created_at
+  };
+}
+
+function hydrateStageOneAbilityBinding(row) {
+  return {
+    characterId: row.player_character_id,
+    campaignId: row.campaign_id,
+    abilityId: row.ability_id,
+    term: row.term,
+    prose: row.prose,
+    provenance: row.provenance,
+    vocabularyVersion: row.vocabulary_version,
+    bindingSetRevision: row.binding_set_revision,
+    createdAt: row.created_at
+  };
+}
+
+function validateStageOneBindingIdentity(campaignId, characterId) {
+  if (!isPositiveSafeInteger(campaignId) || !isPositiveSafeInteger(characterId)) {
+    throw invalidStageOneBindingStoreInput();
+  }
+}
+
+function validateStageOneBindingAbilityIds(abilityIds) {
+  if (
+    !Array.isArray(abilityIds)
+    || abilityIds.length === 0
+    || abilityIds.length > STAGE_ONE_ABILITY_REQUEST_LIMIT
+    || abilityIds.some(id => !isStrictAbilityId(id))
+    || new Set(abilityIds).size !== abilityIds.length
+  ) {
+    throw invalidStageOneBindingStoreInput();
+  }
+}
+
+/**
+ * Converts only a validated S1.3 ready proposal into the character-local
+ * fields S1.4 is allowed to persist. Fit rationale, freshness digest, slots,
+ * status, and every private canon input are deliberately discarded.
+ */
+export function extractPersistableStageOneAbilityBindings(
+  proposal,
+  { campaignId, characterId, expectedMissingAbilityIds } = {}
+) {
+  validateStageOneBindingIdentity(campaignId, characterId);
+  validateStageOneBindingAbilityIds(expectedMissingAbilityIds);
+  if (
+    !exactObjectKeys(proposal, [
+      'schemaVersion',
+      'campaignId',
+      'characterId',
+      'abilities',
+      'canonBasisDigest'
+    ])
+    || proposal.schemaVersion !== STAGE_ONE_PROPOSAL_SCHEMA_VERSION
+    || proposal.campaignId !== campaignId
+    || proposal.characterId !== characterId
+    || !/^[a-f0-9]{64}$/u.test(proposal.canonBasisDigest)
+    || !Array.isArray(proposal.abilities)
+    || proposal.abilities.length !== expectedMissingAbilityIds.length
+  ) {
+    throw invalidStageOneBindingStoreInput();
+  }
+
+  const rowsById = new Map();
+  for (const row of proposal.abilities) {
+    if (
+      !exactObjectKeys(row, [
+        'slot',
+        'abilityId',
+        'status',
+        'term',
+        'prose',
+        'fitExplanation'
+      ])
+      || row.status !== 'ready'
+      || row.slot !== `ability:${row.abilityId}`
+      || !expectedMissingAbilityIds.includes(row.abilityId)
+      || rowsById.has(row.abilityId)
+    ) {
+      throw invalidStageOneBindingStoreInput();
+    }
+    try {
+      assertStageOnePresentationOnly(row.term);
+      assertStageOnePresentationOnly(row.prose);
+      normalizeStageOneText(row.fitExplanation, STAGE_ONE_EXPLANATION_LIMIT);
+    } catch {
+      throw invalidStageOneBindingStoreInput();
+    }
+    rowsById.set(row.abilityId, {
+      abilityId: row.abilityId,
+      term: row.term,
+      prose: row.prose,
+      provenance: 'generated'
+    });
+  }
+
+  let bindings;
+  try {
+    bindings = normalizeCharacterAbilityBindings(
+      expectedMissingAbilityIds.map(id => rowsById.get(id))
+    );
+  } catch {
+    throw invalidStageOneBindingStoreInput();
+  }
+  return { campaignId, characterId, bindings };
+}
+
+/** Read the immutable shared vocabulary; an absent state row is version 0. */
+export async function readStageOneCampaignVocabulary(campaignId) {
+  if (!isPositiveSafeInteger(campaignId)) throw invalidStageOneBindingStoreInput();
+  return db.withReadTransaction(async () => {
+    const campaign = await db.get(`SELECT id FROM campaigns WHERE id = ?`, [campaignId]);
+    if (!campaign) throw invalidStageOneBindingStoreInput();
+    const state = await db.get(
+      `SELECT vocabulary_version FROM campaign_vocabulary_state WHERE campaign_id = ?`,
+      [campaignId]
+    );
+    const rows = await db.all(
+      `SELECT * FROM campaign_vocabulary_entries
+       WHERE campaign_id = ? ORDER BY semantic_key ASC`,
+      [campaignId]
+    );
+    return {
+      campaignId,
+      vocabularyVersion: state?.vocabulary_version ?? 0,
+      entries: rows.map(hydrateStageOneVocabularyEntry)
+    };
+  });
+}
+
+/** Read one character's destination-specific wording, never another's. */
+export async function readStageOneAbilityBindings(characterId, campaignId) {
+  validateStageOneBindingIdentity(campaignId, characterId);
+  return db.withReadTransaction(async () => {
+    const [campaign, profile] = await Promise.all([
+      db.get(`SELECT id FROM campaigns WHERE id = ?`, [campaignId]),
+      getPlayerCharacter(characterId)
+    ]);
+    if (!campaign || !profile) throw invalidStageOneBindingStoreInput();
+    const rows = await db.all(
+      `SELECT * FROM character_ability_bindings
+       WHERE player_character_id = ? AND campaign_id = ?
+       ORDER BY ability_id ASC`,
+      [characterId, campaignId]
+    );
+    return rows.map(hydrateStageOneAbilityBinding);
+  });
+}
+
+/**
+ * Resolves a requested canonical ability set into exact saved rows plus only
+ * the IDs that still need S1.3 review. Existing wording is returned verbatim.
+ */
+export async function readStageOneAbilityBindingStatus({
+  campaignId,
+  characterId,
+  requestedAbilityIds
+} = {}) {
+  validateStageOneBindingIdentity(campaignId, characterId);
+  validateStageOneBindingAbilityIds(requestedAbilityIds);
+  return db.withReadTransaction(async () => {
+    const [campaign, profile] = await Promise.all([
+      db.get(`SELECT id FROM campaigns WHERE id = ?`, [campaignId]),
+      getPlayerCharacter(characterId)
+    ]);
+    if (!campaign || !profile) throw invalidStageOneBindingStoreInput();
+    try {
+      requestedStageOneAbilities(profile, requestedAbilityIds);
+    } catch {
+      throw invalidStageOneBindingStoreInput();
+    }
+
+    const placeholders = requestedAbilityIds.map(() => '?').join(', ');
+    const rows = await db.all(
+      `SELECT * FROM character_ability_bindings
+       WHERE player_character_id = ? AND campaign_id = ?
+         AND ability_id IN (${placeholders})`,
+      [characterId, campaignId, ...requestedAbilityIds]
+    );
+    const byId = new Map(rows.map(row => [row.ability_id, hydrateStageOneAbilityBinding(row)]));
+    return {
+      campaignId,
+      characterId,
+      bindings: requestedAbilityIds.filter(id => byId.has(id)).map(id => byId.get(id)),
+      missingAbilityIds: requestedAbilityIds.filter(id => !byId.has(id))
+    };
+  });
+}
+
+/**
+ * Atomically appends approved shared terms and character-local wording.
+ * There is intentionally no update/upsert/delete wording path. Exact replay
+ * is idempotent; any changed approved text conflicts. S1.3 currently has no
+ * engine-owned semantic-key producer, so sharedEntries must be empty and keys
+ * are never inferred from free-form ability wording.
+ */
+export async function storeApprovedStageOneAbilityBindings({
+  campaignId,
+  characterId,
+  expectedVocabularyVersion,
+  sharedEntries = [],
+  bindings
+} = {}) {
+  validateStageOneBindingIdentity(campaignId, characterId);
+  if (!Number.isSafeInteger(expectedVocabularyVersion) || expectedVocabularyVersion < 0) {
+    throw invalidStageOneBindingStoreInput();
+  }
+
+  let normalizedEntries;
+  let normalizedBindings;
+  try {
+    normalizedEntries = normalizeCampaignVocabularyEntries(sharedEntries);
+    normalizedBindings = normalizeCharacterAbilityBindings(bindings);
+  } catch {
+    throw invalidStageOneBindingStoreInput();
+  }
+  if (normalizedEntries.length !== 0) {
+    throw invalidStageOneBindingStoreInput();
+  }
+  for (const binding of normalizedBindings) {
+    try {
+      assertStageOnePresentationOnly(binding.term);
+      assertStageOnePresentationOnly(binding.prose);
+    } catch {
+      throw invalidStageOneBindingStoreInput();
+    }
+  }
+
+  return db.withWriteTransaction(async () => {
+    const campaign = await db.get(`SELECT id FROM campaigns WHERE id = ?`, [campaignId]);
+    const profile = await getPlayerCharacter(characterId);
+    if (!campaign || !profile) throw invalidStageOneBindingStoreInput();
+    try {
+      requestedStageOneAbilities(
+        profile,
+        normalizedBindings.map(binding => binding.abilityId)
+      );
+    } catch {
+      throw invalidStageOneBindingStoreInput();
+    }
+
+    const vocabularyState = await db.get(
+      `SELECT vocabulary_version FROM campaign_vocabulary_state WHERE campaign_id = ?`,
+      [campaignId]
+    );
+    const currentVocabularyVersion = vocabularyState?.vocabulary_version ?? 0;
+
+    const existingBindingRows = await db.all(
+      `SELECT * FROM character_ability_bindings
+       WHERE player_character_id = ? AND campaign_id = ?
+         AND ability_id IN (${normalizedBindings.map(() => '?').join(', ')})`,
+      [characterId, campaignId, ...normalizedBindings.map(binding => binding.abilityId)]
+    );
+    const existingBindings = new Map(existingBindingRows.map(row => [row.ability_id, row]));
+    for (const binding of normalizedBindings) {
+      const existing = existingBindings.get(binding.abilityId);
+      if (
+        existing
+        && (
+          existing.term !== binding.term
+          || existing.prose !== binding.prose
+          || existing.provenance !== binding.provenance
+        )
+      ) {
+        throw conflictingStageOneBinding();
+      }
+    }
+
+    const newBindings = normalizedBindings.filter(binding => !existingBindings.has(binding.abilityId));
+    if (newBindings.length > 0) {
+      const canonContext = await readStageOneCanonContext(campaignId);
+      if (!canonContext) throw invalidStageOneBindingStoreInput();
+      for (const binding of newBindings) {
+        if (
+          containsStageOnePrivateCanonEcho(binding.term, canonContext.basis)
+          || containsStageOnePrivateCanonEcho(binding.prose, canonContext.basis)
+        ) {
+          throw invalidStageOneBindingStoreInput();
+        }
+      }
+    }
+    const exactReplay = newBindings.length === 0;
+    if (currentVocabularyVersion !== expectedVocabularyVersion && !exactReplay) {
+      throw staleStageOneVocabulary();
+    }
+
+    const resultingVocabularyVersion = currentVocabularyVersion;
+
+    if (newBindings.length > 0) {
+      const revisionRow = await db.get(
+        `SELECT COALESCE(MAX(binding_set_revision), 0) AS revision
+         FROM character_ability_bindings
+         WHERE player_character_id = ? AND campaign_id = ?`,
+        [characterId, campaignId]
+      );
+      if (revisionRow.revision >= Number.MAX_SAFE_INTEGER - 1) {
+        throw invalidStageOneBindingStoreInput();
+      }
+      const bindingSetRevision = revisionRow.revision + 1;
+      for (const binding of newBindings) {
+        await db.run(
+          `INSERT INTO character_ability_bindings
+             (player_character_id, campaign_id, ability_id, term, prose,
+              provenance, vocabulary_version, binding_set_revision)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            characterId,
+            campaignId,
+            binding.abilityId,
+            binding.term,
+            binding.prose,
+            binding.provenance,
+            resultingVocabularyVersion,
+            bindingSetRevision
+          ]
+        );
+      }
+    }
+
+    const storedRows = await db.all(
+      `SELECT * FROM character_ability_bindings
+       WHERE player_character_id = ? AND campaign_id = ?
+         AND ability_id IN (${normalizedBindings.map(() => '?').join(', ')})`,
+      [characterId, campaignId, ...normalizedBindings.map(binding => binding.abilityId)]
+    );
+    const storedById = new Map(storedRows.map(row => [row.ability_id, row]));
+    return {
+      campaignId,
+      characterId,
+      vocabularyVersion: resultingVocabularyVersion,
+      bindings: normalizedBindings.map(binding => (
+        hydrateStageOneAbilityBinding(storedById.get(binding.abilityId))
+      ))
+    };
+  });
 }
 
 /**
@@ -2655,7 +2958,7 @@ export async function releaseCampaignCharacters(campaignId, options = {}) {
  * behind (identity anchors travel; renders regenerate), so the heroic
  * pointer is deliberately not exported.
  */
-export async function exportCampaign(campaignId) {
+async function buildCampaignExport(campaignId) {
   const campaign = await db.get(`SELECT * FROM campaigns WHERE id = ?`, [campaignId]);
   if (!campaign) throw new Error(`Campaign ${campaignId} not found.`);
   const outlineRow = await db.get(`SELECT outline_json FROM campaign_outlines WHERE campaign_id = ?`, [campaignId]);
@@ -2664,6 +2967,48 @@ export async function exportCampaign(campaignId) {
   const locationRows = await db.all(`SELECT * FROM locations WHERE campaign_id = ? ORDER BY id ASC`, [campaignId]);
   const memoryRows = await db.all(`SELECT * FROM memories WHERE campaign_id = ? ORDER BY id ASC`, [campaignId]);
   const turnRows = await db.all(`SELECT * FROM turns WHERE campaign_id = ? ORDER BY turn_number ASC`, [campaignId]);
+  const vocabularyStateRow = await db.get(
+    `SELECT vocabulary_version FROM campaign_vocabulary_state WHERE campaign_id = ?`,
+    [campaignId]
+  );
+  const vocabularyRows = await db.all(
+    `SELECT semantic_key, term, provenance, vocabulary_version
+     FROM campaign_vocabulary_entries
+     WHERE campaign_id = ? ORDER BY semantic_key ASC`,
+    [campaignId]
+  );
+  const bindingRows = await db.all(
+    `SELECT b.player_character_id, b.ability_id, b.term, b.prose,
+            b.provenance, b.vocabulary_version, b.binding_set_revision
+     FROM character_ability_bindings b
+     WHERE b.campaign_id = ?
+       AND EXISTS (
+         SELECT 1 FROM characters c
+         WHERE c.campaign_id = b.campaign_id
+           AND c.player_character_id = b.player_character_id
+           AND COALESCE(c.status, 'active') = 'active'
+       )
+     ORDER BY b.player_character_id ASC, b.ability_id ASC`,
+    [campaignId]
+  );
+  const activeAbilityIdsByProfile = new Map();
+  for (const row of characterRows) {
+    if (
+      (row.status || 'active') !== 'active'
+      || !isPositiveSafeInteger(row.player_character_id)
+    ) {
+      continue;
+    }
+    const abilityIds = activeAbilityIdsByProfile.get(row.player_character_id) || new Set();
+    for (const ability of parseJsonArray(row.abilities_json)) {
+      const abilityId = abilityIdOf(ability);
+      if (abilityId) abilityIds.add(abilityId);
+    }
+    activeAbilityIdsByProfile.set(row.player_character_id, abilityIds);
+  }
+  const portableBindingRows = bindingRows.filter(row => (
+    activeAbilityIdsByProfile.get(row.player_character_id)?.has(row.ability_id)
+  ));
   const currentLocationRow = campaign.current_location_id
     ? locationRows.find(row => row.id === campaign.current_location_id)
     : null;
@@ -2690,6 +3035,9 @@ export async function exportCampaign(campaignId) {
     outline_json: outlineRow ? outlineRow.outline_json : '{}',
     characters: characterRows.map(row => ({
       source_id: row.id,
+      source_profile_id: isPositiveSafeInteger(row.player_character_id)
+        ? row.player_character_id
+        : null,
       name: row.name,
       class: row.class,
       health: row.health,
@@ -2704,6 +3052,24 @@ export async function exportCampaign(campaignId) {
       progression_notes: row.progression_notes,
       status: row.status || 'active'
     })),
+    portability: {
+      vocabulary_version: vocabularyStateRow?.vocabulary_version ?? 0,
+      vocabulary_entries: vocabularyRows.map(row => ({
+        semantic_key: row.semantic_key,
+        term: row.term,
+        provenance: row.provenance,
+        vocabulary_version: row.vocabulary_version
+      })),
+      character_ability_bindings: portableBindingRows.map(row => ({
+        source_profile_id: row.player_character_id,
+        ability_id: row.ability_id,
+        term: row.term,
+        prose: row.prose,
+        provenance: row.provenance,
+        vocabulary_version: row.vocabulary_version,
+        binding_set_revision: row.binding_set_revision
+      }))
+    },
     npcs: npcRows.map(row => ({
       name: row.name,
       role: row.role,
@@ -2748,6 +3114,11 @@ export async function exportCampaign(campaignId) {
   };
 }
 
+/** Export one internally consistent snapshot, serialized with approvals. */
+export async function exportCampaign(campaignId) {
+  return db.withReadTransaction(() => buildCampaignExport(campaignId));
+}
+
 /**
  * Imports a bundle as a NEW campaign: everything re-validated
  * (validateCampaignBundle), every id-bearing pointer remapped to the fresh
@@ -2779,6 +3150,7 @@ export async function importCampaign(rawBundle) {
     );
 
     const characterIdMap = new Map();
+    const profileIdMap = new Map();
     // Imported ability records are new records in this store, so they get
     // fresh engine-issued ids — remapped consistently, so rows that shared an
     // id in the bundle still share one here. Bundles written before ids
@@ -2809,6 +3181,9 @@ export async function importCampaign(rawBundle) {
           ]
         );
         profileId = profileResult.id;
+        if (character.source_profile_id !== null) {
+          profileIdMap.set(character.source_profile_id, profileId);
+        }
       }
       const characterResult = await db.run(
         `INSERT INTO characters (campaign_id, player_character_id, name, class, health, max_health, mana, max_mana, xp, level, inventory_json, attributes_json, abilities_json, progression_notes, status, baseline_json)
@@ -2823,6 +3198,51 @@ export async function importCampaign(rawBundle) {
         ]
       );
       if (character.source_id !== null) characterIdMap.set(character.source_id, characterResult.id);
+    }
+
+    if (bundle.portability.vocabulary_version > 0) {
+      await db.run(
+        `INSERT INTO campaign_vocabulary_state (campaign_id, vocabulary_version)
+         VALUES (?, ?)`,
+        [newCampaignId, bundle.portability.vocabulary_version]
+      );
+    }
+    for (const entry of bundle.portability.vocabulary_entries) {
+      await db.run(
+        `INSERT INTO campaign_vocabulary_entries
+           (campaign_id, semantic_key, term, provenance, vocabulary_version)
+         VALUES (?, ?, ?, ?, ?)`,
+        [
+          newCampaignId,
+          entry.semantic_key,
+          entry.term,
+          entry.provenance,
+          entry.vocabulary_version
+        ]
+      );
+    }
+    for (const binding of bundle.portability.character_ability_bindings) {
+      const remappedProfileId = profileIdMap.get(binding.source_profile_id);
+      const remappedAbilityId = abilityIdMap.get(binding.ability_id);
+      if (!remappedProfileId || !remappedAbilityId) {
+        throw new Error('Validated bundle portability reference could not be remapped.');
+      }
+      await db.run(
+        `INSERT INTO character_ability_bindings
+           (player_character_id, campaign_id, ability_id, term, prose,
+            provenance, vocabulary_version, binding_set_revision)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          remappedProfileId,
+          newCampaignId,
+          remappedAbilityId,
+          binding.term,
+          binding.prose,
+          binding.provenance,
+          binding.vocabulary_version,
+          binding.binding_set_revision
+        ]
+      );
     }
 
     for (const npc of bundle.npcs) {

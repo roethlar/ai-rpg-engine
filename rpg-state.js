@@ -10,6 +10,277 @@ import { validateVoiceDelivery } from './tts-providers.js';
 export const MAX_SPEAKER_LENGTH = 80;
 
 /**
+ * Phase PT S1.4 expression-binding trust boundary. These limits deliberately
+ * match the S1.3 proposal contract so approved wording cannot become broader
+ * when it crosses from a validated proposal into persistence.
+ */
+export const ABILITY_BINDING_ID_LIMIT = 128;
+export const ABILITY_BINDING_TERM_LIMIT = 80;
+export const ABILITY_BINDING_PROSE_LIMIT = 500;
+export const ABILITY_BINDING_BATCH_LIMIT = 12;
+export const CAMPAIGN_VOCABULARY_KEY_LIMIT = 128;
+
+export const CAMPAIGN_VOCABULARY_PROVENANCES = Object.freeze([
+  'gm-canon-review'
+]);
+
+export const CHARACTER_ABILITY_BINDING_PROVENANCES = Object.freeze([
+  'generated',
+  'player-pin',
+  'player-choice'
+]);
+
+const CAMPAIGN_VOCABULARY_KEY_PATTERN =
+  /^(?:source|implement|resource|institution):[a-z0-9]+(?:-[a-z0-9]+)*$/u;
+const STAGE_ONE_PRESENTATION_UNSAFE_CHARACTER_PATTERN =
+  /[\p{Cc}\p{Cs}\p{Zl}\p{Zp}\p{Bidi_Control}\u180E\u200B\u2060-\u206F\uFEFF\uFFF9-\uFFFB]/u;
+const STAGE_ONE_IDENTIFIER_UNSAFE_CHARACTER_PATTERN =
+  /[\p{Cc}\p{Cf}\p{Cs}\p{Zl}\p{Zp}\p{Default_Ignorable_Code_Point}]/u;
+
+export function hasStageOneUnsafePresentationCharacters(value) {
+  return typeof value === 'string'
+    && STAGE_ONE_PRESENTATION_UNSAFE_CHARACTER_PATTERN.test(value);
+}
+
+// Presentation wording is never executable mechanics. This rejects
+// high-confidence rule claims at every persistence/import boundary without
+// pretending arbitrary natural language can be classified exhaustively.
+const ABILITY_PRESENTATION_MECHANICS_PATTERNS = [
+  /\p{N}/u,
+  /\b(?:hp|xp|mana|hit points?|experience points?|damage|armor class|difficulty class|dc|costs?|cooldowns?|bonuses?|penalt(?:y|ies)|modifiers?|advantage|disadvantage|saving throws?|skill checks?|attack rolls?|damage rolls?|spell slots?|charges?|action economy)\b/iu,
+  /\b(?:zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred|thousand|million|first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|single|double|triple|quadruple|half|quarter)\b.{0,16}\b(?:hp|xp|mana|health|stamina|energy|vitality|damage|armor|meters?|feet|foot|yards?|miles?|squares?|hexes?|seconds?|minutes?|hours?|turns?|rounds?|scenes?|targets?|creatures?|foes?|enemies?|allies?|uses?|charges?)\b/iu,
+  /\b(?:once|twice|one time|two times|three times)\s+(?:per|each|every)\s+(?:turn|round|scene|rest|day)\b/iu,
+  /\b(?:per|each|every)\s+(?:turn|round|scene|rest|day)\b/iu,
+  /\b(?:free|bonus)\s+action\b/iu,
+  /\bautomatic(?:ally)?\s+(?:succeeds?|success)\b/iu,
+  /\bignore[sd]?\s+(?:armor|resistance|cover)\b/iu,
+  /\b(?:burn|expend|sacrifice|spend|pay|trade|costs?|consume[sd]?|restore|recover|gain|lose|drain|refill)\b.{0,32}\b(?:mana|health|stamina|energy|vitality|vigor|hp|charges?|actions?|resources?|blood|life)\b/iu,
+  /\b(?:heal|cure|mend)\b.{0,20}\b(?:self|yourself|wounds?|injuries?|health|vitality)\b/iu,
+  /\b(?:increase|decrease|reduce|boost|lower|raise|double|triple|halve|add|subtract)\b.{0,32}\b(?:movement|speed|range|duration|damage|armor|health|stamina|energy|mana|strength|agility|intellect|willpower|initiative|level|experience|xp|uses?|charges?)\b/iu,
+  /\b(?:move|run|sprint|travel)\b.{0,16}\b(?:farther|further|faster|extra)\b/iu,
+  /\b(?:cost|effect|operation|target|range|duration|limit)\s*[:=]/iu,
+  /\b(?:add|remove|set|multiply|divide|roll|reroll|deal|restore|reduce|increase|decrease)_[a-z0-9_]+\b/iu,
+  /\b(?:archetype|family|character name|class|role|profession|self-title|title|pin|slot|canon basis|digest)\s*[:=]/iu
+];
+
+export function isStageOneAbilityPresentationOnly(value) {
+  return typeof value === 'string'
+    && !ABILITY_PRESENTATION_MECHANICS_PATTERNS.some(pattern => pattern.test(value));
+}
+
+const STAGE_ONE_CANON_ECHO_CHARACTER_LIMIT = 80;
+const STAGE_ONE_CANON_ECHO_TOKEN_LIMIT = 4;
+
+function collectStageOneCanonStrings(value, output = []) {
+  if (typeof value === 'string') {
+    output.push(value);
+  } else if (Array.isArray(value)) {
+    for (const item of value) collectStageOneCanonStrings(item, output);
+  } else if (value && typeof value === 'object') {
+    for (const item of Object.values(value)) collectStageOneCanonStrings(item, output);
+  }
+  return output;
+}
+
+function normalizeStageOneEchoText(value) {
+  return value
+    .normalize('NFKC')
+    // Format/default-ignorable code points include legitimate script and emoji
+    // shaping. Ignore them for excerpt comparison so none can split a visually
+    // verbatim word into shorter windows, without banning that shaping in prose.
+    .replace(/[\p{Cf}\p{Default_Ignorable_Code_Point}]+/gu, '')
+    .toLocaleLowerCase('en-US')
+    .replace(/[^\p{L}\p{N}]+/gu, ' ')
+    .trim()
+    .replace(/\s+/g, ' ');
+}
+
+/**
+ * Best-effort verbatim-excerpt guard shared by live proposals and untrusted
+ * bundle import. It is deliberately not a semantic visibility classifier.
+ */
+export function containsStageOnePrivateCanonEcho(value, canonBasis) {
+  if (typeof value !== 'string') return false;
+  const candidate = normalizeStageOneEchoText(value);
+  if (!candidate) return false;
+  const normalizedCanonStrings = collectStageOneCanonStrings(canonBasis)
+    .map(normalizeStageOneEchoText)
+    .filter(Boolean);
+
+  if (candidate.length >= STAGE_ONE_CANON_ECHO_CHARACTER_LIMIT) {
+    for (let start = 0; start <= candidate.length - STAGE_ONE_CANON_ECHO_CHARACTER_LIMIT; start++) {
+      const fragment = candidate.slice(start, start + STAGE_ONE_CANON_ECHO_CHARACTER_LIMIT);
+      if (normalizedCanonStrings.some(canon => canon.includes(fragment))) return true;
+    }
+  }
+
+  const tokens = candidate.split(' ');
+  if (tokens.length >= STAGE_ONE_CANON_ECHO_TOKEN_LIMIT) {
+    for (let start = 0; start <= tokens.length - STAGE_ONE_CANON_ECHO_TOKEN_LIMIT; start++) {
+      const fragment = tokens
+        .slice(start, start + STAGE_ONE_CANON_ECHO_TOKEN_LIMIT)
+        .join(' ');
+      if (normalizedCanonStrings.some(canon => canon.includes(fragment))) return true;
+    }
+  }
+
+  return false;
+}
+
+function invalidCampaignVocabularyEntry() {
+  return new TypeError('Campaign vocabulary entry invalid.');
+}
+
+function invalidCharacterAbilityBinding() {
+  return new TypeError('Character ability binding invalid.');
+}
+
+function hasExactKeys(value, expectedKeys) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  const actualKeys = Object.keys(value).sort();
+  const sortedExpected = [...expectedKeys].sort();
+  return actualKeys.length === sortedExpected.length
+    && actualKeys.every((key, index) => key === sortedExpected[index]);
+}
+
+function normalizePortabilityText(value, limit, invalid) {
+  if (typeof value !== 'string') throw invalid();
+  const normalized = value.normalize('NFC').trim();
+  if (
+    normalized.length === 0
+    || normalized.length > limit
+    || hasStageOneUnsafePresentationCharacters(normalized)
+  ) {
+    throw invalid();
+  }
+  return normalized;
+}
+
+function normalizeAbilityBindingId(value) {
+  if (
+    typeof value !== 'string'
+    || value.length === 0
+    || value.length > ABILITY_BINDING_ID_LIMIT
+    || value !== value.trim()
+    || STAGE_ONE_IDENTIFIER_UNSAFE_CHARACTER_PATTERN.test(value)
+  ) {
+    throw invalidCharacterAbilityBinding();
+  }
+  return value;
+}
+
+/**
+ * Accepts only the campaign-shared Stage-1 semantic-key families. Keys are
+ * already canonical identifiers, so whitespace/case changes are rejected
+ * instead of silently producing a different identity.
+ */
+export function normalizeCampaignVocabularyKey(value) {
+  if (
+    typeof value !== 'string'
+    || value.length === 0
+    || value.length > CAMPAIGN_VOCABULARY_KEY_LIMIT
+    || value !== value.normalize('NFC').trim()
+    || STAGE_ONE_IDENTIFIER_UNSAFE_CHARACTER_PATTERN.test(value)
+    || (value !== 'damage-language' && !CAMPAIGN_VOCABULARY_KEY_PATTERN.test(value))
+  ) {
+    throw invalidCampaignVocabularyEntry();
+  }
+  return value;
+}
+
+/** Normalize one proposed campaign-shared vocabulary entry without mutation. */
+export function normalizeCampaignVocabularyEntry(value) {
+  if (!hasExactKeys(value, ['key', 'term', 'provenance'])) {
+    throw invalidCampaignVocabularyEntry();
+  }
+  if (!CAMPAIGN_VOCABULARY_PROVENANCES.includes(value.provenance)) {
+    throw invalidCampaignVocabularyEntry();
+  }
+  const term = normalizePortabilityText(
+    value.term,
+    ABILITY_BINDING_TERM_LIMIT,
+    invalidCampaignVocabularyEntry
+  );
+  if (!isStageOneAbilityPresentationOnly(term)) {
+    throw invalidCampaignVocabularyEntry();
+  }
+  return {
+    key: normalizeCampaignVocabularyKey(value.key),
+    term,
+    provenance: value.provenance
+  };
+}
+
+/**
+ * Normalize one optional batch of shared entries. An empty batch is valid:
+ * S1.3 currently proposes ability wording without inventing semantic keys.
+ */
+export function normalizeCampaignVocabularyEntries(value) {
+  if (!Array.isArray(value) || value.length > ABILITY_BINDING_BATCH_LIMIT) {
+    throw invalidCampaignVocabularyEntry();
+  }
+  const seenKeys = new Set();
+  return value.map(entry => {
+    const normalized = normalizeCampaignVocabularyEntry(entry);
+    if (seenKeys.has(normalized.key)) throw invalidCampaignVocabularyEntry();
+    seenKeys.add(normalized.key);
+    return normalized;
+  });
+}
+
+/** Normalize one approved character-local ability-expression row. */
+export function normalizeCharacterAbilityBinding(value) {
+  if (!hasExactKeys(value, ['abilityId', 'term', 'prose', 'provenance'])) {
+    throw invalidCharacterAbilityBinding();
+  }
+  if (!CHARACTER_ABILITY_BINDING_PROVENANCES.includes(value.provenance)) {
+    throw invalidCharacterAbilityBinding();
+  }
+  const term = normalizePortabilityText(
+    value.term,
+    ABILITY_BINDING_TERM_LIMIT,
+    invalidCharacterAbilityBinding
+  );
+  const prose = normalizePortabilityText(
+    value.prose,
+    ABILITY_BINDING_PROSE_LIMIT,
+    invalidCharacterAbilityBinding
+  );
+  if (
+    !isStageOneAbilityPresentationOnly(term)
+    || !isStageOneAbilityPresentationOnly(prose)
+  ) {
+    throw invalidCharacterAbilityBinding();
+  }
+  return {
+    abilityId: normalizeAbilityBindingId(value.abilityId),
+    term,
+    prose,
+    provenance: value.provenance
+  };
+}
+
+/** Normalize one non-empty, duplicate-free approval batch. */
+export function normalizeCharacterAbilityBindings(value) {
+  if (
+    !Array.isArray(value)
+    || value.length === 0
+    || value.length > ABILITY_BINDING_BATCH_LIMIT
+  ) {
+    throw invalidCharacterAbilityBinding();
+  }
+  const seenAbilityIds = new Set();
+  return value.map(binding => {
+    const normalized = normalizeCharacterAbilityBinding(binding);
+    if (seenAbilityIds.has(normalized.abilityId)) {
+      throw invalidCharacterAbilityBinding();
+    }
+    seenAbilityIds.add(normalized.abilityId);
+    return normalized;
+  });
+}
+
+/**
  * Utility to clean markdown formatting from LLM JSON responses.
  *
  * sv-2: the raw model output must NEVER ride in the thrown message. Council
@@ -1000,7 +1271,222 @@ export function scopeJournalForSeat(turns) {
  * the same validators live play uses, bounded, and shape-normalized before
  * any caller may write it.
  */
-export const CAMPAIGN_BUNDLE_VERSION = 1;
+export const CAMPAIGN_BUNDLE_VERSION = 2;
+
+const CAMPAIGN_BUNDLE_PORTABILITY_ROW_LIMIT = 10000;
+const CAMPAIGN_BUNDLE_PORTABILITY_COUNTER_LIMIT = Number.MAX_SAFE_INTEGER - 1;
+
+function invalidBundlePortability(detail) {
+  throw new Error(`Bundle portability ${detail}.`);
+}
+
+function bundlePortabilityVersion(value, { allowZero = true } = {}) {
+  if (
+    !Number.isSafeInteger(value)
+    || value < (allowZero ? 0 : 1)
+    || value > CAMPAIGN_BUNDLE_PORTABILITY_COUNTER_LIMIT
+  ) {
+    invalidBundlePortability('version is invalid');
+  }
+  return value;
+}
+
+function bundleSourceProfileId(value) {
+  if (value === null) return null;
+  if (!Number.isSafeInteger(value) || value <= 0) {
+    invalidBundlePortability('source profile identifier is invalid');
+  }
+  return value;
+}
+
+function bundleCharacterSourceProfileId(row, formatVersion) {
+  if (formatVersion < 2) return null;
+  if (!Object.prototype.hasOwnProperty.call(row, 'source_profile_id')) {
+    invalidBundlePortability('character source profile identifier is missing');
+  }
+  return bundleSourceProfileId(row.source_profile_id);
+}
+
+function emptyBundlePortability() {
+  return {
+    vocabulary_version: 0,
+    vocabulary_entries: [],
+    character_ability_bindings: []
+  };
+}
+
+function validateBundlePortability(bundle, characters, canonBasis) {
+  if (bundle.format_version < 2) return emptyBundlePortability();
+
+  const raw = bundle.portability;
+  if (!hasExactKeys(raw, [
+    'vocabulary_version',
+    'vocabulary_entries',
+    'character_ability_bindings'
+  ])) {
+    invalidBundlePortability('shape is invalid');
+  }
+  if (
+    !Array.isArray(raw.vocabulary_entries)
+    || raw.vocabulary_entries.length > CAMPAIGN_BUNDLE_PORTABILITY_ROW_LIMIT
+    || !Array.isArray(raw.character_ability_bindings)
+    || raw.character_ability_bindings.length > CAMPAIGN_BUNDLE_PORTABILITY_ROW_LIMIT
+  ) {
+    invalidBundlePortability('row collection is invalid');
+  }
+
+  const vocabularyVersion = bundlePortabilityVersion(raw.vocabulary_version);
+  const seenVocabularyKeys = new Set();
+  const vocabularyEntries = raw.vocabulary_entries.map(row => {
+    if (!hasExactKeys(row, [
+      'semantic_key',
+      'term',
+      'provenance',
+      'vocabulary_version'
+    ])) {
+      invalidBundlePortability('vocabulary row shape is invalid');
+    }
+
+    let entry;
+    try {
+      entry = normalizeCampaignVocabularyEntry({
+        key: row.semantic_key,
+        term: row.term,
+        provenance: row.provenance
+      });
+    } catch {
+      invalidBundlePortability('vocabulary row is invalid');
+    }
+    if (entry.key !== row.semantic_key || entry.term !== row.term) {
+      invalidBundlePortability('vocabulary wording is not normalized');
+    }
+    const entryVersion = bundlePortabilityVersion(
+      row.vocabulary_version,
+      { allowZero: false }
+    );
+    if (entryVersion > vocabularyVersion || seenVocabularyKeys.has(entry.key)) {
+      invalidBundlePortability('vocabulary row is duplicate or has a dangling version');
+    }
+    seenVocabularyKeys.add(entry.key);
+    return {
+      semantic_key: entry.key,
+      term: entry.term,
+      provenance: entry.provenance,
+      vocabulary_version: entryVersion
+    };
+  });
+  if (
+    (vocabularyVersion === 0 && vocabularyEntries.length !== 0)
+    || (vocabularyVersion > 0 && !vocabularyEntries.some(
+      entry => entry.vocabulary_version === vocabularyVersion
+    ))
+  ) {
+    invalidBundlePortability('vocabulary version has no matching entries');
+  }
+
+  const charactersBySourceProfile = new Map();
+  for (const character of characters) {
+    if (character.source_profile_id === null) continue;
+    if (charactersBySourceProfile.has(character.source_profile_id)) {
+      invalidBundlePortability('source profile identifier is duplicate');
+    }
+    charactersBySourceProfile.set(character.source_profile_id, character);
+  }
+
+  const abilityIdsBySourceProfile = new Map();
+  for (const [sourceProfileId, character] of charactersBySourceProfile) {
+    const abilityIds = new Set();
+    for (const ability of character.abilities) {
+      if (!ability || typeof ability !== 'object' || Array.isArray(ability)) continue;
+      let abilityId;
+      try {
+        abilityId = normalizeAbilityBindingId(ability.id);
+      } catch {
+        continue;
+      }
+      if (abilityIds.has(abilityId)) {
+        invalidBundlePortability('source profile ability identifier is duplicate');
+      }
+      abilityIds.add(abilityId);
+    }
+    abilityIdsBySourceProfile.set(sourceProfileId, abilityIds);
+  }
+
+  const seenBindings = new Set();
+  const characterAbilityBindings = raw.character_ability_bindings.map(row => {
+    if (!hasExactKeys(row, [
+      'source_profile_id',
+      'ability_id',
+      'term',
+      'prose',
+      'provenance',
+      'vocabulary_version',
+      'binding_set_revision'
+    ])) {
+      invalidBundlePortability('ability binding row shape is invalid');
+    }
+
+    const sourceProfileId = bundleSourceProfileId(row.source_profile_id);
+    let binding;
+    try {
+      binding = normalizeCharacterAbilityBinding({
+        abilityId: row.ability_id,
+        term: row.term,
+        prose: row.prose,
+        provenance: row.provenance
+      });
+    } catch {
+      invalidBundlePortability('ability binding row is invalid');
+    }
+    if (
+      binding.abilityId !== row.ability_id
+      || binding.term !== row.term
+      || binding.prose !== row.prose
+    ) {
+      invalidBundlePortability('ability binding wording is not normalized');
+    }
+    if (
+      containsStageOnePrivateCanonEcho(binding.term, canonBasis)
+      || containsStageOnePrivateCanonEcho(binding.prose, canonBasis)
+    ) {
+      invalidBundlePortability('ability binding wording copies private canon');
+    }
+
+    const bindingVocabularyVersion = bundlePortabilityVersion(row.vocabulary_version);
+    const bindingSetRevision = bundlePortabilityVersion(
+      row.binding_set_revision,
+      { allowZero: false }
+    );
+    const sourceCharacter = charactersBySourceProfile.get(sourceProfileId);
+    const sourceAbilityIds = abilityIdsBySourceProfile.get(sourceProfileId);
+    const identity = `${sourceProfileId}\u0000${binding.abilityId}`;
+    if (
+      !sourceCharacter
+      || sourceCharacter.status !== 'active'
+      || !sourceAbilityIds?.has(binding.abilityId)
+      || bindingVocabularyVersion > vocabularyVersion
+      || seenBindings.has(identity)
+    ) {
+      invalidBundlePortability('ability binding is duplicate or has a dangling reference');
+    }
+    seenBindings.add(identity);
+    return {
+      source_profile_id: sourceProfileId,
+      ability_id: binding.abilityId,
+      term: binding.term,
+      prose: binding.prose,
+      provenance: binding.provenance,
+      vocabulary_version: bindingVocabularyVersion,
+      binding_set_revision: bindingSetRevision
+    };
+  });
+
+  return {
+    vocabulary_version: vocabularyVersion,
+    vocabulary_entries: vocabularyEntries,
+    character_ability_bindings: characterAbilityBindings
+  };
+}
 
 function bundleJsonObject(value, fallback = null) {
   if (value && typeof value === 'object' && !Array.isArray(value)) return value;
@@ -1109,6 +1595,7 @@ export function validateCampaignBundle(raw) {
     if (!name) return null;
     return {
       source_id: Number.isInteger(row.source_id) ? row.source_id : null,
+      source_profile_id: bundleCharacterSourceProfileId(row, bundle.format_version),
       name,
       class: cleanText(row.class, 120) || 'Unformed protagonist',
       health: bundleInt(row.health, 100, 0, 100000),
@@ -1262,6 +1749,13 @@ export function validateCampaignBundle(raw) {
     throw new Error('Bundle contains no turns.');
   }
 
+  // The outline predates portability bindings and is safe for a verbatim-copy
+  // check. Played history and memories may legitimately repeat approved
+  // wording later, so comparing against them would reverse causality and make
+  // valid exports non-importable. Shared vocabulary is canon-grounded by
+  // definition and is therefore shape/mechanics checked, not echo checked.
+  const portability = validateBundlePortability(bundle, characters, { outline });
+
   const rawPointers = bundle.pointers && typeof bundle.pointers === 'object' ? bundle.pointers : {};
   const locationKeys = new Set(locations.map(l => l.key));
   const activeSourceIds = new Set(characters.filter(c => c.status === 'active' && c.source_id !== null).map(c => c.source_id));
@@ -1277,7 +1771,20 @@ export function validateCampaignBundle(raw) {
     }
   };
 
-  return { format_version: bundle.format_version, campaign, outline, ruleset, tableStyle, characters, npcs, locations, memories, turns, pointers };
+  return {
+    format_version: bundle.format_version,
+    campaign,
+    outline,
+    ruleset,
+    tableStyle,
+    characters,
+    portability,
+    npcs,
+    locations,
+    memories,
+    turns,
+    pointers
+  };
 }
 
 /**

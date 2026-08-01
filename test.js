@@ -2796,6 +2796,11 @@ async function testCampaignBundle() {
   const bundle = validateCampaignBundle(fixture);
   assert.strictEqual(bundle.format_version, 1);
   assert.strictEqual(bundle.campaign.title, 'Shadows of the Sunken Sands');
+  assert.deepStrictEqual(bundle.portability, {
+    vocabulary_version: 0,
+    vocabulary_entries: [],
+    character_ability_bindings: []
+  }, 'Released v1 bundles migrate to empty S1.4 portability state');
 
   const portableVoiceFixture = JSON.parse(JSON.stringify(fixture));
   portableVoiceFixture.campaign.narrator_voice_json = JSON.stringify({
@@ -4356,6 +4361,7 @@ async function testStageOneAbilityWordingProposal() {
   console.log(' - Running Stage 1 ability-wording proposal tests...');
   const db = await import('./db.js');
   const {
+    extractPersistableStageOneAbilityBindings,
     proposeStageOneAbilityWording,
     STAGE_ONE_ABILITY_REQUEST_LIMIT,
     validateStageOneAbilityWordingProposal
@@ -4708,6 +4714,25 @@ async function testStageOneAbilityWordingProposal() {
     () => validateStageOneAbilityWordingProposal(JSON.stringify(flavorOnlyObject), expected),
     'Fictional sensation remains valid flavor when it asserts no mechanical consequence'
   );
+  const shapedPresentationObject = responseObject(validRows());
+  shapedPresentationObject.abilities[0].term = 'جادوگر می‌روم ⚡️';
+  shapedPresentationObject.abilities[0].prose =
+    'A family 👨‍👩‍👧 follows the quiet signal.';
+  const shapedValidatedProposal = {
+    ...validateStageOneAbilityWordingProposal(
+      JSON.stringify(shapedPresentationObject),
+      expected
+    ),
+    canonBasisDigest: 'a'.repeat(64)
+  };
+  assert.doesNotThrow(
+    () => extractPersistableStageOneAbilityBindings(shapedValidatedProposal, {
+      campaignId,
+      characterId,
+      expectedMissingAbilityIds: [abilityA.id, abilityB.id]
+    }),
+    'Every player-reviewable shaped presentation is persistable unchanged'
+  );
 
   const mutateResponse = mutator => {
     const value = responseObject(validRows());
@@ -4747,6 +4772,15 @@ async function testStageOneAbilityWordingProposal() {
     ['non-string text', mutateResponse(value => { value.abilities[0].prose = { text: 'No' }; })],
     ['overlong text', mutateResponse(value => { value.abilities[0].term = 'x'.repeat(81); })],
     ['control character', mutateResponse(value => { value.abilities[0].prose = 'Quiet\nSignal'; })],
+    ['unpaired surrogate', mutateResponse(value => { value.abilities[0].prose = 'Quiet\uD800Signal'; })],
+    ['line separator', mutateResponse(value => { value.abilities[0].prose = 'Quiet\u2028Signal'; })],
+    ['paragraph separator', mutateResponse(value => { value.abilities[0].prose = 'Quiet\u2029Signal'; })],
+    ['zero-width space', mutateResponse(value => { value.abilities[0].prose = 'Quiet\u200BSignal'; })],
+    ['word joiner', mutateResponse(value => { value.abilities[0].prose = 'Quiet\u2060Signal'; })],
+    ['bidi isolate', mutateResponse(value => { value.abilities[0].prose = 'Quiet\u2066Signal'; })],
+    ['byte-order mark', mutateResponse(value => { value.abilities[0].prose = 'Quiet\uFEFFSignal'; })],
+    ['interlinear annotation', mutateResponse(value => { value.abilities[0].prose = 'Quiet\uFFF9Signal'; })],
+    ['deprecated vowel separator', mutateResponse(value => { value.abilities[0].prose = 'Quiet\u180ESignal'; })],
     ['long private canon echo', mutateResponse(value => { value.abilities[0].fit_explanation = privateOutlineMarker; })],
     ['short private canon echo', mutateResponse(value => { value.abilities[0].fit_explanation = privateShortFact; })]
   ];
@@ -4761,7 +4795,7 @@ async function testStageOneAbilityWordingProposal() {
 
   const engineSource = fs.readFileSync(new URL('./rpg-engine.js', import.meta.url), 'utf8');
   const proposalStart = engineSource.indexOf('export async function proposeStageOneAbilityWording');
-  const proposalEnd = engineSource.indexOf('/**\n * Phase 3 M1', proposalStart);
+  const proposalEnd = engineSource.indexOf('function stageOneBindingStoreError', proposalStart);
   const proposalSource = engineSource.slice(proposalStart, proposalEnd);
   assert.strictEqual(proposalSource.includes('getPlayerCharacter(characterId)'), true, 'Persistent profile is authoritative');
   assert.strictEqual(proposalSource.includes('ensureAbilityIds'), false, 'Preflight never invents missing stable ids');
@@ -4771,6 +4805,941 @@ async function testStageOneAbilityWordingProposal() {
   assert.strictEqual(/fetch\s*\(|\/api\/mcp|https?:\/\//.test(proposalSource), false, 'Proposal never loops through MCP or HTTP');
   assert.strictEqual(/applyCharacterUpdate|applyAbilityUpdates|db\.run|\b(?:INSERT|UPDATE|DELETE)\b/.test(proposalSource), false, 'Presentation proposal cannot apply a mechanical or database change');
   assert.deepStrictEqual(await snapshotStore(), storeBefore, 'All proposal paths remain read-only');
+}
+
+// -------------------------------------------------------------
+// Test: immutable Stage 1 ability-presentation persistence (PT S1.4)
+// -------------------------------------------------------------
+async function testStageOneAbilityBindingPersistence() {
+  console.log(' - Running Stage 1 ability-binding persistence tests...');
+  const db = await import('./db.js');
+  const {
+    extractPersistableStageOneAbilityBindings,
+    exportCampaign,
+    getCampaignState,
+    importCampaign,
+    readStageOneAbilityBindings,
+    readStageOneAbilityBindingStatus,
+    readStageOneCampaignVocabulary,
+    storeApprovedStageOneAbilityBindings
+  } = await import('./rpg-engine.js');
+  const {
+    CAMPAIGN_BUNDLE_VERSION,
+    containsStageOnePrivateCanonEcho,
+    normalizeCharacterAbilityBindings,
+    scopeStateForSeat,
+    validateCampaignBundle
+  } = await import('./rpg-state.js');
+  await db.initDb();
+
+  const privateCanon = 'PRIVATE_BINDING_CANON_the_glass_duke_keeps_the_hidden_gate';
+  const privateFit = 'PRIVATE_BINDING_FIT_the_GM_knows_why_the_signal_belongs_here';
+  const privateTitle = 'PRIVATE_BINDING_TITLE_WIZARD';
+  const privateArchetype = 'PRIVATE_BINDING_ARCHETYPE_CONTROLLER';
+  const privateInventory = 'PRIVATE_BINDING_INVENTORY_STAR_RELIC';
+  const privateMechanics = 'PRIVATE_BINDING_MECHANICS_COST_AND_EFFECT';
+  const privateDigest = 'd'.repeat(64);
+
+  const makeCampaign = async title => {
+    const id = (await db.run(
+      `INSERT INTO campaigns (title, genre, summary, current_act)
+       VALUES (?, 'science fantasy', ?, 1)`,
+      [title, privateCanon]
+    )).id;
+    await db.run(
+      `INSERT INTO campaign_outlines (campaign_id, outline_json) VALUES (?, ?)`,
+      [id, JSON.stringify({
+        title,
+        setting: privateCanon,
+        acts: [],
+        major_locations: [],
+        starting_quest: { title: 'Arrival', description: 'Find the quiet gate.' },
+        theme_colors: {}
+      })]
+    );
+    return id;
+  };
+  const campaignId = await makeCampaign('Stage One Binding');
+  const otherCampaignId = await makeCampaign('Stage One Binding Elsewhere');
+
+  const abilitiesOne = [
+    { id: 'binding-ability-alpha', name: 'Arcane Hand', description: privateMechanics, cost: privateMechanics },
+    { id: 'binding-ability-beta', name: 'Veil Step', description: 'Pass unseen through a watched threshold.' },
+    { id: 'binding-ability-gamma', name: 'Glass Compass', description: 'Find a path through uncertain terrain.' }
+  ];
+  const abilitiesTwo = [
+    { id: 'binding-ability-delta', name: 'Still Chorus', description: 'Gather attention around a quiet signal.' },
+    { id: 'binding-ability-epsilon', name: 'Copper Thread', description: 'Trace a hidden connection.' }
+  ];
+  const abilitiesThree = [
+    { id: 'binding-ability-zeta', name: 'Quiet Relay', description: 'Carry a signal.' },
+    { id: 'binding-ability-eta', name: 'Hidden Route', description: 'Cross unseen.' }
+  ];
+  const makeProfile = async (name, abilities) => (await db.run(
+    `INSERT INTO player_characters (
+       name, archetype, status, health, max_health, mana, max_mana, xp, level,
+       inventory_json, attributes_json, abilities_json, progression_notes
+     ) VALUES (?, ?, 'available', 10, 10, 5, 5, 0, 1, ?, ?, ?, ?)`,
+    [
+      name,
+      privateArchetype,
+      JSON.stringify([{ name: privateInventory }]),
+      JSON.stringify({ hidden: privateMechanics }),
+      JSON.stringify(abilities),
+      privateMechanics
+    ]
+  )).id;
+  const characterOneId = await makeProfile(privateTitle, abilitiesOne);
+  const characterTwoId = await makeProfile('Second Traveler', abilitiesTwo);
+  const characterThreeId = await makeProfile('Concurrent Traveler', abilitiesThree);
+
+  // Campaign creation does not create vocabulary state. Version zero is the
+  // absence of a state row, not an eager campaign-initialization write.
+  assert.deepStrictEqual(await readStageOneCampaignVocabulary(campaignId), {
+    campaignId,
+    vocabularyVersion: 0,
+    entries: []
+  });
+  assert.strictEqual(
+    await db.get(`SELECT * FROM campaign_vocabulary_state WHERE campaign_id = ?`, [campaignId]),
+    undefined
+  );
+  for (const table of ['campaign_vocabulary_entries', 'character_ability_bindings']) {
+    assert.strictEqual(
+      (await db.get(`SELECT COUNT(*) AS count FROM ${table} WHERE campaign_id = ?`, [campaignId])).count,
+      0,
+      `${table} starts empty`
+    );
+  }
+  const columns = async table => (await db.all(`PRAGMA table_info(${table})`)).map(row => row.name);
+  assert.deepStrictEqual(await columns('campaign_vocabulary_entries'), [
+    'campaign_id', 'semantic_key', 'term', 'provenance', 'vocabulary_version', 'created_at'
+  ]);
+  assert.deepStrictEqual(await columns('character_ability_bindings'), [
+    'player_character_id', 'campaign_id', 'ability_id', 'term', 'prose', 'provenance',
+    'vocabulary_version', 'binding_set_revision', 'created_at'
+  ]);
+
+  const ready = (abilityId, term, prose) => ({
+    slot: `ability:${abilityId}`,
+    abilityId,
+    status: 'ready',
+    term,
+    prose,
+    fitExplanation: privateFit
+  });
+  const proposal = {
+    schemaVersion: 1,
+    campaignId,
+    characterId: characterOneId,
+    abilities: [
+      ready(abilitiesOne[1].id, 'Shadow Passage', 'A folded hush carries the traveler past a watched threshold.'),
+      ready(abilitiesOne[0].id, 'Neural Weave', 'Focused intent moves a nearby object through a quiet signal.')
+    ],
+    canonBasisDigest: privateDigest
+  };
+  const proposalBefore = structuredClone(proposal);
+  const extracted = extractPersistableStageOneAbilityBindings(proposal, {
+    campaignId,
+    characterId: characterOneId,
+    expectedMissingAbilityIds: [abilitiesOne[0].id, abilitiesOne[1].id]
+  });
+  assert.deepStrictEqual(proposal, proposalBefore, 'Extraction is pure');
+  assert.deepStrictEqual(extracted, {
+    campaignId,
+    characterId: characterOneId,
+    bindings: [
+      {
+        abilityId: abilitiesOne[0].id,
+        term: 'Neural Weave',
+        prose: 'Focused intent moves a nearby object through a quiet signal.',
+        provenance: 'generated'
+      },
+      {
+        abilityId: abilitiesOne[1].id,
+        term: 'Shadow Passage',
+        prose: 'A folded hush carries the traveler past a watched threshold.',
+        provenance: 'generated'
+      }
+    ]
+  });
+  const extractedText = JSON.stringify(extracted);
+  for (const marker of [privateDigest, privateFit, 'slot', 'status']) {
+    assert.strictEqual(extractedText.includes(marker), false, `Extraction drops ${marker}`);
+  }
+  const extractionExpected = {
+    campaignId,
+    characterId: characterOneId,
+    expectedMissingAbilityIds: [abilitiesOne[0].id, abilitiesOne[1].id]
+  };
+  const rejectsExtraction = (candidate, label) => assert.throws(
+    () => extractPersistableStageOneAbilityBindings(candidate, extractionExpected),
+    error => error.code === 'STAGE_ONE_BINDING_INPUT_INVALID',
+    label
+  );
+  rejectsExtraction({ ...structuredClone(proposal), canonBasis: privateCanon }, 'Extra proposal field');
+  const rowExtra = structuredClone(proposal);
+  rowExtra.abilities[0].cost = 'free';
+  rejectsExtraction(rowExtra, 'Extra row mechanics field');
+  const needsChoice = structuredClone(proposal);
+  needsChoice.abilities[0] = {
+    slot: `ability:${abilitiesOne[1].id}`,
+    abilityId: abilitiesOne[1].id,
+    status: 'needs_choice',
+    fitExplanation: privateFit
+  };
+  rejectsExtraction(needsChoice, 'needs_choice cannot persist');
+  const numericMechanic = structuredClone(proposal);
+  numericMechanic.abilities[0].term = 'Signal 2';
+  rejectsExtraction(numericMechanic, 'Numeric mechanic cannot persist');
+  const namedMechanic = structuredClone(proposal);
+  namedMechanic.abilities[0].prose = 'This ability deals damage.';
+  rejectsExtraction(namedMechanic, 'Named mechanic cannot persist');
+
+  const visibleUnicodeBinding = {
+    abilityId: 'visible-unicode-binding',
+    term: 'Écho می‌روم ⚡️',
+    prose: 'Une lueur discrète guide 👨‍👩‍👧 vers la voie 静かな光。',
+    provenance: 'generated'
+  };
+  assert.deepStrictEqual(
+    normalizeCharacterAbilityBindings([visibleUnicodeBinding]),
+    [visibleUnicodeBinding],
+    'Visible NFC, non-Latin shaping, and emoji presentation remain valid'
+  );
+
+  const canonEchoFormatCharacters = [
+    '\u200B', // zero-width space
+    '\u200C', // zero-width non-joiner
+    '\u200D', // zero-width joiner
+    '\u2060', // word joiner
+    '\u00AD', // soft hyphen
+    '\u2066', // bidi isolate
+    '\uFEFF', // zero-width no-break space
+    '\uFE0F', // variation selector
+    '\u034F', // combining grapheme joiner
+    '\u070F', // Syriac abbreviation mark
+    '\uFFF9', // interlinear annotation anchor (Cf, not default-ignorable)
+    '\u{E0001}' // tag character
+  ];
+  for (const formatCharacter of canonEchoFormatCharacters) {
+    const disguisedCanon = [...privateCanon]
+      .map(character => /\p{L}/u.test(character) ? `${character}${formatCharacter}` : character)
+      .join('');
+    assert.strictEqual(
+      containsStageOnePrivateCanonEcho(disguisedCanon, { outline: privateCanon }),
+      true,
+      'Unicode formatting cannot split a private-canon echo window'
+    );
+    await assert.rejects(
+      () => storeApprovedStageOneAbilityBindings({
+        campaignId,
+        characterId: characterOneId,
+        expectedVocabularyVersion: 0,
+        sharedEntries: [],
+        bindings: [{
+          abilityId: abilitiesOne[2].id,
+          term: 'Glass Bearing',
+          prose: disguisedCanon,
+          provenance: 'generated'
+        }]
+      }),
+      error => error.code === 'STAGE_ONE_BINDING_INPUT_INVALID',
+      'Unicode formatting cannot smuggle canon through runtime persistence'
+    );
+  }
+  for (const unsafeCharacter of ['\u0000', '\u200B', '\u2060', '\u2066', '\uFEFF', '\uFFF9']) {
+    assert.throws(
+      () => normalizeCharacterAbilityBindings([{
+        ...visibleUnicodeBinding,
+        term: `Quiet${unsafeCharacter}Signal`
+      }]),
+      /invalid/,
+      'Unsafe invisible or bidi controls cannot persist in presentation text'
+    );
+  }
+
+  for (const invalidWrite of [
+    {
+      sharedEntries: [],
+      bindings: [{
+        abilityId: abilitiesOne[2].id,
+        term: 'Signal 2',
+        prose: 'A harmless-looking numeric rule claim.',
+        provenance: 'generated'
+      }]
+    },
+    {
+      sharedEntries: [{
+        key: `ability:${abilitiesOne[2].id}`,
+        term: 'Arbitrary Slot',
+        provenance: 'gm-canon-review'
+      }],
+      bindings: [{
+        abilityId: abilitiesOne[2].id,
+        term: 'Glass Bearing',
+        prose: 'A pale reflection points toward a viable passage.',
+        provenance: 'generated'
+      }]
+    },
+    {
+      sharedEntries: [],
+      bindings: [{
+        abilityId: abilitiesOne[2].id,
+        term: 'Glass Bearing',
+        prose: 'A pale reflection points toward a viable passage.',
+        provenance: 'generated',
+        cost: privateMechanics
+      }]
+    },
+    {
+      sharedEntries: [],
+      bindings: [{
+        abilityId: abilitiesOne[2].id,
+        term: 'Glass Bearing',
+        prose: privateCanon,
+        provenance: 'generated'
+      }]
+    }
+  ]) {
+    await assert.rejects(
+      () => storeApprovedStageOneAbilityBindings({
+        campaignId,
+        characterId: characterOneId,
+        expectedVocabularyVersion: 0,
+        ...invalidWrite
+      }),
+      error => error.code === 'STAGE_ONE_BINDING_INPUT_INVALID'
+    );
+  }
+  assert.deepStrictEqual(
+    (await readStageOneAbilityBindingStatus({
+      campaignId,
+      characterId: characterOneId,
+      requestedAbilityIds: [abilitiesOne[2].id]
+    })).missingAbilityIds,
+    [abilitiesOne[2].id],
+    'Invalid direct writes cannot bypass the validated proposal boundary'
+  );
+
+  const requested = [abilitiesOne[1].id, abilitiesOne[2].id, abilitiesOne[0].id];
+  assert.deepStrictEqual(
+    (await readStageOneAbilityBindingStatus({
+      campaignId,
+      characterId: characterOneId,
+      requestedAbilityIds: requested
+    })).missingAbilityIds,
+    requested,
+    'Missing-only result preserves exact request order'
+  );
+
+  const sharedWeave = [{
+    key: 'source:system-control',
+    term: 'The Weave',
+    provenance: 'gm-canon-review'
+  }];
+  const firstWrite = await storeApprovedStageOneAbilityBindings({
+    campaignId,
+    characterId: characterOneId,
+    expectedVocabularyVersion: 0,
+    sharedEntries: [],
+    bindings: extracted.bindings
+  });
+  assert.strictEqual(firstWrite.vocabularyVersion, 0);
+  const status = await readStageOneAbilityBindingStatus({
+    campaignId,
+    characterId: characterOneId,
+    requestedAbilityIds: requested
+  });
+  assert.deepStrictEqual(status.bindings.map(row => row.abilityId), [
+    abilitiesOne[1].id,
+    abilitiesOne[0].id
+  ]);
+  assert.deepStrictEqual(status.missingAbilityIds, [abilitiesOne[2].id]);
+  assert.strictEqual(status.bindings[0].term, 'Shadow Passage');
+
+  // S1.3 emits no engine-owned semantic keys. Current runtime writes must keep
+  // sharedEntries empty; these rows simulate an already approved/imported
+  // campaign vocabulary so S1.4 can prove immutable reuse and round-trip.
+  await db.withWriteTransaction(async () => {
+    await db.run(
+      `INSERT INTO campaign_vocabulary_state (campaign_id, vocabulary_version) VALUES (?, 1)`,
+      [campaignId]
+    );
+    await db.run(
+      `INSERT INTO campaign_vocabulary_entries
+         (campaign_id, semantic_key, term, provenance, vocabulary_version)
+       VALUES (?, 'source:system-control', 'The Weave', 'gm-canon-review', 1)`,
+      [campaignId]
+    );
+  });
+
+  // Exact stale-version replay is idempotent: no metadata or row changes.
+  const beforeReplay = await readStageOneAbilityBindings(characterOneId, campaignId);
+  const replay = await storeApprovedStageOneAbilityBindings({
+    campaignId,
+    characterId: characterOneId,
+    expectedVocabularyVersion: 0,
+    sharedEntries: [],
+    bindings: extracted.bindings
+  });
+  assert.strictEqual(replay.vocabularyVersion, 1);
+  assert.deepStrictEqual(await readStageOneAbilityBindings(characterOneId, campaignId), beforeReplay);
+  await assert.rejects(
+    () => storeApprovedStageOneAbilityBindings({
+      campaignId,
+      characterId: characterOneId,
+      expectedVocabularyVersion: 1,
+      sharedEntries: [{
+        key: 'implement:unused-focus',
+        term: 'Unused Focus',
+        provenance: 'gm-canon-review'
+      }],
+      bindings: extracted.bindings
+    }),
+    error => error.code === 'STAGE_ONE_BINDING_INPUT_INVALID',
+    'Shared vocabulary cannot be created without a missing binding'
+  );
+  assert.strictEqual(
+    (await db.get(
+      `SELECT COUNT(*) AS count FROM campaign_vocabulary_entries WHERE campaign_id = ?`,
+      [campaignId]
+    )).count,
+    1
+  );
+
+  const lateJoinerBinding = [{
+    abilityId: abilitiesTwo[0].id,
+    term: 'Copper Echo',
+    prose: 'A quiet relay carries intent through the surrounding lattice.',
+    provenance: 'generated'
+  }];
+  assert.strictEqual((await storeApprovedStageOneAbilityBindings({
+    campaignId,
+    characterId: characterTwoId,
+    expectedVocabularyVersion: 1,
+    sharedEntries: [],
+    bindings: lateJoinerBinding
+  })).vocabularyVersion, 1, 'Late-joiner reuse does not rename or rev vocabulary');
+  assert.deepStrictEqual(
+    (await readStageOneAbilityBindings(characterOneId, campaignId)).map(row => row.abilityId),
+    [abilitiesOne[0].id, abilitiesOne[1].id]
+  );
+  assert.deepStrictEqual(
+    (await readStageOneAbilityBindings(characterTwoId, campaignId)).map(row => row.abilityId),
+    [abilitiesTwo[0].id]
+  );
+  assert.deepStrictEqual(await readStageOneAbilityBindings(characterOneId, otherCampaignId), []);
+
+  const secondNewBinding = [{
+    abilityId: abilitiesTwo[1].id,
+    term: 'Pale Signal',
+    prose: 'A dim pulse reveals the hidden path.',
+    provenance: 'generated'
+  }];
+  await assert.rejects(
+    () => storeApprovedStageOneAbilityBindings({
+      campaignId,
+      characterId: characterTwoId,
+      expectedVocabularyVersion: 1,
+      sharedEntries: [{ ...sharedWeave[0], term: 'The Lattice' }],
+      bindings: secondNewBinding
+    }),
+    error => error.code === 'STAGE_ONE_BINDING_INPUT_INVALID'
+  );
+  assert.deepStrictEqual(
+    (await readStageOneAbilityBindings(characterTwoId, campaignId)).map(row => row.abilityId),
+    [abilitiesTwo[0].id],
+    'Shared conflict inserts no late-joiner binding'
+  );
+
+  // Conflict in one member makes the whole multi-binding batch a no-op.
+  await assert.rejects(
+    () => storeApprovedStageOneAbilityBindings({
+      campaignId,
+      characterId: characterOneId,
+      expectedVocabularyVersion: 1,
+      sharedEntries: [],
+      bindings: [
+        { ...extracted.bindings[0], term: 'Changed Neural Weave' },
+        {
+          abilityId: abilitiesOne[2].id,
+          term: 'Glass Bearing',
+          prose: 'A pale reflection points toward a viable passage.',
+          provenance: 'generated'
+        }
+      ]
+    }),
+    error => error.code === 'STAGE_ONE_BINDING_CONFLICT'
+  );
+  assert.deepStrictEqual((await readStageOneAbilityBindingStatus({
+    campaignId,
+    characterId: characterOneId,
+    requestedAbilityIds: [abilitiesOne[2].id]
+  })).missingAbilityIds, [abilitiesOne[2].id]);
+  assert.strictEqual((await readStageOneCampaignVocabulary(campaignId)).vocabularyVersion, 1);
+
+  assert.strictEqual((await storeApprovedStageOneAbilityBindings({
+    campaignId,
+    characterId: characterOneId,
+    expectedVocabularyVersion: 1,
+    bindings: [{
+      abilityId: abilitiesOne[2].id,
+      term: 'Glass Bearing',
+      prose: 'A pale reflection points toward a viable passage.',
+      provenance: 'generated'
+    }]
+  })).vocabularyVersion, 1, 'Character-local rows alone do not increment shared vocabulary');
+
+  // The DB transaction queue serializes identical and conflicting concurrent calls.
+  const concurrentBinding = [{
+    abilityId: abilitiesThree[0].id,
+    term: 'Quiet Relay',
+    prose: 'A muted current carries intent across the local network.',
+    provenance: 'generated'
+  }];
+  const identical = await Promise.all([
+    storeApprovedStageOneAbilityBindings({
+      campaignId, characterId: characterThreeId, expectedVocabularyVersion: 1,
+      sharedEntries: [], bindings: concurrentBinding
+    }),
+    storeApprovedStageOneAbilityBindings({
+      campaignId, characterId: characterThreeId, expectedVocabularyVersion: 1,
+      sharedEntries: [], bindings: concurrentBinding
+    })
+  ]);
+  assert.deepStrictEqual(identical.map(result => result.vocabularyVersion), [1, 1]);
+  assert.strictEqual((await db.get(
+    `SELECT COUNT(*) AS count FROM character_ability_bindings
+     WHERE player_character_id = ? AND campaign_id = ? AND ability_id = ?`,
+    [characterThreeId, campaignId, abilitiesThree[0].id]
+  )).count, 1);
+
+  const conflictResults = await Promise.allSettled([
+    storeApprovedStageOneAbilityBindings({
+      campaignId, characterId: characterThreeId, expectedVocabularyVersion: 1,
+      bindings: [{
+        abilityId: abilitiesThree[1].id,
+        term: 'Hidden Route',
+        prose: 'A folded shadow hides the traveler from watching eyes.',
+        provenance: 'generated'
+      }]
+    }),
+    storeApprovedStageOneAbilityBindings({
+      campaignId, characterId: characterThreeId, expectedVocabularyVersion: 1,
+      bindings: [{
+        abilityId: abilitiesThree[1].id,
+        term: 'Veiled Transit',
+        prose: 'A soft distortion hides the traveler from watching eyes.',
+        provenance: 'generated'
+      }]
+    })
+  ]);
+  assert.deepStrictEqual(conflictResults.map(result => result.status), ['fulfilled', 'rejected']);
+  assert.strictEqual(conflictResults[1].reason.code, 'STAGE_ONE_BINDING_CONFLICT');
+  assert.strictEqual(
+    (await readStageOneAbilityBindings(characterThreeId, campaignId))
+      .find(row => row.abilityId === abilitiesThree[1].id).term,
+    'Hidden Route'
+  );
+  assert.strictEqual((await readStageOneCampaignVocabulary(campaignId)).vocabularyVersion, 1);
+
+  assert.strictEqual((await storeApprovedStageOneAbilityBindings({
+    campaignId,
+    characterId: characterTwoId,
+    expectedVocabularyVersion: 1,
+    sharedEntries: [],
+    bindings: secondNewBinding
+  })).vocabularyVersion, 1, 'Character-local wording never mutates shared vocabulary');
+  const vocabulary = await readStageOneCampaignVocabulary(campaignId);
+  assert.deepStrictEqual(
+    vocabulary.entries.map(row => [row.key, row.term, row.vocabularyVersion]),
+    [['source:system-control', 'The Weave', 1]]
+  );
+
+  await assert.rejects(
+    () => db.run(
+      `UPDATE campaign_vocabulary_entries SET term = 'Changed'
+       WHERE campaign_id = ? AND semantic_key = 'source:system-control'`,
+      [campaignId]
+    ),
+    /immutable/
+  );
+  await assert.rejects(
+    () => db.run(
+      `UPDATE character_ability_bindings SET term = 'Changed'
+       WHERE player_character_id = ? AND campaign_id = ? AND ability_id = ?`,
+      [characterOneId, campaignId, abilitiesOne[0].id]
+    ),
+    /immutable/
+  );
+  assert.strictEqual(
+    (await readStageOneCampaignVocabulary(campaignId)).entries
+      .find(row => row.key === 'source:system-control').term,
+    'The Weave'
+  );
+  assert.strictEqual(
+    (await readStageOneAbilityBindings(characterOneId, campaignId))
+      .find(row => row.abilityId === abilitiesOne[0].id).term,
+    'Neural Weave'
+  );
+
+  const persistedText = JSON.stringify([
+    ...await db.all(`SELECT * FROM campaign_vocabulary_state WHERE campaign_id = ?`, [campaignId]),
+    ...await db.all(`SELECT * FROM campaign_vocabulary_entries WHERE campaign_id = ?`, [campaignId]),
+    ...await db.all(`SELECT * FROM character_ability_bindings WHERE campaign_id = ?`, [campaignId])
+  ]);
+  for (const marker of [
+    privateCanon,
+    privateFit,
+    privateTitle,
+    privateArchetype,
+    privateInventory,
+    privateMechanics,
+    privateDigest
+  ]) {
+    assert.strictEqual(persistedText.includes(marker), false, `Persistence copied ${marker}`);
+  }
+
+  // S1.4 does not put bindings or vocabulary into existing host/seat state.
+  const tableCharacterId = (await db.run(
+    `INSERT INTO characters (
+       campaign_id, player_character_id, name, class, health, max_health,
+       mana, max_mana, xp, level, inventory_json, attributes_json,
+       abilities_json, progression_notes, status
+     ) VALUES (?, ?, ?, ?, 10, 10, 5, 5, 0, 1, ?, '{}', ?, '', 'active')`,
+    [
+      campaignId,
+      characterOneId,
+      privateTitle,
+      privateArchetype,
+      JSON.stringify([{ name: privateInventory }]),
+      JSON.stringify(abilitiesOne)
+    ]
+  )).id;
+  await db.run(
+    `UPDATE campaigns SET turn_state_json = ? WHERE id = ?`,
+    [JSON.stringify({ order: [tableCharacterId], current_index: 0, round: 1 }), campaignId]
+  );
+  const hostState = await getCampaignState(campaignId);
+  const seatState = scopeStateForSeat(hostState, tableCharacterId);
+  for (const [label, state] of [['host', hostState], ['seat', seatState]]) {
+    const stateText = JSON.stringify(state);
+    for (const marker of [
+      'Neural Weave', 'Shadow Passage', 'The Weave', 'Signal Flux', privateFit,
+      privateDigest, 'bindingSetRevision', 'vocabularyVersion', 'source:system-control'
+    ]) {
+      assert.strictEqual(stateText.includes(marker), false, `${label} state leaked ${marker}`);
+    }
+  }
+
+  // Bundle v2 carries approved presentation state across deployments while
+  // remapping both the persistent profile and its globally unique ability IDs.
+  await db.run(
+    `INSERT INTO turns
+       (campaign_id, turn_number, character_id, player_action, narrative, state_changes_json)
+     VALUES (?, 1, ?, 'I approach the gate.',
+       'A folded hush carries the traveler past a watched threshold.', '{}')`,
+    [campaignId, tableCharacterId]
+  );
+  const exported = await exportCampaign(campaignId);
+  assert.strictEqual(exported.format_version, CAMPAIGN_BUNDLE_VERSION);
+  const validatedExport = validateCampaignBundle(exported);
+  assert.strictEqual(validatedExport.portability.vocabulary_version, 1);
+  assert.strictEqual(validatedExport.portability.vocabulary_entries.length, 1);
+  assert.deepStrictEqual(
+    validatedExport.portability.character_ability_bindings
+      .map(row => row.term)
+      .sort(),
+    ['Glass Bearing', 'Neural Weave', 'Shadow Passage'],
+    'Only bindings for the active linked campaign character are portable'
+  );
+
+  const hostileBundles = [];
+  const withDuplicateVocabulary = structuredClone(exported);
+  withDuplicateVocabulary.portability.vocabulary_entries.push(
+    structuredClone(withDuplicateVocabulary.portability.vocabulary_entries[0])
+  );
+  hostileBundles.push(withDuplicateVocabulary);
+  const withDanglingAbility = structuredClone(exported);
+  withDanglingAbility.portability.character_ability_bindings[0].ability_id = 'missing-ability';
+  hostileBundles.push(withDanglingAbility);
+  const withExtraMechanics = structuredClone(exported);
+  withExtraMechanics.portability.character_ability_bindings[0].cost = privateMechanics;
+  hostileBundles.push(withExtraMechanics);
+  const withMechanicalProse = structuredClone(exported);
+  withMechanicalProse.portability.character_ability_bindings[0].prose = 'The target loses 2 hp.';
+  hostileBundles.push(withMechanicalProse);
+  const withOutlineCanonCopy = structuredClone(exported);
+  withOutlineCanonCopy.portability.character_ability_bindings[0].prose = privateCanon;
+  hostileBundles.push(withOutlineCanonCopy);
+  for (const ignorable of canonEchoFormatCharacters) {
+    const withDisguisedOutlineCanonCopy = structuredClone(exported);
+    withDisguisedOutlineCanonCopy.portability.character_ability_bindings[0].prose =
+      [...privateCanon]
+        .map(character => /\p{L}/u.test(character) ? `${character}${ignorable}` : character)
+        .join('');
+    hostileBundles.push(withDisguisedOutlineCanonCopy);
+  }
+  const withUnsafeCounter = structuredClone(exported);
+  withUnsafeCounter.portability.vocabulary_version = Number.MAX_SAFE_INTEGER;
+  hostileBundles.push(withUnsafeCounter);
+  for (const hostile of hostileBundles) {
+    assert.throws(
+      () => validateCampaignBundle(hostile),
+      /Bundle portability/,
+      'Untrusted bundles cannot smuggle duplicate, dangling, or mechanical binding data'
+    );
+  }
+
+  const maxRevisionBundle = structuredClone(exported);
+  for (const binding of maxRevisionBundle.portability.character_ability_bindings) {
+    binding.binding_set_revision = Number.MAX_SAFE_INTEGER - 1;
+  }
+  const maxRevisionState = await importCampaign(maxRevisionBundle);
+  const maxRevisionCharacter = await db.get(
+    `SELECT player_character_id, abilities_json FROM characters
+     WHERE campaign_id = ? AND COALESCE(status, 'active') = 'active'`,
+    [maxRevisionState.campaignId]
+  );
+  const afterMaxAbility = {
+    id: 'binding-after-max-revision',
+    name: 'Last Horizon',
+    description: 'Reveal a distant path.'
+  };
+  const maxRevisionAbilities = [
+    ...JSON.parse(maxRevisionCharacter.abilities_json),
+    afterMaxAbility
+  ];
+  await db.run(
+    `UPDATE player_characters SET abilities_json = ? WHERE id = ?`,
+    [JSON.stringify(maxRevisionAbilities), maxRevisionCharacter.player_character_id]
+  );
+  await db.run(
+    `UPDATE characters SET abilities_json = ?
+     WHERE campaign_id = ? AND player_character_id = ?`,
+    [
+      JSON.stringify(maxRevisionAbilities),
+      maxRevisionState.campaignId,
+      maxRevisionCharacter.player_character_id
+    ]
+  );
+  await assert.rejects(
+    () => storeApprovedStageOneAbilityBindings({
+      campaignId: maxRevisionState.campaignId,
+      characterId: maxRevisionCharacter.player_character_id,
+      expectedVocabularyVersion: 1,
+      sharedEntries: [],
+      bindings: [{
+        abilityId: afterMaxAbility.id,
+        term: 'Last Horizon',
+        prose: 'A pale line reveals a distant path.',
+        provenance: 'generated'
+      }]
+    }),
+    error => error.code === 'STAGE_ONE_BINDING_INPUT_INVALID',
+    'Revision counters fail safely instead of exceeding JavaScript integer precision'
+  );
+
+  const importedState = await importCampaign(exported);
+  const importedCampaignId = importedState.campaignId;
+  const importedCharacter = await db.get(
+    `SELECT player_character_id, abilities_json FROM characters
+     WHERE campaign_id = ? AND COALESCE(status, 'active') = 'active'`,
+    [importedCampaignId]
+  );
+  assert.notStrictEqual(importedCharacter.player_character_id, characterOneId);
+  const importedVocabulary = await db.all(
+    `SELECT semantic_key, term, provenance, vocabulary_version
+     FROM campaign_vocabulary_entries WHERE campaign_id = ? ORDER BY semantic_key ASC`,
+    [importedCampaignId]
+  );
+  const sourceVocabulary = await db.all(
+    `SELECT semantic_key, term, provenance, vocabulary_version
+     FROM campaign_vocabulary_entries WHERE campaign_id = ? ORDER BY semantic_key ASC`,
+    [campaignId]
+  );
+  assert.deepStrictEqual(importedVocabulary, sourceVocabulary);
+  const importedBindings = await db.all(
+    `SELECT ability_id, term, prose, provenance, vocabulary_version, binding_set_revision
+     FROM character_ability_bindings
+     WHERE player_character_id = ? AND campaign_id = ? ORDER BY term ASC`,
+    [importedCharacter.player_character_id, importedCampaignId]
+  );
+  const sourcePortableBindings = await db.all(
+    `SELECT ability_id, term, prose, provenance, vocabulary_version, binding_set_revision
+     FROM character_ability_bindings
+     WHERE player_character_id = ? AND campaign_id = ? ORDER BY term ASC`,
+    [characterOneId, campaignId]
+  );
+  assert.deepStrictEqual(
+    importedBindings.map(({ ability_id, ...row }) => row),
+    sourcePortableBindings.map(({ ability_id, ...row }) => row),
+    'Bundle import preserves exact wording and binding metadata'
+  );
+  assert.strictEqual(
+    importedBindings.some((row, index) => row.ability_id === sourcePortableBindings[index].ability_id),
+    false,
+    'Imported bindings point at freshly remapped ability IDs'
+  );
+  const importedAbilityIds = new Set(JSON.parse(importedCharacter.abilities_json).map(ability => ability.id));
+  assert.strictEqual(
+    importedBindings.every(row => importedAbilityIds.has(row.ability_id)),
+    true,
+    'Every imported binding references its remapped canonical ability'
+  );
+  const sourceAbilityNameById = new Map(abilitiesOne.map(ability => [ability.id, ability.name]));
+  const importedAbilities = JSON.parse(importedCharacter.abilities_json);
+  const importedAbilityNameById = new Map(importedAbilities.map(ability => [ability.id, ability.name]));
+  const sourceTermByAbilityName = [...sourcePortableBindings]
+    .map(row => [sourceAbilityNameById.get(row.ability_id), row.term])
+    .sort(([left], [right]) => left.localeCompare(right));
+  const importedTermByAbilityName = [...importedBindings]
+    .map(row => [importedAbilityNameById.get(row.ability_id), row.term])
+    .sort(([left], [right]) => left.localeCompare(right));
+  assert.deepStrictEqual(
+    importedTermByAbilityName,
+    sourceTermByAbilityName,
+    'ID remapping keeps each approved term attached to the same canonical ability'
+  );
+  const reExported = validateCampaignBundle(await exportCampaign(importedCampaignId));
+  assert.deepStrictEqual(
+    reExported.portability.character_ability_bindings.map(row => row.term).sort(),
+    ['Glass Bearing', 'Neural Weave', 'Shadow Passage'],
+    'Imported approved wording remains forward-portable'
+  );
+
+  // Reads and exports share the transaction queue, so neither can observe a
+  // partial approval on SQLite's single connection—even if that write rolls back.
+  let signalPartialWrite;
+  const partialWriteReady = new Promise(resolve => { signalPartialWrite = resolve; });
+  let releasePartialWrite;
+  const partialWriteGate = new Promise(resolve => { releasePartialWrite = resolve; });
+  const rolledBackWrite = db.withWriteTransaction(async () => {
+    await db.run(
+      `INSERT INTO campaign_vocabulary_state (campaign_id, vocabulary_version) VALUES (?, 1)`,
+      [otherCampaignId]
+    );
+    signalPartialWrite();
+    await partialWriteGate;
+    throw new Error('EXPECTED_S1_4_ROLLBACK');
+  });
+  await partialWriteReady;
+  let readSettled = false;
+  let exportSettled = false;
+  const queuedRead = readStageOneCampaignVocabulary(otherCampaignId)
+    .then(value => { readSettled = true; return value; });
+  const queuedExport = exportCampaign(campaignId)
+    .then(value => { exportSettled = true; return value; });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.strictEqual(readSettled, false, 'Read waits for the active approval transaction');
+  assert.strictEqual(exportSettled, false, 'Export waits for the active approval transaction');
+  releasePartialWrite();
+  await assert.rejects(rolledBackWrite, /EXPECTED_S1_4_ROLLBACK/);
+  assert.deepStrictEqual(await queuedRead, {
+    campaignId: otherCampaignId,
+    vocabularyVersion: 0,
+    entries: []
+  }, 'Queued read sees only committed state after rollback');
+  const queuedExportBundle = await queuedExport;
+  assert.doesNotThrow(
+    () => validateCampaignBundle(queuedExportBundle),
+    'Queued export remains internally self-consistent'
+  );
+
+  // Direct run/get/all calls share transaction ownership too. A write issued
+  // while a read snapshot is open must wait, then survive even if the reader
+  // rolls back; it can never be absorbed into the reader's transaction.
+  const outsideWriteSummary = 'DIRECT_WRITE_SURVIVES_FAILED_READER';
+  let signalReadSnapshot;
+  const readSnapshotReady = new Promise(resolve => { signalReadSnapshot = resolve; });
+  let releaseReadSnapshot;
+  const readSnapshotGate = new Promise(resolve => { releaseReadSnapshot = resolve; });
+  const failedReader = db.withReadTransaction(async () => {
+    const before = await db.get(`SELECT summary FROM campaigns WHERE id = ?`, [otherCampaignId]);
+    signalReadSnapshot();
+    await readSnapshotGate;
+    const after = await db.get(`SELECT summary FROM campaigns WHERE id = ?`, [otherCampaignId]);
+    assert.deepStrictEqual(after, before, 'Read transaction keeps one snapshot');
+    throw new Error('EXPECTED_S1_4_READ_ROLLBACK');
+  });
+  await readSnapshotReady;
+  let outsideWriteSettled = false;
+  const outsideWrite = db.run(
+    `UPDATE campaigns SET summary = ? WHERE id = ?`,
+    [outsideWriteSummary, otherCampaignId]
+  ).then(value => { outsideWriteSettled = true; return value; });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.strictEqual(
+    outsideWriteSettled,
+    false,
+    'Direct write waits instead of joining an active reader transaction'
+  );
+  releaseReadSnapshot();
+  await assert.rejects(failedReader, /EXPECTED_S1_4_READ_ROLLBACK/);
+  await outsideWrite;
+  assert.strictEqual(
+    (await db.get(`SELECT summary FROM campaigns WHERE id = ?`, [otherCampaignId])).summary,
+    outsideWriteSummary,
+    'Failed reader cannot roll back an acknowledged direct write'
+  );
+
+  // AsyncLocalStorage descendants keep their inherited store after the owner
+  // transaction commits. That stale token must not let a later continuation
+  // bypass the queue and join some other request's transaction.
+  const staleOwnerWriteSummary = 'STALE_OWNER_WRITE_SURVIVES_LATER_READER';
+  let releaseStaleOwnerWrite;
+  const staleOwnerWriteGate = new Promise(resolve => { releaseStaleOwnerWrite = resolve; });
+  let staleOwnerWrite;
+  await db.withWriteTransaction(async () => {
+    staleOwnerWrite = (async () => {
+      await staleOwnerWriteGate;
+      return db.run(
+        `UPDATE campaigns SET summary = ? WHERE id = ?`,
+        [staleOwnerWriteSummary, campaignId]
+      );
+    })();
+  });
+  let signalLaterReader;
+  const laterReaderReady = new Promise(resolve => { signalLaterReader = resolve; });
+  let releaseLaterReader;
+  const laterReaderGate = new Promise(resolve => { releaseLaterReader = resolve; });
+  const laterFailedReader = db.withReadTransaction(async () => {
+    await db.get(`SELECT summary FROM campaigns WHERE id = ?`, [campaignId]);
+    signalLaterReader();
+    await laterReaderGate;
+    throw new Error('EXPECTED_LATER_READER_ROLLBACK');
+  });
+  await laterReaderReady;
+  let staleOwnerWriteSettled = false;
+  staleOwnerWrite = staleOwnerWrite.then(value => {
+    staleOwnerWriteSettled = true;
+    return value;
+  });
+  releaseStaleOwnerWrite();
+  await new Promise(resolve => setImmediate(resolve));
+  const staleOwnerWriteSettledInsideLaterReader = staleOwnerWriteSettled;
+  releaseLaterReader();
+  await assert.rejects(laterFailedReader, /EXPECTED_LATER_READER_ROLLBACK/);
+  await staleOwnerWrite;
+  assert.strictEqual(
+    staleOwnerWriteSettledInsideLaterReader,
+    false,
+    'A stale transaction owner waits instead of joining a later transaction'
+  );
+  assert.strictEqual(
+    (await db.get(`SELECT summary FROM campaigns WHERE id = ?`, [campaignId])).summary,
+    staleOwnerWriteSummary,
+    'Later rollback cannot erase a stale-owner continuation once it resolves'
+  );
+
+  await db.withReadTransaction(async () => {
+    await assert.rejects(
+      db.withWriteTransaction(async () => {}),
+      error => error.code === 'DB_NESTED_TRANSACTION',
+      'Nested transaction wrappers fail fast instead of self-deadlocking'
+    );
+  });
 }
 
 // -------------------------------------------------------------
@@ -5101,6 +6070,7 @@ async function runAll() {
     await testHeroicPointer();
     await testNpcAppearance();
     await testTableStyle();
+    await testStageOneAbilityBindingPersistence();
     await testCampaignBundle();
     await testSeatAuth();
     await testSeatLifecycle();
