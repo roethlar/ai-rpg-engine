@@ -550,3 +550,23 @@ The owner's requested artifact is a full archetype-by-genre matrix, not sparse e
 the candidate document owns the matrix and the second pass's provenance.
 
 This is reviewer evidence, not an approved Gate 5 roster.
+
+## Codereview (2026-08-01, Gate 5 restrictive class-model plan)
+
+Owner-requested context-rich review of draft `d00c34f77cd9e0c6a72345e45874292aa941f831`
+against `03739475c8e7ec1fb72e0884bbd8b88b72d5733e` returned a schema-valid `reopened`
+verdict with four actionable plan findings.
+
+Reviewer: claude / claude-fable-5 / high / standard (inline, session-only)
+
+| ID | Severity | Impact (one line) | Status | Branch |
+|---|---|---|---|---|
+| g5p-1 | MEDIUM | Replacement gate omits the separately admitted `pt-5` description lifecycle | `[ ]` admitted | `master` |
+| g5p-2 | MEDIUM | Extended S1.5 silently blocks S1.6–S1.8 under the fixed slice order | `[ ]` admitted | `master` |
+| g5p-3 | LOW | Subclass is used without an ontology, record shape, or catalog owner | `[ ]` admitted | `master` |
+| g5p-4 | LOW | Eventual supersession checklist leaves two stale intake restatements | `[ ]` admitted | `master` |
+
+Result UUID: `13a849c6-1587-4873-9edc-40e0511eabcd`; session:
+`565def47-5355-43c1-9231-c92cc9410e66`; `guard_confirmed: true`;
+`capability_ok: true`; both SHA pins matched. Detailed records are in
+`.agents/review/findings/g5p-*.md`.

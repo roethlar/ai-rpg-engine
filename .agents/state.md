@@ -6,16 +6,15 @@ to `docs/history/state-archive.md`.
 
 ## Now
 
-- **GATE 5'S RESTRICTIVE CLASS-MODEL REPLAN IS DRAFTED; FABLE REVIEW IS NEXT.** The complete 22×10
-  mapping showed that the candidate mixes tactical roles, learnable capabilities, build structures,
-  and status/assets rather than restrictive classes. The owner authorized a replacement plan and a
-  context-rich `claude-fable-5` review at high effort. `.agents/review/gate-5-class-model-plan.md`
-  owns the draft. It proposes class progression + skills/feats + derived roles + background/status
-  + assets + player title, with adversarial cases including Paladin commander, Wizard battle-axe,
-  Wizard commander, Netrunner billionaire, Billionaire Sponsor, and Royal Inquisitive. No taxonomy
-  decision or code is approved; the active 2026-07-31 singular-archetype decision remains authority
-  until an explicit owner ruling. The earlier roster remains evidence at
-  `.agents/review/archetype-roster-fable-candidate.md`.
+- **FABLE REOPENED THE GATE 5 RESTRICTIVE CLASS-MODEL PLAN WITH FOUR ADMITTED DOCS FINDINGS.** The
+  owner-requested context-rich `claude-fable-5` high-effort review of draft `d00c34f` admitted:
+  carry `pt-5` description scope into the new gate order (`g5p-1`); disclose that extended S1.5
+  blocks S1.6–S1.8 under the fixed order and name the reorder alternative (`g5p-2`); define
+  subclass (`g5p-3`); and cover every stale rules-intake restatement in the eventual supersession
+  checklist (`g5p-4`). `.agents/review/index.md` and `.agents/review/findings/g5p-*.md` own the
+  review. The draft remains `.agents/review/gate-5-class-model-plan.md`. No taxonomy decision or
+  code is approved; the active 2026-07-31 singular-archetype decision remains authority until an
+  explicit owner ruling. The earlier 22×10 roster remains evidence only.
 
 - **CROSS-HARNESS REVIEW IS OFF BY DEFAULT** (owner decision 2026-07-26,
   `.agents/decisions.md`). Do not invoke an external reviewer unless the owner explicitly requests
@@ -81,10 +80,9 @@ to `docs/history/state-archive.md`.
 
 ## Next
 
-**NEXT:** Run the owner-requested context-rich `claude-fable-5` high-effort review of the pinned
-Gate 5 restrictive class-model draft, triage its findings, then present G5-A's classification
-ontology as one owner decision. S1.5 remains blocked; `pt-5` description scope requires a separate
-ruling.
+**NEXT:** Repair admitted plan findings `g5p-1` through `g5p-4` one per commit, then run one
+high-effort Fable repair-delta review and present G5-A's classification ontology as one owner
+decision. S1.5 remains blocked; `pt-5` description scope still requires a separate ruling.
 
 - Ask the owner to approve or reject the drafted Phase PT review repair plan. No code repair is
   authorized before that ruling. If approved, implement PT-R1 (`pt-1`) and PT-R2 (`pt-3`) in
