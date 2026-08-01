@@ -2896,7 +2896,7 @@ valid CSS). Its project branch refs were deleted after CT landed; the postmortem
 
 ---
 
-## Phase PT: Cross-genre portability, Stage 1 — PLAN APPROVED (owner "yes", 2026-07-31); S1.1-S1.4 LANDED; S1.5 AWAITS GATE 5
+## Phase PT: Cross-genre portability, Stage 1 — PLAN APPROVED (owner "yes", 2026-07-31); S1.1-S1.4 LANDED; REVIEW REPAIR PLAN DRAFTED, OWNER APPROVAL REQUIRED; S1.5 AWAITS GATE 5
 
 **Design authority**: .agents/review/archetype-portability-matrix-v3.1.md, as amended by
 the 2026-07-31 one-persistent-character, live-canon, stable-archetype, and ability-only rulings. This section supplies
@@ -2918,6 +2918,129 @@ local profession-name examples → player confirmation, with player title separa
 open only for the exact roster and gates S1.5, not S1.3. Future proper-name/alias policy is outside
 Stage 1; Stage 1 Gate 7 permits no automatic character-name/title translation or binding, and any
 player-driven title-edit workflow is also future. D13/D16 still defer non-ability state.
+
+### Phase PT openreview repairs — DRAFT; implementation requires owner approval
+
+The 2026-08-01 `claude-fable-5` review admitted `pt-1` and `pt-3` and declined `pt-2`.
+Repairs interrupt the fixed Stage 1 order after landed S1.4: land PT-R1 and PT-R2 in that order,
+one finding per commit, before any S1.5 work. These repairs do not choose or reduce the Gate 5
+archetype roster and do not alter character identity, mechanics, progression, campaign movement,
+or Council authority. PT-R1 makes the Referee's ability ruling engine-authoritative in the same
+way that engine-rolled dice and Referee location state already are; other state fields retain their
+existing Council path. Campaign-specific wording remains flavor only and cannot authorize a
+mechanical change.
+
+- **PT-R1 — exact live ability identity (`pt-1`, one commit).** Close the gap between the
+  engine-issued ID implementation and the production GM contract.
+  - In `rpg-prompts.js:getGMSystemInstruction`, show every known ability's opaque ID in the
+    GM-private character sheet. Define `ability_updates[].ability.id` explicitly: `add` must omit
+    it; `improve` and `remove` must echo an exact listed ID. IDs are internal identity tokens and
+    may appear only in that structured field, never player-facing narrative, scene grounding,
+    choices, or progression notes.
+  - In `rpg-state.js:validateTurnData`, accept the current known abilities as validation context.
+    Campaign-opening and live-turn callers in `rpg-engine.js` must supply the abilities used to
+    build the prompt. Accept an ID-less `add`; accept `improve`/`remove` only when their string ID
+    exactly equals a known existing ID. Do not trim, slice, case-fold, or otherwise repair a
+    supplied ID. A missing, blank, whitespace-altered, case-altered, wrong-type, overlong, or
+    unknown ID drops that update. The sole normal compatibility path is an ID-less
+    `improve`/`remove` whose normalized name uniquely matches a genuinely ID-less legacy ability.
+    Malformed or absent validation context authorizes only ID-less adds.
+  - In `rpg-engine.js:runMultiAgentTurn`, define and validate the Referee's
+    `allowed_ability_updates` rows against the same known-ability contract before final Continuity
+    or Narration. Validation is atomic: one invalid Referee row empties the complete ability
+    sub-batch. Replace `refereeDecision.allowed_ability_updates` with that sanitized list in both
+    downstream prompts, then stamp exactly that list onto the final persisted turn just as the
+    engine already stamps dice, location, focal subject, and encounter state. Narration may
+    describe the Referee's ruling but cannot add, remove, rename, or alter a mechanical ability
+    update. An exact ID proves identity only; the Referee's allowlist is the authority to mutate
+    it. Clarification/denial/no-state paths still force the list empty.
+  - In `rpg-engine.js:findAbilityIndex` / `applyAbilityUpdates`, enforce the same rules even when a
+    caller bypasses turn validation. An ID-less add always receives a newly minted engine ID; an
+    ID-bearing add is ignored. ID-bearing improve/remove matches only the exact stored ID. An
+    unmatched improve/remove is a no-op, never an insert, and no progression note is appended
+    unless a mutation occurred. A unique ID-less stored legacy row may still be matched by name
+    and healed with one minted ID.
+  - Make the applied history replayable. When an approved `add` mints an ID, retain that
+    engine-stamped ID in the persisted applied state change even though the model-facing `add`
+    contract forbids an ID. The code-only replay path may restore that stamped ID after input
+    validation/remapping; live model output may not.
+    On bundle import, validate each untrusted historical `ability_updates` collection with explicit
+    row-count, field, type, and serialized-size bounds, then remap its IDs along with character
+    records and bindings, including IDs for abilities later removed. Only that validated/remapped
+    representation may enter the code-only replay capability, so an imported fork cannot target an
+    external ID, smuggle an unbounded legacy update, or reconstruct a renamed ability under a
+    different identity.
+  - Preserve older campaign-fork reconstruction deliberately. Historical state changes written
+    before this contract may contain ID-less updates, while the fork baseline is already
+    backfilled with IDs. Add a narrowly scoped legacy-replay adapter at the existing fork replay
+    callsite that reproduces the old persisted update semantics before entering the strict
+    application path. It must never let an unknown supplied ID fall back by name and must not be
+    available to opening or live turns. Same-store campaign movement/copy keeps existing IDs.
+  - Extend `test.js` through the real prompt → `validateTurnData` → `applyAbilityUpdates` path:
+    expose Quick Draw's ID, accept an exact-ID rename to Fast Nock, retain one row and the same ID,
+    and remove by exact ID despite a changed display name. Cover missing/unknown/wrong-type/
+    overlong/whitespace- or case-altered IDs, ID-bearing adds, no false inserts or notes, unique and
+    ambiguous ID-less legacy names, direct-application bypass attempts, a valid-ID mutation not
+    allowed by the Referee, historical ID-less fork replay, and export → import → fork replay of
+    renamed and removed abilities. A crafted imported history with unknown IDs, invalid fields, or
+    over-limit collections must fail before replay. No DB migration, route, UI, portability
+    wording, or new mechanics rule.
+  - Guard proof: with new tests retained, independently remove the prompt/validation/application
+    repair, let Narration bypass the Referee allowlist, and omit historical-ID persistence/import
+    remapping; each mutation must fail its live rename-fork, Council-authority, or replay assertion.
+    Restore all production behavior and prove `node test.js` green. The PT-R1 commit also closes
+    `pt-1` in its finding, review index, phase plan, and state record.
+
+- **PT-R2 — one canonical ability-text contract (`pt-3`, one commit after PT-R1).** Make S1.3's
+  existing source-ability limits authoritative for new canonical data without truncating mechanics
+  after Council review or rewriting pre-repair records.
+  - In `rpg-state.js`, export canonical source-ability limits of 200 Unicode code points for
+    `name` and 2,000 for `description`, plus shared string-only trim, measure, and code-point-safe
+    projection helpers. Refactor `validateTurnData` ability-update normalization to retain exact
+    in-limit text, the current nonempty-name rule, and default description. An over-limit new row
+    invalidates the complete ability-update sub-batch; it is never sliced and no partial ability
+    mutations or progression notes apply.
+  - In `rpg-engine.js:normalizeAbility`, enforce the same exact contract so direct application,
+    opening turns, live turns, and current-format replay cannot bypass it. The live Council path
+    must reject an over-limit Referee ability sub-batch before state application or persistence;
+    it must not silently shorten mechanics-bearing text or let narration claim a partial batch.
+    The explicit pre-repair replay adapter from PT-R1 remains the only path allowed to preserve an
+    older oversized historical update verbatim.
+  - Replace S1.3's literal 200/2,000 checks with the shared constants and isolate legacy overflow
+    per ability. For an already-stored oversized row, validate the full original strings for unsafe
+    characters, then send only a bounded, code-point-safe read-only name/description projection to
+    the presentation-only S1.3 model. Valid siblings in the same request still receive proposals;
+    the canonical legacy row is neither rejected as a batch nor changed in storage.
+  - In `validateCampaignBundle`, normalize ordinary ability rows through the same contract while
+    retaining IDs, tier, source, currently retained fields, and existing count/serialized-size
+    caps. Released bundle versions may legitimately contain pre-repair oversized rows: preserve
+    those rows verbatim as legacy data rather than truncate or drop earned mechanics, and ensure
+    the S1.3 legacy projection rule applies after import. Imported historical turn updates cross
+    the validated/remapped code-only legacy-replay boundary from PT-R1. Keep bundle format v2 for
+    forward compatibility; therefore any over-limit v2 row, legitimate or crafted, is deliberately
+    classified as legacy under the existing 100-row/200,000-serialized-character list cap and may
+    reach S1.3 only through the bounded projection. This is the explicit compatibility exception
+    to the new-data contract. No bundle-version or database-schema change.
+  - Interpolate the same limits into the live GM `ability_updates` contract in `rpg-prompts.js` and
+    the Referee `allowed_ability_updates` contract in `rpg-engine.js:refereePrompt`. Prompt guidance
+    and every enforcing boundary must agree.
+  - Extend `test.js` to prove the exact Unicode-code-point limit passes and +1 new input fails as
+    one atomic ability sub-batch through validation and direct application; no mutation or note is
+    persisted; and the GM/Referee prompts state the shared limits. Prove ordinary imported
+    abilities retain identity/metadata under the contract. Build a mixed in-limit batch through
+    validation, application, persistence, and S1.3 and assert one model call returns every row.
+    Separately seed and import oversized legacy abilities alongside valid siblings: S1.3 receives
+    bounded projections, valid siblings still progress, and each destination row's stored
+    `abilities_json` remains byte-for-byte unchanged from immediately before to immediately after
+    S1.3 (source and imported IDs are not expected to match because PT-R1 remaps them).
+  - Guard proof: with tests retained, independently bypass new-write rejection, restore S1.3's old
+    whole-batch overlength failure, mutate legacy storage through projection/import, and remove the
+    prompt limits; each mutation must make its focused regression fail. Restore all production
+    behavior and prove `node test.js` green. The PT-R2 commit also closes `pt-3` in its finding,
+    review index, phase plan, and state record.
+
+After both commits, Phase PT returns to the existing Gate 5 roster decision before S1.5. No
+additional cross-harness review is implied; invoke one only on a new explicit owner request.
 
 **Slice order is load-bearing (owner Gate 2): S1.1 → S1.8.** One slice per commit series.
 
