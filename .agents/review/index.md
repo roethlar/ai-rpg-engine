@@ -495,3 +495,17 @@ Intake: 2/3 admitted, 1 declined. No repair branch or product-code change is aut
 The open findings are detailed in `.agents/review/findings/pt-1.md` and
 `.agents/review/findings/pt-3.md`; the declined candidate is recorded in
 `.agents/review/pt-2.contested.md`.
+
+## Openreview (2026-08-01, reviewer: kimi, archetype-presentation design)
+
+`openreview kimi (kimi-code/k3 @ max, competitive) over 9e4916d49cb052381f322e07d8714fdd88949076..810a008f2905bcaf8771d1fee3aef016d4bae6e1: no material issue`.
+
+Reviewer: kimi / kimi-code/k3 / max / frontier, competitive (inline, session-only)
+
+Dispatch notes: kimi CLI 0.31.1, session
+`session_b0fbaf9f-1749-4df4-9993-928c0a48f093`,
+`KIMI_MODEL_THINKING_EFFORT=max`, `-p --agent-file --output-format stream-json`.
+The live catalog resolved the owner's `k3` request to `kimi-code/k3` after the new CLI rejected
+the short alias before model dispatch. The reviewer read repository files, ran read-only Git checks,
+left the detached head worktree clean, and returned a schema-valid `clean` envelope with the exact
+base/head SHAs, `capability_ok: true`, and no findings.
