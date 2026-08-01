@@ -2896,7 +2896,7 @@ valid CSS). Its project branch refs were deleted after CT landed; the postmortem
 
 ---
 
-## Phase PT: Cross-genre portability, Stage 1 — PLAN APPROVED (owner "yes", 2026-07-31); S1.1-S1.4 LANDED; REVIEW REPAIR PLAN DRAFTED, OWNER APPROVAL REQUIRED; GATE 5 RESTRICTIVE-CLASS REPLAN DRAFTED; S1.5 BLOCKED
+## Phase PT: Cross-genre portability, Stage 1 — PLAN APPROVED (owner "yes", 2026-07-31); S1.1-S1.4 LANDED; REVIEW REPAIR PLAN DRAFTED, OWNER APPROVAL REQUIRED; GATE 5 RESTRICTIVE-CLASS REPLAN FABLE-ACCEPTED, OWNER RULING REQUIRED; S1.5 BLOCKED
 
 **Design authority**: .agents/review/archetype-portability-matrix-v3.1.md, as amended by
 the 2026-07-31 one-persistent-character, live-canon, stable-archetype, and ability-only rulings. This section supplies
@@ -2927,8 +2927,10 @@ roles, learnable capabilities, build structures, and status/assets rather than r
 progression, skills/feats, derived roles, backgrounds/status, assets, and player title; preserving
 all landed S1.1-S1.4 and campaign-movement contracts; and replacing the singular one-of-22
 `archetypeId` only after a new owner ruling. The owner also requested a context-rich
-`claude-fable-5` review at high effort. Until review and ruling, the active 2026-07-31 Gate 6 shape
-above remains authority, the Fable roster remains evidence only, and S1.5 stays blocked. Because
+`claude-fable-5` review at high effort. The initial review reopened four concrete plan gaps; four
+one-finding commits repaired them, and a fresh high-effort repair-delta review accepted
+`ed91b95` with no comments. Until an owner ruling, the active 2026-07-31 Gate 6 shape above remains
+authority, the Fable roster remains evidence only, and S1.5 stays blocked. Because
 the owner-settled slice order is S1.1 → S1.8, S1.6–S1.8 are also blocked behind this extended S1.5
 chain unless the owner separately approves a reorder for existing free-text characters; G5-A does
 not itself amend the order.

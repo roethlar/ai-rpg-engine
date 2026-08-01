@@ -570,3 +570,10 @@ Result UUID: `13a849c6-1587-4873-9edc-40e0511eabcd`; session:
 `565def47-5355-43c1-9231-c92cc9410e66`; `guard_confirmed: true`;
 `capability_ok: true`; both SHA pins matched. Detailed records are in
 `.agents/review/findings/g5p-*.md`.
+
+Four dedicated repair commits (`07d89e8`, `3d5c69d`, `8e4506c`, `ed91b95`) closed the findings.
+A fresh high-effort repair-delta review accepted
+`d00c34f77cd9e0c6a72345e45874292aa941f831..ed91b95af2072a2b61ef3ca8aeb389c694f71a4f`
+with no comments, exact SHA pins, `guard_confirmed: true`, and `capability_ok: true`. Result UUID:
+`a64b588b-e196-477f-b4f3-6636aae2060d`; session:
+`ea4f2f86-306e-48a8-9d3a-17f82fc08349`.

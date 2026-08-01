@@ -442,4 +442,33 @@ later approved implementation changes shipped behavior.
 
 ## 12. Review provenance
 
-Pending the owner-requested context-rich `claude-fable-5` review.
+Initial review:
+
+- Reviewer: claude / claude-fable-5 / high / standard (inline, session-only)
+- Range: `03739475c8e7ec1fb72e0884bbd8b88b72d5733e..d00c34f77cd9e0c6a72345e45874292aa941f831`
+- Verdict: `reopened`; `guard_confirmed: true`; `capability_ok: true`; both SHA pins matched
+- Four admitted findings: `g5p-1` carries `pt-5`; `g5p-2` exposes the fixed-order consequence;
+  `g5p-3` defines subclass; `g5p-4` covers stale intake restatements
+- Claude CLI 2.1.220 result UUID: `13a849c6-1587-4873-9edc-40e0511eabcd`
+- Session: `565def47-5355-43c1-9231-c92cc9410e66`
+
+Dedicated repair commits:
+
+- `07d89e8` — `g5p-1`
+- `3d5c69d` — `g5p-2`
+- `8e4506c` — `g5p-3`
+- `ed91b95` — `g5p-4`
+
+Repair-delta review:
+
+- Reviewer: claude / claude-fable-5 / high / standard (fresh repair-delta session; the owner's
+  instruction not to run Fable at max remained in force)
+- Range: `d00c34f77cd9e0c6a72345e45874292aa941f831..ed91b95af2072a2b61ef3ca8aeb389c694f71a4f`
+- Verdict: `accepted`; no comments; `guard_confirmed: true`; `capability_ok: true`; both SHA pins
+  matched
+- Claude CLI 2.1.220 result UUID: `a64b588b-e196-477f-b4f3-6636aae2060d`
+- Session: `ea4f2f86-306e-48a8-9d3a-17f82fc08349`
+
+Acceptance verifies that the four plan failures are closed without an adjacent contradiction. It
+does not approve G5-A, choose a class roster, establish numerical balance, or authorize product
+code.
