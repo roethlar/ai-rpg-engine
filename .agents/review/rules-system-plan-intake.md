@@ -19,16 +19,24 @@ review occurs only when the owner invokes a current review operator.
 - The engine owns every number, die, resource, condition, timer, and state
   transition. Models emit validated identifiers and enums, never arithmetic.
 - D0 settled the overall frame: a versioned fixed house chassis plus generated
-  campaign flavor. D1's resolution chapter and D2's effect catalog are owner-signed;
-- D3 Gates 1-3 and Phase PT are approved. Gate 1 establishes one persistent character
-  active in exactly one campaign; mechanics/progression travel, first entry fills missing Stage 1
-  name/ability bindings, and returns reuse saved wording exactly while reviewing only newly gained
-  abilities without destination wording. Gate 3 reads live destination outline/setting, latest six
-  turns chronological, and top eight relevant memories by importance then recency through helpers
-  shared directly with MCP. The GM judges fictional fit, the engine validates structure, and the
-  player approves wording. The draft's deterministic canon-basis digest is freshness metadata, not
-  canon. No second settings checklist, classifier, permission table, editor, sync workflow, or
-  self-network call. S1.1 and S1.2 are landed; D13/D16 remain deferred.
+  campaign flavor. Flavor includes campaign-tailored archetype descriptions and public local
+  profession-name examples, never generated replacement archetype or player titles. D1's
+  resolution chapter and D2's effect catalog are owner-signed;
+- D3 Gates 1-4, 6, and Stage 1 Gate 7 and Phase PT are approved. Stage 1 Gate 7's answer is no
+  automatic character-name/title translation; broader proper-name/alias policy and player-driven
+  title-edit workflow remain future. One persistent character is active in exactly one
+  campaign; mechanics/progression travel, first entry fills missing ability-presentation bindings,
+  and returns reuse saved ability wording exactly while reviewing only newly gained abilities
+  without destination wording. Stable player-facing archetype and player-owned title never
+  translate. Creator maps a concept to a known archetype ID, tailors its campaign description,
+  may show public local profession-name examples, and asks the player to confirm. Gate 5 remains
+  open only for the exact roster and blocks S1.5 onboarding, not S1.3. Gate 3 reads live destination
+  outline/setting, latest six turns chronological, and top eight relevant memories by importance
+  then recency through helpers shared directly with MCP. The GM judges fictional fit; the engine
+  validates exact requested known ability IDs and allowlisted display-name/prose fields; the player
+  approves wording. The deterministic canon-basis digest is freshness metadata, not canon. No
+  second settings checklist, classifier, permission table, editor, sync workflow, or self-network
+  call. S1.1 and S1.2 are landed; **S1.3 is ready**; D13/D16 remain deferred.
 - Chapter 2 r24 is the canonical effect-verb vocabulary. Generated abilities may
   select legal effects and supply flavor, but may not invent mechanics.
 - Tactical positioning must be explicit engine state. The leading option is a
@@ -45,7 +53,7 @@ review occurs only when the owner invokes a current review operator.
 | F1 | HIGH | "Tactical" combat remains narrated positioning, so prose and engine state disagree. | Settle zones versus grid and make adjacency/range/legality code-owned. |
 | F2 | HIGH | A too-small effect enum breaks genre breadth; a loose one recreates prompt-trust. | Prototype a bounded effect catalog across fantasy, cyberpunk, social, and ranged examples before downstream work. |
 | F3 | HIGH | Push, assist, PvP consent, and death choices block turns or resolve without the promised choice. | Build one restart-safe pending-choice protocol or remove mid-resolution choices from v1. |
-| F4 | HIGH | Generated unique archetypes strand portable characters and late joiners. | Settle fixed versus generated archetypes and the portability mapping before character creation work. |
+| F4 | HIGH | Generated unique archetypes strand portable characters and late joiners. | **RESOLVED IN PRINCIPLE 2026-07-31:** use stable known player-facing archetype IDs; Creator tailors descriptions, not IDs or titles. Exact roster still must settle before S1.5 character-creator/onboarding work. |
 | F5 | HIGH | Old bundles either lose new state or import with abilities the enforced chassis cannot execute. | Pin chassis versions, preserve the v1 fixture, and choose a truthful legacy tier rather than guessing mechanics. |
 | F6 | MEDIUM | HP, MP, stress, effort, fear, XP, and scars make the supposedly learnable system too fiddly. | Consolidate player-legible tracks; keep marks and GM-only state out of the spend economy. |
 | F7 | MEDIUM | Keeping d20 by inertia bakes an untested probability curve into every later table and UI. | Decide the die before setting tiers, margins, damage, or the roll-record `sides` contract. |
@@ -74,7 +82,7 @@ owner-approved wording in `.agents/decisions.md` and the eventual plan status.
 | D0 | Overall frame | Bespoke fixed chassis plus campaign flavor skins | **DECIDED 2026-07-12** — fixed house chassis + generated flavor skins; see `.agents/decisions.md`. Unblocks D1, D2, D4, D6, D11, D12, D14. |
 | D1 | Dice engine | Keep d20, but prove the curve before wiring | **DECIDED 2026-07-16, then superseded same day** by the signed-off resolution chapter (`docs/rules/resolution.md` @ `8f7862d`): d100 meet-or-beat with licensed edge texture; die-agnostic core carries forward. See `.agents/decisions.md` sign-off entry. Unblocks D8. |
 | D2 | Ability representation | Fixed effect catalog, genre-spread prototype first | **DECIDED 2026-07-16; CATALOG SIGNED OFF 2026-07-27** — complications are free text with optional contextual suggestions, never a fixed complication table; any mechanical consequence maps to an engine **verb** (state operation) from the deliberately wide, canonical Chapter 2 r24 catalog (`docs/rules/effects.md`). Model trust is tuned via the ledgered stakes license, never by unledgered effects. The catalog-document design gate is satisfied; rules code still requires a concrete phase and owner-approved plan. Unblocks D3, D5, D13. |
-| D3 | Archetype boundary | Stable chassis archetypes, flavor-skinned | V3.1 portability plan drafted 2026-07-27 (.agents/review/archetype-portability-matrix-v3.1.md); older drafts remain evidence. **GATES 1-3 SETTLED 2026-07-31**: one persistent character is active in exactly one campaign; mechanics/progression travel; saved per-campaign wording is reused exactly; only missing wording is reviewed. Gate 3 rejects a second setting model and instead reads live outline/setting, latest six turns chronological, and top eight relevant memories by importance then recency through direct helpers shared with MCP. The GM judges fit, the engine validates known IDs/shape/no mechanics/no new slots, and the player approves wording. A deterministic canon-basis digest detects stale drafts but is not canon; raw canon remains GM-private. Phase PT is approved and running; S1.1 landed at 9343e79 and S1.2 is landed. Gates 4-7 ride their affected slices. D2 prerequisite is satisfied; D13/D16 remain deferred. |
+| D3 | Archetype boundary | Stable player-facing archetypes; campaign-tailored descriptions | V3.1 portability plan drafted 2026-07-27 (.agents/review/archetype-portability-matrix-v3.1.md); older drafts remain evidence. **GATES 1-4, 6, AND STAGE 1 GATE 7 SETTLED 2026-07-31**: one persistent character is active in exactly one campaign; mechanics/progression travel; saved per-campaign ability wording is reused exactly; only missing ability presentation is reviewed. Archetype is stable and player-facing; player-owned title never auto-translates. Stage 1 Gate 7's answer is no automatic character-name/title translation; broader proper-name/alias policy and player-driven title-edit workflow remain future. Creator maps concept to a known archetype ID and tailors its campaign description, with optional public local profession-name examples. Gate 5 remains open only for the exact roster and blocks S1.5, not S1.3. Gate 3 reads live outline/setting, latest six turns chronological, and top eight relevant memories by importance then recency through direct helpers shared with MCP. The GM judges fit; the engine validates exact requested known ability IDs and allowlisted display-name/prose fields; the player approves wording. Deterministic canon-basis digest detects stale drafts but is not canon; raw canon remains GM-private. Phase PT is approved and running; S1.1 and S1.2 are landed; S1.3 is ready. D2 prerequisite is satisfied; D13/D16 remain deferred. |
 | D4 | Attribute count | Keep STR/AGI/INT/WIL | Pending owner decision |
 | D5 | Player spend economy | One Strain/Effort pool plus HP and XP | Ready — D2 catalog signed off 2026-07-27 |
 | D6 | Tactical space | Zones over existing location occupancy | Pending owner decision |
@@ -122,4 +130,5 @@ UI, seat-boundary, tactical-map, export/fork, guard-proof, and playtest work.
   expression and coined vocabulary; CC0 WWN/CWN material is the clean shortcut.
 - Exact currency values, tier numbers, archetype list, death options, and
   action-economy depth are game-design hypotheses until simulated and
-  playtested; reviewer agreement is not evidence of feel.
+  playtested; reviewer agreement is not evidence of feel. The exact archetype list gates
+  Creator/onboarding S1.5, not the ability-only S1.3 proposal seam.

@@ -20,13 +20,20 @@ to `docs/history/state-archive.md`.
   2026-07-27, enacting its three declared Chapter 1 refinements and closing the D2 catalog-design
   gate. `.agents/review/rules-system-plan-intake.md` owns the remaining decision queue; no rules
   code before a concrete phase and an owner-approved plan.
-- **PHASE PT IS APPROVED AND RUNNING; S1.1-S1.2 ARE LANDED AND GATE 4 IS NEXT.** D3
+- **PHASE PT IS APPROVED AND RUNNING; S1.1-S1.2 ARE LANDED AND S1.3 IS READY.** D3
   records one persistent character active in exactly one campaign: mechanics and progression
-  travel; first entry fills missing Stage 1 name/ability bindings; returns reuse saved wording
-  exactly and review only newly gained abilities lacking destination wording. Portability reads
+  travel; first entry fills missing ability-presentation bindings; returns reuse saved ability
+  wording exactly and review only newly gained abilities lacking destination wording. Archetype is
+  stable and player-facing; the player's own title never auto-translates. Creator maps a concept to
+  a known archetype ID, tailors its campaign description, may show public local profession-name
+  examples, and asks the player to confirm. Stage 1 Gate 7 is settled: no automatic
+  character-name/title translation; broader proper-name/alias policy and player-driven title-edit
+  workflow remain future. The exact archetype roster remains Gate 5 and blocks
+  S1.5 Creator/onboarding work, not S1.3. Portability reads
   live destination outline/setting, latest six turns chronological, and top eight relevant
   memories by importance then recency through direct helpers shared with MCP. The GM judges fit,
-  the engine validates shape/IDs/no mechanics/no new slots, and the player approves wording. A
+  the engine validates exact requested known ability IDs and allowlisted display-name/prose fields,
+  and the player approves wording. A
   deterministic canon-basis digest detects stale drafts but is not canon. There is no second
   settings checklist, classifier, editor, sync workflow, self-network call, branch, or alternate
   character. Phase PT in `plan.md` owns the fixed slice order and coding assignments.
@@ -45,8 +52,9 @@ to `docs/history/state-archive.md`.
 
 ## Next
 
-**NEXT:** Pose Gate 4 in plain product language: decide which pieces of character wording Stage 1
-may name before S1.3 can validate the GM's proposed wording against a closed set of targets.
+**NEXT:** Implement S1.3 as an internal ability-only proposal and strict-validation seam over
+existing stable ability IDs; accept no archetype, family, character-name, title, or arbitrary-slot
+output.
 
 - Continue the owner decision queue one item at a time from the canonical queue in
   `.agents/review/rules-system-plan-intake.md`.
@@ -62,7 +70,8 @@ may name before S1.3 can validate the GM's proposed wording against a closed set
 ## Blockers
 
 - No product-code defect blocks development.
-- Phase PT S1.3 is blocked on Gate 4, then Gate 5; Gates 6-7 gate only their affected later slices.
+- Phase PT S1.3 has no decision blocker. Gate 5's exact archetype roster blocks S1.5
+  Creator/onboarding work only.
 - Broader Chapter 1/2 effect-catalog runtime implementation remains blocked until promoted into
   a concrete owner-approved phase; the D2 catalog-design gate is closed.
 - Phase V closure requires the owner's real-session voice verdict.
@@ -70,6 +79,8 @@ may name before S1.3 can validate the GM's proposed wording against a closed set
 
 ## Verification
 
+- Docs-only D3 gate sync: `git diff --check` and the active-record stale-language scan are green
+  on 2026-07-31. Runtime tests were not rerun because no shipped file changed.
 - Automated: `npm test` — green for Phase PT S1.2 on 2026-07-31.
 - S1.2 guard proof: changing the Stage 1 history window from latest to earliest failed the dedicated
   test with turns 1-6 instead of 1005-1010; restoring latest returned the full suite to green.

@@ -1185,6 +1185,10 @@ remaining owner gates are unaffected.
 
 ### 2026-07-31 - Rules D3 gate 2: Stage 1 approved as a phase, S1.1 → S1.8 order (owner decision)
 
+**Status: Refined later the same day.** The stable-archetype decision below narrows Stage 1 to
+ability-presentation portability and removes name/title translation from its slices. The fixed
+S1.1 → S1.8 order remains active.
+
 Stage 1 of the cross-genre portability plan — expression translation over today's free-text
 profiles — is approved as a phase, in the fixed slice order S1.1 → S1.8
 (`.agents/review/archetype-portability-matrix-v3.1.md` §11, as amended §1.1). The order is
@@ -1232,13 +1236,16 @@ basis without a second setting record.
 
 ### 2026-07-31 - Rules D3 gate 1 amendment: one persistent character, one active campaign (owner decision)
 
+**Status: Refined later the same day.** The stable-archetype decision below narrows Stage 1
+campaign-specific expression to ability presentation; character name/title is not a Stage 1 target.
+
 A portable character is exactly **one persistent character record**, active in exactly one campaign
 at a time. Moving that character never creates a branch, copy, alternate incarnation, or later
 merge. The same character id, mechanics, abilities, attributes, level, XP, tiers, and subsequent
 progression travel with the character.
 
-Campaign-specific expression remains stored per `(character, campaign)`. On first entry, every
-missing Stage 1 name or ability binding needs wording and player approval. On return, previously
+Campaign-specific ability expression remains stored per `(character, campaign)`. On first entry,
+every missing Stage 1 ability-presentation binding needs wording and player approval. On return, previously
 approved bindings are reused exactly; only abilities gained since the character last left that
 campaign and therefore lacking a destination binding need new wording and approval. Entering an
 existing campaign never recreates its rules, history, current scene, or opening scene; campaign
@@ -1294,14 +1301,50 @@ Reads are live, so later GM worldbuilding is naturally present the next time wor
 There is no settings editor, synchronization workflow, or retroactive correction path in this
 stage. A persisted movement draft may store a deterministic digest of the exact canon basis solely
 to detect stale review before approval. The digest is not campaign canon and never invalidates
-already approved per-campaign wording, which is reused exactly when the same character returns.
+already approved per-campaign ability wording, which is reused exactly when the same character returns.
 
 This closes Gate 3 and makes S1.2 ready under the approved Phase PT order. S1.2 supplies shared
-canonical-context retrieval and deterministic freshness; S1.3 supplies canon-grounded wording
-proposal plus structural validation; S1.4 establishes campaign vocabulary lazily from the same
-canon when a missing binding first requires it. Gates 4-7 remain open for their affected slices.
+canonical-context retrieval and deterministic freshness; S1.3 supplies canon-grounded ability
+wording plus structural validation; S1.4 establishes ability vocabulary lazily from the same
+canon when a missing ability binding first requires it. The later decision below closes Gate 4,
+closes Gate 6, leaves only Gate 5's exact roster open for S1.5, and closes Stage 1 Gate 7
+with no automatic name/title translation.
 
 Reason:
 Owner 2026-07-31 rejected a second structured setting checklist: the campaign data the MCP already
 exposes is the authority, the GM settles fictional fit from that worldbuilding, and live reads avoid
 an editor or synchronization problem.
+
+### 2026-07-31 - Rules D3 gates 4, 6, and Stage 1 Gate 7; gate 5 boundary: player-facing archetypes, player-owned titles, ability-only portability (owner decision)
+
+**Status: Active.** A character has a stable, player-facing mechanical archetype such as
+`Controller`. Character creation presents that archetype by its archetype name; the Creator
+(the character-creation model) maps
+the player's free-text concept to a known archetype ID, writes a campaign-tailored description,
+and asks the player to confirm it. The description may mention public profession names already
+grounded in that campaign (for example, “netrunner” or “systems adept”), but those are examples of
+the world's vocabulary, not automatic replacements for the character's identity.
+
+The player's own title remains separate and travels unchanged with the one persistent character.
+A wizard remains a wizard in a science-fiction campaign unless the player chooses another title.
+Campaign-local titles are GM-owned worldbuilding that characters may learn organically in play;
+adopting one is the player's choice. How a player-chosen title change is stored or edited remains
+future; portability never initiates it. Stage 1 portability may adapt only ability presentation — an
+ability's display name and explanatory prose — never the character's archetype, class label,
+role/profession title, or self-title. This closes Gate 4 for Stage 1 and closes Gate 6's Creator
+mapping shape. Gate 5 remains open only for the exact archetype roster and definitions: neither
+the draft's current 22 entries nor their count is approved by this decision. This also closes the
+Stage 1 part of Gate 7: portability creates no character-name or title binding. Proper-name/alias
+policy and any player-driven title-edit workflow remain future and do not gate Stage 1.
+
+Reason:
+Owner 2026-07-31 rejected automatic class/title translation: “Elminster is a Wizard even when
+he's hacking a mainframe.” The owner then chose stable archetype presentation at character
+creation, with campaign-tailored descriptions produced by the Creator mapping.
+
+Supersedes:
+v3.1's “internal-only” archetype-family taxonomy, “player never sees the family menu” requirement,
+and any Stage 1 campaign-local `role:<family>`, class-name, role/profession-title, or self-title
+translation. Proper-name/alias policy and player-driven title-edit workflow remain outside this ruling.
+It narrows Stage 1 proposal and validation to requested known ability IDs and ability-presentation
+fields; exact archetype enumeration gates onboarding, not S1.3.

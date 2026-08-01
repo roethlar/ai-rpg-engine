@@ -92,15 +92,21 @@ custom, implementation-ready system and plan. Read-only intake reviewed pinned
 snapshot `526aa5c` with Claude Code 2.1.207 (`claude-opus-4-8`, high effort,
 structured output). Verdict: `ready_for_owner_decisions` — **not** plan
 acceptance. It admitted 14 plan gaps (5 HIGH) and produced a 15-decision queue.
-D0-D2 are decided; D3 Gates 1-3 and Phase PT are approved, with S1.1 landed and
-S1.2 landed. One persistent character ID is active in exactly one campaign; mechanics/progression
-travel, first entry fills missing Stage 1 name/ability bindings, and returns reuse saved wording
-exactly while reviewing only newly gained abilities without destination wording. Gate 3 rejects a
+D0-D2 are decided; D3 Gates 1-4, 6, and Stage 1 Gate 7 and Phase PT are approved, with S1.1 and
+S1.2 landed. Stage 1 Gate 7's answer is no automatic character-name/title translation; broader
+proper-name/alias policy and player-driven title-edit workflow remain future.
+One persistent character ID is active in exactly one campaign; mechanics/progression travel, first
+entry fills missing ability-presentation bindings, and returns reuse saved ability wording exactly
+while reviewing only newly gained abilities without destination wording. Gate 3 rejects a
 second setting model: portability reads live outline/setting, latest six turns chronological, and
 top eight relevant memories by importance then recency through direct helpers shared with MCP. The
-GM judges fictional fit, the engine validates structure, and the player approves wording. A
+GM judges fictional fit, the engine validates requested known ability IDs and allowlisted
+display-name/prose fields, and the player approves wording. A
 deterministic canon-basis digest detects stale drafts but is not canon. Raw canon remains
-GM-private. D13/D16 remain deferred. Other rules work still requires promotion into a concrete
+GM-private. Archetypes are stable and player-facing; the Creator maps a concept to a known
+archetype ID, tailors its campaign description, may show public local profession-name examples,
+and preserves the player's separate title. The exact archetype roster remains open for S1.5
+Creator/onboarding work, not S1.3. **S1.3 is ready.** D13/D16 remain deferred. Other rules work still requires promotion into a concrete
 approved phase; cross-harness review occurs only when the owner invokes it.
 
 Detailed intake decision queue:

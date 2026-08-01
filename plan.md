@@ -663,13 +663,19 @@ Raised during planning but deliberately deferred. **Per project rule, nothing he
 
 - **Portable characters & campaigns — format DECIDED, PROMOTED 2026-07-04** (versioned single-file JSON bundle, export first, forward importability required; implementation is Phase P in the 2026-07-04 Queue; ownership/auth interactions stay future). Original discussion: Open question raised 2026-06-15. Goal: a character and/or a full campaign should be exportable as a self-contained, restorable artifact that can move between deployments — backup, host migration, handing a save to another player/operator, resuming elsewhere — with continuity intact. **Distinct from the cross-campaign persistence topic above:** that one is about reusing a character across campaigns *within a single deployment* (the check-in/out lock); this one is about crossing the deployment boundary. For continuity to survive a move, the artifact must carry the *structured* state the Council consults, not transient prompt text — campaign outline, turn/state history, memories, NPCs (relationship + accumulated notes), character sheets, ruleset/known-abilities facts, and (once they exist) location state and voice/visual identity anchors. A portable artifact is therefore a versioned serialization of that structured state. Open questions: artifact format (single-file bundle vs. DB dump) and how it tracks the SQLite→Postgres direction; **schema versioning / migration** so an export from an older engine still imports (this is the load-bearing hard part, and it couples to every state-shape change made by other topics); scope (character-only vs. whole-campaign export); interaction with user ownership/auth and the one-active-campaign-per-character lock (who may import, and how to avoid duplicate "live" copies of the same character); and **trust posture for imported artifacts** — externally supplied campaign/character data is untrusted input and must be treated as data, never as instructions to the Council or engine (same boundary as the bootstrap-packet rule in AGENTS.md and the player-chat-never-to-GM rule above). Provenance: surfaced while scouting an external agent-identity project (`ethagent`, an Ethereum/ERC-8004 system for owning AI agents as wallet-held tokens with encrypted IPFS-backed memory). Nothing from it was adopted — its on-chain ownership / encryption / IPFS / ENS stack is irrelevant to narrative coherence, and the engine's structured DB state already does the memory job far better — but it prompted the portability idea, which would be built natively against the engine's own state store, not borrowed.
 
-- **Cross-genre character portability — PHASE PT APPROVED, GATE 3 CLOSED (2026-07-31).**
-  The active design is .agents/review/archetype-portability-matrix-v3.1.md. Gates 1-3 are settled:
+- **Cross-genre character portability — PHASE PT APPROVED, S1.3 READY (2026-07-31).**
+  The active design is .agents/review/archetype-portability-matrix-v3.1.md. Gates 1-4, 6, and
+  Stage 1 Gate 7 are settled:
   one persistent character is active in one campaign; mechanics/progression travel; saved
-  per-campaign wording returns exactly; and missing wording is grounded in live destination canon.
+  per-campaign ability wording returns exactly; and missing ability presentation is grounded in live
+  destination canon. Archetype is stable and player-facing; player-owned title never auto-translates.
+  Creator maps concept to a known archetype ID and tailors its campaign description, with optional
+  public local profession-name examples. The exact roster remains open for S1.5, not S1.3.
+  Stage 1 Gate 7's answer is no automatic character-name/title translation; broader proper-name/
+  alias policy and player-driven title-edit workflow remain future.
   Portability shares direct outline/history/memory read helpers with MCP, stores only a deterministic
-  stale-review digest, and adds no second setting checklist or editor. S1.1 is landed; S1.2 shared
-  canon retrieval is ready. Gates 4-7 remain for their affected slices; D13/D16 defer non-ability
+  stale-review digest, and adds no second setting checklist or editor. S1.1 and S1.2 are landed;
+  S1.3 is ready. D13/D16 defer non-ability
   state.
 - **Friends & Fables — comparative direction (owner, 2026-07-12).** The owner reviewed
   Friends & Fables and pulled five directions from it. Recorded here with the corrections
@@ -2890,22 +2896,28 @@ valid CSS). Its project branch refs were deleted after CT landed; the postmortem
 
 ---
 
-## Phase PT: Cross-genre portability, Stage 1 — PLAN APPROVED (owner "yes", 2026-07-31); S1.1-S1.2 LANDED; GATE 4 NEXT
+## Phase PT: Cross-genre portability, Stage 1 — PLAN APPROVED (owner "yes", 2026-07-31); S1.1-S1.2 LANDED; S1.3 READY
 
 **Design authority**: .agents/review/archetype-portability-matrix-v3.1.md, as amended by
-the 2026-07-31 one-persistent-character and live-canon Gate-3 rulings. This section supplies
+the 2026-07-31 one-persistent-character, live-canon, stable-archetype, and ability-only rulings. This section supplies
 implementation coordinates; the design record owns mechanics, schemas, flow, and verification.
 
 **Identity contract:** one persistent character ID is active in exactly one campaign. Mechanics and
-progression remain on that record. Per-campaign wording is retained and reused exactly on return;
-only missing first-entry bindings or newly gained abilities need wording. Approval atomically moves
+progression remain on that record. Per-campaign ability wording is retained and reused exactly on
+return; only missing first-entry ability bindings or newly gained abilities need wording. Stable
+player-facing archetype and player-owned title remain unchanged. Approval atomically moves
 the same character. No branch, alternate version, merge, or campaign recreation occurs. Manual
 copy and bundle import/export remain separate features.
 
-**Gate status:** Gates 1-3 are settled. Gate 3 rejects a second setting checklist: portability reads
+**Gate status:** Gates 1-4, 6, and Stage 1 Gate 7 are settled. Gate 3 rejects a second setting
+checklist: portability reads
 the destination outline/setting, bounded played history, and relevant memories through direct
-shared helpers. Gates 4-7 still govern their affected later slices. D13/D16 still defer non-ability
-state.
+shared helpers. Gate 4 narrows Stage 1 to ability presentation. Gate 6 settles Creator mapping:
+concept → known player-facing archetype ID → campaign-tailored description and optional public
+local profession-name examples → player confirmation, with player title separate. Gate 5 remains
+open only for the exact roster and gates S1.5, not S1.3. Future proper-name/alias policy is outside
+Stage 1; Stage 1 Gate 7 permits no automatic character-name/title translation or binding, and any
+player-driven title-edit workflow is also future. D13/D16 still defer non-ability state.
 
 **Slice order is load-bearing (owner Gate 2): S1.1 → S1.8.** One slice per commit series.
 
@@ -2928,38 +2940,47 @@ state.
   Guard proof: changing the Stage 1 history selector from latest to earliest fails the dedicated
   test with turns 1-6 instead of 1005-1010; restoring latest returns the suite to green.
 
-- **S1.3 GM wording proposal plus structural validation (§6.2-6.3).** Given only requested missing
-  slots, canonical character abilities, and the GM-private canon pack, the GM proposes wording and
-  a player-safe fit explanation. The engine validates known character/ability IDs, exact bounded
-  shape, requested existing slots only, and no numbers/mechanics/new slots. Player approves exact
-  wording. No classifier, predicate evaluator, or seed permission table.
+- **S1.3 GM ability-wording proposal plus structural validation (§6.2-6.3) — READY.** Given only
+  requested known ability IDs, canonical character abilities, and the GM-private canon pack, the GM
+  proposes display names/prose and a player-safe fit explanation. The engine derives `ability:<id>`
+  internally and strictly validates exact requested IDs, bounded allowlisted fields, no duplicates,
+  and no numbers/mechanics/arbitrary slots. Archetype, family, character-name, class, role/profession,
+  and self-title output fails closed. The internal proposal/retry result cannot commit; later movement
+  approval requires the player's exact-card approval. No classifier, predicate evaluator, or seed
+  permission table.
   Files: rpg-engine.js, rpg-prompts.js, test.js.
   Exit: GM owns fictional fit; adversarial structural violations fail closed; player-safe output
-  leaks no raw canon.
-- **S1.4 Lazy vocabulary and per-campaign bindings (§5).** Establish only vocabulary needed by a
-  missing binding, from the same live canon review. Store campaign-shared terms and character-local
-  name/ability wording separately. Existing approved rows are immutable and reused exactly.
+  leaks no raw canon; no archetype enumeration is required. No DB migration, route, or UI in this slice.
+- **S1.4 Lazy ability vocabulary and per-campaign ability bindings (§5).** Establish only vocabulary
+  needed by a missing ability binding, from the same live canon review. Store campaign-shared
+  ability terms and character-local ability wording separately. Existing approved rows are immutable
+  and reused exactly.
   Files: db.js, rpg-engine.js, rpg-state.js, test.js.
   Exit: two characters coexist, late joiners do not rename shared terms, and no binding stores
   mechanics or a copy of campaign canon. Re-run seat leak/route guards.
-- **S1.5 Onboarding (§8.1).** Restart-safe plain-language character-summary approval for new and
-  legacy characters; internal families/slots remain invisible and await Gates 4-6.
+- **S1.5 Creator archetype mapping and onboarding (§8.1).** After Gate 5 settles the exact roster,
+  Creator maps a new or legacy concept to a known stable player-facing archetype ID, writes a
+  campaign-tailored description, may show public local profession-name examples, and asks the player
+  to confirm. Store the confirmed mapping separately from the player's unchanged title; restart-safe.
 - **S1.6 Campaign move (§8.2-8.5).** Persisted movement draft, hash-bound approval, exact canon-basis
   freshness check, one-active-membership transaction, no existing-campaign recreation, and every
   non-approved path leaves current membership unchanged.
-- **S1.7 Narration binding (§9).** Active bindings become Council naming authority; no unapproved
-  cross-campaign term or GM-private canon material reaches Council/seat context.
+- **S1.7 Ability narration binding (§9).** Stable archetype/title plus active ability bindings become
+  Council naming authority; no unapproved cross-campaign ability term or GM-private canon material
+  reaches Council/seat context.
 - **S1.8 Canonical mechanic projection — LAST (§11).** Project one canonical mechanic record through
-  active destination wording at campaign-entry handoff; never persist destination mechanics.
+  active destination ability wording at campaign-entry handoff; never persist destination mechanics.
 
 **Verification:** node test.js, with AGENTS.md anti-vacuity proof for every new behavior test.
 Success requires the full v3.1 §12 matrix, exact-return playtest, live-canon update without old
-binding rewrite, GM explanation of a surprising but canon-supported term, and ten turns without
-vocabulary reversion.
+ability-binding rewrite, unchanged archetype/title assertions, a Wizard who stays “Wizard” in a
+science-fiction campaign while ability presentation adapts, GM explanation of a surprising but
+canon-supported term, and ten turns without vocabulary reversion.
 
 **Non-goals:** capability_json, setting axes, predicate grammar, genre classifier, seed permission
 tables, settings/admin UI, sync workflow, self-MCP/network calls, raw-canon disclosure, branches,
-mechanics translation, and all Stage 2-4 work.
+mechanics translation, automatic binding of campaign-local profession names as character
+class/role/title, player-driven title-edit UI, and all Stage 2-4 work.
 
 ---
 
