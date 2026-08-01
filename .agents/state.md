@@ -6,6 +6,14 @@ to `docs/history/state-archive.md`.
 
 ## Now
 
+- **GATE 5'S CHARACTER-CREATION AND PROGRESSION CLICK-THROUGH AWAITS OWNER EVALUATION.**
+  `.agents/review/gate-5-character-creation-prototype/index.html` is a standalone, non-shipping
+  prototype with two explicit mechanical choices, an exact source ledger, deterministic correction,
+  the owner-supplied adversarial characters, and normal versus multiclass advancement. Its structural
+  verifier confirms local assets only and no model, network, API, or persistence path. All sample
+  classes, packages, mechanics, and values remain provisional; this artifact approves nothing and no
+  shipped application file changed.
+
 - **GATE 5'S RESTRICTIVE CLASS MODEL NEEDS REVISION BEFORE AN OWNER RULING.**
   The owner explicitly rejected §7's prose-to-model-selected-mechanics flow and retrying generation
   as its correction. The next design must keep creation and progression short without making AI
@@ -86,10 +94,10 @@ to `docs/history/state-archive.md`.
 
 ## Next
 
-**NEXT:** Continue Gate 5 design with the owner in words: settle a reliable, low-friction character
-creation and progression authority model. The current proposal is explicit curated class/package
-selection with deterministic engine validation and AI limited to explanation/filtering, but it is not
-yet approved. Do not revise the plan or invoke another reviewer without the owner's explicit go.
+**NEXT:** The owner evaluates the local Gate 5 click-through, especially the four complete examples,
+the explicit Battle Mage alternatives, and normal versus multiclass advancement. Gather the owner's
+experience verdict before revising the class-model plan or presenting any approval decision. Do not
+invoke another reviewer without a separate explicit request.
 
 - Ask the owner to approve or reject the drafted Phase PT review repair plan. No code repair is
   authorized before that ruling. If approved, implement PT-R1 (`pt-1`) and PT-R2 (`pt-3`) in
@@ -111,9 +119,9 @@ yet approved. Do not revise the plan or invoke another reviewer without the owne
 
 - Phase PT progression is held while the drafted two-slice repair plan awaits owner approval;
   `.agents/review/index.md` owns the admitted findings and `plan.md` owns the proposed repairs.
-- Phase PT S1.4 is landed. Gate 5 first needs an owner-approved replacement for the rejected
-  prose-to-mechanics creation flow; its classification ruling, downstream exact class catalogs/balance
-  gates, and the `pt-5` description-scope ruling block S1.5 Creator/onboarding work.
+- Phase PT S1.4 is landed. Gate 5 awaits the owner's experience verdict on the deterministic local
+  creation/progression prototype; the later classification ruling, exact class catalogs/balance gates,
+  and the `pt-5` description-scope ruling block S1.5 Creator/onboarding work.
 - Broader Chapter 1/2 effect-catalog runtime implementation remains blocked until promoted into
   a concrete owner-approved phase; the D2 catalog-design gate is closed.
 - Phase V closure requires the owner's real-session voice verdict.

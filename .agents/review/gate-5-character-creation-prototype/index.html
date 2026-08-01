@@ -1,0 +1,425 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>Gate 5 Character Build Prototype</title>
+  <meta
+    name="description"
+    content="A local, non-shipping click-through for deterministic character creation and progression."
+  >
+  <link rel="stylesheet" href="styles.css">
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <div class="ambient ambient-one" aria-hidden="true"></div>
+  <div class="ambient ambient-two" aria-hidden="true"></div>
+
+  <header class="masthead">
+    <a class="brand" href="#top" aria-label="Gate 5 character build prototype home">
+      <span class="brand-mark" aria-hidden="true">V</span>
+      <span>
+        <strong>Character Forge</strong>
+        <small>Gate 5 interaction prototype</small>
+      </span>
+    </a>
+    <button class="button button-quiet" id="reset-prototype" type="button">Reset prototype</button>
+  </header>
+
+  <div class="prototype-banner" role="note">
+    <span class="status-dot" aria-hidden="true"></span>
+    <strong>Evaluation artifact.</strong>
+    All classes, packages, names, and numbers are provisional. Nothing here is approved or saved.
+  </div>
+
+  <nav class="view-tabs" aria-label="Prototype views">
+    <button class="view-tab is-active" type="button" data-view-target="creation" aria-pressed="true">
+      <span>01</span> Create a character
+    </button>
+    <button class="view-tab" type="button" data-view-target="progression" aria-pressed="false">
+      <span>02</span> Preview progression
+    </button>
+  </nav>
+
+  <main id="top">
+    <section class="view is-active" id="creation-view" data-view="creation" aria-labelledby="creation-title">
+      <div class="view-intro">
+        <div>
+          <p class="eyebrow">Two mechanical choices · no generation</p>
+          <h1 id="creation-title">Build from known parts.</h1>
+          <p>
+            Choose a progression chassis and one training package. Identity stays yours; the engine
+            never guesses mechanics from prose.
+          </p>
+        </div>
+        <div class="promise-card" aria-label="Prototype constraint">
+          <span>Authority</span>
+          <strong>Selection → validation</strong>
+          <small>AI is not in this loop.</small>
+        </div>
+      </div>
+
+      <section class="examples" aria-labelledby="examples-title">
+        <div class="section-heading compact">
+          <div>
+            <p class="eyebrow">Jump to a completed case</p>
+            <h2 id="examples-title">Stress-test the separation</h2>
+          </div>
+          <p>Each example resolves to explicit parts. The last one requires a player decision.</p>
+        </div>
+        <div class="example-list" role="list">
+          <button type="button" class="example-chip" data-example="paladin-commander">Paladin commander</button>
+          <button type="button" class="example-chip" data-example="wizard-axe">Wizard + battle axe</button>
+          <button type="button" class="example-chip" data-example="royal-inquisitive">Royal inquisitive</button>
+          <button type="button" class="example-chip" data-example="netrunner-billionaire">Netrunner billionaire</button>
+          <button type="button" class="example-chip example-chip-warning" data-example="battle-mage">
+            “Battle Mage” needs a choice
+          </button>
+        </div>
+      </section>
+
+      <div class="creation-grid">
+        <section class="builder-panel" aria-label="Character builder">
+          <ol class="stepper" aria-label="Character creation steps">
+            <li>
+              <button type="button" class="step-button is-active" data-step-target="class" aria-current="step">
+                <span>1</span>
+                <span><small>Mechanical</small>Class chassis</span>
+              </button>
+            </li>
+            <li>
+              <button type="button" class="step-button" data-step-target="training">
+                <span>2</span>
+                <span><small>Mechanical</small>Training package</span>
+              </button>
+            </li>
+            <li>
+              <button type="button" class="step-button" data-step-target="identity">
+                <span>3</span>
+                <span><small>Identity</small>Name and standing</span>
+              </button>
+            </li>
+          </ol>
+
+          <div class="step-panel is-active" data-step="class">
+            <div class="section-heading">
+              <div>
+                <p class="eyebrow">Choice one</p>
+                <h2>Choose the exclusive progression loop</h2>
+              </div>
+              <p>Cards describe mechanics and restrictions—not jobs or party positions.</p>
+            </div>
+            <div class="filter-row" aria-label="Class filters">
+              <span>Filter:</span>
+              <button type="button" class="filter-chip is-active" data-class-filter="all" aria-pressed="true">All</button>
+              <button type="button" class="filter-chip" data-class-filter="magic" aria-pressed="false">Magic</button>
+              <button type="button" class="filter-chip" data-class-filter="weapons" aria-pressed="false">Weapons</button>
+              <button type="button" class="filter-chip" data-class-filter="systems" aria-pressed="false">Systems</button>
+            </div>
+            <div class="choice-grid" id="class-options" role="radiogroup" aria-label="Class chassis"></div>
+          </div>
+
+          <div class="step-panel" data-step="training" hidden>
+            <div class="section-heading">
+              <div>
+                <p class="eyebrow">Choice two</p>
+                <h2>Add one portable capability package</h2>
+              </div>
+              <p>The same package costs the same for every eligible class. It never becomes a second class.</p>
+            </div>
+            <div class="choice-grid" id="training-options" role="radiogroup" aria-label="Training package"></div>
+          </div>
+
+          <div class="step-panel" data-step="identity" hidden>
+            <div class="section-heading">
+              <div>
+                <p class="eyebrow">Identity, not hidden mechanics</p>
+                <h2>Say who the character is</h2>
+              </div>
+              <p>These fields do not rewrite class access, proficiencies, or advancement.</p>
+            </div>
+
+            <form class="identity-form" id="identity-form">
+              <label>
+                <span>Character name</span>
+                <input id="character-name" name="character-name" type="text" maxlength="60" value="Mara Vale">
+              </label>
+              <label>
+                <span>Player-owned title</span>
+                <input
+                  id="character-title"
+                  name="character-title"
+                  type="text"
+                  maxlength="80"
+                  placeholder="Optional — e.g. The Queen’s Inquisitive"
+                >
+              </label>
+              <label>
+                <span>Background</span>
+                <select id="character-background" name="character-background">
+                  <option value="independent">Independent</option>
+                  <option value="sworn-order">Raised by a sworn order</option>
+                  <option value="court-service">Court service</option>
+                  <option value="academy">Academy trained</option>
+                  <option value="street-collective">Street collective</option>
+                </select>
+                <small>Fictional history in this prototype; no free class features.</small>
+              </label>
+              <label>
+                <span>Current standing</span>
+                <select id="character-standing" name="character-standing">
+                  <option value="none">No special standing</option>
+                  <option value="royal-office">Royal appointment</option>
+                  <option value="garrison-command">Commands a garrison</option>
+                  <option value="billionaire">Billionaire sponsor</option>
+                </select>
+                <small>Standing is conditional fiction. Any asset remains separately tracked and availability-gated.</small>
+              </label>
+            </form>
+
+            <div class="identity-rule">
+              <span aria-hidden="true">i</span>
+              <p>
+                Calling someone “Royal Inquisitive” grants neither Investigation nor royal authority.
+                The package supplies Investigation; the standing records where royal authority may apply.
+              </p>
+            </div>
+          </div>
+
+          <footer class="builder-actions">
+            <button class="button button-secondary" id="previous-step" type="button" disabled>Back</button>
+            <p id="step-status" aria-live="polite">Choose one class chassis to continue.</p>
+            <button class="button button-primary" id="next-step" type="button" disabled>Continue</button>
+          </footer>
+        </section>
+
+        <aside class="build-sheet" aria-labelledby="build-sheet-title">
+          <div class="sheet-header">
+            <div>
+              <p class="eyebrow">Live source ledger</p>
+              <h2 id="build-sheet-title">Your exact build</h2>
+            </div>
+            <span class="build-validity" id="build-validity">Incomplete</span>
+          </div>
+
+          <div class="identity-preview">
+            <div class="portrait-placeholder" aria-hidden="true"><span>MV</span></div>
+            <div>
+              <strong id="summary-name">Mara Vale</strong>
+              <span id="summary-title">Title not set</span>
+            </div>
+          </div>
+
+          <dl class="build-facts">
+            <div>
+              <dt>Class</dt>
+              <dd id="summary-class">Not selected</dd>
+            </div>
+            <div>
+              <dt>Training</dt>
+              <dd id="summary-training">Not selected</dd>
+            </div>
+            <div>
+              <dt>Standing</dt>
+              <dd id="summary-standing">None</dd>
+            </div>
+          </dl>
+
+          <section class="ledger-section">
+            <div class="ledger-heading">
+              <h3>What grants what</h3>
+              <span>Authoritative</span>
+            </div>
+            <div id="source-ledger" class="source-ledger"></div>
+          </section>
+
+          <section class="ledger-section">
+            <div class="ledger-heading">
+              <h3>Derived roles</h3>
+              <span>Descriptive only</span>
+            </div>
+            <div class="tag-row" id="derived-roles"><span class="empty-tag">None yet</span></div>
+          </section>
+
+          <section class="ledger-section restriction-section">
+            <div class="ledger-heading">
+              <h3>Costs and limits</h3>
+              <span>Enforced</span>
+            </div>
+            <ul id="build-restrictions">
+              <li>Select a class to expose its restrictions.</li>
+            </ul>
+          </section>
+
+          <details class="exact-record">
+            <summary>Inspect exact engine record</summary>
+            <pre id="record-preview" aria-label="Exact engine record"></pre>
+          </details>
+        </aside>
+      </div>
+    </section>
+
+    <section class="view" id="progression-view" data-view="progression" aria-labelledby="progression-title" hidden>
+      <div class="view-intro progression-intro">
+        <div>
+          <p class="eyebrow">One advancement · fixed legal menu</p>
+          <h1 id="progression-title">See the gain and the sacrifice.</h1>
+          <p>
+            Continuing the class is the clear default. Multiclassing consumes the level and exposes
+            what is delayed before the player confirms.
+          </p>
+        </div>
+        <div class="promise-card">
+          <span>Correction model</span>
+          <strong>Change a selection</strong>
+          <small>Never regenerate the character.</small>
+        </div>
+      </div>
+
+      <div class="progression-grid">
+        <section class="builder-panel progression-panel">
+          <div class="level-heading">
+            <div>
+              <p class="eyebrow">Current build</p>
+              <h2 id="level-current-build">Paladin 3 · Command Training</h2>
+            </div>
+            <div class="level-marker" aria-label="Advancing from level 3 to level 4">
+              <span>3</span><i aria-hidden="true">→</i><strong>4</strong>
+            </div>
+          </div>
+
+          <section class="progression-block" aria-labelledby="route-title">
+            <div class="section-heading compact">
+              <div>
+                <p class="eyebrow">First, choose the route</p>
+                <h2 id="route-title">Where does this level go?</h2>
+              </div>
+            </div>
+            <div class="route-grid" role="radiogroup" aria-label="Advancement route">
+              <button class="route-card is-selected" type="button" role="radio" aria-checked="true" data-level-route="continue">
+                <span class="route-kicker">Default</span>
+                <strong id="continue-route-name">Continue Paladin</strong>
+                <small>Gain the next class tier and make one bounded development choice.</small>
+              </button>
+              <button class="route-card" type="button" role="radio" aria-checked="false" data-level-route="multiclass">
+                <span class="route-kicker">Advanced</span>
+                <strong id="multiclass-route-name">Take Fighter 1</strong>
+                <small>The Fighter entry package replaces this level’s Paladin advancement.</small>
+              </button>
+            </div>
+          </section>
+
+          <section class="progression-block" id="automatic-gains-section" aria-labelledby="automatic-title">
+            <div class="section-heading compact">
+              <div>
+                <p class="eyebrow">No extra decision</p>
+                <h2 id="automatic-title">Automatic class gains</h2>
+              </div>
+              <p id="automatic-route-label">Paladin 3 → Paladin 4</p>
+            </div>
+            <div class="gain-list" id="automatic-gains"></div>
+          </section>
+
+          <section class="progression-block" id="development-choice-section" aria-labelledby="development-title">
+            <div class="section-heading compact">
+              <div>
+                <p class="eyebrow">One meaningful choice</p>
+                <h2 id="development-title">Choose one development</h2>
+              </div>
+              <p>Every option is already legal for this build.</p>
+            </div>
+            <div class="development-list" id="development-options" role="radiogroup" aria-label="Development choice"></div>
+          </section>
+
+          <div class="multiclass-warning" id="multiclass-warning" hidden>
+            <div class="warning-icon" aria-hidden="true">!</div>
+            <div>
+              <strong>This is not a free dip.</strong>
+              <p id="multiclass-cost-copy"></p>
+            </div>
+          </div>
+
+          <footer class="builder-actions progression-actions">
+            <button class="button button-secondary" type="button" data-view-target="creation">Back to creation</button>
+            <p id="level-status" aria-live="polite">Choose one development to preview the result.</p>
+            <button class="button button-primary" id="confirm-level" type="button" disabled>Confirm advancement</button>
+          </footer>
+        </section>
+
+        <aside class="build-sheet level-sheet" aria-labelledby="level-preview-title">
+          <div class="sheet-header">
+            <div>
+              <p class="eyebrow">Before you commit</p>
+              <h2 id="level-preview-title">Level 4 preview</h2>
+            </div>
+            <span class="build-validity">No reroll</span>
+          </div>
+
+          <div class="delta-block gain-delta">
+            <span>Gain</span>
+            <ul id="level-gains-summary"></ul>
+          </div>
+          <div class="delta-block cost-delta">
+            <span>Delay or spend</span>
+            <ul id="level-costs-summary"></ul>
+          </div>
+          <div class="delta-block unchanged-delta">
+            <span>Unchanged</span>
+            <ul>
+              <li>Your title, background, standing, and assets</li>
+              <li>Previously earned class features and training</li>
+              <li>Campaign-specific ability presentation</li>
+            </ul>
+          </div>
+
+          <details class="exact-record" open>
+            <summary>Resulting class levels</summary>
+            <pre id="level-record-preview"></pre>
+          </details>
+        </aside>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <p><strong>No model calls. No persistence. No hidden grants.</strong></p>
+    <p>This prototype exists only to evaluate the player-facing decision flow before Gate 5 approval.</p>
+  </footer>
+
+  <dialog class="decision-dialog" id="battle-mage-dialog" aria-labelledby="battle-mage-title">
+    <form method="dialog">
+      <button class="dialog-close" value="cancel" aria-label="Close battle mage choices">×</button>
+      <p class="eyebrow">The phrase is ambiguous</p>
+      <h2 id="battle-mage-title">What does “Battle Mage” mean mechanically?</h2>
+      <p class="dialog-intro">
+        The engine will not guess. Choose the progression loop that matters, then pay explicitly for
+        the secondary capability.
+      </p>
+      <div class="alternative-list">
+        <button type="button" class="alternative-card" data-battle-mage-choice="wizard-martial">
+          <span>Spell-first</span>
+          <strong>Wizard + Martial Training</strong>
+          <small>Full spellbook progression and battle-axe proficiency. Gives up another training package.</small>
+        </button>
+        <button type="button" class="alternative-card" data-battle-mage-choice="fighter-arcane">
+          <span>Weapon-first</span>
+          <strong>Fighter + Arcane Initiate</strong>
+          <small>Full combat discipline and limited minor magic. No spellbook or Wizard resource loop.</small>
+        </button>
+        <button type="button" class="alternative-card" data-battle-mage-choice="planned-multiclass">
+          <span>Full hybrid · advanced</span>
+          <strong>Plan a Fighter / Wizard multiclass</strong>
+          <small>Not legal at level 1. Start in one class; the second class consumes a later level and delays the first.</small>
+        </button>
+      </div>
+      <div class="dialog-rule">
+        <strong>Unsupported is an honest result.</strong>
+        <span>If none match, creation stops without inventing mechanics.</span>
+      </div>
+    </form>
+  </dialog>
+
+  <div class="toast" id="prototype-toast" role="status" aria-live="polite" aria-atomic="true"></div>
+</body>
+</html>
