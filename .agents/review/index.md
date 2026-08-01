@@ -545,4 +545,8 @@ maps Barbarian to `arch.bruiser` and Battle Mage to `arch.artillery`, with expli
 secondary rules. Full candidate and provenance:
 `.agents/review/archetype-roster-fable-candidate.md`.
 
+The owner's requested artifact is a full archetype-by-genre matrix, not sparse examples. A fresh
+`claude-fable-5` high-effort structured pass filled all 22 roster rows across all 10 genre columns;
+the candidate document owns the matrix and the second pass's provenance.
+
 This is reviewer evidence, not an approved Gate 5 roster.

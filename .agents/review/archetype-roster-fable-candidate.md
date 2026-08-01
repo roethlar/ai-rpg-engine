@@ -53,70 +53,39 @@ later change without changing identity.
 
 The shared tactical result “close-range force” is not the mapping key. Required mechanics are.
 
-## Cross-genre examples
+## Cross-genre mapping matrix
 
-Parenthesized entries are expression-level secondaries, not additional stored IDs.
+Archetypes are the Y axis; genres are the X axis. Each cell is one genre-native expression of the
+row's mechanical chassis, not an automatic class assignment or an additional stored ID.
 
-### Fantasy
+Columns: **F** High fantasy; **H** Historical / grounded; **G** Gothic / occult; **W** Western /
+frontier; **M** Contemporary / crime; **P** Pulp / superhero; **C** Cyberpunk; **S** Space opera /
+science fiction; **A** Post-apocalypse; **X** Surreal / cosmic.
 
-- Barbarian → `arch.bruiser` (`arch.survivor`)
-- Battle Mage → `arch.artillery`
-- Wizard → `arch.controller` (`arch.scholar`)
-- Knight or Paladin → `arch.defender` (`arch.commander`)
-- Thief → `arch.infiltrator`
-- Cleric → `arch.healer` (`arch.face`)
-- Ranger → `arch.marksman` (`arch.scout`)
-- Beastmaster → `arch.handler`
-- Artificer → `arch.maker` (`arch.controller`)
-- Druid → `arch.controller` or `arch.transformer`, depending on whether nature manipulation or
-  mechanically distinct wild-shape modes are required
-
-### Historical or swashbuckling
-
-- Musketeer → `arch.marksman`
-- Swashbuckling fencer → `arch.duelist` (`arch.face`)
-- Ship captain → `arch.commander` (`arch.pilot`)
-- Sapper or siege engineer → `arch.saboteur` (`arch.artillery`)
-- Court spy → `arch.infiltrator` (`arch.face`)
-- Ship surgeon → `arch.healer`
-- Merchant prince → `arch.patron`
-
-### Gothic horror
-
-- Vampire hunter → `arch.duelist` (`arch.investigator`)
-- Occult detective → `arch.investigator` (`arch.scholar`)
-- Exorcist or ritualist → `arch.controller`
-- Spirit medium → `arch.handler` (`arch.face`)
-- Cursed brute → `arch.bruiser`
-- Grave robber → `arch.infiltrator`
-- Werebeast → `arch.transformer`
-- Relic maker → `arch.maker`
-
-### Western
-
-- Gunslinger → `arch.marksman` (`arch.duelist` for draw tempo)
-- Saloon enforcer → `arch.bruiser`
-- Dynamiter → `arch.artillery`
-- Frontier doctor → `arch.healer`
-- Cardsharp preacher → `arch.face` (`arch.inspirer`)
-- Bounty tracker → `arch.scout` (`arch.investigator`)
-- Stagecoach ace → `arch.pilot`
-- Rail baron → `arch.patron`
-- Homesteader → `arch.survivor`
-- Drifter with no specialist mechanics → `arch.generalist`
-
-### Modern or cyberpunk
-
-- Netrunner → `arch.controller` (`arch.infiltrator`)
-- Street-samurai bodyguard → `arch.defender` (`arch.duelist`)
-- Chrome rager → `arch.bruiser`; cyberware is source expression over an uncosted melee chassis
-- Overclock cyborg whose implants fire as costed invocations → `arch.artillery`
-- Ripperdoc → `arch.healer`
-- Fixer → `arch.face` (`arch.patron`)
-- Drone-swarm operator → `arch.handler`
-- Rig jockey → `arch.pilot`
-- Profiler → `arch.investigator` (`arch.scholar`)
-- Media influencer → `arch.inspirer`
+| Archetype (Y) | F | H | G | W | M | P | C | S | A | X |
+|---|---|---|---|---|---|---|---|---|---|---|
+| `arch.defender` — Defender | Shield-oath knight or paladin guardian | Man-at-arms shield-bearer | Threshold-holding monster warden | Lawkeeper bodyguard | Close-protection bodyguard | Armored protector hero | Bodyguard street samurai / corporate tank | Space-marine shieldwall guardian | Convoy-guarding wasteland enforcer | Reality anchor who absorbs impossibilities |
+| `arch.bruiser` — Bruiser | Barbarian | Berserker pit fighter | Cursed brute | Saloon enforcer | Mob enforcer / breacher | Powerhouse strongman | Chrome rager (cyberware as uncosted melee expression) | Heavyworld brawler | Mutant berserker | Nightmare brute |
+| `arch.duelist` — Duelist | Blade-dancer swashbuckler | Fencing master | Stake-and-sabre vampire duelist | Quick-draw knife-and-pistol duelist | Close-quarters counter-fighter | Masked swashbuckler | Monoblade runner | Energy-blade ace | Arena raider | Fate duelist |
+| `arch.marksman` — Marksman | Ranger archer | Musketeer sharpshooter | Silver-bullet monster hunter | Gunslinger sharpshooter | Tactical sniper | Trick-shot hero | Smartgun ace | Blaster sharpshooter | Scavenged-rifle wasteland hunter | Impossible-angle shooter |
+| `arch.artillery` — Artillery | Battle Mage (costed spell-reserve invoker) | Siege engineer with cannon and powder | Ward-breaking ritual demolisher | Dynamiter | Demolitions specialist | Energy-projector hero | Overclock cyborg whose implants fire as costed ordnance | Ship gunner / plasma-weapons specialist | Scrap-cannon expert | Storm caller |
+| `arch.controller` — Controller | Wizard | Strategist-alchemist | Occult ritualist | Snake-oil mesmerist | Systems hacker / operations controller | Telekinetic psychic | Netrunner | Psion systems adept | Relic-hacking shaman | Dreamwalker |
+| `arch.infiltrator` — Infiltrator | Thief | Court spy / cutpurse | Grave-robbing occult burglar | Cat-burglar outlaw | Covert-entry operative | Masked cat thief | Ghost intrusion specialist | Smuggler infiltration operative | Vault-cracking scavenger | Identity thief |
+| `arch.saboteur` — Saboteur | Alchemical trap-layer | Sapper | Curse layer / relic saboteur | Rail dynamiter with timed charges | Bomb technician / infrastructure saboteur | Gadget saboteur | Logic-bomb demolition specialist | Charge-planting systems slicer | Trapmaker | Causality breaker |
+| `arch.scout` — Scout | Pathfinder | Outrider | Monster tracker | Trail scout / bounty tracker | Surveillance recon operative | Aerial scout | Urban recon tracker | Sensor-specialist pathfinder | Wasteland scout | Liminal guide |
+| `arch.investigator` — Investigator | Royal inquisitive | Magistrate examiner | Occult detective | Bounty-investigating marshal | Homicide detective | Masked detective | Data investigator | Xeno-investigating science officer | Relic seeker reconstructing the fall | Truth diver |
+| `arch.face` — Face | Silver-tongued courtier | Merchant envoy negotiator | Society charmer | Cardsharp con artist | Fixer-negotiator | Celebrity envoy | Fixer | First-contact diplomat | Settlement trader-envoy | Herald |
+| `arch.commander` — Commander | Warlord banner-captain | Line officer / standard bearer | Secret-order leader | Posse leader | Tactical team lead | Team captain | Tactical coordinator | Squadron commander | Raid-band chief directing present fighters | Chorus conductor |
+| `arch.healer` — Healer | Cleric herbalist | Ship surgeon | Exorcist-healer / occult surgeon | Frontier doctor | Trauma paramedic | Field-doctor hero | Ripperdoc | Xenomedic | Scavenged-supplies field medic | Soul mender |
+| `arch.inspirer` — Inspirer | Skald | Orator chronicler | Spiritualist storyteller | Saloon performer | Charismatic journalist-performer | Broadcasting icon | Media influencer | Holo-star cultural envoy | Tribe storyteller | Muse |
+| `arch.maker` — Maker | Artificer smith | Artisan engineer | Relic maker | Gunsmith | Workshop fabrication engineer | Gadgeteer | Cybertech | Ship engineer | Scrap mechanic | Worldsmith |
+| `arch.scholar` — Scholar | Loremaster sage | Natural philosopher | Forbidden-texts archivist | Frontier naturalist chronicler | Criminal profiler | Super-scientist savant | Data savant | Xenoarchaeologist | Lorekeeper | Oracle |
+| `arch.handler` — Handler | Beastmaster summoner | Falconer houndmaster | Spirit medium | Trail houndmaster | K9 or drone handler | Beast-commanding sidekick hero | Drone-swarm operator | Droid or xenobeast handler | Mutant-beast tamer | Echo caller |
+| `arch.transformer` — Transformer | Wild-shape druid | Master of disguise / adaptive fighter | Werebeast | Skinwalker | Undercover mimic | Shapeshifter | Mode-switching body-mod specialist | Alien morph | Adaptive mutant | Dreamshaper |
+| `arch.pilot` — Pilot | Dragonrider cavalier | Cavalry rider / ship helmsman | Black-coach conveyance master | Stagecoach ace | Getaway driver | Ace pilot | Rig jockey | Star pilot | Road warrior | Realm navigator |
+| `arch.survivor` — Survivor | Wilderness guide | Hard-country expedition guide | Sole survivor of the haunting | Homesteader prospector | Survivalist first responder | Pulp jungle explorer | Street survivor | Frontier colonist | Scavenger | Castaway between realities |
+| `arch.patron` — Patron | Guildmaster noble | Merchant prince | Cabal patron | Rail baron | Crime boss executive | Billionaire sponsor | Corporate executive | Syndicate-fleet admiral patron | Resource warlord commanding off-scene tribute | Fate broker |
+| `arch.generalist` — Generalist | Adventurer | Mercenary traveler | Manor jack-of-all-trades | Drifter | Field agent | Pulp adventurer | Operator | Spacer | Wanderer | Dimensional traveler |
 
 ## Mapping rules
 
@@ -152,3 +121,14 @@ must rule that boundary separately before S1.5.
 - Manual design guard covered five genre bands, Barbarian/Battle Mage non-conflation, stable IDs,
   and settled Gate 3/4/6/7 constraints; reviewer also ran `node test.js` green in the disposable
   worktree.
+
+Matrix completion pass:
+
+- Reviewer: claude / claude-fable-5 / high / standard (inline, session-only)
+- Candidate range: `9141b8fc61d4023cbefaa77db5e2b22b7e587961..15ea5ad04e89ea74e7665a11ac3ab3cb4c4cc6a6`
+- Structured result: exactly 22 roster-ordered rows and 10 nonempty genre cells per row;
+  `capability_ok: true`; both SHA pins matched
+- Claude CLI 2.1.220 result UUID: `6b18e126-1f65-4ed6-b7d9-b4a120358127`
+- Session transcript: `f99d5032-288e-4a48-b0a1-109dc8f28579`
+- Reviewer read the candidate and all three historical portability matrices and ran the pinned
+  range's `git diff --check` in a detached disposable worktree.

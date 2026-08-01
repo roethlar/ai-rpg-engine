@@ -72,9 +72,9 @@ to `docs/history/state-archive.md`.
 
 ## Next
 
-**NEXT:** Present Fable's exact roster and cross-genre examples for owner judgment. Gate 5 remains
-open until the owner adopts, revises, or rejects the proposal; `pt-5` description scope requires a
-separate ruling before S1.5.
+**NEXT:** Obtain owner judgment on Fable's exact roster and complete 22-archetype by 10-genre
+matrix. Gate 5 remains open until the owner adopts, revises, or rejects the proposal; `pt-5`
+description scope requires a separate ruling before S1.5.
 
 - Ask the owner to approve or reject the drafted Phase PT review repair plan. No code repair is
   authorized before that ruling. If approved, implement PT-R1 (`pt-1`) and PT-R2 (`pt-3`) in
