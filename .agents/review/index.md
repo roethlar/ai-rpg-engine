@@ -489,3 +489,4 @@ from that invalid result entered intake.
 |----|----------|-------------------|--------|--------|
 | pt-1 | MEDIUM | A contract-valid renamed ability improvement can create a second canonical ability because the live GM never receives the existing ID | `[ ]` admitted; repair not authorized | none |
 | pt-2 | LOW | Concurrent canon can make the S1.4 helper return invalid-input instead of the later move flow's stale classification | `[-]` declined: stale by contract, no current product caller; carry as S1.6 acceptance coverage | none |
+| pt-3 | LOW | Engine-authored oversized ability text can make S1.3 reject an entire wording batch before the GM is called | `[ ]` admitted; repair not authorized | none |

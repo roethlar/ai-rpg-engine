@@ -2942,7 +2942,7 @@ player-driven title-edit workflow is also future. D13/D16 still defer non-abilit
   Guard proof: changing the Stage 1 history selector from latest to earliest fails the dedicated
   test with turns 1-6 instead of 1005-1010; restoring latest returns the suite to green.
 
-- **S1.3 GM ability-wording proposal plus structural validation (§6.2-6.3) — LANDED.** Given only
+- **S1.3 GM ability-wording proposal plus structural validation (§6.2-6.3) — LANDED; OPEN REVIEW FINDING pt-3.** Given only
   requested known ability IDs, canonical character abilities, and the GM-private canon pack, the GM
   proposes display names/prose and a player-safe fit explanation. The engine derives `ability:<id>`
   internally and strictly validates exact requested IDs, bounded allowlisted fields, no duplicates,
@@ -2951,7 +2951,8 @@ player-driven title-edit workflow is also future. D13/D16 still defer non-abilit
   still requires Council validation against canonical mechanics. Archetype, family, character-name,
   class, role/profession, and self-title output fails closed. The internal proposal/retry result cannot commit; later movement
   approval requires the player's exact-card approval. No classifier, predicate evaluator, or seed
-  permission table.
+  permission table. Open finding pt-3 records that live turn writes can persist ability text
+  longer than this reader accepts, rejecting the whole wording batch; no repair is authorized.
   Files: rpg-engine.js, rpg-prompts.js, test.js.
   Exit: GM owns fictional fit; adversarial structural violations fail closed; player-safe output
   leaks no raw canon; no archetype enumeration is required. No DB migration, route, or UI in this slice.
