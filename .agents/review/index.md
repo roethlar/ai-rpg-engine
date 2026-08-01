@@ -561,7 +561,7 @@ Reviewer: claude / claude-fable-5 / high / standard (inline, session-only)
 
 | ID | Severity | Impact (one line) | Status | Branch |
 |---|---|---|---|---|
-| g5p-1 | MEDIUM | Replacement gate omits the separately admitted `pt-5` description lifecycle | `[ ]` admitted | `master` |
+| g5p-1 | MEDIUM | Replacement gate omits the separately admitted `pt-5` description lifecycle | `[x]` verified | `master` |
 | g5p-2 | MEDIUM | Extended S1.5 silently blocks S1.6–S1.8 under the fixed slice order | `[ ]` admitted | `master` |
 | g5p-3 | LOW | Subclass is used without an ontology, record shape, or catalog owner | `[ ]` admitted | `master` |
 | g5p-4 | LOW | Eventual supersession checklist leaves two stale intake restatements | `[ ]` admitted | `master` |

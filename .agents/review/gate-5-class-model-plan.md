@@ -293,6 +293,13 @@ Creator never invents an ID, treats a role/status/job as class, grants an unpaid
 uses description text to authorize mechanics. Recommendation is optional assistance; player
 selection plus engine validation is authority.
 
+This flow does **not** resolve the separately admitted `pt-5` finding. The 2026-07-31 design calls
+the Creator-written archetype description campaign-tailored while keeping it frozen across moves,
+without settling whether it is stable character identity, a per-campaign presentation, derived
+display text, or removed. Before G5-D may authorize any Creator-written build/class description,
+the owner must rule that lifecycle explicitly. Until then, description prose has no persistence or
+narration authority in this replacement plan.
+
 Legacy free-text characters are not auto-classified from prose. D13 must choose their truthful
 legacy/versioning path before S1.5 can assign restrictive mechanics. Existing abilities and
 progression must not be silently reinterpreted as class grants.
@@ -325,6 +332,9 @@ After G5-A, settle the existing rules queue one decision at a time:
    imported.
 5. D16 durable assets before followers, vehicles, corporations, or garrisons can carry mechanical
    authority. D16 does not block class design that treats these as unavailable external assets.
+6. The `pt-5` description-scope owner ruling before G5-D, because class/build taxonomy does not
+   determine whether Creator-written descriptive prose is stable, campaign-scoped, derived, or
+   absent.
 
 ### 8.3 G5-B — exact class roster and catalogs
 
@@ -355,6 +365,8 @@ If G5-A is approved, the same docs-only commit must:
   known archetype ID and a 22-row candidate;
 - update D3 in `.agents/review/rules-system-plan-intake.md` with the new open-gate sequence;
 - update Phase PT status and S1.5 in `plan.md`;
+- close or carry forward `.agents/review/findings/pt-5.md` according to its separate owner ruling,
+  and update every `pt-5` blocker restatement in `plan.md` and `.agents/state.md`;
 - mark `.agents/review/archetype-roster-fable-candidate.md` retained evidence, not an active roster;
 - update `.agents/state.md` to point here as Gate 5's current entry point.
 
