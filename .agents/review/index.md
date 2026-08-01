@@ -509,3 +509,22 @@ The live catalog resolved the owner's `k3` request to `kimi-code/k3` after the n
 the short alias before model dispatch. The reviewer read repository files, ran read-only Git checks,
 left the detached head worktree clean, and returned a schema-valid `clean` envelope with the exact
 base/head SHAs, `capability_ok: true`, and no findings.
+
+## Openreview (2026-08-01, reviewer: claude, archetype-presentation design)
+
+Owner-dispatched `openreview` with literal model `claude-fable-5` over the corrected design-only
+range `9e4916d49cb052381f322e07d8714fdd88949076..810a008f2905bcaf8771d1fee3aef016d4bae6e1`.
+
+Reviewer: claude / claude-fable-5 / max / frontier (competitive; owner-selected)
+
+Transport: Claude CLI 2.1.220, headless JSON-schema mode, launch-local Read/Grep/Glob, Git, and
+`node test.js` grant in a detached disposable worktree. Envelope
+`ef8f1e86-31b5-44e9-9688-a0c91fab827e` matched both SHA pins and returned
+`capability_ok: true` with two candidate findings.
+
+| ID | Severity | Impact (one line) | Status | Branch |
+|----|----------|-------------------|--------|--------|
+| pt-4 | HIGH | The historical design required shared campaign vocabulary after narrowing away its only bounded producer | `[-]` declined as superseded by the landed S1.4 no-producer boundary | none |
+
+Candidate 1 of 2 triaged: 0 admitted, 1 declined. Detail:
+`.agents/review/pt-4.contested.md`.
