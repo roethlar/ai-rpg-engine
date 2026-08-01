@@ -6,6 +6,8 @@ to `docs/history/state-archive.md`.
 
 ## Now
 
+- **THE CORRECT GENRE-MAPPING DESIGN OPENREVIEW RANGE IS PINNED, BUT GATE 5 REMAINS OPEN.** Review the documentation-only archetype-presentation change at `9e4916d49cb052381f322e07d8714fdd88949076..810a008f2905bcaf8771d1fee3aef016d4bae6e1`, not the later S1.1-S1.4 implementation. Grok produced no valid verdict after two capability failures. Kimi `kimi-code/k3` at max returned a schema-valid clean verdict with no findings, but proposed no alternative genre mapping or roster; `.agents/review/index.md` owns provenance at `5f0202a`. Fable has not been rerun on the corrected scope. The exact roster still awaits owner judgment.
+
 - **CROSS-HARNESS REVIEW IS OFF BY DEFAULT** (owner decision 2026-07-26,
   `.agents/decisions.md`). Do not invoke an external reviewer unless the owner explicitly requests
   `codereview`, `review`, `openreview`, or names one for the work. Code still requires an
@@ -70,10 +72,15 @@ to `docs/history/state-archive.md`.
 
 ## Next
 
-**NEXT:** Ask the owner to approve or reject the drafted Phase PT review repair plan. No code repair
-is authorized before that ruling. If approved, implement PT-R1 (`pt-1`) and PT-R2 (`pt-3`) in that
-order, one finding per commit with guard proof, then return to Gate 5 with a roster that keeps
-mechanically distinct chassis distinct.
+**NEXT:** Ask whether the owner wants Fable openreviewed over the corrected design-only range or
+wants an explicit genre-mapping design exercise. Those are different tasks, and neither is
+authorized by this handoff. Do not present Kimi's clean consistency verdict as a settled Gate 5
+roster.
+
+- Ask the owner to approve or reject the drafted Phase PT review repair plan. No code repair is
+  authorized before that ruling. If approved, implement PT-R1 (`pt-1`) and PT-R2 (`pt-3`) in
+  that order, one finding per commit with guard proof, then return to Gate 5 with a roster that keeps
+  mechanically distinct chassis distinct.
 
 - Continue the owner decision queue one item at a time from the canonical queue in
   `.agents/review/rules-system-plan-intake.md`.
