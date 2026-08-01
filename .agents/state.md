@@ -6,7 +6,16 @@ to `docs/history/state-archive.md`.
 
 ## Now
 
-- **FABLE PRODUCED A CONCRETE GENRE-MAPPING CANDIDATE; GATE 5 REMAINS OPEN.** The corrected design-only openreview over `9e4916d49cb052381f322e07d8714fdd88949076..810a008f2905bcaf8771d1fee3aef016d4bae6e1` admitted `pt-5` and declined the shared-vocabulary candidate as superseded. The owner-directed high-effort codereview fallback retained 22 names, proposed stable slug IDs and mechanical-chassis definitions, and separated Barbarian (`arch.bruiser`) from Battle Mage (`arch.artillery`). The proposal is reviewer evidence, not approved; `.agents/review/archetype-roster-fable-candidate.md` owns it.
+- **GATE 5'S RESTRICTIVE CLASS-MODEL REPLAN IS DRAFTED; FABLE REVIEW IS NEXT.** The complete 22×10
+  mapping showed that the candidate mixes tactical roles, learnable capabilities, build structures,
+  and status/assets rather than restrictive classes. The owner authorized a replacement plan and a
+  context-rich `claude-fable-5` review at high effort. `.agents/review/gate-5-class-model-plan.md`
+  owns the draft. It proposes class progression + skills/feats + derived roles + background/status
+  + assets + player title, with adversarial cases including Paladin commander, Wizard battle-axe,
+  Wizard commander, Netrunner billionaire, Billionaire Sponsor, and Royal Inquisitive. No taxonomy
+  decision or code is approved; the active 2026-07-31 singular-archetype decision remains authority
+  until an explicit owner ruling. The earlier roster remains evidence at
+  `.agents/review/archetype-roster-fable-candidate.md`.
 
 - **CROSS-HARNESS REVIEW IS OFF BY DEFAULT** (owner decision 2026-07-26,
   `.agents/decisions.md`). Do not invoke an external reviewer unless the owner explicitly requests
@@ -72,9 +81,10 @@ to `docs/history/state-archive.md`.
 
 ## Next
 
-**NEXT:** Obtain owner judgment on Fable's exact roster and complete 22-archetype by 10-genre
-matrix. Gate 5 remains open until the owner adopts, revises, or rejects the proposal; `pt-5`
-description scope requires a separate ruling before S1.5.
+**NEXT:** Run the owner-requested context-rich `claude-fable-5` high-effort review of the pinned
+Gate 5 restrictive class-model draft, triage its findings, then present G5-A's classification
+ontology as one owner decision. S1.5 remains blocked; `pt-5` description scope requires a separate
+ruling.
 
 - Ask the owner to approve or reject the drafted Phase PT review repair plan. No code repair is
   authorized before that ruling. If approved, implement PT-R1 (`pt-1`) and PT-R2 (`pt-3`) in
@@ -96,8 +106,8 @@ description scope requires a separate ruling before S1.5.
 
 - Phase PT progression is held while the drafted two-slice repair plan awaits owner approval;
   `.agents/review/index.md` owns the admitted findings and `plan.md` owns the proposed repairs.
-- Phase PT S1.4 is landed. Gate 5's exact archetype roster and `pt-5` description-scope ruling
-  separately block S1.5 Creator/onboarding work.
+- Phase PT S1.4 is landed. Gate 5's replacement classification ruling, downstream exact class
+  catalogs/balance gates, and `pt-5` description-scope ruling block S1.5 Creator/onboarding work.
 - Broader Chapter 1/2 effect-catalog runtime implementation remains blocked until promoted into
   a concrete owner-approved phase; the D2 catalog-design gate is closed.
 - Phase V closure requires the owner's real-session voice verdict.
@@ -139,6 +149,8 @@ description scope requires a separate ruling before S1.5.
   `.agents/review/archetype-portability-matrix-review.md`,
   `.agents/review/archetype-portability-matrix-v2.md`, and
   `.agents/review/archetype-portability-matrix-v3.md` — retained evidence.
+- `.agents/review/gate-5-class-model-plan.md` — draft replacement Gate 5 taxonomy and gate order;
+  `.agents/review/archetype-roster-fable-candidate.md` — retained reviewer evidence.
 - `plan.md` — the broader phased roadmap.
 - `.agents/review/index.md` — implementation findings, order, and verdicts.
 - `README.md` — current setup, hosting, seat, and voice flow.

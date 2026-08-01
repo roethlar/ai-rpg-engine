@@ -2896,7 +2896,7 @@ valid CSS). Its project branch refs were deleted after CT landed; the postmortem
 
 ---
 
-## Phase PT: Cross-genre portability, Stage 1 — PLAN APPROVED (owner "yes", 2026-07-31); S1.1-S1.4 LANDED; REVIEW REPAIR PLAN DRAFTED, OWNER APPROVAL REQUIRED; S1.5 AWAITS GATE 5
+## Phase PT: Cross-genre portability, Stage 1 — PLAN APPROVED (owner "yes", 2026-07-31); S1.1-S1.4 LANDED; REVIEW REPAIR PLAN DRAFTED, OWNER APPROVAL REQUIRED; GATE 5 RESTRICTIVE-CLASS REPLAN DRAFTED; S1.5 BLOCKED
 
 **Design authority**: .agents/review/archetype-portability-matrix-v3.1.md, as amended by
 the 2026-07-31 one-persistent-character, live-canon, stable-archetype, and ability-only rulings. This section supplies
@@ -2918,6 +2918,17 @@ local profession-name examples → player confirmation, with player title separa
 open only for the exact roster and gates S1.5, not S1.3. Future proper-name/alias policy is outside
 Stage 1; Stage 1 Gate 7 permits no automatic character-name/title translation or binding, and any
 player-driven title-edit workflow is also future. D13/D16 still defer non-ability state.
+
+### Gate 5 restrictive class-model replanning — DRAFT; no taxonomy decision or code approved
+
+The owner authorized a replacement Gate 5 plan after the 22-row candidate proved to mix tactical
+roles, learnable capabilities, build structures, and status/assets rather than restrictive classes.
+`.agents/review/gate-5-class-model-plan.md` is the canonical draft. It proposes separating class
+progression, skills/feats, derived roles, backgrounds/status, assets, and player title; preserving
+all landed S1.1-S1.4 and campaign-movement contracts; and replacing the singular one-of-22
+`archetypeId` only after a new owner ruling. The owner also requested a context-rich
+`claude-fable-5` review at high effort. Until review and ruling, the active 2026-07-31 Gate 6 shape
+above remains authority, the Fable roster remains evidence only, and S1.5 stays blocked.
 
 ### Phase PT openreview repairs — DRAFT; implementation requires owner approval
 
@@ -3109,6 +3120,11 @@ additional cross-harness review is implied; invoke one only on a new explicit ow
   Creator maps a new or legacy concept to a known stable player-facing archetype ID, writes a
   campaign-tailored description, may show public local profession-name examples, and asks the player
   to confirm. Store the confirmed mapping separately from the player's unchanged title; restart-safe.
+- **Gate 5 replacement note for S1.5 — DRAFT.** The current S1.5 shape above remains approved
+  history, but no implementation begins while `.agents/review/gate-5-class-model-plan.md` is under
+  review. The draft proposes replacing singular archetype mapping only after owner approval, rules
+  prerequisites, exact class/skill/feat catalogs, balance evidence, and a later cold implementation
+  slice.
 - **S1.6 Campaign move (§8.2-8.5).** Persisted movement draft, hash-bound approval, exact canon-basis
   freshness check, one-active-membership transaction, no existing-campaign recreation, and every
   non-approved path leaves current membership unchanged.
