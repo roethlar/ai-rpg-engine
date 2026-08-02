@@ -275,7 +275,21 @@ Three readings are deliberately allowed:
 - An **Oathbound Paladin** can buy Leadership and hold officer standing without becoming Catalyst. Only a Paladin whose progression also buys the Cue loop multiclasses into Catalyst.
 - A **Netrunner** can be opulent and own a corporation. Wealth changes means, Duties, and assets; it does not change Access/Alert or class progression.
 
-Strictly mundane campaigns are a genuine boundary, not a naming exercise. A catalog that forbids supernatural or super-science effects must omit incompatible genre classes at creation. A later portability move cannot make an existing Wizard mundane merely by calling spells “protocols”; that ontology problem remains outside this roster audit.
+Strictly mundane campaigns are a genuine boundary, not a naming exercise. Per the active 2026-08-02 catalog-generation decision in `.agents/decisions.md`, the generator must first search for an honest setting-native expression that preserves the exact mechanic; absence of its familiar magic, technology, profession, or aesthetic is not enough to exclude it. A catalog may omit the archetype only after every plausible expression would contradict canon, erase its loop, or require changed mechanics, and the exclusion records that failed fit. A later portability move still cannot make an existing Wizard mundane merely by calling spells “protocols”; that ontology problem remains outside this roster audit.
+
+### 4.2 Applying the inclusion presumption
+
+The matrix is a coverage atlas, while an individual campaign catalog is a generated and validated subset. Catalog generation attempts every admitted archetype before excluding one; the model proposes presentation against known mechanic IDs and never invents mechanics from prose.
+
+For a Neanderthal-era cave murder mystery, an honest attempt might find:
+
+- **Armsmaster—Pursuit:** spear hunter or stone hunter;
+- **Bonded—Partner:** wolf companion;
+- **Maker—Kit:** flint knapper, fire keeper, or trap builder;
+- **Intruder—Ghost:** hidden-route specialist, taboo-path breaker, or rival-clan infiltrator;
+- **Catalyst—Tactics/Resonance:** hunt coordinator or oral-tradition keeper.
+
+It need not invent an **Artillery** class because Artillery is only a derived tactical role. Rider may still be excluded from a cave-bound premise if mount/vehicle-scale play cannot be expressed without changing either the campaign or Rider's mechanic; that record must say so plainly. Exclusion remains a disclosed failure to find a fit, not the generator's first convenience.
 
 ## 5. Same mechanic, authored genre wording
 

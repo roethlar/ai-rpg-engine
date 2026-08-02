@@ -1369,3 +1369,40 @@ Reason:
 Owner clarification 2026-07-31: “the underlying mechanics cannot be hand-waved. the GM, or one
 of the council, needs to validate mechanics every time any number or stat changes, damage is done,
 exp is awarded, etc. flavor is fine ... but you lose 2 hp HAS to be backed mechanically.”
+
+### 2026-08-02 - Campaign class-catalog generation presumes inclusion; exclusion discloses failed fit (owner decision)
+
+**Status: Active.**
+
+When generating a campaign's class catalog from the approved mechanical archetypes, the generating
+model begins with a presumption that each archetype has an honest setting-native expression. It must
+preserve the archetype's exact repeated loop, permissions, operations, and costs while searching
+beyond the archetype's familiar technology, profession, magic, or aesthetic.
+
+Exclusion is legal only when every plausible expression would cause at least one of these failures:
+
+1. contradicting established campaign canon or the campaign's deliberately restrictive premise;
+2. removing or falsifying the archetype's defining repeated mechanic; or
+3. requiring new or changed mechanics to make the expression work.
+
+An exclusion records the specific conflict and is explicitly an admission that catalog generation
+failed to imagine an honest fit. It is not routine pruning and cannot be hidden behind a dishonest
+reskin. Campaigns may still omit an archetype after that failed-fit result; a coverage matrix is not
+a mandatory menu for every individual campaign.
+
+This presumption applies only to admitted mechanical archetypes. Tactical roles, ordinary skills,
+jobs, ranks, wealth, status, and assets do not need a class mapping: a cave murder mystery need not
+invent an Artillery class. The generating model proposes presentation against engine-known mechanic
+IDs; it cannot mint mechanics, infer permissions from prose, or make its own output authoritative.
+
+Reason:
+The owner tested the boundary with a Neanderthal-era cave murder mystery, where “the artillery guy”
+has no mandatory class seat; a ranged hunter may emerge from an Armsmaster build, but the tactical
+role may simply be absent. The owner then clarified the catalog-generator posture: “an exclusion is
+an admission of a failure of imagination,” and settled that note as a decision on 2026-08-02.
+
+Refines:
+The 2026-07-31 Gate 5 boundary still leaves the exact roster open and keeps archetypes
+player-facing. This decision governs how a campaign-specific class catalog attempts to express that
+future approved roster. It does not reopen ability-only portability, authorize automatic class or
+title translation, or require mechanics-changing compatibility with every campaign.
