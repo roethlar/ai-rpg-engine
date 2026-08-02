@@ -6,6 +6,8 @@ to `docs/history/state-archive.md`.
 
 ## Now
 
+- **THREE CLOSED RULES-SYSTEM VARIANTS ARE DRAFTED FOR THE OWNER-REQUESTED FABLE REVIEW; NONE IS APPROVED OR IMPLEMENTED.** `.agents/review/rules-system-variants.md` combines the signed d100/effect contracts with exactly three whole packages: WWN/CWN-derived Commitment, SRD 5.2.1-derived Slots and rests, and 13th Age-derived Cadence. All share nine mechanical archetypes, eighteen meaningful branches, a complete 9×10 genre-class mapping, deterministic 7–10 minute creation, exact spell/resource/recovery rules, opposition curves, assets/status, persistent help, worked adversarial builds, and a licensing/deviation ledger. The draft recommends Commitment before review. One `claude-fable-5` openreview at `high`—never `max`, with no follow-up review—is the next action.
+
 - **GATE 5'S PROTOTYPE EXPOSED AN UNDEFINED CORE RULES CONTRACT AND IS NOT READY FOR APPROVAL.**
   The owner accepted the interaction hierarchy as the direction: choose a mechanical archetype,
   conditionally choose among its campaign-specific classes, then choose training, background,
@@ -111,11 +113,12 @@ to `docs/history/state-archive.md`.
 
 ## Next
 
-**NEXT:** Reconcile the rules system before any further Gate 5 prototype or class-roster work: present
-the owner a compact map of signed target rules, legacy runtime behavior, and unresolved mechanics,
-then compare the unresolved contracts against coherent open-system baselines rather than inventing
-them. The owner sees the source mapping before any approval decision. Do not invoke another reviewer
-without a separate explicit request.
+**NEXT:** Commit the three closed rules-system variants, then run the owner-requested single unprimed `claude-fable-5` openreview at `high` over the pinned design range. Triage and record its findings without repair or redispatch, then present the three-way comparison and resulting recommendation. Do not implement or push.
+
+## Prior queue context
+
+The rules-system reconciliation request above is satisfied by
+`.agents/review/rules-system-variants.md`; the remaining bullets retain their independent priority.
 
 - Ask the owner to approve or reject the drafted Phase PT review repair plan. No code repair is
   authorized before that ruling. If approved, implement PT-R1 (`pt-1`) and PT-R2 (`pt-3`) in
