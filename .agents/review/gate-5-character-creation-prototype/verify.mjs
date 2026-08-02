@@ -13,6 +13,55 @@ assert.match(css, /@media \(max-width: 760px\)/);
 assert.match(css, /:focus-visible/);
 assert.match(css, /prefers-reduced-motion/);
 
+for (const helpId of [
+  "context-help",
+  "creation-help-slot",
+  "progression-help-slot",
+  "help-pin",
+  "help-close",
+  "mobile-help-toggle",
+  "help-backdrop",
+  "help-resource",
+  "help-example",
+  "help-limits"
+]) {
+  assert.match(html, new RegExp(`id="${helpId}"`), `missing rules-guide control #${helpId}`);
+}
+
+for (const helpStyle of [
+  ".side-rail",
+  ".context-help",
+  ".context-help.is-mobile-open",
+  ".mobile-help-toggle",
+  ".help-backdrop.is-visible"
+]) {
+  assert.ok(css.includes(helpStyle), `missing rules-guide style: ${helpStyle}`);
+}
+
+assert.match(html, /aria-controls="context-help"/);
+const htmlIds = [...html.matchAll(/\bid="([^"]+)"/g)].map((match) => match[1]);
+assert.equal(new Set(htmlIds).size, htmlIds.length, "HTML ids must be unique");
+
+let cssBraceDepth = 0;
+for (const character of css) {
+  if (character === "{") cssBraceDepth += 1;
+  if (character === "}") cssBraceDepth -= 1;
+  assert.ok(cssBraceDepth >= 0, "CSS closes a block before it opens");
+}
+assert.equal(cssBraceDepth, 0, "CSS blocks must be balanced");
+
+assert.match(script, /const ABILITY_RESOURCE = \{\s*maximum: 6,\s*breatherRecovery: 2,\s*fullRecovery: "safe rest"\s*\}/);
+assert.match(script, /genericTerms: \["Tempo", "Combat Form", "Weapon Mastery"\]/);
+assert.match(script, /A basic \$\{terms\.primary\} costs 2 \$\{terms\.resource\}/);
+assert.match(script, /Recover \$\{ABILITY_RESOURCE\.breatherRecovery\} \$\{terms\.resource\} after a breather/);
+assert.match(script, /Spending \$\{terms\.resource\} does not create an extra action or reaction/);
+assert.equal(
+  (script.match(/Maximum(?: stored)? \{resource\} rises from 6 to 7\./g) || []).length,
+  5,
+  "every archetype level preview must use the shared starting capacity"
+);
+assert.doesNotMatch(script, /Maximum(?: stored)? \{resource\} rises from [23] to [34]\./);
+
 for (const example of [
   "paladin-commander",
   "wizard-axe",
@@ -44,6 +93,19 @@ for (const contextLeak of [
   "schemaVersion"
 ]) {
   assert.ok(!html.toLowerCase().includes(contextLeak.toLowerCase()), `player-facing context leak: ${contextLeak}`);
+}
+
+const playerCopy = `${html}\n${script}`.toLowerCase();
+for (const implementationLeak of [
+  "generic power",
+  "universal power",
+  "same power",
+  "power stat",
+  "alias for",
+  "under the hood",
+  "same resource with a different name"
+]) {
+  assert.ok(!playerCopy.includes(implementationLeak), `player-facing implementation leak: ${implementationLeak}`);
 }
 
 for (const campaign of ["Crownfall", "Neon Divide", "Starfall Reach"]) {

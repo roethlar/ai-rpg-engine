@@ -166,7 +166,8 @@
           </footer>
         </section>
 
-        <aside class="build-sheet" aria-labelledby="character-sheet-title">
+        <aside class="side-rail" aria-label="Character summary and rules guide">
+          <section class="build-sheet character-sheet-card" aria-labelledby="character-sheet-title">
           <div class="sheet-header">
             <div>
               <p class="eyebrow">Character sheet</p>
@@ -211,26 +212,59 @@
 
           <section class="character-sheet-section">
             <div class="ledger-heading">
-              <h3>Signature abilities</h3>
-            </div>
-            <div class="ability-list" id="signature-abilities">
-              <div class="empty-ledger">No abilities selected yet.</div>
-            </div>
-          </section>
-
-          <section class="character-sheet-section">
-            <div class="ledger-heading">
               <h3>Strengths</h3>
             </div>
             <div class="tag-row" id="character-strengths"><span class="empty-tag">None yet</span></div>
           </section>
-
-          <section class="character-sheet-section restriction-section">
-            <div class="ledger-heading">
-              <h3>Important limits</h3>
-            </div>
-            <ul id="character-limits"><li>Choose an archetype to see its limits.</li></ul>
           </section>
+
+          <div id="creation-help-slot">
+            <section class="context-help" id="context-help" aria-labelledby="help-title" aria-live="polite">
+              <header class="help-header">
+                <div>
+                  <p class="eyebrow" id="help-kicker">Rules guide</p>
+                  <h2 id="help-title">Choosing an archetype</h2>
+                </div>
+                <div class="help-header-actions">
+                  <button class="help-pin" id="help-pin" type="button" aria-pressed="false" title="Keep this topic visible">
+                    <span aria-hidden="true">◇</span><span id="help-pin-label">Pin</span>
+                  </button>
+                  <button class="help-close" id="help-close" type="button" aria-label="Close rules guide">×</button>
+                </div>
+              </header>
+
+              <div class="resource-guide" id="help-resource" hidden>
+                <div class="resource-guide-heading">
+                  <div>
+                    <span id="help-resource-label">Class resource</span>
+                    <strong id="help-resource-name">Resolve</strong>
+                  </div>
+                  <b><span id="help-resource-current">6</span>/<span id="help-resource-maximum">6</span></b>
+                </div>
+                <div class="resource-meter" aria-hidden="true"><span></span></div>
+                <p id="help-resource-rule"></p>
+              </div>
+
+              <p class="help-summary" id="help-summary">
+                An archetype determines progression, signature abilities, and important restrictions.
+              </p>
+
+              <section class="help-section">
+                <h3>How it works</h3>
+                <ol id="help-steps"></ol>
+              </section>
+
+              <section class="help-section help-example">
+                <h3>Example</h3>
+                <p id="help-example"></p>
+              </section>
+
+              <section class="help-section help-limits">
+                <h3>Keep in mind</h3>
+                <ul id="help-limits"></ul>
+              </section>
+            </section>
+          </div>
         </aside>
       </div>
     </section>
@@ -328,7 +362,8 @@
           </footer>
         </section>
 
-        <aside class="build-sheet level-sheet" aria-labelledby="level-preview-title">
+        <aside class="side-rail" aria-label="Level summary and rules guide">
+          <section class="build-sheet level-sheet" aria-labelledby="level-preview-title">
           <div class="sheet-header">
             <div>
               <p class="eyebrow">After this choice</p>
@@ -351,10 +386,17 @@
               <li>Your current class name and presentation</li>
             </ul>
           </div>
+          </section>
+          <div id="progression-help-slot"></div>
         </aside>
       </div>
     </section>
   </main>
+
+  <button class="mobile-help-toggle" id="mobile-help-toggle" type="button" aria-expanded="false" aria-controls="context-help">
+    <span aria-hidden="true">?</span> Rules guide
+  </button>
+  <button class="help-backdrop" id="help-backdrop" type="button" aria-label="Close rules guide"></button>
 
   <footer class="site-footer">
     <p><strong>Every choice shows its benefits and limits before confirmation.</strong></p>

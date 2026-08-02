@@ -5,12 +5,12 @@ const ARCHETYPES = {
     name: "Oathbound",
     sigil: "OA",
     family: "Vow and consequence",
-    description: "Declare a binding ideal, build resolve by honoring it, and spend that resolve to protect allies or pass judgment.",
-    loop: "Declare a vow → earn Resolve by upholding it → spend Resolve on protection and judgment.",
+    description: "Declare a binding ideal, draw on resolve to protect allies and pass judgment, then face consequences if you break it.",
+    loop: "Declare a vow → spend Resolve on protection and judgment → recover without abandoning the vow.",
     strengths: ["Protection", "Judgment", "Endurance"],
     tags: ["Armored", "Resolve pool", "Reactive defense"],
     abilityDetails: [
-      "Build this resource by honoring your declared vow; spend it on stronger class abilities.",
+      "Spend Resolve on stronger protection and judgment abilities; recover it only while the vow remains intact.",
       "React when a nearby ally is threatened and reduce the harm they would suffer.",
       "Place a consequence on a foe who violates the terms you declared."
     ],
@@ -21,7 +21,7 @@ const ARCHETYPES = {
     levelUp: {
       automatic: [
         ["{guard} improves", "The protective reaction improves from d6 to d8."],
-        ["{resource} capacity +1", "Maximum {resource} rises from 2 to 3."]
+        ["{resource} capacity +1", "Maximum {resource} rises from 6 to 7."]
       ],
       choices: [
         ["Intercession", "After {guard} reduces harm, the protected ally may shift one position."],
@@ -44,7 +44,7 @@ const ARCHETYPES = {
     tags: ["Prepared repertoire", "Focus pool", "Limited weapons"],
     abilityDetails: [
       "Choose a limited set of known effects to have ready before entering danger.",
-      "Spend this resource to increase the reach, force, or duration of a prepared effect.",
+      "Spend Focus to increase the reach, force, or duration of a prepared effect.",
       "Exchange one prepared effect for another during a safe rest."
     ],
     limits: [
@@ -54,7 +54,7 @@ const ARCHETYPES = {
     levelUp: {
       automatic: [
         ["Prepared {repertoire} +1", "Ready one additional effect after each safe rest."],
-        ["{resource} capacity +1", "Maximum {resource} rises from 3 to 4."]
+        ["{resource} capacity +1", "Maximum {resource} rises from 6 to 7."]
       ],
       choices: [
         ["Counterweave", "Spend 1 {resource} to weaken an observed supernatural effect."],
@@ -71,12 +71,12 @@ const ARCHETYPES = {
     name: "Vanguard",
     sigil: "VA",
     family: "Tempo and weapon forms",
-    description: "Control a weapon exchange, build tempo through committed action, and convert it into precise martial forms.",
-    loop: "Commit to an exchange → build Tempo → spend Tempo on forms, counters, and mastery.",
+    description: "Control a weapon exchange by spending tempo on precise forms and counters while weapon mastery sets what you can attempt.",
+    loop: "Read the exchange → spend Tempo on a form or counter → recover between fights.",
     strengths: ["Weapon mastery", "Pressure", "Durability"],
     tags: ["Martial weapons", "Armor", "Tempo track"],
     abilityDetails: [
-      "Build this resource during sustained weapon exchanges and spend it on martial forms.",
+      "Spend Tempo on demanding martial forms and counters during a weapon exchange.",
       "Choose a trained maneuver that changes position, pressure, or defense.",
       "Advance one weapon group beyond ordinary proficiency."
     ],
@@ -86,7 +86,7 @@ const ARCHETYPES = {
     ],
     levelUp: {
       automatic: [
-        ["{resource} ceiling +1", "Maximum {resource} rises from 3 to 4."],
+        ["{resource} ceiling +1", "Maximum {resource} rises from 6 to 7."],
         ["{mastery} advances", "One trained weapon group reaches the next mastery tier."]
       ],
       choices: [
@@ -105,11 +105,11 @@ const ARCHETYPES = {
     sigil: "IN",
     family: "Access and exposure",
     description: "Create an opening in a protected system, exploit that access, and manage the attention your intrusion creates.",
-    loop: "Probe a system → establish Access → spend Access while managing rising Trace.",
+    loop: "Reach a system → spend Access on exploits → manage the Trace those exploits create.",
     strengths: ["Infiltration", "Information", "Disruption"],
     tags: ["Access pool", "Trace pressure", "Special implement"],
     abilityDetails: [
-      "Establish and store openings in a connected or physically reachable system.",
+      "Spend Access to exploit openings in a connected or physically reachable system.",
       "Powerful intrusions raise this pressure and trigger escalating consequences.",
       "Spend an opening to alter, expose, or disable a bounded system function."
     ],
@@ -119,7 +119,7 @@ const ARCHETYPES = {
     ],
     levelUp: {
       automatic: [
-        ["{resource} ceiling +1", "Maximum stored {resource} rises from 3 to 4."],
+        ["{resource} ceiling +1", "Maximum stored {resource} rises from 6 to 7."],
         ["{pressure} buffer +1", "The first exposure consequence begins one step later."]
       ],
       choices: [
@@ -142,7 +142,7 @@ const ARCHETYPES = {
     strengths: ["Transformation", "Mobility", "Adaptation"],
     tags: ["Alternate forms", "Essence pool", "Strain"],
     abilityDetails: [
-      "Spend this resource to change form or push a form beyond its ordinary limit.",
+      "Spend Essence to change form or push a form beyond its ordinary limit.",
       "Adopt one learned shape with a fixed package of strengths and weaknesses.",
       "Changing too often raises this pressure and makes later transformations harder."
     ],
@@ -152,7 +152,7 @@ const ARCHETYPES = {
     ],
     levelUp: {
       automatic: [
-        ["{resource} capacity +1", "Maximum {resource} rises from 2 to 3."],
+        ["{resource} capacity +1", "Maximum {resource} rises from 6 to 7."],
         ["{form} adaptation", "Add one bounded adaptation to a learned form."]
       ],
       choices: [
@@ -310,6 +310,118 @@ const EXAMPLES = {
   "netrunner-billionaire": ["neon", "intruder", "netrunner", "investigation", "Sable Kade", "Founder of Kade Meridian", 0, "billionaire"]
 };
 
+const STANDING_EXAMPLES = {
+  none: "An independent character can still earn cooperation through reputation and relationships, but cannot invoke an institution on demand.",
+  royal: "A royal appointee can request records or cooperation where the crown is obeyed. Finding and interpreting the evidence still requires Investigation training and successful checks.",
+  garrison: "A commander can assign patrols or defend a known location between expeditions. Inside a sealed ruin, the garrison does not become extra combat turns.",
+  patron: "A Great House can arrange introductions, lodging, or supplies when its people have time and access to help. It cannot purchase an answer in an isolated dungeon.",
+  civic: "A city officer can request municipal records or official cooperation inside that office’s jurisdiction. The badge does not supply investigative skill.",
+  crew: "A crew can watch an exit, gather local information, or take a separate assignment when contact and loyalty permit. It does not act as extra turns for the character.",
+  billionaire: "Before an operation, a billionaire sponsor can fund a safehouse, retain specialists, or arrange equipment when time and access permit. Inside a sealed site, the character relies on personal abilities and training.",
+  fleet: "A fleet officer can issue lawful orders and request support where the chain of command reaches. Hostile territory may recognize none of that authority.",
+  ship: "A captain can direct a named ship and crew when they are present and able to act. Away from the ship, the captain uses personal abilities like anyone else.",
+  magnate: "A station magnate can arrange contacts, freight, or credit along established routes. Immediate help still depends on communication, distance, and delivery time."
+};
+
+const ABILITY_RESOURCE = {
+  maximum: 6,
+  breatherRecovery: 2,
+  fullRecovery: "safe rest"
+};
+
+const ARCHETYPE_GUIDES = {
+  oathbound: {
+    genericTerms: ["Resolve", "Aegis", "Verdict"],
+    summary: (className, terms) =>
+      `${className} abilities draw on ${terms.resource}. Protection is reactive; judgment is deliberate and more expensive.`,
+    steps: (terms) => [
+      `Begin an expedition with ${ABILITY_RESOURCE.maximum} ${terms.resource}.`,
+      `${terms.primary} is a reaction that costs 2 ${terms.resource} when a nearby ally is threatened.`,
+      `${terms.secondary} is an action that costs 3 ${terms.resource} and places a consequence on a foe.`,
+      `Recover ${ABILITY_RESOURCE.breatherRecovery} ${terms.resource} after a breather and all of it after a ${ABILITY_RESOURCE.fullRecovery}.`
+    ],
+    example: (className, terms) =>
+      `${className} begins with ${ABILITY_RESOURCE.maximum} ${terms.resource}. ${terms.primary} protects an ally for 2, leaving 4. Later, ${terms.secondary} costs 3, leaving 1 until the group can recover.`,
+    limits: (terms) => [
+      "The protective reaction still uses the character’s reaction for that round.",
+      `A broken vow can suspend ${terms.resource} recovery until its consequence is faced.`,
+      "Rank and followers come from standing and relationships, not Oathbound abilities."
+    ]
+  },
+  arcanist: {
+    genericTerms: ["Focus", "Prepared Repertoire", "Revision"],
+    summary: (className, terms) =>
+      `${className} effects draw on ${terms.resource}. Preparation controls what is available; ${terms.resource} controls how much can be done before recovery.`,
+    steps: (terms) => [
+      `Begin an expedition with ${ABILITY_RESOURCE.maximum} ${terms.resource}.`,
+      `Choose the effects in your ${terms.primary} during a safe rest.`,
+      `Prepared effects cost 1–3 ${terms.resource}; stronger reach, force, or duration costs more.`,
+      `Recover ${ABILITY_RESOURCE.breatherRecovery} ${terms.resource} after a breather and all of it after a ${ABILITY_RESOURCE.fullRecovery}.`
+    ],
+    example: (className, terms) =>
+      `${className} begins with ${ABILITY_RESOURCE.maximum} ${terms.resource}. A binding effect costs 2, then an amplified blast costs 3. One ${terms.resource} remains, and only effects in the ${terms.primary} are still available.`,
+    limits: (terms) => [
+      `Having enough ${terms.resource} does not make an unprepared effect available.`,
+      "Weapon training does not grant another prepared slot or advanced effect.",
+      `Changing the ${terms.primary} requires the listed rest or revision feature.`
+    ]
+  },
+  vanguard: {
+    genericTerms: ["Tempo", "Combat Form", "Weapon Mastery"],
+    summary: (className, terms) =>
+      `${className} techniques draw on ${terms.resource}. Forms are paid abilities; mastery determines which weapons and advanced forms are available.`,
+    steps: (terms) => [
+      `Begin an expedition with ${ABILITY_RESOURCE.maximum} ${terms.resource}.`,
+      `A basic ${terms.primary} costs 2 ${terms.resource} and uses the action or reaction printed on that form.`,
+      `${terms.secondary} is passive progression; it does not consume ${terms.resource}.`,
+      `Recover ${ABILITY_RESOURCE.breatherRecovery} ${terms.resource} after a breather and all of it after a ${ABILITY_RESOURCE.fullRecovery}.`
+    ],
+    example: (className, terms) =>
+      `${className} begins with ${ABILITY_RESOURCE.maximum} ${terms.resource}. A Breaker ${terms.primary} costs 2, and a Guard Counter later costs 2 more. Two ${terms.resource} remain for another technique before recovery.`,
+    limits: (terms) => [
+      `Spending ${terms.resource} does not create an extra action or reaction.`,
+      "A form still requires its listed weapon, position, and trigger.",
+      `Command training and military rank do not add forms or ${terms.secondary}.`
+    ]
+  },
+  intruder: {
+    genericTerms: ["Access", "Trace", "Exploit"],
+    summary: (className, terms) =>
+      `${className} exploits draw on ${terms.resource}. ${terms.primary} tracks escalating exposure and can create consequences even when resource remains.`,
+    steps: (terms) => [
+      `Begin an operation with ${ABILITY_RESOURCE.maximum} ${terms.resource}.`,
+      `${terms.secondary} actions cost 1–3 ${terms.resource}, depending on reach and effect.`,
+      `Riskier exploits may also raise ${terms.primary}; spending ${terms.resource} does not remove that exposure.`,
+      `Recover ${ABILITY_RESOURCE.breatherRecovery} ${terms.resource} after a breather and all of it after a ${ABILITY_RESOURCE.fullRecovery}.`
+    ],
+    example: (className, terms) =>
+      `${className} begins with ${ABILITY_RESOURCE.maximum} ${terms.resource}. A quiet scan costs 1. A forceful ${terms.secondary} costs 3 and raises ${terms.primary}. Two ${terms.resource} remain, but the system is now watching.`,
+    limits: (terms) => [
+      "A reachable system or local device is still required.",
+      `Recovering ${terms.resource} does not erase ${terms.primary}, alarms, or other consequences.`,
+      "Wealth cannot create a connection or bypass an exploit’s prerequisites."
+    ]
+  },
+  shifter: {
+    genericTerms: ["Essence", "Form", "Strain"],
+    summary: (className, terms) =>
+      `${className} transformations draw on ${terms.resource}. ${terms.primary} determines the available body; ${terms.secondary} tracks the risk of repeated change.`,
+    steps: (terms) => [
+      `Begin an expedition with ${ABILITY_RESOURCE.maximum} ${terms.resource}.`,
+      `Changing into a learned ${terms.primary} costs 2 ${terms.resource}.`,
+      `Pushing a form beyond its listed limits costs more and may raise ${terms.secondary}.`,
+      `Recover ${ABILITY_RESOURCE.breatherRecovery} ${terms.resource} after a breather and all of it after a ${ABILITY_RESOURCE.fullRecovery}.`
+    ],
+    example: (className, terms) =>
+      `${className} begins with ${ABILITY_RESOURCE.maximum} ${terms.resource}. Taking a climbing ${terms.primary} costs 2. Forcing an extreme adaptation costs another 2 and raises ${terms.secondary}, leaving 2 ${terms.resource}.`,
+    limits: (terms) => [
+      "Each learned form grants only the abilities written on it.",
+      `Recovering ${terms.resource} does not automatically remove ${terms.secondary} or its consequences.`,
+      "Healing, command, and spellcasting require their own listed source."
+    ]
+  }
+};
+
 const state = {
   view: "creation",
   campaignId: "crownfall",
@@ -362,9 +474,27 @@ const elements = {
   summaryTraining: document.querySelector("#summary-training"),
   summaryStanding: document.querySelector("#summary-standing"),
   playstyle: document.querySelector("#playstyle-summary"),
-  abilities: document.querySelector("#signature-abilities"),
   strengths: document.querySelector("#character-strengths"),
-  limits: document.querySelector("#character-limits"),
+  creationHelpSlot: document.querySelector("#creation-help-slot"),
+  progressionHelpSlot: document.querySelector("#progression-help-slot"),
+  contextHelp: document.querySelector("#context-help"),
+  helpKicker: document.querySelector("#help-kicker"),
+  helpTitle: document.querySelector("#help-title"),
+  helpPin: document.querySelector("#help-pin"),
+  helpPinLabel: document.querySelector("#help-pin-label"),
+  helpClose: document.querySelector("#help-close"),
+  helpResource: document.querySelector("#help-resource"),
+  helpResourceLabel: document.querySelector("#help-resource-label"),
+  helpResourceName: document.querySelector("#help-resource-name"),
+  helpResourceCurrent: document.querySelector("#help-resource-current"),
+  helpResourceMaximum: document.querySelector("#help-resource-maximum"),
+  helpResourceRule: document.querySelector("#help-resource-rule"),
+  helpSummary: document.querySelector("#help-summary"),
+  helpSteps: document.querySelector("#help-steps"),
+  helpExample: document.querySelector("#help-example"),
+  helpLimits: document.querySelector("#help-limits"),
+  mobileHelpToggle: document.querySelector("#mobile-help-toggle"),
+  helpBackdrop: document.querySelector("#help-backdrop"),
   battleMageDialog: document.querySelector("#battle-mage-dialog"),
   toast: document.querySelector("#character-toast"),
   levelName: document.querySelector("#level-character-name"),
@@ -391,6 +521,8 @@ const elements = {
 };
 
 let toastTimer = null;
+let helpPinned = false;
+const mobileHelpQuery = window.matchMedia("(max-width: 760px)");
 
 function escapeHtml(value) {
   return String(value)
@@ -445,8 +577,263 @@ function flavorText(text, calling) {
   );
 }
 
+function guideTerms(archetypeId, selectedCalling = null) {
+  if (!selectedCalling) {
+    const [resource, primary, secondary] = ARCHETYPE_GUIDES[archetypeId].genericTerms;
+    return { resource, primary, secondary };
+  }
+  const names = selectedCalling[4];
+  if (archetypeId === "arcanist") {
+    return { resource: names[1], primary: names[0], secondary: names[2] };
+  }
+  return { resource: names[0], primary: names[1], secondary: names[2] };
+}
+
+function archetypeHelp(archetypeId, selectedCalling = null) {
+  const archetype = ARCHETYPES[archetypeId];
+  const guide = ARCHETYPE_GUIDES[archetypeId];
+  const terms = guideTerms(archetypeId, selectedCalling);
+  const className = selectedCalling ? selectedCalling[1] : archetype.name;
+  return {
+    kicker: selectedCalling ? `${archetype.name} · ${className}` : `${archetype.name} archetype`,
+    title: selectedCalling ? `How a ${className} works` : `How ${archetype.name} works`,
+    summary: guide.summary(className, terms),
+    resource: {
+      label: `${className} resource`,
+      name: terms.resource,
+      current: ABILITY_RESOURCE.maximum,
+      maximum: ABILITY_RESOURCE.maximum,
+      rule: `${terms.resource} pays for ${className} abilities. A breather restores ${ABILITY_RESOURCE.breatherRecovery}; a ${ABILITY_RESOURCE.fullRecovery} restores it to ${ABILITY_RESOURCE.maximum}.`
+    },
+    steps: guide.steps(terms),
+    example: guide.example(className, terms),
+    limits: guide.limits(terms)
+  };
+}
+
+function trainingHelp(trainingId) {
+  const item = TRAINING[trainingId];
+  return {
+    kicker: "Special training",
+    title: item.name,
+    summary: item.summary,
+    resource: null,
+    steps: [
+      `Selecting ${item.name} grants ${item.ability[0]}.`,
+      item.ability[1],
+      "The action or reaction printed on the ability still applies.",
+      "Training advances separately from archetype levels."
+    ],
+    example: `${item.ability[0]} is available because this training was selected; a title, job, or background with similar wording would not grant it.`,
+    limits: [item.limit]
+  };
+}
+
+function backgroundHelp() {
+  const background = campaign().backgrounds[state.backgroundIndex];
+  return {
+    kicker: `${campaign().genre} background`,
+    title: background,
+    summary: "Background establishes prior experience, likely knowledge, and plausible relationships. It is not another ability package.",
+    resource: null,
+    steps: [
+      "Choose the history that best explains where the character learned ordinary things.",
+      "Use it to establish familiarity, contacts, or context when the fiction supports them.",
+      "Resolve uncertain actions with the character’s actual training and abilities."
+    ],
+    example: `“${background}” can establish what the character plausibly knows or who they may recognize; it does not grant a class ability with a similar theme.`,
+    limits: ["Background grants no archetype level, special training, standing, followers, or extra action."]
+  };
+}
+
+function identityHelp() {
+  return {
+    kicker: "Character identity",
+    title: "Name and title",
+    summary: "Name and title tell the table who the character is and how others address them. They do not replace a mechanical choice.",
+    resource: null,
+    steps: [
+      "Enter the character’s personal name.",
+      "Add a title, office, or reputation if it belongs in the concept.",
+      "Represent any actual skill or authority through training and standing."
+    ],
+    example: "A Royal Inquisitive might be a Wizard with Investigation training and a royal appointment. The title describes that combination; it does not create it.",
+    limits: ["A title alone grants no class ability, training, jurisdiction, followers, wealth, or extra action."]
+  };
+}
+
+function standingHelp(standingEntry = standing()) {
+  return {
+    kicker: "Current standing",
+    title: standingEntry[0],
+    summary: standingEntry[1],
+    resource: null,
+    steps: [
+      "Standing describes the authority, wealth, or institution currently available to the character.",
+      "The campaign checks whether that standing is recognized and able to reach the present situation.",
+      "Any followers, property, corporation, garrison, or vehicle remain separately tracked."
+    ],
+    example: STANDING_EXAMPLES[state.standingId],
+    limits: [standingEntry[2] || "Standing does not add archetype levels, training, or extra actions."]
+  };
+}
+
+function creationOverviewHelp() {
+  return {
+    kicker: "Character creation",
+    title: "Choosing an archetype",
+    summary: "An archetype determines progression, signature abilities, and important restrictions.",
+    resource: null,
+    steps: [
+      "Choose the style of progression you want to play.",
+      "If the campaign has several classes for that archetype, choose the class that fits your character.",
+      "Add one special training, then choose background, standing, name, and title."
+    ],
+    example: "Oathbound can become a Paladin or Templar in Crownfall. Both advance as Oathbound; the class determines how that path appears in the campaign.",
+    limits: ["Background, standing, and title never grant an archetype’s abilities by themselves."]
+  };
+}
+
+function classChoiceHelp(archetypeId) {
+  const archetype = ARCHETYPES[archetypeId];
+  return {
+    kicker: `${campaign().name} classes`,
+    title: `Choose an ${archetype.name} class`,
+    summary: `These classes share ${archetype.name} progression but give its abilities names and a place suited to ${campaign().name}.`,
+    resource: null,
+    steps: [
+      "Compare the class descriptions and signature terms.",
+      "Choose the version that fits the character’s place in this campaign.",
+      `The ${archetype.name} progression and restrictions remain the same.`
+    ],
+    example: `In ${campaign().name}, selecting one class changes the character’s class presentation without creating another progression track.`,
+    limits: ["A campaign class does not add a second archetype or a second advancement budget."]
+  };
+}
+
+function developmentHelp(choice, currentCalling, archetype) {
+  return {
+    kicker: "Level development",
+    title: choice.name,
+    summary: choice.detail,
+    resource: null,
+    steps: [
+      `Advance ${currentCalling[1]} to level 4.`,
+      `Gain the automatic ${archetype.name} improvements shown above.`,
+      `Add ${choice.name} as this level’s one development.`
+    ],
+    example: `${choice.name} becomes available after the level is confirmed; no other development from this list is gained.`,
+    limits: ["This uses the level’s one development choice."]
+  };
+}
+
+function routeHelp(route) {
+  const context = progressionContext();
+  const { archetype, currentCalling, target, targetCallings, targetCalling } = context;
+  if (route === "continue") {
+    return {
+      kicker: "Continue current path",
+      title: `${currentCalling[1]} level 4`,
+      summary: `Advance the ${archetype.name} archetype, gain its automatic improvements, and choose one development.`,
+      resource: null,
+      steps: [
+        `Keep ${currentCalling[1]} as the character’s only class.`,
+        `Gain both automatic ${archetype.name} improvements shown in the level preview.`,
+        "Choose one development from the available list.",
+        "Confirm the level after reviewing the complete result."
+      ],
+      example: `${currentCalling[1]} 3 becomes ${currentCalling[1]} 4 and gains one selected development alongside its automatic improvements.`,
+      limits: ["Continuing this path does not grant the entry abilities or training of another archetype."]
+    };
+  }
+  const selectedClass = targetCalling || (targetCallings.length === 1 ? targetCallings[0] : null);
+  return {
+    kicker: "Begin another archetype",
+    title: selectedClass ? `${target.name} · ${selectedClass[1]}` : `Begin ${target.name}`,
+    summary: `This level goes to ${target.name} instead of advancing ${currentCalling[1]}.`,
+    resource: selectedClass ? archetypeHelp(archetype.multiclassTarget, selectedClass).resource : null,
+    steps: [
+      targetCallings.length > 1 ? `Choose the ${target.name} class used in ${campaign().name}.` : `${targetCallings[0][1]} is selected for ${campaign().name}.`,
+      `Gain the entry abilities from ${target.name} level 1.`,
+      `Keep ${currentCalling[1]} at level 3.`,
+      `Return to ${archetype.name} later if you want its level 4 improvements.`
+    ],
+    example: `${currentCalling[1]} 3 / ${selectedClass ? selectedClass[1] : target.name} 1 has four total levels, not two simultaneous level-4 progressions.`,
+    limits: archetype.multiclassCosts.map((item) => flavorText(item, currentCalling))
+  };
+}
+
+function defaultHelpTopic() {
+  if (state.view === "progression") return routeHelp(state.levelRoute);
+  if (state.step === "archetype") {
+    return state.archetypeId ? archetypeHelp(state.archetypeId, callingById()) : creationOverviewHelp();
+  }
+  if (state.step === "calling") {
+    return state.callingId ? archetypeHelp(state.archetypeId, callingById()) : classChoiceHelp(state.archetypeId);
+  }
+  return state.archetypeId ? archetypeHelp(state.archetypeId, callingById()) : creationOverviewHelp();
+}
+
+function renderHelpTopic(topic) {
+  elements.helpKicker.textContent = topic.kicker;
+  elements.helpTitle.textContent = topic.title;
+  elements.helpSummary.textContent = topic.summary;
+  elements.helpSteps.innerHTML = topic.steps.map((step) => `<li>${escapeHtml(step)}</li>`).join("");
+  elements.helpExample.textContent = topic.example;
+  elements.helpLimits.innerHTML = topic.limits.map((limit) => `<li>${escapeHtml(limit)}</li>`).join("");
+  if (topic.resource) {
+    elements.helpResource.hidden = false;
+    elements.helpResourceLabel.textContent = topic.resource.label;
+    elements.helpResourceName.textContent = topic.resource.name;
+    elements.helpResourceCurrent.textContent = String(topic.resource.current);
+    elements.helpResourceMaximum.textContent = String(topic.resource.maximum);
+    elements.helpResourceRule.textContent = topic.resource.rule;
+  } else {
+    elements.helpResource.hidden = true;
+  }
+}
+
+function showHelp(topic) {
+  if (!helpPinned) renderHelpTopic(topic);
+}
+
+function refreshHelp() {
+  if (!helpPinned) renderHelpTopic(defaultHelpTopic());
+}
+
+function bindHelp(element, topicFactory) {
+  element.addEventListener("mouseenter", () => showHelp(topicFactory()));
+  element.addEventListener("focus", () => showHelp(topicFactory()));
+}
+
+function moveHelpPanel(view) {
+  const slot = view === "progression" ? elements.progressionHelpSlot : elements.creationHelpSlot;
+  if (elements.contextHelp.parentElement !== slot) slot.append(elements.contextHelp);
+}
+
+function openMobileHelp() {
+  elements.contextHelp.classList.add("is-mobile-open");
+  elements.helpBackdrop.classList.add("is-visible");
+  document.body.classList.add("rules-guide-open");
+  elements.contextHelp.setAttribute("role", "dialog");
+  elements.contextHelp.setAttribute("aria-modal", "true");
+  elements.mobileHelpToggle.setAttribute("aria-expanded", "true");
+  elements.helpClose.focus();
+}
+
+function closeMobileHelp(restoreFocus = false) {
+  elements.contextHelp.classList.remove("is-mobile-open");
+  elements.helpBackdrop.classList.remove("is-visible");
+  document.body.classList.remove("rules-guide-open");
+  elements.contextHelp.removeAttribute("role");
+  elements.contextHelp.removeAttribute("aria-modal");
+  elements.mobileHelpToggle.setAttribute("aria-expanded", "false");
+  if (restoreFocus) elements.mobileHelpToggle.focus();
+}
+
 function setView(view) {
   state.view = view;
+  moveHelpPanel(view);
   elements.views.forEach((element) => {
     const active = element.dataset.view === view;
     element.hidden = !active;
@@ -458,6 +845,7 @@ function setView(view) {
     button.setAttribute("aria-pressed", String(active));
   });
   if (view === "progression") renderProgression();
+  refreshHelp();
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
@@ -620,6 +1008,7 @@ function renderArchetypes() {
   }).join("");
   elements.archetypeOptions.querySelectorAll("[data-archetype-choice]").forEach((button) => {
     button.addEventListener("click", () => selectArchetype(button.dataset.archetypeChoice));
+    bindHelp(button, () => archetypeHelp(button.dataset.archetypeChoice));
   });
 }
 
@@ -671,6 +1060,10 @@ function renderCallings() {
       state.confirmed = false;
       renderAll();
     });
+    bindHelp(button, () => {
+      const selectedCalling = callingById(state.archetypeId, button.dataset.callingChoice);
+      return archetypeHelp(state.archetypeId, selectedCalling);
+    });
   });
 }
 
@@ -691,7 +1084,9 @@ function renderTraining() {
       state.trainingId = button.dataset.trainingChoice;
       state.confirmed = false;
       renderAll();
+      showHelp(trainingHelp(state.trainingId));
     });
+    bindHelp(button, () => trainingHelp(button.dataset.trainingChoice));
   });
 }
 
@@ -731,32 +1126,10 @@ function renderSummary() {
       ? archetype.loop
       : "Choose an archetype to see its signature play.";
 
-  const abilityRows = [];
-  if (archetype && currentCalling) {
-    currentCalling[4].forEach((name, index) => {
-      abilityRows.push([name, archetype.abilityDetails[index]]);
-    });
-  }
-  if (training) abilityRows.push(training.ability);
-  elements.abilities.innerHTML = abilityRows.length
-    ? abilityRows.map(([name, detail], index) => `
-        <div class="ability-row"><span>${index < 3 ? "Path" : "Training"}</span><div><strong>${escapeHtml(name)}</strong><small>${escapeHtml(detail)}</small></div></div>
-      `).join("")
-    : '<div class="empty-ledger">No abilities selected yet.</div>';
-
   const strengths = [...new Set([...(archetype?.strengths || []), ...(training?.strengths || [])])];
   elements.strengths.innerHTML = strengths.length
     ? strengths.map((item) => `<span class="tag">${escapeHtml(item)}</span>`).join("")
     : '<span class="empty-tag">None yet</span>';
-
-  const limits = [
-    ...(archetype?.limits || []),
-    ...(training ? [training.limit] : []),
-    ...(currentStanding[2] ? [currentStanding[2]] : [])
-  ];
-  elements.limits.innerHTML = limits.length
-    ? limits.map((item) => `<li>${escapeHtml(item)}</li>`).join("")
-    : "<li>Choose an archetype to see its limits.</li>";
 }
 
 function syncInputs() {
@@ -906,6 +1279,8 @@ function renderProgression() {
         state.levelChoice = button.dataset.developmentChoice;
         renderProgression();
       });
+      const choice = choices.find((item) => item.id === button.dataset.developmentChoice);
+      bindHelp(button, () => developmentHelp(choice, currentCalling, archetype));
     });
     elements.confirmLevel.disabled = !state.levelChoice;
     elements.levelStatus.textContent = state.levelChoice ? "Review the result, then confirm the level." : "Choose one development to continue.";
@@ -914,7 +1289,7 @@ function renderProgression() {
     elements.developmentSection.hidden = true;
     elements.multiclassWarning.hidden = false;
     elements.multiclassCallingTitle.textContent = `Choose a ${target.name} class`;
-    renderMulticlassCallings(targetCallings);
+    renderMulticlassCallings(targetCallings, context.targetId);
     const selectedName = targetCalling ? targetCalling[1] : target.name;
     elements.automaticRouteLabel.textContent = `${currentCalling[1]} 3 → ${currentCalling[1]} 3 / ${selectedName} 1`;
     const entryNames = targetCalling ? targetCalling[4] : [`${target.name} resource`, `${target.name} action`, "Later mastery"];
@@ -940,7 +1315,7 @@ function renderGains(gains) {
   `).join("");
 }
 
-function renderMulticlassCallings(callings) {
+function renderMulticlassCallings(callings, targetArchetypeId) {
   elements.multiclassCallingOptions.innerHTML = callings.map((entry) => {
     const selected = state.multiclassCallingId === entry[0];
     return `
@@ -955,6 +1330,10 @@ function renderMulticlassCallings(callings) {
     button.addEventListener("click", () => {
       state.multiclassCallingId = button.dataset.multiclassCalling;
       renderProgression();
+    });
+    bindHelp(button, () => {
+      const selectedClass = callings.find((entry) => entry[0] === button.dataset.multiclassCalling);
+      return archetypeHelp(targetArchetypeId, selectedClass);
     });
   });
 }
@@ -994,6 +1373,7 @@ function renderAll() {
   renderSummary();
   renderStep();
   renderProgression();
+  refreshHelp();
 }
 
 function resetCharacter() {
@@ -1051,34 +1431,75 @@ elements.nameInput.addEventListener("input", () => {
   renderSummary();
   renderStep();
 });
+bindHelp(elements.nameInput, identityHelp);
 elements.titleInput.addEventListener("input", () => {
   state.title = elements.titleInput.value;
   state.confirmed = false;
   renderSummary();
   renderStep();
 });
+bindHelp(elements.titleInput, identityHelp);
 elements.backgroundInput.addEventListener("change", () => {
   state.backgroundIndex = Number(elements.backgroundInput.value);
   state.confirmed = false;
   renderStep();
+  showHelp(backgroundHelp());
 });
+bindHelp(elements.backgroundInput, backgroundHelp);
 elements.standingInput.addEventListener("change", () => {
   state.standingId = elements.standingInput.value;
   state.confirmed = false;
   renderStandingNote();
   renderSummary();
   renderStep();
+  showHelp(standingHelp());
 });
+bindHelp(elements.standingInput, () => standingHelp());
 elements.routeTargets.forEach((button) => {
   button.addEventListener("click", () => {
     state.levelRoute = button.dataset.levelRoute;
     state.levelChoice = null;
     state.multiclassCallingId = null;
     renderProgression();
+    refreshHelp();
   });
+  bindHelp(button, () => routeHelp(button.dataset.levelRoute));
 });
 elements.confirmLevel.addEventListener("click", () => showToast("Level choice confirmed."));
 document.querySelector("#reset-character").addEventListener("click", resetCharacter);
+elements.helpPin.addEventListener("click", () => {
+  helpPinned = !helpPinned;
+  elements.helpPin.setAttribute("aria-pressed", String(helpPinned));
+  elements.helpPin.classList.toggle("is-pinned", helpPinned);
+  elements.helpPinLabel.textContent = helpPinned ? "Pinned" : "Pin";
+  if (!helpPinned) refreshHelp();
+});
+elements.mobileHelpToggle.addEventListener("click", openMobileHelp);
+elements.helpClose.addEventListener("click", () => closeMobileHelp(true));
+elements.helpBackdrop.addEventListener("click", () => closeMobileHelp(false));
+document.addEventListener("keydown", (event) => {
+  if (!elements.contextHelp.classList.contains("is-mobile-open")) return;
+  if (event.key === "Escape") {
+    closeMobileHelp(true);
+    return;
+  }
+  if (event.key === "Tab") {
+    const firstControl = elements.helpPin;
+    const lastControl = elements.helpClose;
+    if (event.shiftKey && document.activeElement === firstControl) {
+      event.preventDefault();
+      lastControl.focus();
+    } else if (!event.shiftKey && document.activeElement === lastControl) {
+      event.preventDefault();
+      firstControl.focus();
+    }
+  }
+});
+mobileHelpQuery.addEventListener("change", (event) => {
+  if (!event.matches && elements.contextHelp.classList.contains("is-mobile-open")) {
+    closeMobileHelp(false);
+  }
+});
 
 populateCampaignPicker();
 populateIdentityOptions();

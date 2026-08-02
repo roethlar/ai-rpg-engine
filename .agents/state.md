@@ -6,14 +6,19 @@ to `docs/history/state-archive.md`.
 
 ## Now
 
-- **GATE 5'S REVISED CHARACTER-CREATION AND PROGRESSION CLICK-THROUGH AWAITS OWNER EVALUATION.**
-  `.agents/review/gate-5-character-creation-prototype/index.html` now follows the owner-corrected
-  hierarchy: choose the mechanical archetype, conditionally choose among its campaign-specific classes,
-  then choose training, background, standing, and identity. A single campaign class is selected without
-  a redundant screen; multiple classes require an explicit choice. The page includes three campaign
-  genres, the owner-supplied adversarial characters, ordinary and multiclass advancement, and no
-  player-facing review/debug context. Its verifier confirms local assets only and no model, network,
-  API, or persistence path. All sample content remains provisional; nothing is approved or shipped.
+- **GATE 5'S REVISED CHARACTER-CREATION, PROGRESSION, AND CONTEXTUAL RULES GUIDE AWAITS OWNER EVALUATION.**
+  The owner accepted the interaction hierarchy as the direction: choose a mechanical archetype,
+  conditionally choose among its campaign-specific classes, then choose training, background,
+  standing, and identity; one class mapping is automatic.
+  `.agents/review/gate-5-character-creation-prototype/index.html` now adds a persistent hover/focus
+  rules guide that can be pinned, follows creation and progression, and becomes a full-height mobile
+  drawer. The provisional ability economy starts at six, recovers two after a breather and fully
+  after a safe rest, and appears only under class/genre terms. Tempo is concretely the Fighter's
+  budget for Combat Forms and counters while Weapon Mastery remains passive. Training, background,
+  title, command, wealth, and institutional standing each show operative examples and boundaries.
+  The local verifier covers assets-only/no-network/no-storage structure, guide controls, resource
+  coherence, and player-copy leak guards. All catalogs, values, and mechanics remain provisional;
+  nothing is approved or shipped.
 
 - **GATE 5'S RESTRICTIVE CLASS MODEL NEEDS REVISION BEFORE AN OWNER RULING.**
   The owner explicitly rejected §7's prose-to-model-selected-mechanics flow and retrying generation
@@ -95,10 +100,11 @@ to `docs/history/state-archive.md`.
 
 ## Next
 
-**NEXT:** The owner evaluates the revised local Gate 5 click-through: archetype first, the campaign
-class screen only when multiple mappings exist, then training/status/identity, plus ordinary versus
-multiclass advancement. Gather the owner's experience verdict before revising the class-model plan or
-presenting any approval decision. Do not invoke another reviewer without a separate explicit request.
+**NEXT:** The owner evaluates the local Gate 5 click-through's contextual guide—especially Tempo,
+costs and recovery, billionaire/royal standing examples, pinning/mobile access, and ordinary versus
+multiclass advancement. Gather the owner's experience verdict before revising the class-model plan
+or presenting any approval decision. Do not invoke another reviewer without a separate explicit
+request.
 
 - Ask the owner to approve or reject the drafted Phase PT review repair plan. No code repair is
   authorized before that ruling. If approved, implement PT-R1 (`pt-1`) and PT-R2 (`pt-3`) in
@@ -121,8 +127,9 @@ presenting any approval decision. Do not invoke another reviewer without a separ
 - Phase PT progression is held while the drafted two-slice repair plan awaits owner approval;
   `.agents/review/index.md` owns the admitted findings and `plan.md` owns the proposed repairs.
 - Phase PT S1.4 is landed. Gate 5 awaits the owner's experience verdict on the deterministic local
-  creation/progression prototype; the later classification ruling, exact class catalogs/balance gates,
-  and the `pt-5` description-scope ruling block S1.5 Creator/onboarding work.
+  creation/progression prototype and its contextual rules guide; the exact class catalog, balance,
+  and all sample mechanics remain unsettled. The later classification ruling and the `pt-5`
+  description-scope ruling still block S1.5 Creator/onboarding work.
 - Broader Chapter 1/2 effect-catalog runtime implementation remains blocked until promoted into
   a concrete owner-approved phase; the D2 catalog-design gate is closed.
 - Phase V closure requires the owner's real-session voice verdict.
@@ -130,7 +137,10 @@ presenting any approval decision. Do not invoke another reviewer without a separ
 
 ## Verification
 
-- Automated: `node test.js` — green through Phase PT S1.4 on 2026-07-31.
+- Automated: `node test.js` — green 2026-08-01 after the Gate 5 contextual-guide revision.
+  Prototype-local `node .agents/review/gate-5-character-creation-prototype/verify.mjs` is also green;
+  guard proof removed the guide ID and changed its starting capacity, and each mutation failed before
+  restoration.
 - S1.4 guard proof: temporarily disabling the campaign-vocabulary UPDATE trigger failed the new
   immutable-row assertion. Separately weakening direct-operation queue ownership, stale-owner expiry,
   Unicode-format echo normalization, proposal/persistence alignment, or shaping support made its
@@ -146,8 +156,9 @@ presenting any approval decision. Do not invoke another reviewer without a separ
   claims fail, and the proposal has no DML or mechanics-application path.
 - Privacy boundary is structural plus verbatim-overlap lint: raw canon/basis/anchors never return.
   Canon has no visibility metadata, so semantic secret paraphrases cannot be proven impossible.
-- Manual/browser playtest: not run; S1.3-S1.4 are internal-only seams with no route or UI. See
-  `.agents/repo-guidance.md` (Verification) for required surfaces and the coverage boundary.
+- Manual/browser playtest: not run for the Gate 5 contextual guide; the owner's experience evaluation
+  is pending. S1.3-S1.4 remain internal-only seams with no route or shipped UI change. See
+  `.agents/repo-guidance.md` (Verification) for required surfaces and coverage boundaries.
 - Guard-proof requirements and anti-vacuity practice live in `AGENTS.md` and
   `.agents/decisions.md`; the codereview playbook applies only when explicitly invoked.
 - Live seat verification uses a throwaway store: mint seat → `/api/seat/session` → leak-scan the
