@@ -487,6 +487,12 @@ No text or named mechanic below is adopted by this audit. It records where a fin
 
 The roster is not balanced because it has equal row count or equal damage. It is balanceable only if every advantage pays through the same action/effect budget and no candidate receives an extra actor, asset, or unrestricted permission for free.
 
+This section governs player-character archetypes, not the ceiling on NPC design. The active
+2026-08-02 NPC-construction decision in `.agents/decisions.md` separately permits and encourages
+compact encounter kits with bespoke NPC-only abilities, including substantial exclusive boss
+mechanics, provided the encounter accounts for their difficulty and action-economy cost and gives
+players intelligible tells and counterplay.
+
 ### 9.1 Required common accounting
 
 1. Every always-available Main is worth one Standard attack or one cataloged non-damage equivalent.
