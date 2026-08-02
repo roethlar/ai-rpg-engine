@@ -478,10 +478,10 @@ const elements = {
   creationHelpSlot: document.querySelector("#creation-help-slot"),
   progressionHelpSlot: document.querySelector("#progression-help-slot"),
   contextHelp: document.querySelector("#context-help"),
+  helpSummaries: document.querySelectorAll("[data-guide-summary]"),
+  guideLevelCharacter: document.querySelector("#guide-level-character"),
   helpKicker: document.querySelector("#help-kicker"),
   helpTitle: document.querySelector("#help-title"),
-  helpPin: document.querySelector("#help-pin"),
-  helpPinLabel: document.querySelector("#help-pin-label"),
   helpClose: document.querySelector("#help-close"),
   helpResource: document.querySelector("#help-resource"),
   helpResourceLabel: document.querySelector("#help-resource-label"),
@@ -521,8 +521,8 @@ const elements = {
 };
 
 let toastTimer = null;
-let helpPinned = false;
-const mobileHelpQuery = window.matchMedia("(max-width: 760px)");
+let persistentHelpTopic = null;
+const mobileHelpQuery = window.matchMedia("(max-width: 900px)");
 
 function escapeHtml(value) {
   return String(value)
@@ -793,25 +793,44 @@ function renderHelpTopic(topic) {
   }
 }
 
-function showHelp(topic) {
-  if (!helpPinned) renderHelpTopic(topic);
+function commitHelp(topic) {
+  persistentHelpTopic = topic;
+  renderHelpTopic(topic);
+}
+
+function previewHelp(topic) {
+  renderHelpTopic(topic);
+}
+
+function restoreHelp() {
+  renderHelpTopic(persistentHelpTopic || defaultHelpTopic());
 }
 
 function refreshHelp() {
-  if (!helpPinned) renderHelpTopic(defaultHelpTopic());
+  commitHelp(defaultHelpTopic());
 }
 
 function bindHelp(element, topicFactory) {
-  element.addEventListener("mouseenter", () => showHelp(topicFactory()));
-  element.addEventListener("focus", () => showHelp(topicFactory()));
+  const preview = () => previewHelp(topicFactory());
+  const restore = () => {
+    if (!element.matches(":hover") && document.activeElement !== element) restoreHelp();
+  };
+  element.addEventListener("mouseenter", preview);
+  element.addEventListener("mouseleave", restore);
+  element.addEventListener("focus", preview);
+  element.addEventListener("blur", restore);
 }
 
 function moveHelpPanel(view) {
   const slot = view === "progression" ? elements.progressionHelpSlot : elements.creationHelpSlot;
   if (elements.contextHelp.parentElement !== slot) slot.append(elements.contextHelp);
+  elements.helpSummaries.forEach((summary) => {
+    summary.hidden = summary.dataset.guideSummary !== view;
+  });
 }
 
 function openMobileHelp() {
+  restoreHelp();
   elements.contextHelp.classList.add("is-mobile-open");
   elements.helpBackdrop.classList.add("is-visible");
   document.body.classList.add("rules-guide-open");
@@ -1084,7 +1103,7 @@ function renderTraining() {
       state.trainingId = button.dataset.trainingChoice;
       state.confirmed = false;
       renderAll();
-      showHelp(trainingHelp(state.trainingId));
+      commitHelp(trainingHelp(state.trainingId));
     });
     bindHelp(button, () => trainingHelp(button.dataset.trainingChoice));
   });
@@ -1240,6 +1259,7 @@ function renderProgression() {
 
   elements.levelCampaignKicker.textContent = `${campaign().name} · ${campaign().genre}`;
   elements.levelName.textContent = state.name.trim() || "Unnamed character";
+  elements.guideLevelCharacter.textContent = state.name.trim() || "Unnamed character";
   elements.levelCalling.textContent = `${currentCalling[1]} · ${archetype.name} archetype`;
   elements.levelCurrentBuild.textContent = `${currentCalling[1]} 3 · ${archetype.name}`;
   elements.continueRouteName.textContent = `${currentCalling[1]} 4`;
@@ -1275,11 +1295,12 @@ function renderProgression() {
       `;
     }).join("");
     elements.developmentOptions.querySelectorAll("[data-development-choice]").forEach((button) => {
+      const choice = choices.find((item) => item.id === button.dataset.developmentChoice);
       button.addEventListener("click", () => {
         state.levelChoice = button.dataset.developmentChoice;
         renderProgression();
+        commitHelp(developmentHelp(choice, currentCalling, archetype));
       });
-      const choice = choices.find((item) => item.id === button.dataset.developmentChoice);
       bindHelp(button, () => developmentHelp(choice, currentCalling, archetype));
     });
     elements.confirmLevel.disabled = !state.levelChoice;
@@ -1330,6 +1351,8 @@ function renderMulticlassCallings(callings, targetArchetypeId) {
     button.addEventListener("click", () => {
       state.multiclassCallingId = button.dataset.multiclassCalling;
       renderProgression();
+      const selectedClass = callings.find((entry) => entry[0] === state.multiclassCallingId);
+      commitHelp(archetypeHelp(targetArchetypeId, selectedClass));
     });
     bindHelp(button, () => {
       const selectedClass = callings.find((entry) => entry[0] === button.dataset.multiclassCalling);
@@ -1443,7 +1466,7 @@ elements.backgroundInput.addEventListener("change", () => {
   state.backgroundIndex = Number(elements.backgroundInput.value);
   state.confirmed = false;
   renderStep();
-  showHelp(backgroundHelp());
+  commitHelp(backgroundHelp());
 });
 bindHelp(elements.backgroundInput, backgroundHelp);
 elements.standingInput.addEventListener("change", () => {
@@ -1452,7 +1475,7 @@ elements.standingInput.addEventListener("change", () => {
   renderStandingNote();
   renderSummary();
   renderStep();
-  showHelp(standingHelp());
+  commitHelp(standingHelp());
 });
 bindHelp(elements.standingInput, () => standingHelp());
 elements.routeTargets.forEach((button) => {
@@ -1467,13 +1490,6 @@ elements.routeTargets.forEach((button) => {
 });
 elements.confirmLevel.addEventListener("click", () => showToast("Level choice confirmed."));
 document.querySelector("#reset-character").addEventListener("click", resetCharacter);
-elements.helpPin.addEventListener("click", () => {
-  helpPinned = !helpPinned;
-  elements.helpPin.setAttribute("aria-pressed", String(helpPinned));
-  elements.helpPin.classList.toggle("is-pinned", helpPinned);
-  elements.helpPinLabel.textContent = helpPinned ? "Pinned" : "Pin";
-  if (!helpPinned) refreshHelp();
-});
 elements.mobileHelpToggle.addEventListener("click", openMobileHelp);
 elements.helpClose.addEventListener("click", () => closeMobileHelp(true));
 elements.helpBackdrop.addEventListener("click", () => closeMobileHelp(false));
@@ -1484,15 +1500,8 @@ document.addEventListener("keydown", (event) => {
     return;
   }
   if (event.key === "Tab") {
-    const firstControl = elements.helpPin;
-    const lastControl = elements.helpClose;
-    if (event.shiftKey && document.activeElement === firstControl) {
-      event.preventDefault();
-      lastControl.focus();
-    } else if (!event.shiftKey && document.activeElement === lastControl) {
-      event.preventDefault();
-      firstControl.focus();
-    }
+    event.preventDefault();
+    elements.helpClose.focus();
   }
 });
 mobileHelpQuery.addEventListener("change", (event) => {

@@ -17,8 +17,8 @@ for (const helpId of [
   "context-help",
   "creation-help-slot",
   "progression-help-slot",
-  "help-pin",
   "help-close",
+  "guide-level-character",
   "mobile-help-toggle",
   "help-backdrop",
   "help-resource",
@@ -31,6 +31,8 @@ for (const helpId of [
 for (const helpStyle of [
   ".side-rail",
   ".context-help",
+  ".guide-context-strip",
+  ".help-body",
   ".context-help.is-mobile-open",
   ".mobile-help-toggle",
   ".help-backdrop.is-visible"
@@ -39,6 +41,20 @@ for (const helpStyle of [
 }
 
 assert.match(html, /aria-controls="context-help"/);
+assert.match(
+  html,
+  /id="context-help"[\s\S]*id="summary-name"[\s\S]*class="help-body"[\s\S]*id="help-resource"/,
+  "the compact character summary and rules content must share the primary guide pane"
+);
+assert.doesNotMatch(html, /class="build-sheet character-sheet-card"/);
+assert.doesNotMatch(html, /id="help-pin"/);
+assert.match(css, /grid-template-columns: minmax\(0, 1\.42fr\) minmax\(390px, 1fr\)/);
+assert.match(css, /height: calc\(100dvh - 36px\)/);
+assert.match(script, /let persistentHelpTopic = null/);
+assert.match(script, /addEventListener\("mouseenter", preview\)[\s\S]*addEventListener\("mouseleave", restore\)/);
+assert.match(script, /summary\.hidden = summary\.dataset\.guideSummary !== view/);
+assert.match(script, /matchMedia\("\(max-width: 900px\)"\)/);
+assert.doesNotMatch(script, /helpPinned|helpPin/);
 const htmlIds = [...html.matchAll(/\bid="([^"]+)"/g)].map((match) => match[1]);
 assert.equal(new Set(htmlIds).size, htmlIds.length, "HTML ids must be unique");
 

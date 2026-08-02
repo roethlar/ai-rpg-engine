@@ -166,103 +166,116 @@
           </footer>
         </section>
 
-        <aside class="side-rail" aria-label="Character summary and rules guide">
-          <section class="build-sheet character-sheet-card" aria-labelledby="character-sheet-title">
-          <div class="sheet-header">
-            <div>
-              <p class="eyebrow">Character sheet</p>
-              <h2 id="character-sheet-title">Your character</h2>
-            </div>
-            <span class="build-validity" id="build-validity">Incomplete</span>
-          </div>
-
-          <div class="identity-preview">
-            <div class="portrait-placeholder" aria-hidden="true"><span>MV</span></div>
-            <div>
-              <strong id="summary-name">Mara Vale</strong>
-              <span id="summary-title">Title not set</span>
-            </div>
-          </div>
-
-          <dl class="build-facts four-up">
-            <div>
-              <dt>Archetype</dt>
-              <dd id="summary-archetype">Not selected</dd>
-            </div>
-            <div>
-              <dt>Class</dt>
-              <dd id="summary-calling">Not selected</dd>
-            </div>
-            <div>
-              <dt>Training</dt>
-              <dd id="summary-training">Not selected</dd>
-            </div>
-            <div>
-              <dt>Standing</dt>
-              <dd id="summary-standing">None</dd>
-            </div>
-          </dl>
-
-          <section class="character-sheet-section playstyle-summary">
-            <div class="ledger-heading">
-              <h3>How this character plays</h3>
-            </div>
-            <p id="playstyle-summary">Choose an archetype to see its signature play.</p>
-          </section>
-
-          <section class="character-sheet-section">
-            <div class="ledger-heading">
-              <h3>Strengths</h3>
-            </div>
-            <div class="tag-row" id="character-strengths"><span class="empty-tag">None yet</span></div>
-          </section>
-          </section>
-
+        <aside class="side-rail" aria-label="Rules guide">
           <div id="creation-help-slot">
             <section class="context-help" id="context-help" aria-labelledby="help-title" aria-live="polite">
               <header class="help-header">
-                <div>
-                  <p class="eyebrow" id="help-kicker">Rules guide</p>
+                <div class="help-heading">
+                  <p class="eyebrow">Rules guide</p>
                   <h2 id="help-title">Choosing an archetype</h2>
+                  <p class="help-topic-kicker" id="help-kicker">Character creation</p>
+                  <p class="help-mode-copy">Selections stay here. Hover or focus previews another choice.</p>
                 </div>
-                <div class="help-header-actions">
-                  <button class="help-pin" id="help-pin" type="button" aria-pressed="false" title="Keep this topic visible">
-                    <span aria-hidden="true">◇</span><span id="help-pin-label">Pin</span>
-                  </button>
-                  <button class="help-close" id="help-close" type="button" aria-label="Close rules guide">×</button>
-                </div>
+                <button class="help-close" id="help-close" type="button" aria-label="Close rules guide">×</button>
               </header>
 
-              <div class="resource-guide" id="help-resource" hidden>
-                <div class="resource-guide-heading">
-                  <div>
-                    <span id="help-resource-label">Class resource</span>
-                    <strong id="help-resource-name">Resolve</strong>
+              <section class="guide-context-strip" data-guide-summary="creation" aria-labelledby="character-sheet-title">
+                <div class="guide-character-heading">
+                  <div class="guide-identity">
+                    <div class="portrait-placeholder" aria-hidden="true"><span>MV</span></div>
+                    <div>
+                      <p class="eyebrow">Current character</p>
+                      <h3 id="character-sheet-title"><span id="summary-name">Mara Vale</span></h3>
+                      <span id="summary-title">Title not set</span>
+                    </div>
                   </div>
-                  <b><span id="help-resource-current">6</span>/<span id="help-resource-maximum">6</span></b>
+                  <span class="build-validity" id="build-validity">Incomplete</span>
                 </div>
-                <div class="resource-meter" aria-hidden="true"><span></span></div>
-                <p id="help-resource-rule"></p>
+
+                <dl class="guide-build-facts">
+                  <div>
+                    <dt>Archetype</dt>
+                    <dd id="summary-archetype">Not selected</dd>
+                  </div>
+                  <div>
+                    <dt>Class</dt>
+                    <dd id="summary-calling">Not selected</dd>
+                  </div>
+                  <div>
+                    <dt>Training</dt>
+                    <dd id="summary-training">Not selected</dd>
+                  </div>
+                  <div>
+                    <dt>Standing</dt>
+                    <dd id="summary-standing">None</dd>
+                  </div>
+                </dl>
+
+                <div class="guide-build-footer">
+                  <div>
+                    <span class="guide-label">Playstyle</span>
+                    <p id="playstyle-summary">Choose an archetype to see its signature play.</p>
+                  </div>
+                  <div>
+                    <span class="guide-label">Strengths</span>
+                    <div class="tag-row" id="character-strengths"><span class="empty-tag">None yet</span></div>
+                  </div>
+                </div>
+              </section>
+
+              <section class="guide-context-strip progression-context-strip" data-guide-summary="progression" aria-labelledby="level-preview-title" hidden>
+                <div class="guide-level-heading">
+                  <div>
+                    <p class="eyebrow">After this choice</p>
+                    <h3 id="level-preview-title">Level 4</h3>
+                  </div>
+                  <strong id="guide-level-character">Mara Vale</strong>
+                </div>
+                <div class="guide-delta-grid">
+                  <div class="guide-delta gain-delta">
+                    <span>Gain</span>
+                    <ul id="level-gains-summary"></ul>
+                  </div>
+                  <div class="guide-delta cost-delta">
+                    <span>Give up or delay</span>
+                    <ul id="level-costs-summary"></ul>
+                  </div>
+                </div>
+                <p class="guide-unchanged">Name, title, background, standing, possessions, and previously earned training stay unchanged.</p>
+              </section>
+
+              <div class="help-body">
+                <div class="resource-guide" id="help-resource" hidden>
+                  <div class="resource-guide-heading">
+                    <div>
+                      <span id="help-resource-label">Class resource</span>
+                      <strong id="help-resource-name">Resolve</strong>
+                    </div>
+                    <b><span id="help-resource-current">6</span>/<span id="help-resource-maximum">6</span></b>
+                  </div>
+                  <div class="resource-meter" aria-hidden="true"><span></span></div>
+                  <p id="help-resource-rule"></p>
+                </div>
+
+                <p class="help-summary" id="help-summary">
+                  An archetype determines progression, signature abilities, and important restrictions.
+                </p>
+
+                <section class="help-section">
+                  <h3>How it works</h3>
+                  <ol id="help-steps"></ol>
+                </section>
+
+                <section class="help-section help-example">
+                  <h3>Example</h3>
+                  <p id="help-example"></p>
+                </section>
+
+                <section class="help-section help-limits">
+                  <h3>Keep in mind</h3>
+                  <ul id="help-limits"></ul>
+                </section>
               </div>
-
-              <p class="help-summary" id="help-summary">
-                An archetype determines progression, signature abilities, and important restrictions.
-              </p>
-
-              <section class="help-section">
-                <h3>How it works</h3>
-                <ol id="help-steps"></ol>
-              </section>
-
-              <section class="help-section help-example">
-                <h3>Example</h3>
-                <p id="help-example"></p>
-              </section>
-
-              <section class="help-section help-limits">
-                <h3>Keep in mind</h3>
-                <ul id="help-limits"></ul>
-              </section>
             </section>
           </div>
         </aside>
@@ -362,31 +375,7 @@
           </footer>
         </section>
 
-        <aside class="side-rail" aria-label="Level summary and rules guide">
-          <section class="build-sheet level-sheet" aria-labelledby="level-preview-title">
-          <div class="sheet-header">
-            <div>
-              <p class="eyebrow">After this choice</p>
-              <h2 id="level-preview-title">Level 4</h2>
-            </div>
-          </div>
-          <div class="delta-block gain-delta">
-            <span>Gain</span>
-            <ul id="level-gains-summary"></ul>
-          </div>
-          <div class="delta-block cost-delta">
-            <span>Give up or delay</span>
-            <ul id="level-costs-summary"></ul>
-          </div>
-          <div class="delta-block unchanged-delta">
-            <span>Unchanged</span>
-            <ul>
-              <li>Your name, title, background, standing, and possessions</li>
-              <li>Features and training already earned</li>
-              <li>Your current class name and presentation</li>
-            </ul>
-          </div>
-          </section>
+        <aside class="side-rail" aria-label="Rules guide">
           <div id="progression-help-slot"></div>
         </aside>
       </div>

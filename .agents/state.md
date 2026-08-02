@@ -10,10 +10,12 @@ to `docs/history/state-archive.md`.
   The owner accepted the interaction hierarchy as the direction: choose a mechanical archetype,
   conditionally choose among its campaign-specific classes, then choose training, background,
   standing, and identity; one class mapping is automatic.
-  `.agents/review/gate-5-character-creation-prototype/index.html` now adds a persistent hover/focus
-  rules guide that can be pinned, follows creation and progression, and becomes a full-height mobile
-  drawer. The provisional ability economy starts at six, recovers two after a breather and fully
-  after a safe rest, and appears only under class/genre terms. Tempo is concretely the Fighter's
+  `.agents/review/gate-5-character-creation-prototype/index.html` now makes the rules guide the
+  dominant full-height right pane, with the compact current-character summary inside it. The
+  selected choice persists while hover or keyboard focus previews another topic; below 901px the
+  same pane becomes a full-height drawer. The provisional ability economy starts at six, recovers
+  two after a breather and fully after a safe rest, and appears only under class/genre terms.
+  Tempo is concretely the Fighter's
   budget for Combat Forms and counters while Weapon Mastery remains passive. Training, background,
   title, command, wealth, and institutional standing each show operative examples and boundaries.
   The local verifier covers assets-only/no-network/no-storage structure, guide controls, resource
@@ -100,11 +102,11 @@ to `docs/history/state-archive.md`.
 
 ## Next
 
-**NEXT:** The owner evaluates the local Gate 5 click-through's contextual guide—especially Tempo,
-costs and recovery, billionaire/royal standing examples, pinning/mobile access, and ordinary versus
-multiclass advancement. Gather the owner's experience verdict before revising the class-model plan
-or presenting any approval decision. Do not invoke another reviewer without a separate explicit
-request.
+**NEXT:** The owner evaluates the local Gate 5 click-through's dominant contextual guide—especially
+Tempo, costs and recovery, billionaire/royal standing examples, selection-versus-preview behavior,
+mobile access, and ordinary versus multiclass advancement. Gather the owner's experience verdict
+before revising the class-model plan or presenting any approval decision. Do not invoke another
+reviewer without a separate explicit request.
 
 - Ask the owner to approve or reject the drafted Phase PT review repair plan. No code repair is
   authorized before that ruling. If approved, implement PT-R1 (`pt-1`) and PT-R2 (`pt-3`) in
@@ -137,10 +139,10 @@ request.
 
 ## Verification
 
-- Automated: `node test.js` — green 2026-08-01 after the Gate 5 contextual-guide revision.
+- Automated: `node test.js` — green 2026-08-02 after the Gate 5 dominant-guide-pane revision.
   Prototype-local `node .agents/review/gate-5-character-creation-prototype/verify.mjs` is also green;
-  guard proof removed the guide ID and changed its starting capacity, and each mutation failed before
-  restoration.
+  prominence guard proof temporarily narrowed the right pane from 390px to 300px, and the new
+  assertion failed before restoration and passed afterward.
 - S1.4 guard proof: temporarily disabling the campaign-vocabulary UPDATE trigger failed the new
   immutable-row assertion. Separately weakening direct-operation queue ownership, stale-owner expiry,
   Unicode-format echo normalization, proposal/persistence alignment, or shaping support made its
