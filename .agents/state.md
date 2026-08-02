@@ -6,13 +6,14 @@ to `docs/history/state-archive.md`.
 
 ## Now
 
-- **GATE 5'S CHARACTER-CREATION AND PROGRESSION CLICK-THROUGH AWAITS OWNER EVALUATION.**
-  `.agents/review/gate-5-character-creation-prototype/index.html` is a standalone, non-shipping
-  prototype with two explicit mechanical choices, an exact source ledger, deterministic correction,
-  the owner-supplied adversarial characters, and normal versus multiclass advancement. Its structural
-  verifier confirms local assets only and no model, network, API, or persistence path. All sample
-  classes, packages, mechanics, and values remain provisional; this artifact approves nothing and no
-  shipped application file changed.
+- **GATE 5'S REVISED CHARACTER-CREATION AND PROGRESSION CLICK-THROUGH AWAITS OWNER EVALUATION.**
+  `.agents/review/gate-5-character-creation-prototype/index.html` now follows the owner-corrected
+  hierarchy: choose the mechanical archetype, conditionally choose among its campaign-specific classes,
+  then choose training, background, standing, and identity. A single campaign class is selected without
+  a redundant screen; multiple classes require an explicit choice. The page includes three campaign
+  genres, the owner-supplied adversarial characters, ordinary and multiclass advancement, and no
+  player-facing review/debug context. Its verifier confirms local assets only and no model, network,
+  API, or persistence path. All sample content remains provisional; nothing is approved or shipped.
 
 - **GATE 5'S RESTRICTIVE CLASS MODEL NEEDS REVISION BEFORE AN OWNER RULING.**
   The owner explicitly rejected §7's prose-to-model-selected-mechanics flow and retrying generation
@@ -94,10 +95,10 @@ to `docs/history/state-archive.md`.
 
 ## Next
 
-**NEXT:** The owner evaluates the local Gate 5 click-through, especially the four complete examples,
-the explicit Battle Mage alternatives, and normal versus multiclass advancement. Gather the owner's
-experience verdict before revising the class-model plan or presenting any approval decision. Do not
-invoke another reviewer without a separate explicit request.
+**NEXT:** The owner evaluates the revised local Gate 5 click-through: archetype first, the campaign
+class screen only when multiple mappings exist, then training/status/identity, plus ordinary versus
+multiclass advancement. Gather the owner's experience verdict before revising the class-model plan or
+presenting any approval decision. Do not invoke another reviewer without a separate explicit request.
 
 - Ask the owner to approve or reject the drafted Phase PT review repair plan. No code repair is
   authorized before that ruling. If approved, implement PT-R1 (`pt-1`) and PT-R2 (`pt-3`) in

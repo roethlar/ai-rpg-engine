@@ -24,13 +24,37 @@ for (const example of [
 }
 
 for (const requiredCopy of [
-  "Two mechanical choices",
-  "AI is not in this loop",
-  "Unsupported is an honest result",
-  "No model calls. No persistence. No hidden grants."
+  "Archetype → Class → Character",
+  "Choose an archetype",
+  "Choose one special training",
+  "Your title and standing never replace training or archetype progression."
 ]) {
   assert.ok(html.includes(requiredCopy), `missing required copy: ${requiredCopy}`);
 }
+
+for (const contextLeak of [
+  "Gate 5",
+  "evaluation artifact",
+  "prototype",
+  "AI is not",
+  "model call",
+  "engine record",
+  "source ledger",
+  "authoritative",
+  "schemaVersion"
+]) {
+  assert.ok(!html.toLowerCase().includes(contextLeak.toLowerCase()), `player-facing context leak: ${contextLeak}`);
+}
+
+for (const campaign of ["Crownfall", "Neon Divide", "Starfall Reach"]) {
+  assert.ok(script.includes(campaign), `missing campaign mapping: ${campaign}`);
+}
+
+assert.match(script, /mappings\(\)\.length > 1 \? "calling" : "character"/);
+assert.match(script, /campaignMappings\.length === 1 \? campaignMappings\[0\]\[0\] : null/);
+
+const visibleText = html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
+assert.doesNotMatch(visibleText, /\bcallings?\b/i);
 
 for (const selector of script.matchAll(/querySelector\("#([a-z0-9-]+)"\)/g)) {
   assert.match(html, new RegExp(`id="${selector[1]}"`), `missing HTML id #${selector[1]}`);

@@ -1,163 +1,260 @@
 "use strict";
 
-const CLASSES = {
-  paladin: {
-    id: "class.paladin",
-    name: "Paladin",
-    sigil: "PA",
-    family: "Oathbound martial",
-    filters: ["magic", "weapons"],
-    description: "Bind yourself to a declared oath, build Conviction by upholding it, and spend that resource to protect or judge.",
-    loopName: "Oath + Conviction",
-    loop: "Declare an oath → earn Conviction → spend it on Aegis reactions and verdicts.",
-    tags: ["Heavy armor", "Martial weapons", "Conviction pool"],
-    roles: ["Defender", "Support"],
-    grants: [
-      { name: "Aegis reaction", detail: "Spend Conviction to intercept harm aimed at a nearby ally." },
-      { name: "Oath verdict", detail: "Class-exclusive actions improve as the oath track advances." },
-      { name: "Armor and martial proficiency", detail: "Granted by Paladin level 1, not by the character’s title." }
+const ARCHETYPES = {
+  oathbound: {
+    name: "Oathbound",
+    sigil: "OA",
+    family: "Vow and consequence",
+    description: "Declare a binding ideal, build resolve by honoring it, and spend that resolve to protect allies or pass judgment.",
+    loop: "Declare a vow → earn Resolve by upholding it → spend Resolve on protection and judgment.",
+    strengths: ["Protection", "Judgment", "Endurance"],
+    tags: ["Armored", "Resolve pool", "Reactive defense"],
+    abilityDetails: [
+      "Build this resource by honoring your declared vow; spend it on stronger class abilities.",
+      "React when a nearby ally is threatened and reduce the harm they would suffer.",
+      "Place a consequence on a foe who violates the terms you declared."
     ],
-    restrictions: [
-      "No spellbook preparation or Netrunner Breach actions without another paid source.",
-      "Breaking the declared oath suspends Conviction recovery until it is answered in play.",
-      "A title such as Commander grants no extra orders, followers, or class levels."
+    limits: [
+      "Breaking the declared vow interrupts Resolve recovery until the breach is answered in play.",
+      "It does not grant followers, rank, or command authority."
     ],
     levelUp: {
       automatic: [
-        { name: "Aegis die improves", detail: "The class reaction improves from d6 to d8." },
-        { name: "Conviction capacity +1", detail: "Maximum Conviction rises from 2 to 3." }
+        ["{guard} improves", "The protective reaction improves from d6 to d8."],
+        ["{resource} capacity +1", "Maximum {resource} rises from 2 to 3."]
       ],
       choices: [
-        { id: "paladin-intercession", name: "Intercession", detail: "After Aegis reduces harm, the protected ally may shift one position.", kind: "Class feature" },
-        { id: "paladin-verdict", name: "Binding Verdict", detail: "Spend 1 Conviction to prevent an oath-marked foe from disengaging freely.", kind: "Class feature" }
+        ["Intercession", "After {guard} reduces harm, the protected ally may shift one position."],
+        ["Binding {judgment}", "Spend 1 {resource} to prevent a judged foe from disengaging freely."]
       ]
     },
-    multiclass: {
-      target: "fighter",
-      gains: ["Fighter 1 entry stance", "One basic Combat Form"],
-      costs: [
-        "Paladin 4’s Aegis die and Conviction increase are delayed until the next Paladin level.",
-        "Fighter weapon mastery and extra Form slot remain locked until Fighter 2."
+    multiclassTarget: "vanguard",
+    multiclassCosts: [
+      "This level does not improve {guard} or increase {resource}.",
+      "Advanced weapon forms remain locked until the second Vanguard level."
+    ]
+  },
+  arcanist: {
+    name: "Arcanist",
+    sigil: "AR",
+    family: "Preparation and focus",
+    description: "Prepare a limited repertoire, manage focus, and reshape a scene through carefully chosen supernatural effects.",
+    loop: "Prepare a repertoire → establish the right conditions → spend Focus to amplify an effect.",
+    strengths: ["Adaptability", "Control", "Ranged power"],
+    tags: ["Prepared repertoire", "Focus pool", "Limited weapons"],
+    abilityDetails: [
+      "Choose a limited set of known effects to have ready before entering danger.",
+      "Spend this resource to increase the reach, force, or duration of a prepared effect.",
+      "Exchange one prepared effect for another during a safe rest."
+    ],
+    limits: [
+      "Only simple weapons are trained unless another choice explicitly grants more.",
+      "An unprepared effect cannot be used merely because it fits the character’s description."
+    ],
+    levelUp: {
+      automatic: [
+        ["Prepared {repertoire} +1", "Ready one additional effect after each safe rest."],
+        ["{resource} capacity +1", "Maximum {resource} rises from 3 to 4."]
+      ],
+      choices: [
+        ["Counterweave", "Spend 1 {resource} to weaken an observed supernatural effect."],
+        ["Echoed {repertoire}", "Once per rest, repeat an unamplified utility effect without using a prepared slot."]
+      ]
+    },
+    multiclassTarget: "vanguard",
+    multiclassCosts: [
+      "This level does not add a prepared effect or increase {resource}.",
+      "Advanced weapon forms remain locked until the second Vanguard level."
+    ]
+  },
+  vanguard: {
+    name: "Vanguard",
+    sigil: "VA",
+    family: "Tempo and weapon forms",
+    description: "Control a weapon exchange, build tempo through committed action, and convert it into precise martial forms.",
+    loop: "Commit to an exchange → build Tempo → spend Tempo on forms, counters, and mastery.",
+    strengths: ["Weapon mastery", "Pressure", "Durability"],
+    tags: ["Martial weapons", "Armor", "Tempo track"],
+    abilityDetails: [
+      "Build this resource during sustained weapon exchanges and spend it on martial forms.",
+      "Choose a trained maneuver that changes position, pressure, or defense.",
+      "Advance one weapon group beyond ordinary proficiency."
+    ],
+    limits: [
+      "Changing weapon groups may end the current form sequence.",
+      "Training in magic grants only what that training names; it does not add Arcanist progression."
+    ],
+    levelUp: {
+      automatic: [
+        ["{resource} ceiling +1", "Maximum {resource} rises from 3 to 4."],
+        ["{mastery} advances", "One trained weapon group reaches the next mastery tier."]
+      ],
+      choices: [
+        ["Measured {form}", "Spend 1 {resource} after a successful guard to make a controlled counter."],
+        ["Relentless Pressure", "Keep 1 {resource} when your opponent retreats from the exchange."]
+      ]
+    },
+    multiclassTarget: "arcanist",
+    multiclassCosts: [
+      "This level does not increase {resource} or advance {mastery}.",
+      "Amplification and advanced prepared effects remain locked behind later Arcanist levels."
+    ]
+  },
+  intruder: {
+    name: "Intruder",
+    sigil: "IN",
+    family: "Access and exposure",
+    description: "Create an opening in a protected system, exploit that access, and manage the attention your intrusion creates.",
+    loop: "Probe a system → establish Access → spend Access while managing rising Trace.",
+    strengths: ["Infiltration", "Information", "Disruption"],
+    tags: ["Access pool", "Trace pressure", "Special implement"],
+    abilityDetails: [
+      "Establish and store openings in a connected or physically reachable system.",
+      "Powerful intrusions raise this pressure and trigger escalating consequences.",
+      "Spend an opening to alter, expose, or disable a bounded system function."
+    ],
+    limits: [
+      "Without a reachable system there is no remote target; local analysis remains available.",
+      "Money, status, and contacts cannot erase Trace or create a connection."
+    ],
+    levelUp: {
+      automatic: [
+        ["{resource} ceiling +1", "Maximum stored {resource} rises from 3 to 4."],
+        ["{pressure} buffer +1", "The first exposure consequence begins one step later."]
+      ],
+      choices: [
+        ["Ghost Route", "Spend 1 {resource} to conceal an ally’s signature during an intrusion."],
+        ["Cold Read", "Convert unused {resource} into one bounded local evidence query offline."]
+      ]
+    },
+    multiclassTarget: "vanguard",
+    multiclassCosts: [
+      "This level does not increase {resource} or improve the {pressure} buffer.",
+      "Weapon mastery remains locked until the second Vanguard level."
+    ]
+  },
+  shifter: {
+    name: "Shifter",
+    sigil: "SH",
+    family: "Essence and changing forms",
+    description: "Adopt a bounded alternate form, manage the strain of changing, and specialize each form for a different problem.",
+    loop: "Choose a form → spend Essence to change → use its strengths while managing Strain.",
+    strengths: ["Transformation", "Mobility", "Adaptation"],
+    tags: ["Alternate forms", "Essence pool", "Strain"],
+    abilityDetails: [
+      "Spend this resource to change form or push a form beyond its ordinary limit.",
+      "Adopt one learned shape with a fixed package of strengths and weaknesses.",
+      "Changing too often raises this pressure and makes later transformations harder."
+    ],
+    limits: [
+      "A form grants only its listed body and abilities; appearance alone adds nothing.",
+      "Healing, command, or spellcasting requires a separate listed source."
+    ],
+    levelUp: {
+      automatic: [
+        ["{resource} capacity +1", "Maximum {resource} rises from 2 to 3."],
+        ["{form} adaptation", "Add one bounded adaptation to a learned form."]
+      ],
+      choices: [
+        ["Rapid Change", "Once per rest, change into a learned form without increasing {pressure}."],
+        ["Shared Instinct", "While transformed, keep one trained social or investigative capability active."]
+      ]
+    },
+    multiclassTarget: "arcanist",
+    multiclassCosts: [
+      "This level does not increase {resource} or add a {form} adaptation.",
+      "Advanced prepared effects remain locked behind later Arcanist levels."
+    ]
+  }
+};
+
+const CAMPAIGNS = {
+  crownfall: {
+    name: "Crownfall",
+    genre: "High Fantasy",
+    backgrounds: ["Free household", "Sworn order", "Court service", "Arcane academy", "Border village"],
+    standings: {
+      none: ["No special standing", "You answer only for your personal reputation.", null],
+      royal: ["Royal appointment", "The crown recognizes your office where its authority reaches.", "Royal authority may be ignored outside its jurisdiction and grants no investigation training."],
+      garrison: ["Commands a garrison", "A named garrison may answer you when contact, loyalty, and distance allow.", "The garrison cannot appear in a sealed ruin or act as extra turns in an encounter."],
+      patron: ["Great House patron", "A wealthy house backs you when its resources can reach the situation.", "Patronage cannot buy an immediate solution where trade, contact, or time is unavailable."]
+    },
+    callings: {
+      oathbound: [
+        ["paladin", "Paladin", "Sacred champion", "Your vow is witnessed by a divine or ancestral power.", ["Conviction", "Aegis", "Verdict"]],
+        ["templar", "Templar", "Keeper of an order", "Your vow is embodied by a disciplined order and its rites.", ["Zeal", "Intercession", "Edict"]]
+      ],
+      arcanist: [
+        ["wizard", "Wizard", "Scholar of formulae", "You prepare written spells through disciplined study.", ["Spellbook", "Focus", "Revision"]],
+        ["witch", "Witch", "Keeper of bargains", "You prepare charms and workings through names, tokens, and pacts.", ["Grimoire", "Favor", "Rebinding"]]
+      ],
+      vanguard: [
+        ["fighter", "Fighter", "Master of arms", "You turn drilled weapon practice into decisive combat forms.", ["Tempo", "Combat Form", "Weapon Mastery"]]
+      ],
+      intruder: [],
+      shifter: [
+        ["druid", "Druid", "Keeper of wild shapes", "You borrow known forms through a bond with the living world.", ["Essence", "Wild Shape", "Strain"]],
+        ["beastbound", "Beastbound", "Bearer of an inner beast", "You negotiate with a powerful form carried within your own blood.", ["Instinct", "Beast Form", "Feral Strain"]]
       ]
     }
   },
-  wizard: {
-    id: "class.wizard",
-    name: "Wizard",
-    sigil: "WZ",
-    family: "Prepared spellcaster",
-    filters: ["magic"],
-    description: "Prepare a limited spellbook loadout, manage Focus, and reshape a scene through deliberately chosen formulae.",
-    loopName: "Spellbook + Focus",
-    loop: "Prepare formulae → establish conditions → spend Focus for stronger or wider effects.",
-    tags: ["Spellbook", "Focus pool", "Simple weapons"],
-    roles: ["Controller", "Artillery"],
-    grants: [
-      { name: "Spellbook preparation", detail: "Prepare known formulae into a limited set of active spell slots." },
-      { name: "Focus pool", detail: "Class-exclusive resource used to amplify prepared formulae." },
-      { name: "Arcane revision", detail: "Replace one prepared formula during a safe rest." }
-    ],
-    restrictions: [
-      "Only simple weapons are proficient unless a feat, package, subclass, or Fighter level says otherwise.",
-      "A weapon proficiency never grants Combat Forms or Fighter progression.",
-      "Unprepared formulae cannot be cast merely because the character description mentions them."
-    ],
-    levelUp: {
-      automatic: [
-        { name: "Prepared formula slot +1", detail: "The active spellbook loadout grows from 4 to 5." },
-        { name: "Focus capacity +1", detail: "Maximum Focus rises from 3 to 4." }
-      ],
-      choices: [
-        { id: "wizard-counterweave", name: "Counterweave", detail: "Spend 1 Focus as a reaction to weaken an observed magical effect.", kind: "Class feature" },
-        { id: "wizard-echo", name: "Formula Echo", detail: "Once per rest, repeat an unamplified utility formula without a slot.", kind: "Class feature" }
-      ]
+  neon: {
+    name: "Neon Divide",
+    genre: "Cyberpunk",
+    backgrounds: ["Street collective", "Corporate academy", "Public sector", "Combat circuit", "Independent contractor"],
+    standings: {
+      none: ["Independent", "No institution claims or backs you.", null],
+      civic: ["City office", "A municipal office recognizes your authority within its narrow remit.", "Your badge carries no authority beyond its jurisdiction and grants no investigation training."],
+      crew: ["Commands a crew", "A named crew may take assignments when contact, loyalty, and risk allow.", "The crew is not a pool of free actions and may be unreachable during an operation."],
+      billionaire: ["Billionaire sponsor", "Personal wealth and a separately managed corporation can support long-term plans.", "Money cannot create connectivity, erase Trace, or deliver assets into a sealed site."]
     },
-    multiclass: {
-      target: "fighter",
-      gains: ["Fighter 1 entry stance", "Martial weapon group proficiency"],
-      costs: [
-        "Wizard 4’s formula slot and Focus increase are delayed until the next Wizard level.",
-        "The entry level grants no Fighter weapon mastery or extra attack sequence."
+    callings: {
+      oathbound: [
+        ["corporate-justicar", "Corporate Justicar", "Licensed covenant enforcer", "Your binding code is written into a charter you publicly uphold.", ["Standing", "Interpose", "Sanction"]],
+        ["street-vindicator", "Street Vindicator", "Sworn neighborhood defender", "Your code is an open promise to a community rather than a corporation.", ["Resolve", "Bodyguard", "Reckoning"]]
+      ],
+      arcanist: [
+        ["protocol-savant", "Protocol Savant", "Prepared systems theorist", "You ready bounded protocols and amplify them through a finite cognitive rig.", ["Protocol Deck", "Focus", "Hot Swap"]]
+      ],
+      vanguard: [
+        ["solo", "Solo", "Independent combat specialist", "You convert combat rhythm into disciplined techniques and weapon mastery.", ["Tempo", "Technique", "Weapon Mastery"]],
+        ["security-operative", "Security Operative", "Tactical response professional", "Your forms come from coordinated response drills and controlled escalation.", ["Readiness", "Response Form", "Arms Mastery"]]
+      ],
+      intruder: [
+        ["netrunner", "Netrunner", "Network intrusion specialist", "You create Access through a deck and act before rising Trace closes the window.", ["Access", "Trace", "Exploit"]]
+      ],
+      shifter: [
+        ["bioform-adept", "Bioform Adept", "Adaptive body specialist", "You trigger licensed body plans and manage the physiological strain they create.", ["Catalyst", "Body Plan", "Strain"]]
       ]
     }
   },
-  fighter: {
-    id: "class.fighter",
-    name: "Fighter",
-    sigil: "FI",
-    family: "Combat discipline",
-    filters: ["weapons"],
-    description: "Build Tempo through committed weapon exchanges, then convert it into class-exclusive Combat Forms.",
-    loopName: "Tempo + Combat Forms",
-    loop: "Commit to an exchange → build Tempo → spend it on Forms, counters, and weapon mastery.",
-    tags: ["All armor", "Martial weapons", "Tempo track"],
-    roles: ["Defender", "Bruiser"],
-    grants: [
-      { name: "Combat Forms", detail: "Class-exclusive maneuvers fueled by Tempo." },
-      { name: "Tempo track", detail: "Build and spend Tempo during sustained weapon exchanges." },
-      { name: "Full martial proficiency", detail: "All standard armor and martial weapon groups." }
-    ],
-    restrictions: [
-      "No spellbook, Conviction, or Breach actions without another paid source.",
-      "Changing weapons may end the current Form chain.",
-      "Leadership training can add Commander contribution but never another class budget."
-    ],
-    levelUp: {
-      automatic: [
-        { name: "Tempo ceiling +1", detail: "Maximum Tempo rises from 3 to 4." },
-        { name: "Weapon mastery tier", detail: "One proficient weapon group advances to mastery I." }
-      ],
-      choices: [
-        { id: "fighter-riposte", name: "Measured Riposte", detail: "Spend 1 Tempo after a successful guard to make a controlled counter.", kind: "Combat Form" },
-        { id: "fighter-pressure", name: "Relentless Pressure", detail: "Keep 1 Tempo when a marked opponent retreats from the exchange.", kind: "Class feature" }
-      ]
+  starfall: {
+    name: "Starfall Reach",
+    genre: "Space Opera",
+    backgrounds: ["Colony born", "Fleet academy", "Temple enclave", "Trade habitat", "Frontier salvage crew"],
+    standings: {
+      none: ["Free agent", "No fleet, house, or station formally backs you.", null],
+      fleet: ["Fleet commission", "A fleet recognizes your commission where its command structure reaches.", "The commission has no authority in hostile space and grants no tactical training."],
+      ship: ["Commands a ship", "A named vessel and crew answer you subject to location, duty, and condition.", "The ship cannot participate where it cannot physically reach and never grants extra personal actions."],
+      magnate: ["Station magnate", "A station enterprise can supply contacts and resources across established routes.", "The enterprise cannot deliver immediate help beyond its routes or communication range."]
     },
-    multiclass: {
-      target: "wizard",
-      gains: ["Wizard 1 novice spellbook", "Two novice formulae and 1 Focus"],
-      costs: [
-        "Fighter 4’s Tempo ceiling and weapon mastery are delayed until the next Fighter level.",
-        "Amplification, formula revision, and advanced spell tiers remain locked behind Wizard progression."
-      ]
-    }
-  },
-  netrunner: {
-    id: "class.netrunner",
-    name: "Netrunner",
-    sigil: "NR",
-    family: "Access specialist",
-    filters: ["systems"],
-    description: "Establish Access, accept Trace, and spend that opening on exploits, countermeasures, and information control.",
-    loopName: "Access + Trace",
-    loop: "Probe a system → establish Access → spend Access while managing accumulating Trace.",
-    tags: ["Deck implement", "Access pool", "Trace pressure"],
-    roles: ["Infiltrator", "Controller"],
-    grants: [
-      { name: "Breach sequence", detail: "Class-exclusive actions establish and spend Access against connected systems." },
-      { name: "Trace pressure", detail: "Strong exploits increase Trace and create escalating consequences." },
-      { name: "Offline analysis", detail: "The deck can analyze local evidence when no network exists; it cannot invent remote access." }
-    ],
-    restrictions: [
-      "No network means no remote Breach target; offline analysis remains available.",
-      "Wealth cannot erase Trace, create connectivity, or grant a second action economy.",
-      "A corporation is a separate world asset and may be unavailable in a sealed dungeon."
-    ],
-    levelUp: {
-      automatic: [
-        { name: "Access ceiling +1", detail: "Maximum stored Access rises from 3 to 4." },
-        { name: "Trace buffer +1", detail: "The first Trace consequence begins one step later." }
+    callings: {
+      oathbound: [
+        ["star-warden", "Star Warden", "Sworn protector of the Reach", "Your vow is witnessed by an order that guards travelers between worlds.", ["Resolve", "Ward", "Censure"]]
       ],
-      choices: [
-        { id: "netrunner-ghost", name: "Ghost Route", detail: "Spend 1 Access to conceal one ally’s signature during an exploit.", kind: "Exploit" },
-        { id: "netrunner-cold-read", name: "Cold Read", detail: "Convert unused Access into one bounded local evidence query offline.", kind: "Class feature" }
-      ]
-    },
-    multiclass: {
-      target: "fighter",
-      gains: ["Fighter 1 entry stance", "One martial weapon group"],
-      costs: [
-        "Netrunner 4’s Access and Trace improvements are delayed until the next Netrunner level.",
-        "Fighter weapon mastery remains locked until Fighter 2; wealth cannot waive that requirement."
+      arcanist: [
+        ["psion", "Psion", "Disciplined mind adept", "You prepare mental disciplines and amplify them through controlled focus.", ["Discipline Set", "Focus", "Recenter"]],
+        ["astromancer", "Astromancer", "Reader of stellar patterns", "You prepare stellar workings from observed conjunctions and resonances.", ["Star Chart", "Resonance", "Realignment"]]
+      ],
+      vanguard: [
+        ["marine", "Marine", "Armored boarding specialist", "Your forms come from boarding drills and close-quarters weapon mastery.", ["Tempo", "Boarding Form", "Weapon Mastery"]],
+        ["duel-captain", "Duel Captain", "Formal combat officer", "You build advantage through measured exchanges and command of a chosen weapon.", ["Advantage", "Duel Form", "Weapon Mastery"]]
+      ],
+      intruder: [
+        ["systems-infiltrator", "Systems Infiltrator", "Ship and station intrusion specialist", "You establish Access against reachable systems while managing escalating detection.", ["Access", "Detection", "Override"]]
+      ],
+      shifter: [
+        ["xenoform-adept", "Xenoform Adept", "Bearer of adapted alien forms", "You adopt studied body plans and manage the strain of radical adaptation.", ["Essence", "Xenoform", "Strain"]]
       ]
     }
   }
@@ -165,203 +262,88 @@ const CLASSES = {
 
 const TRAINING = {
   command: {
-    id: "package.command",
-    name: "Command Training",
-    sigil: "CO",
-    family: "Shared capability package",
-    description: "Read a group’s readiness, issue bounded orders, and coordinate allies who can hear and choose to follow.",
-    loopName: "Leadership II + Coordinated Order",
-    loop: "Once per scene after your successful check, an ally may reposition using their reaction.",
-    tags: ["Starting package", "Uses ally reaction", "No followers granted"],
-    roles: ["Commander"],
-    skills: [{ skillId: "skill.leadership", rank: 2 }],
-    feats: ["feat.coordinated-order"],
-    grants: [
-      { name: "Leadership rank 2", detail: "Covers morale, coordination, and institutional command checks." },
-      { name: "Coordinated Order", detail: "A bounded reaction-based reposition; never a second class action budget." }
-    ],
-    restrictions: ["Does not grant troops, rank, wealth, or obedience; those require relationships, standing, and assets."],
-    ineligible: []
+    name: "Command",
+    summary: "Coordinate allies who can hear and choose to follow.",
+    ability: ["Coordinated Order", "After your successful check, an ally may reposition using their reaction."],
+    strengths: ["Leadership"],
+    limit: "Command grants neither followers nor rank; those depend on relationships and standing.",
+    blocked: []
   },
   investigation: {
-    id: "package.investigation",
-    name: "Investigation Training",
-    sigil: "IN",
-    family: "Shared capability package",
-    description: "Gather traces, preserve evidence, and ask structured questions without turning an occupation into a class.",
-    loopName: "Investigation II + Evidence Chain",
-    loop: "Preserve one discovered clue so later checks can distinguish fact, inference, and tampering.",
-    tags: ["Starting package", "Exploration", "Social inquiry"],
-    roles: ["Investigator"],
-    skills: [{ skillId: "skill.investigation", rank: 2 }],
-    feats: ["feat.evidence-chain"],
-    grants: [
-      { name: "Investigation rank 2", detail: "Covers searches, interviews, inference, and evidence handling." },
-      { name: "Evidence Chain", detail: "Preserve a clue’s provenance; it does not create clues that are absent." }
-    ],
-    restrictions: ["Royal rank, a detective title, or Wizard lore does not substitute for this package."],
-    ineligible: []
+    name: "Investigation",
+    summary: "Search, interview, and preserve the provenance of evidence.",
+    ability: ["Evidence Chain", "Preserve one clue so later inquiry can distinguish fact, inference, and tampering."],
+    strengths: ["Inquiry"],
+    limit: "A title or royal office does not substitute for Investigation training.",
+    blocked: []
   },
   martial: {
-    id: "package.martial",
     name: "Martial Training",
-    sigil: "MA",
-    family: "Shared capability package",
-    description: "Pay for one martial weapon group and a basic guard discipline without buying the Fighter chassis.",
-    loopName: "Weapon group + Guard Drills",
-    loop: "Choose one group such as axes; become proficient and gain a basic defensive drill.",
-    tags: ["Starting package", "One weapon group", "No Combat Forms"],
-    roles: ["Bruiser"],
-    skills: [{ skillId: "skill.weapon.axes", rank: 1 }],
-    feats: ["feat.weapon-group.axes", "feat.guard-drills"],
-    grants: [
-      { name: "Axe proficiency", detail: "Use battle axes without the non-proficiency penalty." },
-      { name: "Guard Drills", detail: "A basic defensive option; grants no Tempo or Fighter Combat Forms." }
-    ],
-    restrictions: ["Consumes the entire starting package and never grants Fighter Tempo, mastery, or class advancement."],
-    ineligible: ["fighter"]
+    summary: "Gain one martial weapon group and basic guard drills.",
+    ability: ["Axe Proficiency", "Use battle axes without the untrained penalty; this grants no Vanguard forms or Tempo."],
+    strengths: ["Battle axes"],
+    limit: "This does not grant Vanguard resources, forms, mastery, or progression.",
+    blocked: ["vanguard"]
   },
   fieldcraft: {
-    id: "package.fieldcraft",
-    name: "Fieldcraft Training",
-    sigil: "FC",
-    family: "Shared capability package",
-    description: "Navigate hostile terrain, establish safe camps, and manage practical scarcity in unfamiliar environments.",
-    loopName: "Survival II + Safe Camp",
-    loop: "Convert a successful route or forage check into a bounded rest advantage for the group.",
-    tags: ["Starting package", "Exploration", "Always local"],
-    roles: ["Scout", "Survivor"],
-    skills: [{ skillId: "skill.survival", rank: 2 }],
-    feats: ["feat.safe-camp"],
-    grants: [
-      { name: "Survival rank 2", detail: "Covers navigation, foraging, exposure, and route safety." },
-      { name: "Safe Camp", detail: "Improves a rest only after suitable local preparation." }
-    ],
-    restrictions: ["Does not summon supplies, a vehicle, or wilderness where none exists."],
-    ineligible: []
+    name: "Fieldcraft",
+    summary: "Navigate hazards, establish safe camps, and manage local scarcity.",
+    ability: ["Safe Camp", "After suitable preparation, improve the group’s next rest in hostile terrain."],
+    strengths: ["Exploration"],
+    limit: "Fieldcraft cannot summon supplies, a vehicle, or wilderness where none exists.",
+    blocked: []
   },
   arcane: {
-    id: "package.arcane-initiate",
     name: "Arcane Initiate",
-    sigil: "AI",
-    family: "Advanced capability package",
-    description: "Learn two fixed novice formulae without acquiring a spellbook, Focus progression, or the Wizard chassis.",
-    loopName: "Two fixed formulae",
-    loop: "Use one chosen utility formula and one chosen attack formula at their base effect only.",
-    tags: ["Advanced package", "Minor magic", "No spellbook"],
-    roles: ["Artillery"],
-    skills: [{ skillId: "skill.arcana", rank: 1 }],
-    feats: ["feat.arcane-initiate"],
-    grants: [
-      { name: "Two novice formulae", detail: "Fixed at selection; no preparation or amplification." },
-      { name: "Arcana rank 1", detail: "Recognize common magical structures and hazards." }
-    ],
-    restrictions: ["No spellbook, Focus, formula revision, or access to Wizard advancement tiers."],
-    ineligible: ["wizard"]
-  }
-};
-
-const BACKGROUNDS = {
-  independent: "Independent",
-  "sworn-order": "Raised by a sworn order",
-  "court-service": "Court service",
-  academy: "Academy trained",
-  "street-collective": "Street collective"
-};
-
-const STANDINGS = {
-  none: {
-    name: "None",
-    id: null,
-    assetRef: null,
-    ledger: null,
-    restriction: null
-  },
-  "royal-office": {
-    name: "Royal appointment",
-    id: "status.royal-office",
-    assetRef: null,
-    ledger: "Conditional audience and requisition permission where the appointing crown is recognized. Grants no Investigation.",
-    restriction: "Royal authority may be ignored outside its jurisdiction and never grants class features."
-  },
-  "garrison-command": {
-    name: "Commands a garrison",
-    id: "status.garrison-command",
-    assetRef: "asset.garrison.seventh-watch",
-    ledger: "Rank plus a referenced garrison asset. Orders depend on contact, loyalty, location, and the asset’s current state.",
-    restriction: "The garrison cannot appear in a sealed dungeon, take extra turns, or bypass Command Training."
-  },
-  billionaire: {
-    name: "Billionaire sponsor",
-    id: "status.billionaire-sponsor",
-    assetRef: "asset.corporation.vale-holdings",
-    ledger: "Wealth status plus a separately tracked corporation. Purchases and contacts require availability and time.",
-    restriction: "Wealth provides no remote assets, connectivity, or class power when access is unavailable."
+    summary: "Learn two fixed minor workings without full Arcanist progression.",
+    ability: ["Two Minor Workings", "Use two chosen effects at their base strength; they cannot be prepared or amplified."],
+    strengths: ["Minor magic"],
+    limit: "This grants no prepared repertoire, Focus pool, or access to advanced Arcanist effects.",
+    blocked: ["arcanist"]
   }
 };
 
 const EXAMPLES = {
-  "paladin-commander": {
-    classId: "paladin",
-    trainingId: "command",
-    name: "Elian Voss",
-    title: "Warden of the Seventh Gate",
-    background: "sworn-order",
-    standing: "garrison-command",
-    message: "Paladin remains the class. Command comes from training; the garrison remains a separate asset."
-  },
-  "wizard-axe": {
-    classId: "wizard",
-    trainingId: "martial",
-    name: "Ilyra Venn",
-    title: "The Ashen Scholar",
-    background: "academy",
-    standing: "none",
-    message: "The Wizard legally gains axe proficiency, but no Tempo, Combat Forms, or Fighter progression."
-  },
-  "royal-inquisitive": {
-    classId: "fighter",
-    trainingId: "investigation",
-    name: "Aveline Rook",
-    title: "Royal Inquisitive",
-    background: "court-service",
-    standing: "royal-office",
-    message: "Fighter supplies the dungeon-ready chassis; Investigation and royal authority come from separate sources."
-  },
-  "netrunner-billionaire": {
-    classId: "netrunner",
-    trainingId: "investigation",
-    name: "Sable Kade",
-    title: "Founder of Kade Meridian",
-    background: "street-collective",
-    standing: "billionaire",
-    message: "Netrunner remains the play loop. Wealth is conditional status and a separate asset, not another class."
-  }
+  "paladin-commander": ["crownfall", "oathbound", "paladin", "command", "Elian Voss", "Warden of the Seventh Gate", 1, "garrison"],
+  "wizard-axe": ["crownfall", "arcanist", "wizard", "martial", "Ilyra Venn", "The Ashen Scholar", 3, "none"],
+  "royal-inquisitive": ["crownfall", "vanguard", "fighter", "investigation", "Aveline Rook", "Royal Inquisitive", 2, "royal"],
+  "netrunner-billionaire": ["neon", "intruder", "netrunner", "investigation", "Sable Kade", "Founder of Kade Meridian", 0, "billionaire"]
 };
-
-const STEPS = ["class", "training", "identity"];
 
 const state = {
   view: "creation",
-  step: "class",
-  classId: null,
+  campaignId: "crownfall",
+  step: "archetype",
+  archetypeId: null,
+  callingId: null,
   trainingId: null,
-  classFilter: "all",
   name: "Mara Vale",
   title: "",
-  background: "independent",
-  standing: "none",
+  backgroundIndex: 0,
+  standingId: "none",
   confirmed: false,
   levelRoute: "continue",
-  levelChoice: null
+  levelChoice: null,
+  multiclassCallingId: null
 };
 
 const elements = {
   views: document.querySelectorAll("[data-view]"),
   viewTargets: document.querySelectorAll("[data-view-target]"),
+  campaignSelect: document.querySelector("#campaign-select"),
+  campaignKicker: document.querySelector("#campaign-kicker"),
+  levelCampaignKicker: document.querySelector("#level-campaign-kicker"),
+  pathSummary: document.querySelector("#path-summary"),
   stepTargets: document.querySelectorAll("[data-step-target]"),
   stepPanels: document.querySelectorAll("[data-step]"),
-  classOptions: document.querySelector("#class-options"),
+  callingStepKicker: document.querySelector("#calling-step-kicker"),
+  callingStepLabel: document.querySelector("#calling-step-label"),
+  archetypeOptions: document.querySelector("#archetype-options"),
+  callingKicker: document.querySelector("#calling-kicker"),
+  callingTitle: document.querySelector("#calling-title"),
+  callingHelp: document.querySelector("#calling-help"),
+  callingContext: document.querySelector("#calling-context"),
+  callingOptions: document.querySelector("#calling-options"),
   trainingOptions: document.querySelector("#training-options"),
   previousStep: document.querySelector("#previous-step"),
   nextStep: document.querySelector("#next-step"),
@@ -370,23 +352,32 @@ const elements = {
   titleInput: document.querySelector("#character-title"),
   backgroundInput: document.querySelector("#character-background"),
   standingInput: document.querySelector("#character-standing"),
+  standingNote: document.querySelector("#standing-note"),
   summaryName: document.querySelector("#summary-name"),
   summaryTitle: document.querySelector("#summary-title"),
-  summaryClass: document.querySelector("#summary-class"),
-  summaryTraining: document.querySelector("#summary-training"),
-  summaryStanding: document.querySelector("#summary-standing"),
   portrait: document.querySelector(".portrait-placeholder span"),
   validity: document.querySelector("#build-validity"),
-  ledger: document.querySelector("#source-ledger"),
-  roles: document.querySelector("#derived-roles"),
-  restrictions: document.querySelector("#build-restrictions"),
-  record: document.querySelector("#record-preview"),
-  dialog: document.querySelector("#battle-mage-dialog"),
-  toast: document.querySelector("#prototype-toast"),
+  summaryArchetype: document.querySelector("#summary-archetype"),
+  summaryCalling: document.querySelector("#summary-calling"),
+  summaryTraining: document.querySelector("#summary-training"),
+  summaryStanding: document.querySelector("#summary-standing"),
+  playstyle: document.querySelector("#playstyle-summary"),
+  abilities: document.querySelector("#signature-abilities"),
+  strengths: document.querySelector("#character-strengths"),
+  limits: document.querySelector("#character-limits"),
+  battleMageDialog: document.querySelector("#battle-mage-dialog"),
+  toast: document.querySelector("#character-toast"),
+  levelName: document.querySelector("#level-character-name"),
+  levelCalling: document.querySelector("#level-character-calling"),
   levelCurrentBuild: document.querySelector("#level-current-build"),
   continueRouteName: document.querySelector("#continue-route-name"),
+  continueRouteCopy: document.querySelector("#continue-route-copy"),
   multiclassRouteName: document.querySelector("#multiclass-route-name"),
+  multiclassRouteCopy: document.querySelector("#multiclass-route-copy"),
   routeTargets: document.querySelectorAll("[data-level-route]"),
+  multiclassCallingSection: document.querySelector("#multiclass-calling-section"),
+  multiclassCallingTitle: document.querySelector("#multiclass-calling-title"),
+  multiclassCallingOptions: document.querySelector("#multiclass-calling-options"),
   automaticRouteLabel: document.querySelector("#automatic-route-label"),
   automaticGains: document.querySelector("#automatic-gains"),
   developmentSection: document.querySelector("#development-choice-section"),
@@ -396,8 +387,7 @@ const elements = {
   levelStatus: document.querySelector("#level-status"),
   confirmLevel: document.querySelector("#confirm-level"),
   levelGains: document.querySelector("#level-gains-summary"),
-  levelCosts: document.querySelector("#level-costs-summary"),
-  levelRecord: document.querySelector("#level-record-preview")
+  levelCosts: document.querySelector("#level-costs-summary")
 };
 
 let toastTimer = null;
@@ -411,11 +401,48 @@ function escapeHtml(value) {
     .replaceAll("'", "&#039;");
 }
 
+function campaign() {
+  return CAMPAIGNS[state.campaignId];
+}
+
+function mappings(archetypeId = state.archetypeId) {
+  return archetypeId ? campaign().callings[archetypeId] || [] : [];
+}
+
+function callingById(archetypeId = state.archetypeId, callingId = state.callingId) {
+  return mappings(archetypeId).find((entry) => entry[0] === callingId) || null;
+}
+
+function standing() {
+  return campaign().standings[state.standingId] || Object.values(campaign().standings)[0];
+}
+
 function showToast(message) {
   window.clearTimeout(toastTimer);
   elements.toast.textContent = message;
   elements.toast.classList.add("is-visible");
-  toastTimer = window.setTimeout(() => elements.toast.classList.remove("is-visible"), 3600);
+  toastTimer = window.setTimeout(() => elements.toast.classList.remove("is-visible"), 3200);
+}
+
+function flavorText(text, calling) {
+  if (!calling) return text;
+  const names = calling[4];
+  const callingArchetypeId = Object.keys(ARCHETYPES).find((archetypeId) =>
+    mappings(archetypeId).some((entry) => entry[0] === calling[0])
+  );
+  const replacements = {
+    resource: callingArchetypeId === "arcanist" ? names[1] : names[0],
+    repertoire: names[0],
+    guard: names[1],
+    form: names[1],
+    pressure: names[1],
+    judgment: names[2],
+    mastery: names[2]
+  };
+  return Object.entries(replacements).reduce(
+    (result, [key, value]) => result.replaceAll(`{${key}}`, value),
+    text
+  );
 }
 
 function setView(view) {
@@ -430,20 +457,75 @@ function setView(view) {
     button.classList.toggle("is-active", active);
     button.setAttribute("aria-pressed", String(active));
   });
-  if (view === "progression") {
-    renderProgression();
-  }
+  if (view === "progression") renderProgression();
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
+function populateCampaignPicker() {
+  elements.campaignSelect.innerHTML = Object.entries(CAMPAIGNS)
+    .map(([id, item]) => `<option value="${id}">${escapeHtml(item.name)} · ${escapeHtml(item.genre)}</option>`)
+    .join("");
+  elements.campaignSelect.value = state.campaignId;
+}
+
+function populateIdentityOptions() {
+  const currentCampaign = campaign();
+  elements.backgroundInput.innerHTML = currentCampaign.backgrounds
+    .map((name, index) => `<option value="${index}">${escapeHtml(name)}</option>`)
+    .join("");
+  elements.standingInput.innerHTML = Object.entries(currentCampaign.standings)
+    .map(([id, item]) => `<option value="${id}">${escapeHtml(item[0])}</option>`)
+    .join("");
+  if (!currentCampaign.backgrounds[state.backgroundIndex]) state.backgroundIndex = 0;
+  if (!currentCampaign.standings[state.standingId]) state.standingId = Object.keys(currentCampaign.standings)[0];
+  elements.backgroundInput.value = String(state.backgroundIndex);
+  elements.standingInput.value = state.standingId;
+  renderStandingNote();
+}
+
+function chooseCampaign(campaignId) {
+  Object.assign(state, {
+    campaignId,
+    step: "archetype",
+    archetypeId: null,
+    callingId: null,
+    trainingId: null,
+    backgroundIndex: 0,
+    standingId: Object.keys(CAMPAIGNS[campaignId].standings)[0],
+    confirmed: false,
+    levelRoute: "continue",
+    levelChoice: null,
+    multiclassCallingId: null
+  });
+  populateIdentityOptions();
+  syncInputs();
+  renderAll();
+  setView("creation");
+}
+
+function nextStepFrom(step) {
+  if (step === "archetype") return mappings().length > 1 ? "calling" : "character";
+  if (step === "calling") return "character";
+  return null;
+}
+
+function previousStepFrom(step) {
+  if (step === "character") return mappings().length > 1 ? "calling" : "archetype";
+  if (step === "calling") return "archetype";
+  return null;
+}
+
 function setStep(step, force = false) {
-  const targetIndex = STEPS.indexOf(step);
-  if (!force && targetIndex >= 1 && !state.classId) {
-    showToast("Choose a class chassis before moving to training.");
+  if (!force && step !== "archetype" && !state.archetypeId) {
+    showToast("Choose an archetype first.");
     return;
   }
-  if (!force && targetIndex >= 2 && !state.trainingId) {
-    showToast("Choose a training package before moving to identity.");
+  if (!force && step === "calling" && mappings().length <= 1) {
+    showToast("This archetype has one calling in the current campaign, so it is already selected.");
+    return;
+  }
+  if (!force && step === "character" && mappings().length > 1 && !state.callingId) {
+    showToast("Choose a calling before completing the character.");
     return;
   }
   state.step = step;
@@ -452,349 +534,348 @@ function setStep(step, force = false) {
 }
 
 function renderStep() {
-  const currentIndex = STEPS.indexOf(state.step);
+  const selectedMappings = mappings();
   elements.stepPanels.forEach((panel) => {
     const active = panel.dataset.step === state.step;
     panel.hidden = !active;
     panel.classList.toggle("is-active", active);
   });
+
   elements.stepTargets.forEach((button) => {
-    const index = STEPS.indexOf(button.dataset.stepTarget);
-    const active = index === currentIndex;
-    const complete = (index === 0 && Boolean(state.classId)) ||
-      (index === 1 && Boolean(state.trainingId)) ||
-      (index === 2 && state.confirmed);
+    const target = button.dataset.stepTarget;
+    const active = target === state.step;
+    const complete =
+      (target === "archetype" && Boolean(state.archetypeId)) ||
+      (target === "calling" && Boolean(state.callingId)) ||
+      (target === "character" && state.confirmed);
     button.classList.toggle("is-active", active);
     button.classList.toggle("is-complete", complete && !active);
-    if (active) {
-      button.setAttribute("aria-current", "step");
-    } else {
-      button.removeAttribute("aria-current");
-    }
+    if (active) button.setAttribute("aria-current", "step");
+    else button.removeAttribute("aria-current");
+    button.disabled = target === "calling" && Boolean(state.archetypeId) && selectedMappings.length <= 1;
   });
 
-  elements.previousStep.disabled = currentIndex === 0;
-  elements.nextStep.disabled =
-    (state.step === "class" && !state.classId) ||
-    (state.step === "training" && !state.trainingId);
+  if (!state.archetypeId) {
+    elements.callingStepKicker.textContent = "In this campaign";
+    elements.callingStepLabel.textContent = "Class";
+  } else if (selectedMappings.length === 1) {
+    elements.callingStepKicker.textContent = "Chosen automatically";
+    elements.callingStepLabel.textContent = selectedMappings[0][1];
+  } else {
+    elements.callingStepKicker.textContent = `${selectedMappings.length} choices`;
+    elements.callingStepLabel.textContent = state.callingId ? callingById()[1] : "Class";
+  }
 
-  if (state.step === "class") {
+  const previous = previousStepFrom(state.step);
+  elements.previousStep.disabled = !previous;
+
+  if (state.step === "archetype") {
     elements.nextStep.textContent = "Continue";
-    elements.stepStatus.textContent = state.classId
-      ? `${CLASSES[state.classId].name} selected. Its restrictions are visible in the ledger.`
-      : "Choose one class chassis to continue.";
-  } else if (state.step === "training") {
+    elements.nextStep.disabled = !state.archetypeId;
+    elements.stepStatus.textContent = state.archetypeId
+      ? selectedMappings.length === 1
+        ? `${selectedMappings[0][1]} is the ${ARCHETYPES[state.archetypeId].name} class in ${campaign().name}.`
+        : `${selectedMappings.length} ${campaign().genre} classes are available for ${ARCHETYPES[state.archetypeId].name}.`
+      : "Choose an archetype to continue.";
+  } else if (state.step === "calling") {
     elements.nextStep.textContent = "Continue";
-    elements.stepStatus.textContent = state.trainingId
-      ? `${TRAINING[state.trainingId].name} selected as the one starting package.`
-      : "Choose one training package to continue.";
+    elements.nextStep.disabled = !state.callingId;
+    elements.stepStatus.textContent = state.callingId
+      ? `${callingById()[1]} selected.`
+      : `Choose one ${campaign().genre} class.`;
   } else if (state.confirmed) {
     elements.nextStep.textContent = "Preview level-up";
     elements.nextStep.disabled = false;
-    elements.stepStatus.textContent = "Prototype build confirmed. Nothing was saved.";
+    elements.stepStatus.textContent = "Character ready.";
   } else {
-    elements.nextStep.textContent = "Confirm prototype build";
-    elements.nextStep.disabled = !(state.classId && state.trainingId);
-    elements.stepStatus.textContent = "Review the exact source ledger, then confirm the visible build.";
+    elements.nextStep.textContent = "Create character";
+    elements.nextStep.disabled = !(state.archetypeId && state.callingId && state.trainingId);
+    elements.stepStatus.textContent = state.trainingId
+      ? "Review the character sheet, then create the character."
+      : "Choose one special training to finish.";
   }
 }
 
-function renderClasses() {
-  const visibleClasses = Object.entries(CLASSES).filter(([, item]) =>
-    state.classFilter === "all" || item.filters.includes(state.classFilter)
-  );
-
-  elements.classOptions.innerHTML = visibleClasses.map(([key, item]) => {
-    const selected = state.classId === key;
+function renderArchetypes() {
+  const available = Object.entries(ARCHETYPES).filter(([id]) => mappings(id).length > 0);
+  elements.archetypeOptions.innerHTML = available.map(([id, item]) => {
+    const selected = state.archetypeId === id;
+    const campaignMappings = mappings(id);
+    const callingCopy = campaignMappings.length === 1
+      ? `${campaignMappings[0][1]} in ${campaign().name}`
+      : `${campaignMappings.length} classes in ${campaign().name}`;
     return `
-      <button
-        type="button"
-        class="choice-card${selected ? " is-selected" : ""}"
-        role="radio"
-        aria-checked="${selected}"
-        data-class-choice="${key}"
-      >
+      <button class="choice-card${selected ? " is-selected" : ""}" type="button" role="radio"
+        aria-checked="${selected}" data-archetype-choice="${id}">
         <span class="choice-card-header">
           <span class="choice-sigil" aria-hidden="true">${item.sigil}</span>
           <span><strong>${item.name}</strong><small>${item.family}</small></span>
           <span class="radio-mark" aria-hidden="true"></span>
         </span>
         <span class="choice-description">${item.description}</span>
-        <span class="mechanic-callout">
-          <span>${item.loopName}</span>
-          <strong>${item.loop}</strong>
-        </span>
-        <span class="choice-meta">${item.tags.map((tag) => `<span>${tag}</span>`).join("")}</span>
+        <span class="mechanic-callout"><span>Signature play</span><strong>${item.loop}</strong></span>
+        <span class="choice-meta"><span>${callingCopy}</span>${item.tags.map((tag) => `<span>${tag}</span>`).join("")}</span>
       </button>
     `;
   }).join("");
-
-  elements.classOptions.querySelectorAll("[data-class-choice]").forEach((button) => {
-    button.addEventListener("click", () => selectClass(button.dataset.classChoice));
+  elements.archetypeOptions.querySelectorAll("[data-archetype-choice]").forEach((button) => {
+    button.addEventListener("click", () => selectArchetype(button.dataset.archetypeChoice));
   });
 }
 
-function selectClass(classId) {
-  state.classId = classId;
+function selectArchetype(archetypeId) {
+  const campaignMappings = mappings(archetypeId);
+  state.archetypeId = archetypeId;
+  state.callingId = campaignMappings.length === 1 ? campaignMappings[0][0] : null;
   state.confirmed = false;
-  if (state.trainingId && TRAINING[state.trainingId].ineligible.includes(classId)) {
+  state.levelChoice = null;
+  state.multiclassCallingId = null;
+  if (state.trainingId && TRAINING[state.trainingId].blocked.includes(archetypeId)) {
     state.trainingId = null;
-    showToast("That training duplicates the selected class, so the package choice was cleared.");
+    showToast("That training is already part of this archetype, so choose a different training.");
   }
-  renderClasses();
-  renderTraining();
-  renderSummary();
-  renderStep();
+  renderAll();
 }
 
-function renderTraining() {
-  elements.trainingOptions.innerHTML = Object.entries(TRAINING).map(([key, item]) => {
-    const selected = state.trainingId === key;
-    const unavailable = Boolean(state.classId && item.ineligible.includes(state.classId));
-    const duplicateCopy = unavailable
-      ? `<span class="unavailable-reason">Already included in ${CLASSES[state.classId].name}</span>`
-      : "";
+function renderCallings() {
+  const item = state.archetypeId ? ARCHETYPES[state.archetypeId] : null;
+  const choices = mappings();
+  elements.callingKicker.textContent = `Your path in ${campaign().name}`;
+  elements.callingTitle.textContent = item ? `Choose an ${item.name} class` : "Choose a class";
+  elements.callingHelp.textContent = item
+    ? `Each choice follows the same ${item.name} progression. Choose how that path belongs in ${campaign().name}.`
+    : "Choose an archetype first.";
+  elements.callingContext.innerHTML = item
+    ? `<span class="choice-sigil" aria-hidden="true">${item.sigil}</span><div><strong>${item.name}</strong><span>${escapeHtml(item.loop)}</span></div>`
+    : "";
+  elements.callingOptions.innerHTML = choices.map((entry) => {
+    const [id, name, tagline, description, abilityNames] = entry;
+    const selected = state.callingId === id;
     return `
-      <button
-        type="button"
-        class="choice-card${selected ? " is-selected" : ""}"
-        role="radio"
-        aria-checked="${selected}"
-        data-training-choice="${key}"
-        ${unavailable ? "disabled" : ""}
-      >
+      <button class="choice-card calling-card${selected ? " is-selected" : ""}" type="button" role="radio"
+        aria-checked="${selected}" data-calling-choice="${id}">
         <span class="choice-card-header">
-          <span class="choice-sigil" aria-hidden="true">${item.sigil}</span>
-          <span><strong>${item.name}</strong><small>${item.family}</small></span>
+          <span class="choice-sigil" aria-hidden="true">${escapeHtml(name.slice(0, 2).toUpperCase())}</span>
+          <span><strong>${escapeHtml(name)}</strong><small>${escapeHtml(tagline)}</small></span>
           <span class="radio-mark" aria-hidden="true"></span>
         </span>
-        <span class="choice-description">${item.description}</span>
-        <span class="mechanic-callout">
-          <span>${item.loopName}</span>
-          <strong>${item.loop}</strong>
-        </span>
-        <span class="choice-meta">${item.tags.map((tag) => `<span>${tag}</span>`).join("")}${duplicateCopy}</span>
+        <span class="choice-description">${escapeHtml(description)}</span>
+        <span class="calling-ability-preview">${abilityNames.map((ability) => `<span>${escapeHtml(ability)}</span>`).join("")}</span>
+        <span class="same-path-note">Follows ${escapeHtml(item.name)} progression</span>
       </button>
     `;
   }).join("");
+  elements.callingOptions.querySelectorAll("[data-calling-choice]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.callingId = button.dataset.callingChoice;
+      state.confirmed = false;
+      renderAll();
+    });
+  });
+}
 
+function renderTraining() {
+  elements.trainingOptions.innerHTML = Object.entries(TRAINING).map(([id, item]) => {
+    const selected = state.trainingId === id;
+    const blocked = state.archetypeId && item.blocked.includes(state.archetypeId);
+    return `
+      <button class="training-compact${selected ? " is-selected" : ""}" type="button" role="radio"
+        aria-checked="${selected}" data-training-choice="${id}" ${blocked ? "disabled" : ""}>
+        <span class="radio-mark" aria-hidden="true"></span>
+        <span><strong>${escapeHtml(item.name)}</strong><small>${escapeHtml(blocked ? "Already included in this archetype" : item.summary)}</small></span>
+      </button>
+    `;
+  }).join("");
   elements.trainingOptions.querySelectorAll("[data-training-choice]").forEach((button) => {
     button.addEventListener("click", () => {
       state.trainingId = button.dataset.trainingChoice;
       state.confirmed = false;
-      renderTraining();
-      renderSummary();
-      renderStep();
+      renderAll();
     });
   });
 }
 
-function initials(name) {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  return (parts.slice(0, 2).map((part) => part[0]).join("") || "?").toUpperCase();
-}
-
-function makeSourceRow(token, name, detail) {
-  return `
-    <div class="source-row">
-      <span class="source-token">${escapeHtml(token)}</span>
-      <div><strong>${escapeHtml(name)}</strong><span>${escapeHtml(detail)}</span></div>
-    </div>
+function renderStandingNote() {
+  const currentStanding = standing();
+  elements.standingNote.innerHTML = `
+    <span aria-hidden="true">i</span>
+    <div><strong>${escapeHtml(currentStanding[0])}</strong><p>${escapeHtml(currentStanding[1])}</p>
+    ${currentStanding[2] ? `<small>${escapeHtml(currentStanding[2])}</small>` : ""}</div>
   `;
 }
 
-function buildRecord() {
-  const selectedClass = state.classId ? CLASSES[state.classId] : null;
-  const training = state.trainingId ? TRAINING[state.trainingId] : null;
-  const standing = STANDINGS[state.standing];
-  return {
-    build: {
-      schemaVersion: 1,
-      chassisVersion: "prototype-0",
-      classLevels: selectedClass ? [{ classId: selectedClass.id, level: 1 }] : [],
-      skillRanks: training ? training.skills : [],
-      featIds: training ? training.feats : [],
-      backgroundIds: [],
-      playerTitle: state.title
-    },
-    identity: {
-      name: state.name,
-      backgroundText: BACKGROUNDS[state.background]
-    },
-    worldStateRefs: {
-      standingId: standing.id,
-      assetRefs: standing.assetRef ? [standing.assetRef] : []
-    },
-    note: "Derived roles are intentionally not persisted."
-  };
+function initials(name) {
+  return (name.trim().split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join("") || "?").toUpperCase();
 }
 
 function renderSummary() {
-  const selectedClass = state.classId ? CLASSES[state.classId] : null;
+  const archetype = state.archetypeId ? ARCHETYPES[state.archetypeId] : null;
+  const currentCalling = callingById();
   const training = state.trainingId ? TRAINING[state.trainingId] : null;
-  const standing = STANDINGS[state.standing];
-  const valid = Boolean(selectedClass && training);
+  const currentStanding = standing();
+  const valid = Boolean(archetype && currentCalling && training);
 
   elements.summaryName.textContent = state.name.trim() || "Unnamed character";
   elements.summaryTitle.textContent = state.title.trim() || "Title not set";
   elements.portrait.textContent = initials(state.name);
-  elements.summaryClass.textContent = selectedClass ? `${selectedClass.name} 1` : "Not selected";
+  elements.summaryArchetype.textContent = archetype ? archetype.name : "Not selected";
+  elements.summaryCalling.textContent = currentCalling ? currentCalling[1] : "Not selected";
   elements.summaryTraining.textContent = training ? training.name : "Not selected";
-  elements.summaryStanding.textContent = standing.name;
-  elements.validity.textContent = valid ? "Legal build" : "Incomplete";
+  elements.summaryStanding.textContent = currentStanding[0];
+  elements.validity.textContent = valid ? "Ready" : "Incomplete";
   elements.validity.classList.toggle("is-valid", valid);
 
-  const rows = [];
-  if (selectedClass) {
-    selectedClass.grants.forEach((grant) => rows.push(makeSourceRow("Class", grant.name, grant.detail)));
-  }
-  if (training) {
-    training.grants.forEach((grant) => rows.push(makeSourceRow("Package", grant.name, grant.detail)));
-  }
-  if (standing.ledger) {
-    rows.push(makeSourceRow("Status", standing.name, standing.ledger));
-  }
-  elements.ledger.innerHTML = rows.length
-    ? rows.join("")
-    : '<div class="empty-ledger">Select a class and package to reveal every entitlement source.</div>';
+  elements.playstyle.textContent = archetype && currentCalling
+    ? `As a ${currentCalling[1]}, ${archetype.loop.charAt(0).toLowerCase()}${archetype.loop.slice(1)}`
+    : archetype
+      ? archetype.loop
+      : "Choose an archetype to see its signature play.";
 
-  const roles = [...new Set([...(selectedClass?.roles || []), ...(training?.roles || [])])];
-  elements.roles.innerHTML = roles.length
-    ? roles.map((role) => `<span class="tag">${escapeHtml(role)}</span>`).join("")
+  const abilityRows = [];
+  if (archetype && currentCalling) {
+    currentCalling[4].forEach((name, index) => {
+      abilityRows.push([name, archetype.abilityDetails[index]]);
+    });
+  }
+  if (training) abilityRows.push(training.ability);
+  elements.abilities.innerHTML = abilityRows.length
+    ? abilityRows.map(([name, detail], index) => `
+        <div class="ability-row"><span>${index < 3 ? "Path" : "Training"}</span><div><strong>${escapeHtml(name)}</strong><small>${escapeHtml(detail)}</small></div></div>
+      `).join("")
+    : '<div class="empty-ledger">No abilities selected yet.</div>';
+
+  const strengths = [...new Set([...(archetype?.strengths || []), ...(training?.strengths || [])])];
+  elements.strengths.innerHTML = strengths.length
+    ? strengths.map((item) => `<span class="tag">${escapeHtml(item)}</span>`).join("")
     : '<span class="empty-tag">None yet</span>';
 
-  const restrictions = [
-    ...(selectedClass?.restrictions || []),
-    ...(training?.restrictions || []),
-    ...(standing.restriction ? [standing.restriction] : [])
+  const limits = [
+    ...(archetype?.limits || []),
+    ...(training ? [training.limit] : []),
+    ...(currentStanding[2] ? [currentStanding[2]] : [])
   ];
-  elements.restrictions.innerHTML = restrictions.length
-    ? restrictions.map((restriction) => `<li>${escapeHtml(restriction)}</li>`).join("")
-    : "<li>Select a class to expose its restrictions.</li>";
-
-  elements.record.textContent = JSON.stringify(buildRecord(), null, 2);
-}
-
-function applyExample(exampleId) {
-  const example = EXAMPLES[exampleId];
-  if (!example) {
-    openBattleMageDialog();
-    return;
-  }
-  Object.assign(state, {
-    classId: example.classId,
-    trainingId: example.trainingId,
-    name: example.name,
-    title: example.title,
-    background: example.background,
-    standing: example.standing,
-    step: "identity",
-    confirmed: false,
-    levelRoute: "continue",
-    levelChoice: null
-  });
-  syncInputs();
-  renderAll();
-  showToast(example.message);
-  document.querySelector(".builder-panel").scrollIntoView({ behavior: "smooth", block: "start" });
+  elements.limits.innerHTML = limits.length
+    ? limits.map((item) => `<li>${escapeHtml(item)}</li>`).join("")
+    : "<li>Choose an archetype to see its limits.</li>";
 }
 
 function syncInputs() {
+  elements.campaignSelect.value = state.campaignId;
   elements.nameInput.value = state.name;
   elements.titleInput.value = state.title;
-  elements.backgroundInput.value = state.background;
-  elements.standingInput.value = state.standing;
+  elements.backgroundInput.value = String(state.backgroundIndex);
+  elements.standingInput.value = state.standingId;
 }
 
-function openBattleMageDialog() {
-  if (typeof elements.dialog.showModal === "function") {
-    elements.dialog.showModal();
-  } else {
-    elements.dialog.setAttribute("open", "");
+function applyExample(exampleId) {
+  if (exampleId === "battle-mage") {
+    if (state.campaignId !== "crownfall") chooseCampaign("crownfall");
+    if (typeof elements.battleMageDialog.showModal === "function") elements.battleMageDialog.showModal();
+    else elements.battleMageDialog.setAttribute("open", "");
+    return;
   }
+  const [campaignId, archetypeId, callingId, trainingId, name, title, backgroundIndex, standingId] = EXAMPLES[exampleId];
+  state.campaignId = campaignId;
+  populateIdentityOptions();
+  Object.assign(state, {
+    archetypeId,
+    callingId,
+    trainingId,
+    name,
+    title,
+    backgroundIndex,
+    standingId,
+    step: "character",
+    confirmed: false,
+    levelRoute: "continue",
+    levelChoice: null,
+    multiclassCallingId: null
+  });
+  populateIdentityOptions();
+  syncInputs();
+  renderAll();
+  setView("creation");
+  showToast(`${name} is ready to review.`);
+  document.querySelector(".builder-panel").scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 function chooseBattleMage(choice) {
-  if (choice === "wizard-martial") {
-    Object.assign(state, {
-      classId: "wizard",
-      trainingId: "martial",
-      name: "Corin Ash",
-      title: "Battle Mage",
-      background: "academy",
-      standing: "none",
-      step: "identity",
-      confirmed: false
-    });
-    elements.dialog.close();
-    syncInputs();
-    renderAll();
-    showToast("Spell-first alternative selected explicitly: Wizard + Martial Training.");
-  } else if (choice === "fighter-arcane") {
-    Object.assign(state, {
-      classId: "fighter",
-      trainingId: "arcane",
-      name: "Corin Ash",
-      title: "Battle Mage",
-      background: "academy",
-      standing: "none",
-      step: "identity",
-      confirmed: false
-    });
-    elements.dialog.close();
-    syncInputs();
-    renderAll();
-    showToast("Weapon-first alternative selected explicitly: Fighter + Arcane Initiate.");
+  const base = {
+    campaignId: "crownfall",
+    name: "Corin Ash",
+    title: "Battle Mage",
+    backgroundIndex: 3,
+    standingId: "none",
+    confirmed: false,
+    levelChoice: null,
+    multiclassCallingId: null
+  };
+  if (choice === "spell-first") {
+    Object.assign(state, base, { archetypeId: "arcanist", callingId: "wizard", trainingId: "martial", step: "character", levelRoute: "continue" });
+  } else if (choice === "weapon-first") {
+    Object.assign(state, base, { archetypeId: "vanguard", callingId: "fighter", trainingId: "arcane", step: "character", levelRoute: "continue" });
   } else {
-    Object.assign(state, {
-      classId: "fighter",
-      trainingId: "arcane",
-      name: "Corin Ash",
-      title: "Battle Mage Aspirant",
-      background: "academy",
-      standing: "none",
-      step: "identity",
-      confirmed: true,
-      levelRoute: "multiclass",
-      levelChoice: null
-    });
-    elements.dialog.close();
-    syncInputs();
-    renderAll();
-    setView("progression");
-    showToast("Advanced route shown: a later Wizard level replaces, rather than accompanies, Fighter advancement.");
+    Object.assign(state, base, { archetypeId: "arcanist", callingId: "wizard", trainingId: "martial", step: "character", levelRoute: "multiclass", confirmed: true, multiclassCallingId: "fighter" });
   }
+  elements.battleMageDialog.close();
+  populateIdentityOptions();
+  syncInputs();
+  renderAll();
+  if (choice === "full-hybrid") setView("progression");
+  else setView("creation");
+  showToast(choice === "full-hybrid" ? "The later Vanguard level and its delay are shown." : "Battle Mage path selected.");
 }
 
-function progressionClass() {
-  return state.classId ? CLASSES[state.classId] : CLASSES.paladin;
+function progressionContext() {
+  let archetypeId = state.archetypeId;
+  if (!archetypeId || mappings(archetypeId).length === 0) {
+    archetypeId = Object.keys(ARCHETYPES).find((id) => mappings(id).length > 0);
+  }
+  const archetype = ARCHETYPES[archetypeId];
+  const currentCalling = callingById(archetypeId, state.callingId) || mappings(archetypeId)[0];
+  const training = state.trainingId ? TRAINING[state.trainingId] : TRAINING.command;
+  const targetId = archetype.multiclassTarget;
+  const target = ARCHETYPES[targetId];
+  const targetCallings = mappings(targetId);
+  if (state.levelRoute === "multiclass" && targetCallings.length === 1) {
+    state.multiclassCallingId = targetCallings[0][0];
+  }
+  const targetCalling = targetCallings.find((entry) => entry[0] === state.multiclassCallingId) || null;
+  return { archetypeId, archetype, currentCalling, training, targetId, target, targetCallings, targetCalling };
 }
 
-function progressionTraining() {
-  return state.trainingId ? TRAINING[state.trainingId] : TRAINING.command;
-}
-
-function continuationChoices(selectedClass, training) {
-  return [
-    ...selectedClass.levelUp.choices,
-    {
-      id: `deepen-${training.id}`,
-      name: `Deepen ${training.name}`,
-      detail: `Advance the package’s ranked skill and improve its existing permission; no new class resource is added.`,
-      kind: "Training"
-    }
-  ];
+function developmentChoices(archetype, currentCalling, training) {
+  const classChoices = archetype.levelUp.choices.map(([name, detail], index) => ({
+    id: `path-${index}`,
+    name: flavorText(name, currentCalling),
+    detail: flavorText(detail, currentCalling),
+    kind: currentCalling[1]
+  }));
+  classChoices.push({
+    id: "deepen-training",
+    name: `Deepen ${training.name}`,
+    detail: `Improve the capability already granted by ${training.name}; this does not add another archetype.`,
+    kind: "Training"
+  });
+  return classChoices;
 }
 
 function renderProgression() {
-  const selectedClass = progressionClass();
-  const training = progressionTraining();
-  const targetClass = CLASSES[selectedClass.multiclass.target];
+  const context = progressionContext();
+  const { archetype, currentCalling, training, target, targetCallings, targetCalling } = context;
   const continuing = state.levelRoute === "continue";
 
-  elements.levelCurrentBuild.textContent = `${selectedClass.name} 3 · ${training.name}`;
-  elements.continueRouteName.textContent = `Continue ${selectedClass.name}`;
-  elements.multiclassRouteName.textContent = `Take ${targetClass.name} 1`;
+  elements.levelCampaignKicker.textContent = `${campaign().name} · ${campaign().genre}`;
+  elements.levelName.textContent = state.name.trim() || "Unnamed character";
+  elements.levelCalling.textContent = `${currentCalling[1]} · ${archetype.name} archetype`;
+  elements.levelCurrentBuild.textContent = `${currentCalling[1]} 3 · ${archetype.name}`;
+  elements.continueRouteName.textContent = `${currentCalling[1]} 4`;
+  elements.continueRouteCopy.textContent = `Gain the next ${archetype.name} tier and choose one development.`;
+  elements.multiclassRouteName.textContent = `Begin ${target.name}`;
+  elements.multiclassRouteCopy.textContent = targetCallings.length === 1
+    ? `${targetCallings[0][1]} is the ${target.name} class in ${campaign().name}.`
+    : `Choose one of ${targetCallings.length} ${campaign().genre} classes, then take its first level.`;
+
   elements.routeTargets.forEach((button) => {
     const active = button.dataset.levelRoute === state.levelRoute;
     button.classList.toggle("is-selected", active);
@@ -802,26 +883,18 @@ function renderProgression() {
   });
 
   if (continuing) {
-    elements.automaticRouteLabel.textContent = `${selectedClass.name} 3 → ${selectedClass.name} 4`;
-    elements.automaticGains.innerHTML = selectedClass.levelUp.automatic.map((gain) => `
-      <div class="gain-card">
-        <span class="gain-icon" aria-hidden="true">+</span>
-        <div><strong>${escapeHtml(gain.name)}</strong><span>${escapeHtml(gain.detail)}</span></div>
-      </div>
-    `).join("");
+    elements.multiclassCallingSection.hidden = true;
     elements.developmentSection.hidden = false;
     elements.multiclassWarning.hidden = true;
-    const choices = continuationChoices(selectedClass, training);
+    elements.automaticRouteLabel.textContent = `${currentCalling[1]} 3 → ${currentCalling[1]} 4`;
+    const automatic = archetype.levelUp.automatic.map(([name, detail]) => [flavorText(name, currentCalling), flavorText(detail, currentCalling)]);
+    renderGains(automatic);
+    const choices = developmentChoices(archetype, currentCalling, training);
     elements.developmentOptions.innerHTML = choices.map((choice) => {
-      const active = state.levelChoice === choice.id;
+      const selected = state.levelChoice === choice.id;
       return `
-        <button
-          class="development-card${active ? " is-selected" : ""}"
-          type="button"
-          role="radio"
-          aria-checked="${active}"
-          data-development-choice="${escapeHtml(choice.id)}"
-        >
+        <button class="development-card${selected ? " is-selected" : ""}" type="button" role="radio"
+          aria-checked="${selected}" data-development-choice="${choice.id}">
           <span class="radio-mark" aria-hidden="true"></span>
           <div><strong>${escapeHtml(choice.name)}</strong><span>${escapeHtml(choice.detail)}</span></div>
           <small>${escapeHtml(choice.kind)}</small>
@@ -835,181 +908,179 @@ function renderProgression() {
       });
     });
     elements.confirmLevel.disabled = !state.levelChoice;
-    elements.levelStatus.textContent = state.levelChoice
-      ? "The exact level result is ready to confirm."
-      : "Choose one development to preview the result.";
+    elements.levelStatus.textContent = state.levelChoice ? "Review the result, then confirm the level." : "Choose one development to continue.";
   } else {
-    elements.automaticRouteLabel.textContent = `${selectedClass.name} 3 → ${selectedClass.name} 3 / ${targetClass.name} 1`;
-    elements.automaticGains.innerHTML = selectedClass.multiclass.gains.map((gain) => `
-      <div class="gain-card">
-        <span class="gain-icon" aria-hidden="true">+</span>
-        <div><strong>${escapeHtml(gain)}</strong><span>Granted by ${escapeHtml(targetClass.name)} level 1 entry.</span></div>
-      </div>
-    `).join("");
+    elements.multiclassCallingSection.hidden = targetCallings.length <= 1;
     elements.developmentSection.hidden = true;
     elements.multiclassWarning.hidden = false;
-    elements.multiclassCostCopy.textContent = selectedClass.multiclass.costs.join(" ");
-    elements.confirmLevel.disabled = false;
-    elements.levelStatus.textContent = "The multiclass cost is explicit. Confirm only if the delay is acceptable.";
+    elements.multiclassCallingTitle.textContent = `Choose a ${target.name} class`;
+    renderMulticlassCallings(targetCallings);
+    const selectedName = targetCalling ? targetCalling[1] : target.name;
+    elements.automaticRouteLabel.textContent = `${currentCalling[1]} 3 → ${currentCalling[1]} 3 / ${selectedName} 1`;
+    const entryNames = targetCalling ? targetCalling[4] : [`${target.name} resource`, `${target.name} action`, "Later mastery"];
+    renderGains([
+      [targetCalling ? `Begin ${selectedName}` : `Begin ${target.name}`, `Take level 1 in the ${target.name} archetype.`],
+      [entryNames[0], `Gain the entry-level ${entryNames[0]} capacity and one basic ${entryNames[1]}.`]
+    ]);
+    const costs = archetype.multiclassCosts.map((item) => flavorText(item, currentCalling));
+    elements.multiclassCostCopy.textContent = costs.join(" ");
+    elements.confirmLevel.disabled = targetCallings.length > 1 && !targetCalling;
+    elements.levelStatus.textContent = elements.confirmLevel.disabled
+      ? `Choose the ${target.name} class for ${campaign().name}.`
+      : "Review what the current path delays, then confirm the level.";
   }
-
-  renderLevelSummary(selectedClass, targetClass, training);
+  renderLevelSummary(context);
 }
 
-function renderLevelSummary(selectedClass, targetClass, training) {
+function renderGains(gains) {
+  elements.automaticGains.innerHTML = gains.map(([name, detail]) => `
+    <div class="gain-card"><span class="gain-icon" aria-hidden="true">+</span><div>
+      <strong>${escapeHtml(name)}</strong><span>${escapeHtml(detail)}</span>
+    </div></div>
+  `).join("");
+}
+
+function renderMulticlassCallings(callings) {
+  elements.multiclassCallingOptions.innerHTML = callings.map((entry) => {
+    const selected = state.multiclassCallingId === entry[0];
+    return `
+      <button class="mini-calling${selected ? " is-selected" : ""}" type="button" role="radio"
+        aria-checked="${selected}" data-multiclass-calling="${entry[0]}">
+        <span class="radio-mark" aria-hidden="true"></span>
+        <span><strong>${escapeHtml(entry[1])}</strong><small>${escapeHtml(entry[2])}</small></span>
+      </button>
+    `;
+  }).join("");
+  elements.multiclassCallingOptions.querySelectorAll("[data-multiclass-calling]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.multiclassCallingId = button.dataset.multiclassCalling;
+      renderProgression();
+    });
+  });
+}
+
+function renderLevelSummary(context) {
+  const { archetype, currentCalling, training, target, targetCallings, targetCalling } = context;
   const continuing = state.levelRoute === "continue";
-  const choices = continuationChoices(selectedClass, training);
-  const selectedChoice = choices.find((choice) => choice.id === state.levelChoice);
-  const gains = continuing
-    ? [
-        ...selectedClass.levelUp.automatic.map((gain) => gain.name),
-        ...(selectedChoice ? [selectedChoice.name] : ["One development choice still required"])
-      ]
-    : selectedClass.multiclass.gains;
-  const costs = continuing
-    ? ["Consumes this level’s one development choice", "No second class entry package"]
-    : selectedClass.multiclass.costs;
-
-  elements.levelGains.innerHTML = gains.map((gain) => `<li>${escapeHtml(gain)}</li>`).join("");
-  elements.levelCosts.innerHTML = costs.map((cost) => `<li>${escapeHtml(cost)}</li>`).join("");
-
-  const classLevels = continuing
-    ? [{ classId: selectedClass.id, level: 4 }]
-    : [
-        { classId: selectedClass.id, level: 3 },
-        { classId: targetClass.id, level: 1 }
-      ];
-  elements.levelRecord.textContent = JSON.stringify({
-    chassisVersion: "prototype-0",
-    classLevels,
-    selectedDevelopmentId: continuing ? state.levelChoice : null,
-    retainedPackageId: training.id
-  }, null, 2);
+  let gains;
+  let costs;
+  if (continuing) {
+    const choices = developmentChoices(archetype, currentCalling, training);
+    const choice = choices.find((item) => item.id === state.levelChoice);
+    gains = [
+      ...archetype.levelUp.automatic.map(([name]) => flavorText(name, currentCalling)),
+      choice ? choice.name : "One development still required"
+    ];
+    costs = ["Uses this level’s one development choice", `Does not begin a second archetype`];
+  } else {
+    gains = [`${target.name} level 1`, targetCalling ? `${targetCalling[1]} class` : `A ${target.name} class still required`];
+    costs = archetype.multiclassCosts.map((item) => flavorText(item, currentCalling));
+  }
+  elements.levelGains.innerHTML = gains.map((item) => `<li>${escapeHtml(item)}</li>`).join("");
+  elements.levelCosts.innerHTML = costs.map((item) => `<li>${escapeHtml(item)}</li>`).join("");
 }
 
-function resetPrototype() {
-  Object.assign(state, {
-    view: "creation",
-    step: "class",
-    classId: null,
-    trainingId: null,
-    classFilter: "all",
-    name: "Mara Vale",
-    title: "",
-    background: "independent",
-    standing: "none",
-    confirmed: false,
-    levelRoute: "continue",
-    levelChoice: null
-  });
-  syncInputs();
-  document.querySelectorAll("[data-class-filter]").forEach((button) => {
-    const active = button.dataset.classFilter === "all";
-    button.classList.toggle("is-active", active);
-    button.setAttribute("aria-pressed", String(active));
-  });
-  renderAll();
-  setView("creation");
-  showToast("Prototype reset. No data was stored.");
+function renderCampaignText() {
+  elements.campaignKicker.textContent = `${campaign().name} · ${campaign().genre}`;
+  elements.pathSummary.textContent = `${campaign().name} supplies the classes and standings shown here.`;
 }
 
 function renderAll() {
-  renderClasses();
+  renderCampaignText();
+  renderArchetypes();
+  renderCallings();
   renderTraining();
+  renderStandingNote();
   renderSummary();
   renderStep();
   renderProgression();
 }
 
-elements.viewTargets.forEach((button) => {
-  button.addEventListener("click", () => setView(button.dataset.viewTarget));
-});
+function resetCharacter() {
+  Object.assign(state, {
+    step: "archetype",
+    archetypeId: null,
+    callingId: null,
+    trainingId: null,
+    name: "Mara Vale",
+    title: "",
+    backgroundIndex: 0,
+    standingId: Object.keys(campaign().standings)[0],
+    confirmed: false,
+    levelRoute: "continue",
+    levelChoice: null,
+    multiclassCallingId: null
+  });
+  populateIdentityOptions();
+  syncInputs();
+  renderAll();
+  setView("creation");
+  showToast("Character choices cleared.");
+}
 
-elements.stepTargets.forEach((button) => {
-  button.addEventListener("click", () => setStep(button.dataset.stepTarget));
-});
-
+elements.campaignSelect.addEventListener("change", () => chooseCampaign(elements.campaignSelect.value));
+elements.viewTargets.forEach((button) => button.addEventListener("click", () => setView(button.dataset.viewTarget)));
+elements.stepTargets.forEach((button) => button.addEventListener("click", () => setStep(button.dataset.stepTarget)));
 elements.previousStep.addEventListener("click", () => {
-  const index = STEPS.indexOf(state.step);
-  if (index > 0) setStep(STEPS[index - 1], true);
+  const previous = previousStepFrom(state.step);
+  if (previous) setStep(previous, true);
 });
-
 elements.nextStep.addEventListener("click", () => {
-  const index = STEPS.indexOf(state.step);
-  if (index < STEPS.length - 1) {
-    setStep(STEPS[index + 1]);
+  const next = nextStepFrom(state.step);
+  if (next) {
+    setStep(next);
     return;
   }
   if (!state.confirmed) {
     state.confirmed = true;
     renderStep();
-    showToast("Build confirmed for evaluation only. Nothing was saved.");
+    showToast(`${state.name.trim() || "Character"} is ready.`);
   } else {
     setView("progression");
   }
 });
-
-document.querySelectorAll("[data-class-filter]").forEach((button) => {
-  button.addEventListener("click", () => {
-    state.classFilter = button.dataset.classFilter;
-    document.querySelectorAll("[data-class-filter]").forEach((filterButton) => {
-      const active = filterButton === button;
-      filterButton.classList.toggle("is-active", active);
-      filterButton.setAttribute("aria-pressed", String(active));
-    });
-    renderClasses();
-  });
-});
-
 document.querySelectorAll("[data-example]").forEach((button) => {
   button.addEventListener("click", () => applyExample(button.dataset.example));
 });
-
+document.querySelectorAll("[data-battle-mage-choice]").forEach((button) => {
+  button.addEventListener("click", () => chooseBattleMage(button.dataset.battleMageChoice));
+});
 elements.nameInput.addEventListener("input", () => {
   state.name = elements.nameInput.value;
   state.confirmed = false;
   renderSummary();
   renderStep();
 });
-
 elements.titleInput.addEventListener("input", () => {
   state.title = elements.titleInput.value;
   state.confirmed = false;
   renderSummary();
   renderStep();
 });
-
 elements.backgroundInput.addEventListener("change", () => {
-  state.background = elements.backgroundInput.value;
+  state.backgroundIndex = Number(elements.backgroundInput.value);
   state.confirmed = false;
-  renderSummary();
   renderStep();
 });
-
 elements.standingInput.addEventListener("change", () => {
-  state.standing = elements.standingInput.value;
+  state.standingId = elements.standingInput.value;
   state.confirmed = false;
+  renderStandingNote();
   renderSummary();
   renderStep();
 });
-
-document.querySelectorAll("[data-battle-mage-choice]").forEach((button) => {
-  button.addEventListener("click", () => chooseBattleMage(button.dataset.battleMageChoice));
-});
-
 elements.routeTargets.forEach((button) => {
   button.addEventListener("click", () => {
     state.levelRoute = button.dataset.levelRoute;
     state.levelChoice = null;
+    state.multiclassCallingId = null;
     renderProgression();
   });
 });
+elements.confirmLevel.addEventListener("click", () => showToast("Level choice confirmed."));
+document.querySelector("#reset-character").addEventListener("click", resetCharacter);
 
-elements.confirmLevel.addEventListener("click", () => {
-  showToast("Advancement confirmed for evaluation only. No character data was changed.");
-});
-
-document.querySelector("#reset-prototype").addEventListener("click", resetPrototype);
-
+populateCampaignPicker();
+populateIdentityOptions();
 syncInputs();
 renderAll();
