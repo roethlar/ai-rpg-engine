@@ -1,7 +1,7 @@
 # Text-entry interaction-burden audit
 
-**Status:** owner-requested design audit; recommendations only; no roster, rules package, or
-implementation is approved by this document
+**Status:** owner-requested risk inventory and playtest hypotheses; no paper admission gate,
+roster, tier membership, rules package, or implementation is approved by this document
 
 **Date:** 2026-08-02
 
@@ -11,34 +11,35 @@ against the actual browser text-entry game rather than against abstract mechanic
 
 ## Bottom line
 
-The current admission test overvalues a private repeated loop. A mechanic can be formally unique
-and still be a poor text-game mechanic when the player must service a meter, stance, setup token,
-cue, or ordered sequence every turn. If the UI exposes the legal steps, play becomes button
-rotation; if the engine chooses the steps, the mechanic becomes ignorable automation.
+The prior admission test overvalued a private repeated loop. A mechanic can be formally unique and
+still risk becoming poor text-game play when the player must service a meter, stance, setup token,
+cue, or ordered sequence every turn. If the UI exposes only the legal next step, play may become
+button rotation; if the engine chooses the step, the mechanic may become ignorable automation.
+Those are important risks, not results that paper analysis can establish.
 
-For this game, a class still needs distinctive authored permissions and effects, but it does not
-need its own minigame or tracker. The useful interaction shapes are an immediate named ability, an
-always-on passive, one infrequently changed mode or binding, or a small between-scene loadout. The
-player should normally make at most one mechanical selection for the action they already intend,
-then receive the resolution. Text may describe the action, but it never invents or selects the
-mechanical payload.
+The lower-risk starting shapes are an immediate named ability, an always-on passive, one
+infrequently changed mode or binding, or a small between-scene loadout. More involved mechanics may
+still earn their burden if players understand them, invoke them voluntarily, and make meaningfully
+different choices. Text may describe the action, but it never invents or selects the mechanical
+payload; that separate authority boundary remains settled.
 
 Applied to the twelve candidates currently carried by the atlas:
 
-- **Keep the basic interaction shape, with guardrails:** Arcanist, Channeler, Oathbound, Shifter.
-- **Keep the character concept but simplify or replace the current loop:** Armsmaster, Berserker,
-  Opportunist, Maker, Bonded.
-- **Fold/remove the current class mechanic:** Adept and Catalyst.
-- **Keep only as a campaign-level opt-in module:** Rider.
+- **Lower paper-risk starting hypotheses:** Arcanist, Channeler, Oathbound, Shifter.
+- **Focused unchanged-versus-simplified comparisons:** Armsmaster, Berserker, Opportunist, Maker,
+  Bonded.
+- **Highest-risk full-mechanic-versus-folded comparisons:** Adept and Catalyst.
+- **Scenario-dependent module comparison:** Rider.
 
-This is not a roster ruling. It invalidates the atlas's ten-universal-candidate working baseline as
-the next design input: five of those ten mechanics need redesign and Adept should not proceed merely
-because its sequence state passed a formal collapse test. Catalyst's Cue loop fails the same
-interaction test before a Leadership comparison is useful.
+This is not a roster ruling and does not remove any candidate. It supplies hypotheses for comparing
+the atlas mechanics in actual text play. Adept does not pass merely because its sequence state is
+formally distinct, but neither Adept nor Catalyst fails merely because the audit predicts rotation
+or Cue-tracking burden.
 
-Of the three frozen economies, only Commitment is a plausible starting shape, and it is still too
-busy as written. Slots and rests multiplies counters and recovery negotiations; Cadence explicitly
-turns abilities into an availability-icon and cooldown interface. None is ready for approval.
+Of the three frozen economies, the audit predicts that Commitment has the lowest interaction burden,
+Slots and rests multiplies counters and recovery negotiations, and Cadence risks an
+availability-icon and cooldown interface. These are comparative playtest risks. None is approved,
+and none is rejected by this document.
 
 ## 1. Interaction-fit contract
 
@@ -68,13 +69,15 @@ should not turn each text entry into a mandatory tour of the catalog.
 | Ignorability | class remains legible while unused, and choosing it matters | ignoring the tracker erases the class; automating it erases agency |
 | UI footprint | state appears contextually or on request | hotbar, cooldown wall, combo track, or persistent maintenance panel |
 
-Burden is justified only when it creates a decision the player can understand and might reasonably
-answer differently. Spell choice, transformation, and a sworn target can pass despite having rules.
-“Advance to the only sensible next step” cannot.
+The audit's hypothesis is that burden earns its place when it creates a decision the player
+understands and might reasonably answer differently. Spell choice, transformation, and a sworn
+target appear likelier to do that than “advance to the only sensible next step”; paired playtests
+must establish whether that prediction is true.
 
-### 1.3 Admission gate for a text-entry class
+### 1.3 Playtest hypotheses, not an admission gate
 
-A candidate mechanic should not advance unless all of these are true:
+The following describe the lower-burden outcome to look for. A paper violation triggers a focused
+comparison; it does not reject a candidate or decide its tier:
 
 1. Its ordinary use takes at most one explicit mechanical selection plus a target.
 2. It has no mandatory ordered rotation or setup action whose main purpose is unlocking the payoff.
@@ -89,33 +92,34 @@ A candidate mechanic should not advance unless all of these are true:
 
 ## 2. Candidate-by-candidate audit
 
-| Candidate | What the current card makes the player do | Interaction failure if ignored or automated | Burden verdict | Recommended disposition |
+| Candidate | What the current card makes the player do | Interaction failure if ignored or automated | Paper risk hypothesis | Focused playtest comparison |
 |---|---|---|---|---|
-| **Armsmaster** | Choose or keep a Form every turn, execute its rider, and arm its Counter. | Defaulting to one Form makes the class repetitive; automatically selecting the best Form removes the class's decision. | High-frequency choice with extra state. | **Simplify.** Keep authored martial maneuvers, but have a chosen maneuver resolve its rider and any prepared reaction in the same exchange. Do not require a separate active-Form choice every turn. |
-| **Berserker** | Raise and monitor an ordered Exposure track to unlock stronger techniques while defenses or harm consequences worsen. | Ignoring Exposure leaves a generic tough attacker; automatic escalation makes a risk decision on the player's behalf. | Meter maintenance; meaningful risk buried under repeated tracking. | **Simplify.** Preserve the deliberate power-for-danger choice as one explicit, persistent commitment such as entering or ending a dangerous state; remove the multi-step meter unless play proves every step changes a real decision. |
-| **Adept** | Follow opening → flow → finisher, inspect the legal techniques at the current stage, and restart after interruption. | The UI produces “next, next, next, finish”; automation reduces the class to an invisible rotation. | Fails: high recurring burden for low agency. | **Remove/fold.** Map monk, martial artist, disciplined hunter, and similar concepts to the simplified Armsmaster or another ability package. Do not keep a class-wide combo track. |
-| **Opportunist** | Create one Opening on a target, consume it for a payoff, then repeat the setup/payoff cycle. | If Openings are inferred from prose, mechanics become model-selected; if the UI directs setup then exploit, it becomes a two-button combo. | Fails unchanged; salvageable without the personal two-step loop. | **Simplify.** Use immediate authored exploits with exact visible prerequisites. A setup action must deliver its own useful result, and an exploit may use an engine-known scene condition; no action should exist only to mint the next-action token. |
-| **Arcanist** | Choose a small prepared loadout outside danger, then explicitly select a ranked spell or ritual when wanted. | A very large catalog or frequent re-preparation becomes administration, but automation is not needed during ordinary turns. | Moderate, mostly between scenes; burden buys real breadth decisions. | **Keep with guardrails.** Supply a small default loadout, make preparation optional to revisit, and require only spell plus target at use time. Exact casting economy remains open. |
-| **Channeler** | Select one effect from a narrow known repertoire and sometimes choose its printed overreach consequence. | Asking “overreach?” after every cast adds a prompt; choosing it automatically steals a meaningful risk choice. | Moderate and potentially justified. | **Keep with guardrails.** Present base and overreached uses as explicit alternatives selected up front, never as a post-action prompt. Keep the repertoire small and the consequence exact. |
-| **Oathbound** | Bind one authored declaration to an ally, place, objective, or foe; use only the effects legal through that binding; optionally rebind with an action. | Frequent target changes or reaction questions create maintenance; automatic rebinding changes the character's sworn intent. | Low-to-moderate if the binding persists; high if managed every turn. | **Keep with guardrails.** Make the declaration an infrequent explicit choice, keep one visible binding, and pre-arm or automatically resolve already-selected reactions without interrupts. |
-| **Shifter** | Explicitly switch one complete profile, then use the actions and permissions of that profile until switching again. | Automatic “best form” selection removes identity; too many profiles create a second character sheet. | Moderate; one persistent state with a clear fictional meaning. | **Keep with guardrails.** Use a small number of whole profiles, make switches deliberate and infrequent, and let the engine replace all fields atomically. No per-action stance optimization. |
-| **Maker** | Prepare device cards, deploy or trigger them, track active installations, retire one at the cap, and reconfigure later. | Ignoring the loadout leaves ordinary Craft; automatic replacement chooses inventory strategy for the player. | High between-scene load plus occasional cap prompts. | **Simplify.** Keep a small fixed/default kit and explicit device actions. Limit persistent installations sharply and ask about replacement only when the player deliberately deploys beyond the cap. Avoid consumable piles and routine reconfiguration. |
-| **Bonded** | Control two bodies with separate positions and conditions, choose which takes the shared Main, and satisfy coordinated-position requirements. | Ignoring one body turns the companion into flavor; automation takes control of a player-owned character. | Very high current-state footprint, though the fantasy is not replaceable by a job or skill. | **Redesign before admission.** Default the companion to following the character and acting only through the player's chosen companion or coordinated ability. Track separate position only after the player deliberately splits them. Re-test whether the simplified result still earns a class seat. |
-| **Catalyst** | Spend an action establishing a Cue, wait for another actor to meet its trigger, then consume or expire it. | It needs cross-actor tracking and trigger handling; automation makes it a passive buff, while explicit handling becomes setup → trigger button play. | Fails: high coordination burden and dependence for a delayed rider. | **Remove/fold.** Put Leadership in skills and express exceptional support as immediate authored abilities that resolve on selection. Bard, warlord, performer, and commander remain valid genre classes or builds without a Cue chassis. |
-| **Rider** | Manage rider/vehicle shared actions, hull, occupants, vehicle-scale position, maneuvers, and damage control. | Hiding the layer makes Pilot plus asset sufficient; exposing it adds a second tactical rules surface. | High but honest only when the campaign is about that surface. | **Module only.** Offer it when campaign creation explicitly opts into recurring vehicle play. It is not a universal archetype and must not burden ordinary personal-scale campaigns. |
+| **Armsmaster** | Choose or keep a Form every turn, execute its rider, and arm its Counter. | Defaulting to one Form makes the class repetitive; automatically selecting the best Form removes the class's decision. | High-frequency choice with extra state. | Compare full Forms with immediate authored maneuvers that resolve their rider and prepared reaction in one exchange. |
+| **Berserker** | Raise and monitor an ordered Exposure track to unlock stronger techniques while defenses or harm consequences worsen. | Ignoring Exposure leaves a generic tough attacker; automatic escalation makes a risk decision on the player's behalf. | Meter maintenance; meaningful risk may be buried under repeated tracking. | Compare ordered Exposure with one explicit persistent power-for-danger commitment. |
+| **Adept** | Follow opening → flow → finisher, inspect the legal techniques at the current stage, and restart after interruption. | The UI may produce “next, next, next, finish”; automation may reduce the class to an invisible rotation. | Highest predicted recurring burden and agency risk. | Compare the full sequence with an immediate-ability or simplified Armsmaster expression of the same character. Do not fold it on paper. |
+| **Opportunist** | Create one Opening on a target, consume it for a payoff, then repeat the setup/payoff cycle. | If Openings are inferred from prose, mechanics become model-selected; if the UI directs setup then exploit, it may become a two-button combo. | High unchanged; a simpler version may retain the concept. | Compare personal two-step Openings with immediate authored exploits using exact visible scene prerequisites; every setup action must also matter now. |
+| **Arcanist** | Choose a small prepared loadout outside danger, then explicitly select a ranked spell or ritual when wanted. | A very large catalog or frequent re-preparation becomes administration, but automation is not needed during ordinary turns. | Moderate, mostly between scenes; burden may buy real breadth decisions. | Test a small default loadout with optional re-preparation against a fixed immediate spell list. Exact casting economy remains open. |
+| **Channeler** | Select one effect from a narrow known repertoire and sometimes choose its printed overreach consequence. | Asking “overreach?” after every cast adds a prompt; choosing it automatically steals a meaningful risk choice. | Moderate and potentially justified. | Compare explicit base/overreached choices selected up front with a base-only version; never add a post-action prompt. |
+| **Oathbound** | Bind one authored declaration to an ally, place, objective, or foe; use only the effects legal through that binding; optionally rebind with an action. | Frequent target changes or reaction questions create maintenance; automatic rebinding changes the character's sworn intent. | Low-to-moderate if the binding persists; high if managed every turn. | Test one visible infrequently changed binding with already-declared reactions against immediate unbound abilities. |
+| **Shifter** | Explicitly switch one complete profile, then use the actions and permissions of that profile until switching again. | Automatic “best form” selection removes identity; too many profiles create a second character sheet. | Moderate; one persistent state with a clear fictional meaning. | Compare a few whole, infrequently switched profiles with immediate transformation abilities; never auto-select the best form. |
+| **Maker** | Prepare device cards, deploy or trigger them, track active installations, retire one at the cap, and reconfigure later. | Ignoring the loadout leaves ordinary Craft; automatic replacement chooses inventory strategy for the player. | High between-scene load plus occasional cap prompts. | Compare configurable loadouts and installations with a small fixed/default kit; ask about replacement only after deliberate over-cap deployment. |
+| **Bonded** | Control two bodies with separate positions and conditions, choose which takes the shared Main, and satisfy coordinated-position requirements. | Ignoring one body turns the companion into flavor; automation takes control of a player-owned character. | Very high current-state footprint, though the fantasy is not replaceable by a job or skill. | Compare full separate-body control with a following companion that acts through selected companion abilities and separates only on deliberate command. |
+| **Catalyst** | Spend an action establishing a Cue, wait for another actor to meet its trigger, then consume or expire it. | It needs cross-actor tracking and trigger handling; automation may make it a passive buff, while explicit handling may become setup → trigger button play. | Highest predicted coordination, delay, and dependency burden. | Compare the full Cue chassis with immediate support abilities and a Leadership-trained build of the same character. Do not fold it on paper. |
+| **Rider** | Manage rider/vehicle shared actions, hull, occupants, vehicle-scale position, maneuvers, and damage control. | Hiding the layer makes Pilot plus asset sufficient; exposing it adds a second tactical rules surface. | High and strongly scenario-dependent. | Compare the full layer with Pilot plus asset in a recurring vehicle scenario; separately test that campaign configuration does not burden personal-scale campaigns. |
 
 ### 2.1 Resulting count
 
-| Disposition | Count | Candidates |
+| Paper-risk group | Count | Candidates |
 |---|---:|---|
-| Basic interaction shape survives | 4 | Arcanist, Channeler, Oathbound, Shifter |
-| Concept survives; mechanic needs simplification/redesign | 5 | Armsmaster, Berserker, Opportunist, Maker, Bonded |
-| Current class mechanic should be removed/folded | 2 | Adept, Catalyst |
-| Campaign module only | 1 | Rider |
+| Lower-risk starting hypothesis | 4 | Arcanist, Channeler, Oathbound, Shifter |
+| Focused unchanged-versus-simplified comparison | 5 | Armsmaster, Berserker, Opportunist, Maker, Bonded |
+| Highest-risk full-versus-folded comparison | 2 | Adept, Catalyst |
+| Scenario-dependent module comparison | 1 | Rider |
 
-These counts describe audit recommendations, not an approved nine-class roster. A redesign can still
-fail, merge with another package, or expose a missing concept. Likewise, “keep” approves only the
-interaction shape, not the ability catalog, numerical balance, resource economy, or genre mappings.
+These counts organize tests; they neither approve a roster nor remove a candidate. A full mechanic
+may prove worthwhile, a simplified comparison may lose the class's identity, or both may expose a
+missing design. The ability catalog, numerical balance, resource economy, and genre mappings also
+remain unapproved.
 
 ## 3. Shared and scenario mechanics
 
@@ -127,9 +131,10 @@ cyberpunk example takes eight Main actions on a clean route. That is a high-burd
 likely solo minigame even though it no longer consumes a class seat.
 
 Keep the settled boundary—intrusion is skills/training over authored security—but do not treat the
-current node procedure as approved. A replacement should present only a few consequential route,
-risk, or permission choices to the whole party. Access or Alert may remain if each state changes an
-actual decision; an eight-step ideal route and a terminal-style node UI fail this audit.
+current node procedure as approved. Compare it with a version that presents only a few consequential
+route, risk, or permission choices to the whole party. Access or Alert may earn their state if each
+changes an actual decision; the eight-step ideal route and terminal-style node UI are high-risk
+playtest hypotheses rather than an automatic rejection.
 
 ### 3.2 Actions and reactions
 
@@ -150,13 +155,13 @@ tells and counterplay still matter, but NPC-exclusive state is not a reason to a
 
 | Frozen variant | Player-visible maintenance | Interaction result | Recommendation |
 |---|---|---|---|
-| **Commitment** | Effort capacity plus turn/duration/scene/day return timings; maintained effects; Strain; separate Arcanist castings. | Lowest of the three, but four return timings and the additional caster/healing tracks exceed the simplicity suggested by “one resource.” | **Only plausible starting shape, not adoptable unchanged.** Preserve honest shared terminology and exact one-point commitments, then reduce return categories and secondary counters before testing. |
-| **Slots and rests** | Ranked slots, prepared/known lists, class-specific use counters, Recoveries, Short Rests, Long Rests, and party recovery negotiation. | Familiar to some tabletop players but objectively the largest routine bookkeeping surface, especially for casters. | **Do not advance as the default text-game package.** Familiarity does not compensate for the interaction load. |
-| **Cadence** | At-will/once-battle/recharge/heal-up availability, random recharge checks, Recoveries, Rally, Escalation thresholds, and Full Heal-up progress/loss. | Produces exactly the cooldown icons, legal-option filtering, and combat rhythm the owner identified as drifting toward a conventional tactical video game. | **Do not advance for this interaction model.** Its burden is structural, not a missing help-panel explanation. |
+| **Commitment** | Effort capacity plus turn/duration/scene/day return timings; maintained effects; Strain; separate Arcanist castings. | Lowest predicted burden of the three, but four return timings and the additional caster/healing tracks exceed the simplicity suggested by “one resource.” | First paired-test candidate: compare the frozen version with reduced return categories and secondary counters. |
+| **Slots and rests** | Ranked slots, prepared/known lists, class-specific use counters, Recoveries, Short Rests, Long Rests, and party recovery negotiation. | Familiar to some tabletop players but predicts the largest routine bookkeeping surface, especially for casters. | High-risk comparison candidate, not paper-rejected; measure whether familiarity offsets prompts, forgotten state, and turn time. |
+| **Cadence** | At-will/once-battle/recharge/heal-up availability, random recharge checks, Recoveries, Rally, Escalation thresholds, and Full Heal-up progress/loss. | Risks the cooldown icons, legal-option filtering, and combat rhythm the owner identified as drifting toward a conventional tactical video game. | High-risk comparison candidate, not paper-rejected; measure voluntary choice and whether UI guidance becomes rotation. |
 
-The audit does not select or invent a replacement economy. It narrows further work: any revised
-package must show its complete player-visible counters and recovery prompts, not merely explain its
-mathematical balance.
+The audit does not select, reject, or invent an economy. It identifies what a paired test must make
+visible: every player-facing counter and recovery prompt, not merely the package's mathematical
+balance.
 
 ## 5. Creation and progression burden
 
@@ -178,32 +183,37 @@ choice at one level. A future package must show the exact number of owner-facing
 advancement event and offer complete authored options; derived values and legality remain automatic.
 
 This audit does not set a new creation-time target or approve a progression schedule. Both need a
-real UI walkthrough after the roster and economy are simplified.
+real UI walkthrough as part of staged candidate testing; paper simplification is not a prerequisite
+or a substitute for that evidence.
 
 ## 6. Consequences for the current work queue
 
-1. Do not use the atlas's ten-universal-candidate list as the baseline for regenerating the three
-   frozen packages.
-2. Do not run the planned Leadership-versus-Catalyst Cue prototype unless the owner rejects this
-   audit's interaction finding; Cue sequencing already fails before balance against Leadership is
-   relevant.
-3. Seek an owner ruling on the interaction-fit contract and the Adept/Catalyst disposition before
-   redesigning the five burdened concepts.
-4. After those rulings, prototype ordinary text exchanges—not abstract cards—for each surviving
-   redesign. Each prototype must show player input, optional explicit ability selection, engine
-   state before/after, UI prompts, and the result when the special mechanic is not invoked.
-5. Only then construct a smaller roster candidate and an ability economy that meet the same burden
-   limit, then propose exact Base/Advanced/Expert membership under the later owner decision. The
-   frozen packages remain evidence and licensing research, not templates to patch row by row.
+1. Preserve the atlas candidates and frozen variants as hypotheses; do not regenerate the packages
+   or infer a smaller roster from this paper audit.
+2. On explicit authorization, draft a concrete short-scenario harness before changing a class or
+   economy. Each comparison uses the same character and encounter with the candidate mechanic and
+   a simpler version, changing only the mechanic under test.
+3. Prototype ordinary text exchanges, not abstract cards. Show player input, optional explicit
+   ability selection, engine state before/after, every UI prompt, the result when the special
+   mechanic is not invoked, and elapsed turn time.
+4. Observe whether choices differ meaningfully, UI guidance becomes a dictated rotation, state is
+   remembered, the player invokes the mechanic voluntarily, and automation erases agency.
+5. Use observed results to place or move mechanics among Expert, Advanced, and Base through catalog
+   versions and safe campaign upgrades. No interaction gate, Adept/Catalyst disposition, tier
+   membership, or replacement economy is approved on paper.
 
 ## 7. Owner-settled phased availability after this audit
 
-The 2026-08-02 campaign-version decision in `.agents/decisions.md` settles how eventual roster
-options are exposed without pretending this audit has already approved them:
+The active 2026-08-02 decisions in `.agents/decisions.md` settle how candidates are exposed and how
+playtest evidence changes their placement without pretending this audit has approved them:
 
 - campaign creation selects cumulative **Base (recommended)**, **Advanced**, or **Expert (full)**
   class availability from the sets allowed by administration;
-- tiers represent breadth and interaction burden, not power or level gates;
+- **Expert** contains the full catalog, including unproven or deliberately demanding candidates;
+- **Advanced** contains mechanics that survived focused testing but retain noticeable burden;
+- **Base** contains mechanics demonstrated to be understandable and enjoyable without repeated
+  prompting;
+- tiers represent evidence, breadth, and interaction burden, not power or level gates;
 - every option present in a set is available from level 1;
 - campaigns pin set/catalog versions, and neutral configured absence replaces model-shaming
   exclusions;
@@ -212,6 +222,7 @@ options are exposed without pretending this audit has already approved them:
 - the upgrade saves player-owned pre-upgrade character versions for compatible older campaigns,
   with independent progression and no merging.
 
-The exact tier membership remains blocked on the roster and economy work above. This section is a
-pointer to the settled release/version policy, not an authorization to assign current candidates to
-tiers or implement upgrade storage.
+The exact tier membership awaits those paired playtests. Promotion, demotion, and balance changes
+land in catalog versions and reach existing campaigns only through safe upgrades. This section is a
+pointer to the settled release/version policy, not an authorization to assign candidates to tiers,
+build the harness, or implement upgrade storage.

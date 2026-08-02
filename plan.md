@@ -2938,7 +2938,12 @@ roles, learnable capabilities, build structures, and status/assets rather than r
 progression, skills/feats, derived roles, backgrounds/status, assets, and player title; preserving
 the retained portions of landed S1.1-S1.4; and replacing the singular one-of-22 `archetypeId` only
 after a new owner ruling. It must now also incorporate cumulative Base/Advanced/Expert availability
-and the version contract before another approval. The owner also requested a context-rich
+and the version contract before another approval. The interaction-burden audit is a risk inventory,
+not a paper roster gate: the full and unproven candidate catalog belongs in Expert; focused paired
+playtests using the same character and encounter with only the candidate mechanic changed provide
+the evidence for Advanced and Base placement. Promotion or demotion occurs through catalog versions
+and safe campaign upgrades. No playtest harness, tier membership, or class removal is yet planned or
+authorized. The owner also requested a context-rich
 `claude-fable-5` review at high effort. The initial review reopened four concrete plan gaps; four
 one-finding commits repaired them, and a fresh high-effort repair-delta review accepted
 `ed91b95` with no comments. Until an owner ruling, the active 2026-07-31 Gate 6 shape above remains
@@ -3144,8 +3149,8 @@ additional cross-harness review is implied; invoke one only on a new explicit ow
 - **Gate 5 replacement note for S1.5 — DRAFT.** The current S1.5 shape above remains approved
   history, but no implementation begins while `.agents/review/gate-5-class-model-plan.md` is under
   review. The draft proposes replacing singular archetype mapping only after owner approval, rules
-  prerequisites, exact class/skill/feat catalogs, balance evidence, and a later cold implementation
-  slice.
+  prerequisites, exact class/skill/feat candidate catalogs, staged paired-playtest and tier evidence,
+  and a later cold implementation slice. Paper interaction-burden criteria do not settle the roster.
 - **S1.6 Campaign move (§8.2-8.5).** Former shape: persisted movement draft, hash-bound approval,
   exact canon-basis freshness check, and one-record membership switch. Revision must instead select
   a compatible character version and coexist with versioned campaign upgrades; non-approved paths

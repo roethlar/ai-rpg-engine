@@ -532,16 +532,17 @@ budget.
 | Is the loop automatically fun? | **No.** A dominant rotation would satisfy formal order while failing meaningful choice. |
 | Is numerical balance demonstrated? | **No.** The clean-chain budget and disruption cost still require package-specific tuning and playtest. |
 
-**Recommendation:** retain Adept as a separate universal candidate, pending the owner's ruling.
-Unlike intrusion, its defining state is on the character, its floor is always available, and its
-progression can deepen the same repeated sequence decision in every campaign.
+**Current consequence:** retain Adept as a separate coherent candidate for paired interaction
+testing. Unlike intrusion, its defining state is on the character, its floor is always available,
+and its progression can deepen the same repeated sequence decision in every campaign. That formal
+result assigns neither a campaign tier nor an enjoyment verdict.
 
 Calling both candidates “Warrior” in marketing would not collapse their mechanics. Under the
 current character-creation contract, the archetype choice tells the player which repeated loop they
 are buying; a single Warrior archetype whose genre class silently replaces free Forms with a
 sequence would stop that choice from being predictive.
 
-Before approval:
+Paired-test controls and hypotheses:
 
 1. the UI must always show current stage, next legal techniques, and what action would reset it;
 2. the starting card must offer competitive choices at flow and finishing rather than one solved
@@ -551,14 +552,16 @@ Before approval:
 4. hit or miss advances the sequence so one failed check does not also erase setup;
 5. non-technique actions reset it, with only bounded authored exceptions;
 6. Forms and sequence riders cannot stack through cheap multiclassing; and
-7. real play must show that planning and adaptation are enjoyable rather than bookkeeping.
+7. real play determines whether planning and adaptation are enjoyable rather than bookkeeping;
+   the preceding paper checks do not decide that result.
 
 ## 7. Former next collapse prototype
 
-One collision remains: ordinary Leadership versus Catalyst, a learned capability against
-persistent ally-trigger Cues.
+One useful paired-test comparison remains: ordinary Leadership versus Catalyst, a learned
+capability against persistent ally-trigger Cues.
 
-The later interaction-burden audit recommends removing/folding Catalyst because the Cue itself
-creates cross-actor setup/trigger maintenance. Do not run this prototype unless the owner rejects
-that interaction finding. The three frozen rules packages remain unchanged and may not be
-regenerated from this record.
+The later interaction-burden audit predicts that Cue setup and cross-actor trigger maintenance may
+become rotation or ignorable automation. The active owner decision makes that a playtest hypothesis,
+not an approved Catalyst removal. Run the Leadership comparison only through a separately
+authorized paired-scenario plan and harness. The three frozen rules packages remain unchanged and
+may not be regenerated from this record.

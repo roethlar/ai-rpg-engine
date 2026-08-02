@@ -5,15 +5,17 @@
 its one-record portability premise and adds tiered class availability. The taxonomy, roster, revised
 plan, and implementation are not approved. No product code is authorized by this document.
 
-**Current gate**: Gate 5 remains open and S1.5 remains blocked. The later interaction-burden audit
-supersedes G5-A as the next roster input, and the campaign-version decision requires a rewritten
-portability/version section. Owner decisions still come one at a time; this draft is not the next
-approval candidate.
+**Current gate**: Gate 5 remains open and S1.5 remains blocked. The later interaction-burden ruling
+makes the audit a playtest risk inventory rather than a paper roster filter. Gate 5 therefore needs
+a coherent candidate catalog followed by staged interaction testing, while the campaign-version
+decision still requires a rewritten portability/version section. Owner decisions come one at a
+time; this draft is not the next approval candidate.
 
 **Purpose**: replace the failed one-of-22 archetype-roster question with a model that distinguishes
 restrictive classes from learnable skills, emergent party roles, backgrounds/status, assets, and
 player-owned titles. This plan defines the classification and balance contracts, the dependency
-order for producing an exact class roster, and the adversarial cases that roster must pass.
+order for producing a coherent candidate catalog, the staged evidence needed for tier placement,
+and the adversarial cases each candidate must pass.
 
 > **Later owner decision:** Base/Advanced/Expert campaign class sets, safe campaign versions, class
 > balance migrations on upgrade, and player-owned playable character-version snapshots are now
@@ -127,7 +129,7 @@ name such as `Wizard`, `Paladin`, or `Netrunner` is not replaced by `Controller`
 A **subclass** is an optional, engine-known specialization owned by one class catalog entry. It is
 selected within that class's level track, has explicit prerequisites and feature
 grants/replacements, and receives no independent level or advancement budget. Subclass is not a
-fallback label for a concept that fails class admission; every subclass feature is priced inside
+fallback label for a concept that fails class coherence; every subclass feature is priced inside
 its parent class progression.
 
 ### 3.2 Skills and feats
@@ -141,7 +143,7 @@ Examples:
 - Leadership enables commanding followers or coordinating allies; it does not create a Commander
   class.
 - Investigation, medicine, stealth, crafting, piloting, and survival are skills unless an eventual
-  class admission record proves a class-exclusive progression loop beyond the skill.
+  class-coherence record proves a class-exclusive progression chassis beyond the skill.
 - Battle-axe proficiency is a feat, skill, or class grant. A Wizard without that grant remains
   non-proficient; prose cannot bypass the restriction.
 
@@ -217,15 +219,17 @@ systems that own them, not this build record. Derived roles are intentionally ab
 
 ---
 
-## 4. Class-admission contract
+## 4. Class-coherence record, separate from interaction testing
 
-No exact roster may be proposed until every candidate has a completed admission record. A class
-candidate passes only if all answers are concrete and mechanically testable.
+No candidate may be represented as a coherent class rather than a role, skill, job, asset, or
+status until it has a completed record. These answers establish what the candidate is and make it
+testable; they do not predict whether its interaction burden is enjoyable or decide its campaign
+set.
 
 | Test | Required answer |
 |---|---|
 | Exclusive chassis | What progression access, restriction, or subsystem makes this more than a skill, feat, role, item, or background? |
-| Repeated decisions | What decisions recur during ordinary play, rather than only in one campaign premise or downtime scene? |
+| Distinctive decisions and permissions | What decisions or restricted permissions distinguish the chassis during ordinary play, rather than only in one campaign premise or downtime scene? |
 | Action and resource cost | What actions, reactions, charges, pools, setup, or opportunity costs govern its strongest effects? |
 | Advancement | What changes at each progression band, and what remains inaccessible without taking this class? |
 | Subclass boundary | If subclasses exist, which parent-class features do they grant, replace, or gate, and how do they stay within the parent class budget? |
@@ -235,9 +239,13 @@ candidate passes only if all answers are concrete and mechanically testable.
 | Composition | Can leadership, wealth, rank, weapon proficiency, or another class coexist without changing this class's identity? |
 | Portability | Does the same class and mechanic record remain honest in every campaign without renaming it to a role or profession? |
 | Versioning | Which pinned chassis/catalog version owns its grants, prerequisites, and upgrade path? |
+| Interaction-risk hypothesis | Which prompts, persistent states, sequences, interruptions, or automation choices must a paired playtest challenge? |
 
-Failure of any row means the concept moves to the appropriate skill, feat, role, background, asset,
-or title layer. It does not receive a class ID merely to keep a target roster count.
+Failure to identify an exclusive chassis, advancement, or other class-defining boundary means the
+concept moves to the appropriate skill, feat, role, background, asset, or title layer. It does not
+receive a class ID merely to keep a target roster count. A predicted interaction risk does not
+cause that move: it places the coherent candidate in staged testing, initially available through
+the Expert catalog rather than paper-rejecting it.
 
 Generalist receives no special exemption. Breadth is an allocation outcome; a Generalist class
 would need exclusive breadth mechanics and opportunity costs that cannot be reproduced by buying
@@ -245,9 +253,9 @@ ordinary cross-class skills.
 
 ---
 
-## 5. Balance contract before roster approval
+## 5. Balance evidence and staged playtesting before tier approval
 
-The 22×10 noun matrix contains no balance evidence. G5-B's exact class roster must carry a common
+The 22×10 noun matrix contains no balance evidence. G5-B's candidate catalog must carry a common
 mechanical comparison packet for each class:
 
 1. **Progression snapshots** at initial, middle, and cap levels: granted features, legal choices,
@@ -264,8 +272,19 @@ mechanical comparison packet for each class:
    and obligation costs. They cannot become unbounded class power through GM fiat.
 7. **Build comparison**: at equal total advancement, specialist, multiclass, and broad-skill builds
    are compared against the same engine-owned effect and check vocabulary.
-8. **Feel gate**: simulation can reject obvious mathematical failures, but final class balance and
-   enjoyment require playtests. Reviewer agreement alone is not balance evidence.
+8. **Feel evidence**: simulation can reject obvious mathematical failures, but class balance,
+   interaction fit, and enjoyment require playtests. Reviewer agreement and paper burden analysis
+   are not playtest evidence.
+
+Interaction tests use short paired scenarios with the same character and encounter, changing only
+the mechanic under test: one run uses the candidate mechanic and the other a simpler version. The
+active 2026-08-02 decision in `.agents/decisions.md` owns the observations and tier standard. In
+brief, tests record meaningful
+choice differences, UI guidance versus dictated rotation, remembered state, voluntary use,
+automation's effect on agency, added prompts, and turn time. Expert retains the full and unproven
+catalog; Advanced requires focused-test survival despite noticeable burden; Base requires observed
+understanding and enjoyment without repeated prompting. Promotion or demotion is a catalog-version
+change applied to existing campaigns only through safe upgrade.
 
 Numerical budgets cannot be finalized before the rules queue settles the attributes, player-spend
 economy, tactical-space assumptions relevant to class actions, and chassis/versioning policy.
@@ -375,16 +394,21 @@ After G5-A, settle the existing rules queue one decision at a time:
    determine whether Creator-written descriptive prose is stable, campaign-scoped, derived, or
    absent.
 
-### 8.3 G5-B — exact class roster and catalogs
+### 8.3 G5-B — coherent candidate catalog and supporting catalogs
 
-Produce the exact versioned class roster, class-owned subclass entries and selection rules, skill
-catalog, feat catalog, per-class admission records, multiclass rules, and target build schema. No
-fixed class count is assumed. Every rejected candidate is routed to another layer with a reason.
+Produce the complete versioned Expert candidate catalog, class-owned subclass entries and selection
+rules, skill catalog, feat catalog, per-class coherence records, multiclass rules, and target build
+schema. No fixed class count is assumed. Category errors are routed to another layer with a reason;
+coherent but unproven or demanding mechanics remain candidates rather than being removed by the
+paper interaction audit.
 
-### 8.4 G5-C — mechanical and adversarial validation
+### 8.4 G5-C — mechanical, adversarial, and staged interaction validation
 
-Run the §5 comparison packets and §6 cases. Record simulation results and playtest risks. Revise
-one class or shared rule per reviewable slice; do not sweep unrelated failures into one commit.
+Run the §5 comparison packets, paired scenarios, and §6 cases. Record simulation results and
+observed interaction evidence, then propose Advanced and Base membership under the settled tier
+standard. Keep an unproven or demanding coherent option in Expert unless a separate rules,
+category, safety, or owner decision removes it. Revise one class or shared rule per reviewable
+slice; do not sweep unrelated failures into one commit.
 
 ### 8.5 G5-D — S1.5 implementation plan
 

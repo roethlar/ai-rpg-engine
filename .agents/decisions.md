@@ -1570,3 +1570,55 @@ Supersedes and refines:
 - Does not approve tier membership, a final class roster, an ability economy, migration schemas,
   upgrade UI, or runtime implementation. The partially implemented Phase PT plan must be revised
   before further portability/class work relies on its former one-record invariant.
+
+### 2026-08-02 - Interaction burden is established by staged playtesting, not a paper admission gate (owner decision)
+
+**Status: Active.**
+
+The text-entry interaction-burden audit is a risk inventory. Its predicted prompt, state,
+sequence, interruption, automation, and UI costs identify what a playtest must challenge; they do
+not automatically admit, remove, fold, or simplify a class mechanic. Formal mechanical
+distinctness is not proof that a mechanic is enjoyable in this interface, but a paper burden
+analysis is likewise not proof that players will find it unmanageable or ignorable. No automatic
+interaction-admission gate is approved.
+
+The cumulative campaign sets express increasing evidence and tolerance for interaction burden:
+
+1. **Expert (full)** contains the full candidate catalog for that catalog version, including
+   unproven or deliberately demanding mechanics.
+2. **Advanced** contains mechanics that have survived focused testing but still impose noticeable
+   interaction or state burden.
+3. **Base (recommended)** contains mechanics demonstrated to be understandable and enjoyable
+   without repeated prompting.
+
+Tier placement is playtest evidence, not a power ranking or character-level gate. Promotion,
+demotion, and balance revision occur in later catalog versions; existing campaigns adopt them only
+through the settled safe-upgrade procedure.
+
+Focused interaction testing uses short paired scenarios: the same character and encounter are
+played with the candidate mechanic and with a simpler version, changing only the mechanic under
+test. The comparison observes:
+
+- whether the mechanic creates meaningfully different choices;
+- whether the UI guides intent or dictates a rotation;
+- whether state is remembered or repeatedly forgotten;
+- whether players invoke the mechanic voluntarily;
+- whether automation erases agency; and
+- the added prompts and turn time.
+
+Adept, Catalyst, Armsmaster Forms, Berserker Exposure, Opportunist Openings, separately controlled
+companions, and configurable loadouts therefore remain playtest hypotheses. The audit's proposed
+folds and simplifications are comparison variants, not approved removals or redesigns. The separate
+settled rulings that Intrusion is training rather than a class and that NPC construction is
+asymmetric remain unchanged.
+
+Reason:
+The audit exposed plausible text-interface failure modes, but the owner declined to decide those
+mechanics from paper analysis: “we'll have to playtest it.” Staged sets and safe catalog upgrades
+exist precisely so demanding candidates can be tested, learned from, and rebalanced without
+pretending their usability is knowable in advance or forcing campaigns to restart.
+
+Refines:
+This decision supplies the evidence standard for the immediately preceding campaign-class-set
+decision. It does not change cumulative set selection, level-1 availability, administrative
+controls, campaign/catalog pinning, safe upgrades, or player-owned character versions.

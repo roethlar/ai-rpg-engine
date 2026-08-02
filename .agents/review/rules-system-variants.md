@@ -544,9 +544,10 @@ Mechanics were paraphrased and reconciled to the signed house contracts; no dono
 
 ## 11. Pre-review recommendation
 
-**Superseded as the next-work recommendation by the later text-entry interaction-burden audit.**
-The ranking below remains the conclusion reached from completeness, mechanical coherence, and
-licensing before player-facing interaction load was tested.
+**Retained as a pre-interaction ranking, not a paper selection.** The later text-entry audit adds
+risk hypotheses, and the active playtest decision requires observed comparison before interaction
+burden can admit, reject, or tier a mechanic. The ranking below remains the conclusion reached from
+completeness, mechanical coherence, and licensing before player-facing interaction load was tested.
 
 **Commitment is the strongest starting point.** It has the cleanest license, the shortest creation path, the smallest common resource surface, a proven hybrid-class answer, and a resource mechanic that is genuinely more than a themed mana name: commitment withholds capacity for an exact duration instead of buying an arbitrary effect magnitude. Arcanist castings, Intruder Access/Alert, forms, openings, and assets remain separate only where their state machines actually differ.
 

@@ -463,7 +463,7 @@ No text or named mechanic below is adopted by this audit. It records where a fin
 
 | Pair | Meaningful difference | Collapse rule |
 |---|---|---|
-| Armsmaster vs Adept | Free choice of one turn Form/counter versus ordered opener/flow/finisher chain | **Prototype supports separation, owner ruling pending:** random order loses legal finishers, interruption resets Adept, and adding prerequisites to Armsmaster recreates the Adept engine |
+| Armsmaster vs Adept | Free choice of one turn Form/counter versus ordered opener/flow/finisher chain | **Prototype supports formal separation; paired interaction verdict pending:** random order loses legal finishers, interruption resets Adept, and adding prerequisites to Armsmaster recreates the Adept engine |
 | Opportunist vs former Intruder candidate | One setup/payoff on a target versus persistent multi-node permissions under rising lockdown | **Resolved:** preserve the latter as shared scenario rules plus training; remove Intruder as a class |
 | Arcanist vs Channeler | Broad catalog constrained by preparation versus narrow repertoire constrained by overreach/recovery | If both see the same catalog at the same time and differ only in resource name, merge them |
 | Maker vs Bonded | Devices/installations never take a separate turn versus a persistent second body under a shared action budget | Any action-taking construct belongs to Bonded; Maker keeps only non-actor devices |
@@ -561,20 +561,20 @@ The three rules packages remain useful economy hypotheses, but their shared rost
 | Finding | Consequence |
 |---|---|
 | Bonded is a missing universal mechanic | Add a shared-action companion chassis to each package; do not disguise it as Maker Companion |
-| Adept has a distinct character-owned sequence loop | Matched cards and stable/mobile/cross-genre fixtures support a separate universal candidate; owner ruling and numerical playtest remain |
+| Adept has a distinct character-owned sequence loop | Matched cards and stable/mobile/cross-genre fixtures support a separate coherent candidate; paired interaction and numerical playtests remain |
 | Catalyst is coherent only under a party guarantee | Mark it campaign-conditional and compare Cues against ordinary Leadership; never equate it with command rank |
 | Intruder is not an archetype | Preserve Access/Alert as shared scenario rules where protected systems exist; build hackers/spies through an actual class, skills, and intrusion training |
 | Rider changes scene scale | Keep it out of universal class count; design it only as an opted-in campaign module |
 | Maker's Companion branch crosses the actor boundary | Replace that branch with Forge; route all separate-body constructs to Bonded |
 | Genre naming cannot cure ontology | Strictly mundane catalogs must omit incompatible effects; portability cannot silently reskin magic into technology |
 
-### Superseded working-roster recommendation
+### Retained working-roster evidence; no paper verdict
 
-This recommendation preceded the text-entry interaction-burden audit and is no longer the next-work
-baseline. At this point in the evidence trail, the audit proposed using the ten universal candidates,
-keeping Adept pending an owner ruling, carrying Catalyst conditionally, and treating Rider as a
-module. `.agents/review/interaction-burden-audit.md` later found that formal loop separation was an
-insufficient admission test and replaced the proposed next step. Intruder remains removed under the
-separate owner decision.
+At this point in the evidence trail, the audit proposed using the ten universal candidates, keeping
+Adept pending an owner ruling, carrying Catalyst conditionally, and treating Rider as a module.
+`.agents/review/interaction-burden-audit.md` later identified risks that formal loop separation
+cannot answer. The active owner decision makes those risks paired-test hypotheses rather than a
+replacement paper roster filter: coherent unproven candidates remain in Expert, while observed play
+determines Advanced and Base placement. Intruder remains removed under the separate owner decision.
 
 This recommendation is deliberately not “add four rows to the old matrix.” It changes Maker's boundary, class availability, and the meaning of the genre catalog. No package is approved, no current runtime is changed, and no external reviewer is invoked by this audit.
