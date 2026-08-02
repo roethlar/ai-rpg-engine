@@ -6,8 +6,9 @@ to `docs/history/state-archive.md`.
 
 ## Now
 
+- **CAMPAIGN CLASS EXPOSURE AND VERSION UPGRADES ARE SETTLED; IMPLEMENTATION IS NOT PLANNED OR AUTHORIZED.** The active 2026-08-02 decision in `.agents/decisions.md` defines cumulative Base (recommended), Advanced, and Expert (full) class sets selected at campaign creation from the sets allowed by the administrator. All included classes start at level 1; tiers describe breadth/interaction burden, not power. Campaigns pin their set/catalog version. A separate admin option may permit safe host upgrades: copy and validate a new campaign version, apply deterministic class balance migrations at a safe boundary, atomically activate it, and retain the prior campaign version read-only. Before migration, every linked PC receives a player-owned compatible version snapshot. One character lineage may have multiple independently playable versions, each active in at most one campaign, with independent progression and no merge; unlinked versions may be explicitly deleted. This supersedes both the one-record/no-alternate-version rule and model-shaming catalog exclusions. Exact tier membership, schemas, UI, migrations, and code remain open.
 - **THE TEXT-ENTRY INTERACTION-BURDEN AUDIT REPLACES FORMAL LOOP DISTINCTNESS AS THE NEXT ROSTER FILTER; ITS RECOMMENDATIONS ARE NOT YET OWNER-RULED.** `.agents/review/interaction-burden-audit.md` finds that a private state machine can be mechanically unique while producing only UI rotation or ignorable automation. It recommends keeping the basic interaction shapes of Arcanist, Channeler, Oathbound, and Shifter; simplifying/redesigning Armsmaster, Berserker, Opportunist, Maker, and Bonded; removing/folding Adept and Catalyst; and keeping Rider only as a campaign module. The detailed Probe/Breach/Access intrusion prototype also fails unchanged as an eight-action solo-minigame risk. Commitment is the only frozen economy worth simplifying; Slots and rests and Cadence should not advance for this interaction model. No roster, economy, or implementation is approved.
-- **CAMPAIGN CLASS-CATALOG GENERATION NOW PRESUMES INCLUSION; EXCLUSION IS A DISCLOSED FAILED FIT.** The active 2026-08-02 decision in `.agents/decisions.md` requires the generating model to seek a setting-native expression for every admitted archetype while preserving its exact mechanic. It may exclude only when an honest expression would contradict canon, erase the loop, or require changed mechanics, and must record that conflict as a failure to find a fit. This applies to archetypes, not derived roles such as Artillery; an individual campaign catalog remains a validated subset of the coverage atlas. The roster itself remains open.
+- **CATALOG AVAILABILITY IS CONFIGURED AND NEUTRAL, NOT A MODEL CHARACTER JUDGMENT.** Only the campaign's selected released set/catalog is given to generation and creation. Out-of-set, disabled-module, unreleased, or honestly incompatible options are simply unavailable with a factual reason when one is useful. The prior “exclusion is an admission of failed imagination” posture is superseded. Any offered genre expression must still preserve exact mechanics, and models still cannot invent mechanic IDs or permissions.
 - **THE OWNER ACCEPTED THE CLASSIFICATION METHOD AND REQUESTED FAMILIAR WORKED TOUCHSTONES; THE EXACT ROSTER IS STILL UNAPPROVED.** As `fe168cc`, the audit decomposes Indiana Jones, MacGyver, Hannibal Smith, Ellen Ripley, Michael Knight/KITT, Conan, and Batman into primary class mechanics plus separate skills, occupation, rank, wealth, and assets. It replaces the unfamiliar Intruder/Catalyst/Rider references and deliberately leaves a game-character exemplar blank where no honest familiar one exists. The acceptance was of this mechanic-first decomposition and example format, not a package-level ruling.
 - **THE OUT-OF-SAMPLE ARCHETYPE AUDIT IS RETAINED TAXONOMY EVIDENCE, NOT THE CURRENT WORKING-ROSTER RECOMMENDATION.** `.agents/review/archetype-concept-coverage-audit.md` still owns the concept battery, archetype-by-genre option matrix, familiar touchstones, situationality, and balance fixtures. Its proposed ten universal candidates plus conditional Catalyst predated the interaction-burden test and is superseded as the next design baseline. No replacement roster is approved; do not regenerate the three packages from it.
 - **INTRUSION IS SETTLED AS TRAINING, NOT AN ARCHETYPE.** The active 2026-08-02 decision in `.agents/decisions.md` corrects the initial conclusion of `.agents/review/archetype-collapse-prototypes.md`: the prototype proved that linked nodes, system-scoped Access, exact permissions, and Alert can be a meaningful shared scenario subsystem, not that Intruder deserves a class seat. Appropriate skills let any character participate; intrusion specialization may add advanced authored operations and is naturally available to an Opportunist/Rogue-style build or through normal cross-training. The exact training package and numerical balance remain open.
@@ -71,10 +72,7 @@ to `docs/history/state-archive.md`.
   2026-07-27, enacting its three declared Chapter 1 refinements and closing the D2 catalog-design
   gate. `.agents/review/rules-system-plan-intake.md` owns the remaining decision queue; no rules
   code before a concrete phase and an owner-approved plan.
-- **PHASE PT IS APPROVED AND RUNNING; S1.1-S1.4 ARE LANDED AND S1.5 AWAITS GATE 5.** D3
-  records one persistent character active in exactly one campaign: mechanics and progression
-  travel; first entry fills missing ability-presentation bindings; returns reuse saved ability
-  wording exactly and review only newly gained abilities lacking destination wording. Archetype is
+- **PHASE PT'S S1.1-S1.4 ARE LANDED, BUT ITS ONE-RECORD FOUNDATION IS SUPERSEDED AND THE PLAN MUST BE REVISED BEFORE MORE PORTABILITY WORK.** The 2026-08-02 versioning decision replaces one canonical character record/no branches with one player-owned lineage containing independently playable rules-version snapshots created during safe campaign upgrades. Each version may be active in at most one compatible campaign and progresses independently without merging. Retained D3 rules still require first entry to fill missing ability-presentation bindings; returns reuse saved ability wording exactly and review only newly gained abilities lacking destination wording. Archetype is
   stable and player-facing; the player's own title never auto-translates. Creator maps a concept to
   a known archetype ID, tailors its campaign description, may show public local profession-name
   examples, and asks the player to confirm. Stage 1 Gate 7 is settled: no automatic
@@ -89,8 +87,9 @@ to `docs/history/state-archive.md`.
   Every actual number/stat/resource change, damage result, or XP award remains canonical-Council
   authority. A
   deterministic canon-basis digest detects stale drafts but is not canon. There is no second
-  settings checklist, classifier, editor, sync workflow, self-network call, branch, or alternate
-  character. Phase PT in `plan.md` owns the fixed slice order and coding assignments.
+  settings checklist, classifier, editor, sync workflow, or self-network call. The landed storage
+  does not implement the new campaign-version, character-version, migration, or deletion contract;
+  `plan.md` and the v3.1 design record are no longer cold-implementable until revised.
   S1.4 stores immutable character/campaign/ability wording separately from versioned campaign
   vocabulary, gives every direct SQLite operation explicit transaction ownership, and round-trips
   active linked rows through bundle v2 while v1 imports empty portability state. Because S1.3 emits
@@ -121,7 +120,7 @@ to `docs/history/state-archive.md`.
 
 ## Next
 
-**NEXT:** Present the interaction-burden audit's complete result and seek one owner ruling at a time, beginning with whether the text-entry admission gate replaces private repeated-loop distinctness. Do not run the Leadership-versus-Catalyst prototype unless the owner rejects the audit's Cue finding. Do not redesign candidates, regenerate the frozen packages, implement runtime changes, or invoke another reviewer before the relevant rulings. The prior Fable review items `rsv-1` and `rsv-4` remain downstream of the roster/economy problem.
+**NEXT:** Return to the interaction-burden audit and seek one owner roster ruling at a time, beginning with whether the text-entry admission gate replaces private repeated-loop distinctness. Tier membership cannot be chosen until the roster is coherent. Separately, no further Phase PT implementation may proceed until an owner-approved revision incorporates campaign sets, safe upgrades, class migrations, and player-owned character versions. Do not run the Leadership-versus-Catalyst prototype unless the owner rejects the audit's Cue finding; do not regenerate frozen packages or invoke another reviewer. The prior Fable items `rsv-1` and `rsv-4` remain downstream.
 
 ## Prior queue context
 
@@ -129,10 +128,10 @@ The three-package comparison is complete in `.agents/review/rules-system-variant
 admitted `rsv-1` leaves the compact shipped-legacy versus signed-target orientation open. The
 remaining bullets retain their independent priority.
 
-- Ask the owner to approve or reject the drafted Phase PT review repair plan. No code repair is
-  authorized before that ruling. If approved, implement PT-R1 (`pt-1`) and PT-R2 (`pt-3`) in
-  that order, one finding per commit with guard proof, then return to Gate 5 with a roster that keeps
-  mechanically distinct chassis distinct.
+- Revise Phase PT around the settled campaign/character-version contract before returning either
+  admitted repair to the owner. The revision must also use the interaction-burden roster result
+  rather than treating formal chassis distinction as sufficient. No portability repair code is
+  authorized meanwhile.
 
 - Continue the owner decision queue one item at a time from the canonical queue in
   `.agents/review/rules-system-plan-intake.md`.
@@ -147,8 +146,11 @@ remaining bullets retain their independent priority.
 
 ## Blockers
 
-- Phase PT progression is held while the drafted two-slice repair plan awaits owner approval;
-  `.agents/review/index.md` owns the admitted findings and `plan.md` owns the proposed repairs.
+- Phase PT's approved plan and v3.1 design still encode one canonical character record with no alternate versions. The 2026-08-02 owner decision supersedes that foundation; campaign/character version storage, atomic migrations, compatibility, and deletion require a revised plan before code work.
+- Phase PT's drafted two-slice repair plan still owns admitted findings, but a simple approval is no
+  longer sufficient: the campaign/character-version replan must first prove those repairs' identity
+  and storage assumptions still fit. `.agents/review/index.md` owns the findings and `plan.md` owns
+  the held proposal.
 - Phase PT S1.4 is landed. The owner found Gate 5's deterministic local prototype mechanically
   under-specified: resource recovery, capacity growth, ability rank/cost scaling, the exact class
   catalog, balance, and all sample mechanics remain unsettled. A later classification ruling and the `pt-5`
@@ -197,7 +199,7 @@ remaining bullets retain their independent priority.
 - `AGENTS.md`, `.agents/repo-guidance.md`, `.agents/decisions.md`
 - `docs/rules/effects.md`, `.agents/review/effect-catalog-review.md`, and
   `.agents/review/rules-system-plan-intake.md`
-- `.agents/review/archetype-portability-matrix-v3.1.md` — active D3 plan;
+- `.agents/review/archetype-portability-matrix-v3.1.md` — partially superseded D3 plan; retained wording/live-canon evidence, not cold-implementable version architecture;
   `.agents/review/archetype-portability-matrix.md`,
   `.agents/review/archetype-portability-matrix-review.md`,
   `.agents/review/archetype-portability-matrix-v2.md`, and

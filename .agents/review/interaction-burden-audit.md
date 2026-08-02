@@ -193,5 +193,25 @@ real UI walkthrough after the roster and economy are simplified.
    redesign. Each prototype must show player input, optional explicit ability selection, engine
    state before/after, UI prompts, and the result when the special mechanic is not invoked.
 5. Only then construct a smaller roster candidate and an ability economy that meet the same burden
-   limit. The frozen packages remain evidence and licensing research, not templates to patch row by
-   row.
+   limit, then propose exact Base/Advanced/Expert membership under the later owner decision. The
+   frozen packages remain evidence and licensing research, not templates to patch row by row.
+
+## 7. Owner-settled phased availability after this audit
+
+The 2026-08-02 campaign-version decision in `.agents/decisions.md` settles how eventual roster
+options are exposed without pretending this audit has already approved them:
+
+- campaign creation selects cumulative **Base (recommended)**, **Advanced**, or **Expert (full)**
+  class availability from the sets allowed by administration;
+- tiers represent breadth and interaction burden, not power or level gates;
+- every option present in a set is available from level 1;
+- campaigns pin set/catalog versions, and neutral configured absence replaces model-shaming
+  exclusions;
+- when administration permits upgrades, a host may safely version the campaign and apply authored
+  class balance migrations without restarting;
+- the upgrade saves player-owned pre-upgrade character versions for compatible older campaigns,
+  with independent progression and no merging.
+
+The exact tier membership remains blocked on the roster and economy work above. This section is a
+pointer to the settled release/version policy, not an authorization to assign current candidates to
+tiers or implement upgrade storage.

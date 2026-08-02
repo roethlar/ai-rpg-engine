@@ -657,26 +657,29 @@ Raised during planning but deliberately deferred. **Per project rule, nothing he
   - **Dev vs. prod:** local models are acceptable for development; production will need more capable hosted models, especially for image identity-consistency.
   - **Not building on consumer-subscription OAuth** (e.g. a Claude-Max-style login) as an AI backend — consumer subscriptions are generally not licensed or built to back a third-party app, and the auth surface for it is unsupported and fragile. The cost instinct behind it is real, but the lever is provider choice; "how players log in" and "how the AI is billed" are separate axes already separated by the server-owned-config decision (operator holds one key; players authenticate to the server).
 
-- **Data store & cross-campaign persistence (SQLite → Postgres).** Open question raised 2026-06-13; working direction is Postgres (not yet decided). Two drivers force a single shared relational store: (1) **cross-campaign characters + user ownership** — characters are owned by users and reusable across campaigns, with a check-in/out invariant: a character can be active in only one campaign at a time, is locked while checked out, while mechanics and progression accrue continuously on the one persistent character record; campaign exit or transfer releases or switches only its active-membership lock. That "one active campaign per character" rule is a global uniqueness/lock that a single relational DB enforces with a constraint + transaction, but that is painful to enforce across separate per-campaign SQLite files (which is why the one-DB-file-per-campaign idea was set aside). (2) **Concurrent-campaign write throughput** — SQLite's single-writer lock serializes unrelated campaigns; this only bites if the engine is hosted as a multi-tenant service. Postgres is preferred over both the multi-SQLite-shard hybrid and SQL Server: native concurrency, good JSON support for the engine's JSON-heavy state, pgvector for semantic memory search, and a light native footprint. **Run native, not in Docker** — owner does not use Docker; the existing `Dockerfile` / `docker-compose.yml` were added by a prior model and are an optional path, not the owner's deployment story. Sequencing (kept non-premature): stay on SQLite now (correct for single-operator dev/MVP); introduce Postgres when real user accounts / ownership / multiplayer land; until then keep all DB access centralized in `db.js` and avoid SQLite-only SQL so the swap stays mechanical. Open: final DB choice and migration trigger.
+- **Data store & cross-campaign persistence (SQLite → Postgres).** Open question raised 2026-06-13; working direction is Postgres (not yet decided). Two drivers favor a single shared relational store: (1) **cross-campaign character lineages, versions, and user ownership** — the 2026-08-02 decision lets one player-owned lineage hold multiple independently playable rules-version snapshots, each active in at most one compatible campaign. Safe campaign upgrades must atomically create campaign and character versions, migrate class state, preserve the prior versions, and enforce per-version membership/deletion constraints. Those lineage/version/active-campaign relationships are global constraints that a single relational DB can enforce transactionally but are painful across separate per-campaign SQLite files. (2) **Concurrent-campaign write throughput** — SQLite's single-writer lock serializes unrelated campaigns; this only bites if the engine is hosted as a multi-tenant service. Postgres is preferred over both the multi-SQLite-shard hybrid and SQL Server: native concurrency, good JSON support for the engine's JSON-heavy state, pgvector for semantic memory search, and a light native footprint. **Run native, not in Docker** — owner does not use Docker; the existing `Dockerfile` / `docker-compose.yml` were added by a prior model and are an optional path, not the owner's deployment story. Sequencing (kept non-premature): stay on SQLite now (correct for single-operator dev/MVP); introduce Postgres when real user accounts / ownership / multiplayer land; until then keep all DB access centralized in `db.js` and avoid SQLite-only SQL so the swap stays mechanical. Open: final DB choice, migration trigger, and the owner-approved versioning implementation plan.
 
 - **Player-only communication channel (multiplayer) — fork DECIDED 2026-07-04** (in-app loggable channel wins over external-tool integration; a post-v1 Phase 3 slice, not in the first multiplayer cut — see the Multiplayer-v1 decision). Original discussion: Open question raised 2026-06-13; relevant only with multiple players. Owner wants to playtest multiplayer early, even solo with two browser windows, which pulls the user-ownership + character-checkout + turn-order foundations somewhat earlier than the far-future end state. Fork: (a) **integrate with external tools** (Zoom / Teams / Google Chat) for player chat/video, vs (b) **build an in-app player-only text channel.** Tension with the "log everything" requirement: external tools can't be fully logged (video especially) — integration would log only a reference, while an in-app channel can be logged end-to-end. Firm boundary the owner set: **player-only chat is never routed to the GM Council as an actionable turn** — it is table talk among players, never an input to adjudication (clean boundary, and a security property, consistent with the player-authority decision). If players want the GM, a player must explicitly address the GM, which promotes that one message into a real turn; the GM receives only that message, not player-chat history. Logging is for the durable record / operator, not for model consumption (logged-for-humans ≠ fed-to-the-GM), so the log requirement and the never-to-GM rule do not conflict — but a consent/disclosure notice is needed (precedent: the voice-narration disclosure). Open: which mechanism; logging + consent design.
 
-- **Portable characters & campaigns — format DECIDED, PROMOTED 2026-07-04** (versioned single-file JSON bundle, export first, forward importability required; implementation is Phase P in the 2026-07-04 Queue; ownership/auth interactions stay future). Original discussion: Open question raised 2026-06-15. Goal: a character and/or a full campaign should be exportable as a self-contained, restorable artifact that can move between deployments — backup, host migration, handing a save to another player/operator, resuming elsewhere — with continuity intact. **Distinct from the cross-campaign persistence topic above:** that one is about reusing a character across campaigns *within a single deployment* (the check-in/out lock); this one is about crossing the deployment boundary. For continuity to survive a move, the artifact must carry the *structured* state the Council consults, not transient prompt text — campaign outline, turn/state history, memories, NPCs (relationship + accumulated notes), character sheets, ruleset/known-abilities facts, and (once they exist) location state and voice/visual identity anchors. A portable artifact is therefore a versioned serialization of that structured state. Open questions: artifact format (single-file bundle vs. DB dump) and how it tracks the SQLite→Postgres direction; **schema versioning / migration** so an export from an older engine still imports (this is the load-bearing hard part, and it couples to every state-shape change made by other topics); scope (character-only vs. whole-campaign export); interaction with user ownership/auth and the one-active-campaign-per-character lock (who may import, and how to avoid duplicate "live" copies of the same character); and **trust posture for imported artifacts** — externally supplied campaign/character data is untrusted input and must be treated as data, never as instructions to the Council or engine (same boundary as the bootstrap-packet rule in AGENTS.md and the player-chat-never-to-GM rule above). Provenance: surfaced while scouting an external agent-identity project (`ethagent`, an Ethereum/ERC-8004 system for owning AI agents as wallet-held tokens with encrypted IPFS-backed memory). Nothing from it was adopted — its on-chain ownership / encryption / IPFS / ENS stack is irrelevant to narrative coherence, and the engine's structured DB state already does the memory job far better — but it prompted the portability idea, which would be built natively against the engine's own state store, not borrowed.
+- **Portable characters & campaigns — format DECIDED, PROMOTED 2026-07-04** (versioned single-file JSON bundle, export first, forward importability required; implementation is Phase P in the 2026-07-04 Queue; ownership/auth interactions stay future). Original discussion: Open question raised 2026-06-15. Goal: a character and/or a full campaign should be exportable as a self-contained, restorable artifact that can move between deployments — backup, host migration, handing a save to another player/operator, resuming elsewhere — with continuity intact. **Distinct from the cross-campaign persistence topic above:** that one is about reusable player-owned character lineages and campaign-compatible rules versions *within a single deployment*; this one is about crossing the deployment boundary. For continuity to survive a move, the artifact must carry the *structured* state the Council consults, not transient prompt text — campaign outline, turn/state history, memories, NPCs (relationship + accumulated notes), character lineages and versions, ruleset/known-abilities facts, and (once they exist) location state and voice/visual identity anchors. A portable artifact is therefore a versioned serialization of that structured state. Open questions: artifact format (single-file bundle vs. DB dump) and how it tracks the SQLite→Postgres direction; **schema versioning / migration** so an export from an older engine still imports (this is the load-bearing hard part, and it couples to every state-shape change made by other topics); scope (character-version, lineage, or whole-campaign export); interaction with user ownership/auth, per-version active-campaign locks, lineage/version identity, and duplicate imports; and **trust posture for imported artifacts** — externally supplied campaign/character data is untrusted input and must be treated as data, never as instructions to the Council or engine (same boundary as the bootstrap-packet rule in AGENTS.md and the player-chat-never-to-GM rule above). Provenance: surfaced while scouting an external agent-identity project (`ethagent`, an Ethereum/ERC-8004 system for owning AI agents as wallet-held tokens with encrypted IPFS-backed memory). Nothing from it was adopted — its on-chain ownership / encryption / IPFS / ENS stack is irrelevant to narrative coherence, and the engine's structured DB state already does the memory job far better — but it prompted the portability idea, which would be built natively against the engine's own state store, not borrowed.
 
-- **Cross-genre character portability — PHASE PT APPROVED, S1.4 LANDED; S1.5 AWAITS GATE 5 (2026-07-31).**
-  The active design is .agents/review/archetype-portability-matrix-v3.1.md. Gates 1-4, 6, and
-  Stage 1 Gate 7 are settled:
-  one persistent character is active in one campaign; mechanics/progression travel; saved
-  per-campaign ability wording returns exactly; and missing ability presentation is grounded in live
-  destination canon. Archetype is stable and player-facing; player-owned title never auto-translates.
+- **Cross-genre character portability — S1.1-S1.4 LANDED; ONE-RECORD FOUNDATION SUPERSEDED, REVISED PLAN REQUIRED (2026-08-02).**
+  `.agents/review/archetype-portability-matrix-v3.1.md` remains evidence for live-canon,
+  ability-only presentation, stable identity/title, player approval, and exact wording reuse. The
+  later campaign-version decision replaces one persistent mechanic record/no versions with one
+  player-owned lineage containing independently playable rules-version snapshots created by safe
+  campaign upgrades. Each version is active in at most one compatible campaign and progresses
+  independently without merge. Archetype remains stable and player-facing; player-owned title never
+  auto-translates.
   Creator maps concept to a known archetype ID and tailors its campaign description, with optional
   public local profession-name examples. The exact roster remains open for S1.5, not S1.3.
   Stage 1 Gate 7's answer is no automatic character-name/title translation; broader proper-name/
   alias policy and player-driven title-edit workflow remain future.
   Portability shares direct outline/history/memory read helpers with MCP, stores only a deterministic
-  stale-review digest, and adds no second setting checklist or editor. S1.1 through S1.4 are landed;
-  S1.5 awaits Gate 5's exact archetype roster. D13/D16 defer non-ability
-  state.
+  stale-review digest, and adds no second setting checklist or editor. S1.1 through S1.4 are landed,
+  but S1.5 and later slices now require an owner-approved plan revision for campaign sets/versions,
+  class migrations, character-version compatibility, and deletion. D13/D16 still defer other
+  non-ability state not settled by the version-snapshot decision.
 - **Friends & Fables — comparative direction (owner, 2026-07-12).** The owner reviewed
   Friends & Fables and pulled five directions from it. Recorded here with the corrections
   established when they were assessed against repo evidence; nothing below is scheduled,
@@ -2896,21 +2899,29 @@ valid CSS). Its project branch refs were deleted after CT landed; the postmortem
 
 ---
 
-## Phase PT: Cross-genre portability, Stage 1 — PLAN APPROVED (owner "yes", 2026-07-31); S1.1-S1.4 LANDED; REVIEW REPAIR PLAN DRAFTED, OWNER APPROVAL REQUIRED; GATE 5 RESTRICTIVE-CLASS REPLAN FABLE-ACCEPTED, OWNER RULING REQUIRED; S1.5 BLOCKED
+## Phase PT: Cross-genre portability, Stage 1 — S1.1-S1.4 LANDED; ONE-RECORD PLAN FOUNDATION SUPERSEDED 2026-08-02; REVISED PLAN REQUIRED BEFORE FURTHER CODE
 
-**Design authority**: .agents/review/archetype-portability-matrix-v3.1.md, as amended by
-the 2026-07-31 one-persistent-character, live-canon, stable-archetype, and ability-only rulings. This section supplies
-implementation coordinates; the design record owns mechanics, schemas, flow, and verification.
+**Design authority**: `.agents/decisions.md` now controls the 2026-08-02 campaign class-set,
+campaign-version, class-migration, and player-owned character-version contract.
+`.agents/review/archetype-portability-matrix-v3.1.md` remains authority only for its retained
+live-canon, stable-identity/title, ability-only wording, approval, and exact-reuse boundaries. This
+section is not cold-implementable until revised and re-approved.
 
-**Identity contract:** one persistent character ID is active in exactly one campaign. Mechanics and
-progression remain on that record. Per-campaign ability wording is retained and reused exactly on
-return; only missing first-entry ability bindings or newly gained abilities need wording. Stable
-player-facing archetype and player-owned title remain unchanged. Approval atomically moves
-the same character. No branch, alternate version, merge, or campaign recreation occurs. Manual
-copy and bundle import/export remain separate features.
+**Identity/version contract:** one player-owned character lineage may contain multiple independently
+playable rules-version snapshots. A safe campaign upgrade preserves every linked PC's pre-upgrade
+version, migrates a new version deterministically, and activates the new campaign version atomically.
+Each character version is active in at most one compatible campaign and progresses independently;
+versions never merge. Per-campaign ability wording remains retained and reused exactly, and stable
+player-facing archetype/title rules remain. Manual copy and bundle import/export remain separate.
 
-**Gate status:** Gates 1-4, 6, and Stage 1 Gate 7 are settled. Gate 3 rejects a second setting
-checklist: portability reads
+**Planning consequence:** landed S1.1-S1.4 are not reverted, but their storage and one-record
+assumptions do not implement the new decision. No review repair, S1.5, or later Phase PT slice may
+land until a revised plan scopes schemas, migrations, compatibility, atomicity, and deletion and the
+owner approves it.
+
+**Gate status:** Gate 1 is superseded in part by the version decision; Gates 2-4, 6, and Stage 1
+Gate 7 retain their wording/canon/ordering authority subject to the required plan revision. Gate 3
+rejects a second setting checklist: portability reads
 the destination outline/setting, bounded played history, and relevant memories through direct
 shared helpers. Gate 4 narrows Stage 1 to ability presentation. Gate 6 settles Creator mapping:
 concept → known player-facing archetype ID → campaign-tailored description and optional public
@@ -2923,10 +2934,11 @@ player-driven title-edit workflow is also future. D13/D16 still defer non-abilit
 
 The owner authorized a replacement Gate 5 plan after the 22-row candidate proved to mix tactical
 roles, learnable capabilities, build structures, and status/assets rather than restrictive classes.
-`.agents/review/gate-5-class-model-plan.md` is the canonical draft. It proposes separating class
+`.agents/review/gate-5-class-model-plan.md` is retained as a partially superseded draft. It proposes separating class
 progression, skills/feats, derived roles, backgrounds/status, assets, and player title; preserving
-all landed S1.1-S1.4 and campaign-movement contracts; and replacing the singular one-of-22
-`archetypeId` only after a new owner ruling. The owner also requested a context-rich
+the retained portions of landed S1.1-S1.4; and replacing the singular one-of-22 `archetypeId` only
+after a new owner ruling. It must now also incorporate cumulative Base/Advanced/Expert availability
+and the version contract before another approval. The owner also requested a context-rich
 `claude-fable-5` review at high effort. The initial review reopened four concrete plan gaps; four
 one-finding commits repaired them, and a fresh high-effort repair-delta review accepted
 `ed91b95` with no comments. Until an owner ruling, the active 2026-07-31 Gate 6 shape above remains
@@ -2935,13 +2947,13 @@ the owner-settled slice order is S1.1 → S1.8, S1.6–S1.8 are also blocked beh
 chain unless the owner separately approves a reorder for existing free-text characters; G5-A does
 not itself amend the order.
 
-### Phase PT openreview repairs — DRAFT; implementation requires owner approval
+### Phase PT openreview repairs — DRAFT; held behind the required version-plan revision
 
 The 2026-08-01 `claude-fable-5` review admitted `pt-1` and `pt-3` and declined `pt-2`.
-Repairs interrupt the fixed Stage 1 order after landed S1.4: land PT-R1 and PT-R2 in that order,
-one finding per commit, before any S1.5 work. These repairs do not choose or reduce the Gate 5
-archetype roster and do not alter character identity, mechanics, progression, campaign movement,
-or Council authority. PT-R1 makes the Referee's ability ruling engine-authoritative in the same
+The earlier draft placed PT-R1 and PT-R2 after landed S1.4, one finding per commit, before S1.5.
+They remain admitted findings but are not authorized to land until the revised version plan proves
+their identity/storage assumptions still fit. These repairs do not choose or reduce the Gate 5
+archetype roster. PT-R1 makes the Referee's ability ruling engine-authoritative in the same
 way that engine-rolled dice and Referee location state already are; other state fields retain their
 existing Council path. Campaign-specific wording remains flavor only and cannot authorize a
 mechanical change.
@@ -3055,7 +3067,8 @@ mechanical change.
     behavior and prove `node test.js` green. The PT-R2 commit also closes `pt-3` in its finding,
     review index, phase plan, and state record.
 
-After both commits, Phase PT returns to the existing Gate 5 roster decision before S1.5. No
+The old sequence would have returned to Gate 5 after both repairs. The 2026-08-02 version decision
+now requires the Phase PT replan first; neither repair nor S1.5 proceeds directly from this text. No
 additional cross-harness review is implied; invoke one only on a new explicit owner request.
 
 **Slice order is load-bearing (owner Gate 2): S1.1 → S1.8.** One slice per commit series.
@@ -3121,6 +3134,9 @@ additional cross-harness review is implied; invoke one only on a new explicit ow
   field was added. Guard proof: independently weakening immutability, transaction ownership/stale-owner
   expiry, Unicode echo normalization, proposal/persistence alignment, or shaping support made the S1.4
   suite fail; restoring each returned full `node test.js` green.
+- **S1.5-S1.8 below are superseded planning history pending the required version replan.** Their
+  retained wording/canon goals remain evidence, but their one-record movement and projection shapes
+  are not implementation authority.
 - **S1.5 Creator archetype mapping and onboarding (§8.1).** After Gate 5 settles the exact roster,
   Creator maps a new or legacy concept to a known stable player-facing archetype ID, writes a
   campaign-tailored description, may show public local profession-name examples, and asks the player
@@ -3130,14 +3146,16 @@ additional cross-harness review is implied; invoke one only on a new explicit ow
   review. The draft proposes replacing singular archetype mapping only after owner approval, rules
   prerequisites, exact class/skill/feat catalogs, balance evidence, and a later cold implementation
   slice.
-- **S1.6 Campaign move (§8.2-8.5).** Persisted movement draft, hash-bound approval, exact canon-basis
-  freshness check, one-active-membership transaction, no existing-campaign recreation, and every
-  non-approved path leaves current membership unchanged.
+- **S1.6 Campaign move (§8.2-8.5).** Former shape: persisted movement draft, hash-bound approval,
+  exact canon-basis freshness check, and one-record membership switch. Revision must instead select
+  a compatible character version and coexist with versioned campaign upgrades; non-approved paths
+  still leave current membership unchanged.
 - **S1.7 Ability narration binding (§9).** Stable archetype/title plus active ability bindings become
   Council naming authority; no unapproved cross-campaign ability term or GM-private canon material
   reaches Council/seat context.
-- **S1.8 Canonical mechanic projection — LAST (§11).** Project one canonical mechanic record through
-  active destination ability wording at campaign-entry handoff; never persist destination mechanics.
+- **S1.8 Canonical mechanic projection — LAST (§11).** Former shape: project one canonical mechanic
+  record through destination wording. Revision must project the selected compatible character-version
+  mechanics without translating or copying them merely for genre presentation.
 
 **Verification:** node test.js, with AGENTS.md anti-vacuity proof for every new behavior test.
 Success requires the full v3.1 §12 matrix, exact-return playtest, live-canon update without old

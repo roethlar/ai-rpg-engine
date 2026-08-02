@@ -1236,8 +1236,11 @@ basis without a second setting record.
 
 ### 2026-07-31 - Rules D3 gate 1 amendment: one persistent character, one active campaign (owner decision)
 
-**Status: Refined later the same day.** The stable-archetype decision below narrows Stage 1
-campaign-specific expression to ability presentation; character name/title is not a Stage 1 target.
+**Status: Superseded in part on 2026-08-02.** The stable-archetype decision below still narrows
+campaign-specific expression to ability presentation, but the later campaign-version decision
+replaces this entry's one-record/no-alternate-version rule with one character lineage containing
+independently playable rules-version snapshots. The per-version active-campaign lock,
+campaign-specific wording, and player-approval boundaries remain.
 
 A portable character is exactly **one persistent character record**, active in exactly one campaign
 at a time. Moving that character never creates a branch, copy, alternate incarnation, or later
@@ -1372,7 +1375,10 @@ exp is awarded, etc. flavor is fine ... but you lose 2 hp HAS to be backed mecha
 
 ### 2026-08-02 - Campaign class-catalog generation presumes inclusion; exclusion discloses failed fit (owner decision)
 
-**Status: Active.**
+**Status: Superseded in part later on 2026-08-02.** The later campaign-class-set decision replaces
+the presumption and “failed imagination” language with neutral, configured availability. The
+requirements that a presentation preserve exact mechanics and that the model cannot mint mechanics
+remain active.
 
 When generating a campaign's class catalog from the approved mechanical archetypes, the generating
 model begins with a presumption that each archetype has an honest setting-native expression. It must
@@ -1471,3 +1477,96 @@ The open archetype roster and campaign class catalogs govern player-character co
 limits of NPC encounter design. This decision rejects any requirement that an important rival can
 only reproduce a player class loop; it does not approve a rules variant, roster, NPC budget, or
 runtime implementation.
+
+### 2026-08-02 - Campaign class sets, safe campaign upgrades, and player-owned character versions (owner decision)
+
+**Status: Active.**
+
+#### Campaign class availability
+
+Campaign creation offers three cumulative class-availability sets:
+
+1. **Base (recommended):** the smallest, lowest-interaction-burden, best-tested released set.
+2. **Advanced:** Base plus additional or more demanding released options.
+3. **Expert (full):** every class option in the selected catalog version.
+
+The server administrator chooses which sets are allowable for new campaigns. The campaign creator
+selects one of those allowed sets; if only one is allowed, there is no redundant choice. Every class
+present in the selected set is available from character level 1. The sets express catalog breadth
+and interaction complexity, never greater character power or a level prerequisite.
+
+Each campaign pins its selected class set and catalog/rules version. Later changes to the admin's
+allowed-set configuration affect new campaigns only. The campaign generator and character-creation
+UI receive only the selected catalog. An option absent because of the selected set, release phase,
+disabled module, or honest campaign incompatibility is neutrally unavailable; it is not presented
+as the model's failure or an “admission of failed imagination.” A compatibility explanation may
+name the factual reason but must not shame the model. Presentation still cannot falsify mechanics,
+and the model still cannot mint class IDs, permissions, costs, or effects.
+
+The exact classes in Base, Advanced, and Expert remain roster and playtest work. Catalog versions
+may change membership as options are validated; an existing campaign changes only through the
+explicit upgrade procedure below.
+
+#### Safe campaign upgrade
+
+Administration exposes a separate **Allow campaign upgrades** option. When enabled, a campaign host
+may request an installed, administrator-allowed target set/catalog version. An upgrade never mutates
+the active campaign in place and never runs during an unresolved turn or encounter.
+
+The engine creates a candidate next version of the same logical campaign, applies only authored
+deterministic migrations, validates the complete result, and activates it atomically. If any
+campaign or character migration fails, nothing changes. The prior campaign version remains a
+read-only recovery snapshot, not a concurrently playable campaign fork. Class-set movement is
+monotonic toward a broader set; returning to older rules uses a compatible saved character version
+rather than silently downgrading active mechanics.
+
+Set widening and catalog-definition updates are distinct but use the same versioned upgrade
+boundary. A catalog update applies its class balance changes to every affected character as part of
+the upgrade: retained ability IDs adopt the target version's authored effects, costs, limits,
+recovery, and other definitions, while resources and progression state follow explicit migration
+rules. The engine shows the affected players the mechanical delta. If an ability is removed, split,
+or otherwise has no single deterministic successor, the affected player chooses from authored legal
+replacements before activation; a model never selects or invents the replacement.
+
+#### Player-owned character versions
+
+Before applying the class migration, the upgrade transaction saves the complete pre-upgrade,
+version-sensitive state of every linked player character as a durable version owned by that player.
+The migrated state becomes a new version in the same character lineage. The transaction creates all
+campaign and character versions or creates none.
+
+One character lineage may therefore contain multiple independently playable rules-version
+snapshots. Each character version may be active in at most one campaign, and a campaign may accept
+only a compatible set/catalog version. A player may use an older snapshot in an older compatible
+campaign while retaining the newer version. Once used, versions progress independently; XP,
+abilities, resources, inventory, and consequences never merge or synchronize automatically.
+
+The player may delete a version only when it is not active or linked to a campaign, through an
+explicit destructive confirmation. Deleting one version does not delete the lineage or its other
+versions. An incompatible newer character version is never silently downgraded: the player uses an
+existing compatible snapshot or the destination campaign upgrades when administration permits it.
+
+Campaign-specific ability wording remains campaign-scoped and player-approved under the retained
+portability decisions. Rules-version migration does not authorize automatic archetype, genre-class,
+character-name, or player-owned-title translation. Version snapshots are an upgrade/compatibility
+mechanism, not a revival of automatic genre-translation branches or a merge workflow.
+
+Reason:
+The owner chose phased playtesting and release exposure rather than presenting the full class matrix
+to every campaign or locking whole classes behind character levels. Safe campaign versions let
+ongoing playtests adopt balance fixes without starting over. Saving the old player-owned character
+state preserves access to older campaigns and makes the operation recoverable while avoiding a
+silent downgrade. The owner settled the resulting model as one character lineage with multiple
+independently playable rules-version snapshots and no merging.
+
+Supersedes and refines:
+
+- Supersedes the 2026-07-31 one-persistent-record/no-alternate-version rule. The new invariant is
+  one lineage, per-version campaign exclusivity, and independent progression with no merge.
+- Supersedes the 2026-08-02 catalog-exclusion decision's presumption and “failure of imagination”
+  characterization. Exact-mechanics honesty and engine-known identifiers remain.
+- Refines campaign portability: a player selects a compatible character version; mechanics never
+  translate or downgrade merely to enter a campaign.
+- Does not approve tier membership, a final class roster, an ability economy, migration schemas,
+  upgrade UI, or runtime implementation. The partially implemented Phase PT plan must be revised
+  before further portability/class work relies on its former one-record invariant.

@@ -1,16 +1,25 @@
 # Gate 5 restrictive character-class model — draft plan
 
-**Status**: DRAFT — the owner authorized this plan and a context-rich `claude-fable-5`
-codereview on 2026-08-01. The taxonomy, supersessions, roster, and implementation are not yet
-approved. No product code is authorized by this document.
+**Status**: PARTIALLY SUPERSEDED DRAFT — the owner authorized this plan and a context-rich
+`claude-fable-5` codereview on 2026-08-01, but the 2026-08-02 campaign-version decision replaces
+its one-record portability premise and adds tiered class availability. The taxonomy, roster, revised
+plan, and implementation are not approved. No product code is authorized by this document.
 
-**Current gate**: Gate 5 remains open and S1.5 remains blocked. The next owner decision is G5-A in
-§8.1, after the requested review. Owner decisions are presented one at a time.
+**Current gate**: Gate 5 remains open and S1.5 remains blocked. The later interaction-burden audit
+supersedes G5-A as the next roster input, and the campaign-version decision requires a rewritten
+portability/version section. Owner decisions still come one at a time; this draft is not the next
+approval candidate.
 
 **Purpose**: replace the failed one-of-22 archetype-roster question with a model that distinguishes
 restrictive classes from learnable skills, emergent party roles, backgrounds/status, assets, and
 player-owned titles. This plan defines the classification and balance contracts, the dependency
 order for producing an exact class roster, and the adversarial cases that roster must pass.
+
+> **Later owner decision:** Base/Advanced/Expert campaign class sets, safe campaign versions, class
+> balance migrations on upgrade, and player-owned playable character-version snapshots are now
+> settled in `.agents/decisions.md`. Sections requiring one canonical mechanic record, unchanged
+> mechanics across every campaign, or preservation of all S1.1-S1.4 assumptions are historical.
+> Revise this plan before seeking another Gate 5 or implementation ruling.
 
 ---
 
@@ -55,10 +64,11 @@ five independent axes.”
 
 ### 2.1 Settled Phase PT contracts this plan retains
 
-Nothing here reopens these owner-approved rules:
+This was the retained-contract list when drafted. Items 1-2 are superseded by the 2026-08-02
+campaign-version decision; items 3-8 remain evidence subject to the required plan revision.
 
-1. One persistent character record is active in exactly one campaign at a time.
-2. Canonical mechanics, abilities, attributes, level, XP, and progression travel unchanged.
+1. **Superseded:** one persistent character record is active in exactly one campaign at a time.
+2. **Superseded:** canonical mechanics, abilities, attributes, level, XP, and progression travel unchanged.
 3. Campaign movement changes only approved ability presentation; it never translates mechanics.
 4. Previously approved campaign ability wording is reused exactly; only missing bindings are
    reviewed.
@@ -323,7 +333,7 @@ runs.
 
 ## 8. Gate and dependency order
 
-### 8.1 G5-A — classification ontology (next owner decision)
+### 8.1 G5-A — classification ontology (former next owner decision; replan required)
 
 Approve or reject the §3 separation and §2.2 supersession boundary. Approval retires the singular
 one-of-22 archetype model as the intended class identity, but approves no class names, mechanics,

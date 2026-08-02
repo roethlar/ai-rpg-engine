@@ -1,17 +1,23 @@
 # Cross-genre character portability — v3.1
 
-**Status**: ACTIVE working draft. **Gates 1-4, 6, and Stage 1 Gate 7 (§16) adopted/approved by the
-owner 2026-07-31** — recorded in `.agents/decisions.md`. Gate 5 remains open only for the exact
-archetype roster. Stage 1 Gate 7's answer is no automatic character-name or title translation;
-future proper-name/alias policy and player-driven title-edit workflow remain unruled. Phase PT is approved
-in `plan.md`; S1.1 through S1.4 are landed, and
-S1.5 awaits Gate 5. The one-persistent-character, live-canon, stable-archetype, and ability-only
-rulings control any older wording retained as historical evidence below.
+**Status**: PARTIALLY SUPERSEDED working evidence. **Gates 1-4, 6, and Stage 1 Gate 7 (§16) were
+adopted/approved by the owner on 2026-07-31**, but the 2026-08-02 campaign-version decision in
+`.agents/decisions.md` replaces Gate 1's one-record/no-alternate-version foundation. Live-canon,
+ability-only expression, player approval, stable identity/title, and exact wording reuse remain.
+S1.1 through S1.4 are landed; no later Phase PT slice may rely on this document without a revised,
+owner-approved plan for campaign versions, class migrations, and player-owned character versions.
+
+> **Supersession boundary:** body text below that requires one canonical character mechanic record,
+> mechanics to travel unchanged across every campaign, or no alternate character versions is
+> historical and must not be implemented. The replacement is one character lineage with
+> independently playable rules-version snapshots created by safe campaign upgrades, each active in
+> at most one compatible campaign, with no merging. This decision does not revive automatic
+> cross-genre mechanic translation; campaign-specific wording remains the only presentation layer.
 
 **Date**: 2026-07-27
 
-**Supersedes as the active working draft**: `.agents/review/archetype-portability-matrix-v3.md`.
-The v1 draft, the independent v1 review, v2, and v3 remain evidence.
+**Previously superseded as the working draft**: `.agents/review/archetype-portability-matrix-v3.md`.
+The v1 draft, the independent v1 review, v2, v3, and the superseded portions of v3.1 remain evidence.
 
 **Basis**: v3's immutable-mechanics thesis survived independent review. Six structural findings and
 three smaller corrections did not. All nine are fixed here; §1 maps each fix so the delta can be
@@ -77,8 +83,8 @@ Verified against working-tree head.
   inventory, abilities, progression, checkout, and explicit manual-copy lineage
   (`db.js:240-265`); campaigns persist genre and `ruleset_json`
   (`db.js:92-95`, `db.js:121`). That is implementation evidence, not the approved portability
-  result. Phase PT must keep portability on one canonical character record and leave manual copy
-  separate.
+  result. The 2026-08-02 version decision is not implemented: Phase PT needs new lineage/version
+  storage while retaining the separate semantics of explicit manual copy.
 
 ### 2.1 The shipped defect, and the correct risk statement
 
@@ -804,8 +810,10 @@ opening scene.
 
 Taken in chat one at a time and recorded durably.
 
-1. **Architecture — SETTLED 2026-07-31.** One persistent character, one active campaign; mechanics
-   and progression travel; per-campaign ability wording persists and returns exactly; no branches.
+1. **Architecture — SUPERSEDED IN PART 2026-08-02.** One-lineage/multiple-rules-version snapshots
+   replace one persistent mechanic record and the no-versions rule. Each version is active in at
+   most one compatible campaign and progresses independently without merge. Per-campaign ability
+   wording still persists and returns exactly; mechanics still never translate merely to fit genre.
 2. **Stage 1 phase — SETTLED 2026-07-31.** S1.1 → S1.8 order is load-bearing.
 3. **Canon basis — SETTLED 2026-07-31.** Read live destination outline/setting, latest six turns
    chronological, and top eight relevant memories by importance then recency through shared direct
