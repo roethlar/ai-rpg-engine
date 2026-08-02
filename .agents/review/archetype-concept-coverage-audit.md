@@ -254,7 +254,7 @@ Each cell is `branch A genre class / branch B genre class`, in the branch order 
 | **Armsmaster** | Fighter / Ranger | Weapon Master / Outrider | Slayer / Hunter | Gunslinger / Trailblazer | Combat Specialist / Field Operative | Martial Hero / Vigilante | Street Samurai / Bounty Hunter | War Adept / Blaster Scout | Road Warrior / Wasteland Hunter | Pattern Blade / Horizon Hunter |
 | **Berserker** | Barbarian / Stoneblood | Berserker / Ironbound | Cursed Brute / Revenant | Rager / Diehard | Breacher / Juggernaut | Powerhouse / Invulnerable | Chrome Rager / Heavy | Warform / Heavyworlder | Mutant Ravager / Wasteland Juggernaut | Nightmare / Unbroken |
 | **Adept** | Monk / Ascetic | Pugilist / Disciple | Relic Fist / Penitent | Brawler / Quiet Hand | Martial Artist / Close-Quarters Adept | Speedster / Mystic Fist | Reflex Dancer / Ghost Monk | Kinetic Adept / Zero-G Disciple | Pit Dancer / Dust Ascetic | Motion Saint / Still Mind |
-| **Opportunist** | Rogue / Savant | Scoundrel / Savant | Grave Rogue / Occult Sleuth | Cardsharp / Maverick | Grifter / Specialist | Trickster / Pulp Ace | Edgerunner / Operator | Scoundrel / Polymath | Scavenger / Fixer | Fate Thief / Mnemonist |
+| **Opportunist** | Rogue / Savant | Scoundrel / Savant | Grave Rogue / Occult Sleuth | Cardsharp / Maverick | Grifter / Specialist | Trickster / Pulp Ace | Edgerunner / Operator | Scoundrel / Specialist | Scavenger / Fixer | Fate Thief / Mnemonist |
 | **Intruder*** | Shadow / Runebreaker | Catspaw / Sapper | Veilwalker / Wardbreaker | Ghost / Safecracker | Infiltrator / Hacker | Phantom / Codebreaker | Ghost / Netrunner | Infiltrator / Slicer | Stalker / Relic Breaker | Dreamwalker / Sealbreaker |
 | **Arcanist** | Wizard / Ritualist | Natural Philosopher / Ceremonialist | Occultist / Necromancer | Hexslinger / Relic Scholar | Thaumaturge / Parapsychologist | Super-Scientist / Mystic | Protocol Mage / Simulationist | Technomancer / Noetic Scholar | Relic Adept / Ash Scholar | Reality Scribe / Dream Architect |
 | **Channeler** | Cleric / Sorcerer | Saint / Oracle | Exorcist / Medium | Faith Healer / Stormcaller | Empath / Psychic | Radiant / Elemental | Biochanneler / Resonant | Xenomedic / Psion | Mender / Mutant | Soulkeeper / Star Vessel |
@@ -307,15 +307,15 @@ These are recognizable approximations of the repeated loop, not licensed content
 | **Berserker** | the Hulk; Guts; Wolverine | Kratos; Olaf; Doom Slayer | Greater danger or injury drives the play loop rather than only supplying a tough visual |
 | **Adept** | Aang; Neo; Ip Man | Ryu; Liu Kang; the Student in *Sifu* | Ordered techniques, stance flow, and finishers make a different turn puzzle from freely selected weapon forms |
 | **Opportunist** | Han Solo; Catwoman; Indiana Jones | Varric Tethras; Nathan Drake; Zidane Tribal | Creates leverage and converts it into one decisive payoff; expertise matters outside combat |
-| **Intruder*** | Case; Motoko Kusanagi; Elliot Alderson | Sombra; Aiden Pearce; Garrett | Defeats a defended system under rising detection rather than making a single generic skill check |
+| **Intruder*** | David Lightman in *WarGames* (1983); Kevin Flynn in *TRON* (1982) | Solid Snake in *Metal Gear* (1987) | Defeats a defended digital or physical system under rising detection rather than making a single generic skill check |
 | **Arcanist** | Doctor Strange; Hermione Granger; Harry Dresden | Gale of Waterdeep; Edwin Odesseiron; Aloth Corfiser | Breadth comes from learned preparation and rituals, with lack of immediate access as the real constraint |
 | **Channeler** | Jean Grey; Eleven; Storm | Liara T'Soni; Aerith Gainsborough; Jesse Faden | A narrow, always-known power set can be pushed at a cost; it is not a disguised spellbook |
 | **Oathbound** | Michael Carpenter; Brienne of Tarth; Captain America | Cassandra Pentaghast; Tyrael; Reinhardt | A declaration and its limits organize protection or judgment; rank and command remain optional |
 | **Shifter** | Beast Boy; Mystique; Ben Tennyson | Alex Mercer; Halsin; Morrigan | Whole profiles replace one another; the identity is not “has a transformation scene” |
 | **Maker** | Tony Stark; MacGyver; Q | Tali'Zorah; Torbjörn; Ratchet | Prepared devices and active installations solve problems; ordinary Craft remains available to every class |
 | **Bonded** | Hiccup and Toothless; Lyra and Pantalaimon; Daenerys and Drogon | Ash and Pikachu; Rexxar and Misha; V and his familiars | Two fictional bodies share one player action economy; the companion is neither a loose asset nor a Maker turret |
-| **Catalyst*** | Sokka; Princess Leia; Erwin Smith | Lúcio; Sona; Futaba Sakura | The character's turns deliberately set up other actors; being charismatic or in charge is insufficient |
-| **Rider†** | Maverick; Poe Dameron; Furiosa | Fox McCloud; D.Va; Jack Cooper and BT-7274 | Vehicle-scale maneuver is the repeated game, not merely ownership or a Pilot check |
+| **Catalyst*** | Hannibal Smith in *The A-Team* (1983); Orpheus when song itself changes what companions can do | The Bard in *The Bard's Tale* (1985) is a class rather than a useful named-character example | The character's turns deliberately set up other actors; being charismatic or in charge is insufficient |
+| **Rider†** | Maverick in *Top Gun* (1986); Luke Skywalker in an X-wing; Mad Max in *The Road Warrior* (1981) | No comparably useful named 1980s game-character touchstone | Vehicle-scale maneuver is the repeated game, not merely ownership or a Pilot check |
 
 ### 6.1 Hybrids are regression tests, not evidence for more archetypes
 
@@ -329,6 +329,59 @@ These are recognizable approximations of the repeated loop, not licensed content
 | Aragorn as king | Armsmaster—Pursuit plus Leadership, royal standing, and later domain assets; becoming king does not replace class progression |
 | Sherlock Holmes | Opportunist—Mastery plus high Investigate and Insight; “consulting detective” is profession/title |
 | A Royal Inquisitive | Opportunist—Mastery plus Investigate/Insight, officer standing, a royal institutional relationship, and a player-owned title |
+
+### 6.2 Worked familiar touchstones
+
+These examples use broadly recognizable late-1970s and 1980s characters. Each starts with the repeated play loop, then puts profession, rank, wealth, relationships, and equipment in their own layers. They are demonstrations of the classification procedure, not licensed character packages.
+
+#### Indiana Jones — *Raiders of the Lost Ark* (1981)
+
+- **Primary class:** Opportunist—Mastery; Pulp genre class **Pulp Ace**.
+- **Why:** Indy repeatedly reads clues, improvises under pressure, turns narrow expertise into practical action, and survives by exploiting an opening rather than following a fixed combat routine.
+- **Other build pieces:** Academic background; high Lore, Investigate, and Finesse; university and museum contacts; revolver and whip proficiencies.
+- **Not classes:** archaeologist and professor are occupations; his reputation and institutional access are standing.
+
+#### Angus MacGyver — *MacGyver* (1985)
+
+- **Primary class:** Maker—Kit; Contemporary genre class **Inventor**.
+- **Why:** his repeated scene loop is selecting available materials and deploying a bounded mechanical solution. In this system those solutions must be authored device cards with exact inputs and effects—not freeform prose that the model converts into mechanics.
+- **Other build pieces:** Technical or Professional background; high Craft and Systems; Phoenix Foundation affiliation and contacts.
+- **Not classes:** troubleshooter and foundation agent are occupations. A character who merely repairs equipment would buy Craft instead of Maker.
+
+#### John “Hannibal” Smith — *The A-Team* (1983)
+
+- **Primary class:** Catalyst—Tactics; Contemporary genre class **Field Coordinator**, in a campaign that guarantees allied actors.
+- **Why:** Hannibal's characteristic contribution is constructing a plan, assigning the team's distinct capabilities, and timing their actions. That can honestly become the Cue loop.
+- **Other build pieces:** Military background; high Leadership, Influence, and Insight; veteran contacts.
+- **Not classes:** colonel is former rank. The other members of the A-Team are other player characters, not free follower assets. A portrayal centered on Hannibal's disguises and cons could instead be Opportunist—Mastery.
+
+#### Ellen Ripley — *Alien* (1979) and *Aliens* (1986)
+
+- **Primary class:** Opportunist—Mastery; Space-opera genre class **Specialist**.
+- **Why:** Ripley's recurring strength is procedural competence, accurate threat assessment, use of ship and industrial systems, and decisive action after others ignore the evidence. She is not defined by a spell list or weapon-form chassis.
+- **Other build pieces:** Technical or Field training; Systems, Pilot, Insight, and later Leadership; warrant-officer standing in the first film.
+- **Not classes:** survivor is a history and earned reputation. Her power-loader qualification is equipment proficiency, not a Mech Pilot class.
+
+#### Michael Knight and KITT — *Knight Rider* (1982)
+
+- **Primary class when KITT is a co-actor:** Bonded—Partner; Pulp genre class **Sidekick Hero**.
+- **Why:** Michael and KITT occupy different fictional bodies, perceive different things, and coordinate under one player's bounded action economy. KITT is more than a car-shaped equipment bonus.
+- **Other build pieces:** Pilot, Influence, and Investigate; Foundation affiliation; the car record supplies exact body, systems, and availability.
+- **Alternate build:** if the campaign's main game is vehicle-scale pursuit, use the Rider—Ace module instead. If KITT never acts independently, Michael can be any class with Pilot and a vehicle asset.
+
+#### Conan — *Conan the Barbarian* (1982)
+
+- **Primary class for the film's skilled warrior:** Armsmaster—Discipline; High-fantasy **Fighter** or grounded **Weapon Master**.
+- **Why:** Conan survives through learned weapon use, positioning, planning, and physical discipline. The word “barbarian” describes culture and reputation; it does not prove a self-exposure mechanic.
+- **Other build pieces:** Frontier or Wanderer background; Athletics, Endure, Melee, and Survival; outsider standing.
+- **Alternate build:** choose Berserker only for a portrayal whose repeated mechanic deliberately raises Exposure to gain power. The title alone cannot select it.
+
+#### Bruce Wayne / Batman — *Batman* (1989)
+
+- **Primary class:** Opportunist—Mastery; Pulp genre class **Pulp Ace**. A device-centered build can multiclass into Maker—Kit / **Gadgeteer**.
+- **Why:** Batman's dominant loop is preparation, investigation, intimidation, concealment, and exploiting a discovered weakness. His gadgets support that loop but do not automatically make every portrayal a Maker.
+- **Other build pieces:** high Investigate, Insight, Stealth, and Finesse; opulent means with Duties; Wayne Enterprises, the Batcave, and the Batmobile as separate assets; vigilante as player-owned title/reputation.
+- **Not classes:** billionaire is status. His no-killing rule is identity unless the build buys an engine-authored Oathbound declaration with exact targets and triggers.
 
 ## 7. Established-system precedents to study
 
