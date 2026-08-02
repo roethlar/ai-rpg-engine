@@ -1,7 +1,8 @@
 # Archetype collapse prototypes
 
-**Status:** prototype 1 of 3 complete; owner ruled that its mechanic survives but its archetype does
-not; no roster, rules package, or implementation is approved
+**Status:** prototypes 1 and 2 of 3 complete; owner removed Intruder after prototype 1; prototype 2
+supports Adept as a separate universal candidate pending an owner ruling; no roster, rules package,
+or implementation is approved
 
 **Date:** 2026-08-02
 
@@ -9,6 +10,14 @@ not; no roster, rules package, or implementation is approved
 roles, status, skills, and genre flavor are stripped away
 
 ## Bottom line
+
+Two matched-card results now exist:
+
+- **Intrusion:** owner-ruled. Keep the protected-system mechanic as shared scenario rules and
+  training; remove Intruder as an archetype.
+- **Armsmaster versus Adept:** prototype recommendation, not yet owner-ruled. Keep both candidates.
+  Armsmaster makes an unconstrained current-turn Form choice; Adept advances a character-owned
+  opening/flow/finisher sequence whose order changes later legal techniques.
 
 **Owner ruling: protected-system intrusion survives as a mechanic, but Intruder does not survive as
 an archetype.** The prototype established that linked nodes, system-scoped Access, exact
@@ -329,12 +338,218 @@ exact permissions, and Alert suppression against other training choices. It must
 protected systems never monopolize evidence or force the rest of the party to watch a solo
 minigame.
 
-## 6. Remaining collapse prototypes
+## 6. Prototype 2 — Armsmaster versus Adept
 
-This result does not answer the other two collisions from the option atlas:
+### 6.1 Result and collapse rule
 
-1. Armsmaster versus Adept: free Form choice against ordered opener/flow/finisher chains.
-2. Ordinary Leadership versus Catalyst: a learned capability against persistent ally-trigger Cues.
+**Prototype recommendation: Adept survives as a separate universal archetype candidate.** This is
+not yet an owner roster ruling.
 
-The three frozen rules packages remain unchanged until both tests also have concrete cards and
+Armsmaster and Adept can use the same weapon, skill bonus, action budget, harm vocabulary, and
+fictional profession. Their repeated decisions are still different:
+
+- Armsmaster asks, “Which complete Form is best now?” It may choose any known Form every turn and
+  immediately gets that Form's attack line and prepared Counter.
+- Adept asks, “Which legal element advances the sequence I will want next?” It must use an opening,
+  then a flow, then a finishing technique. Restarting or being interrupted forfeits the delayed
+  permission.
+
+Adept collapses if technique order can be shuffled without changing legal effects, or if one
+opening/flow/finisher rotation dominates every ordinary fight. It survives only if current sequence
+state repeatedly changes which techniques are legal and whether adapting now is worth delaying the
+finisher.
+
+### 6.2 Open-system precedent and house boundary
+
+The established precedent is the official *13th Age Archmage Engine v4.0* class SRD:
+<https://pelgranepress.com/2013/10/24/the-archmage-engine-13th-age-srd/>.
+Its open monk structure teaches each form as an opening, flow, and finishing element; the first
+attack is an opening, hit or miss advances the sequence, a turn without a form attack resets it,
+and the character may choose the current-stage element from any learned form.
+
+This prototype borrows that ordering question only. It does not copy donor attacks, damage, ki,
+d20 math, or explanatory text. It uses the signed house d100 check, house harm/effect vocabulary,
+and the audit's candidate branches. Any future adoption would still face the OGL/licensing gate
+already recorded for Cadence. Studying the structure here does not adopt that license.
+
+### 6.3 Matched controls
+
+| Control | Armsmaster | Adept |
+|---|---|---|
+| Prototype tier | Same notional first-tier character | Same notional first-tier character |
+| Relevant SkillBonus | 20 | 20 |
+| Check | Signed d100 meet-or-beat, same target and deltas | Signed d100 meet-or-beat, same target and deltas |
+| Durability | Same HP, defense, armor, and recovery | Same HP, defense, armor, and recovery |
+| Equipment | Same genre-appropriate primary weapon and backup | Same genre-appropriate primary weapon and backup |
+| Turn budget | One Main, one Move, at most one Reaction | One Main, one Move, at most one Reaction |
+| Generic resource | None | None |
+| Baseline | Every Form has a legal attack | An opening is legal from every sequence state |
+
+The sample uses Light, Standard, and Heavy harm only as the already-defined comparison vocabulary.
+It does not assign final numbers. A clean three-action Adept sequence must be priced to the same
+total action/effect budget as three Armsmaster turns before either can pass balance testing.
+Sequence state is not Power and the player never spends points to advance it.
+
+### 6.4 Armsmaster prototype card
+
+**Tracked state:** one active Form and at most one armed Counter. At the start of each turn, choose
+or keep any known Form. Choosing a different Form replaces the prior Form and its Counter.
+
+**Form action — Main:** make that Form's printed weapon action. At the end of the action, arm its
+printed Counter if it has one. A Counter uses the character's normal Reaction and expires at the
+start of the next turn.
+
+| Known Form | Main action | Prepared Counter |
+|---|---|---|
+| **Pressing Form** | Deal Standard harm to the engaged target. | **Pursue:** if that target leaves the engagement, follow it one bounded move. |
+| **Driving Form** | Deal Light harm and reposition self or target one bounded step on success. | none |
+| **Guarding Form** | Deal Light harm. | **Deflect:** reduce the next incoming hit by one printed harm category. |
+
+The exact payloads are prototype fixtures, not adopted abilities. What matters is that all three are
+complete current-turn choices. The Armsmaster can Drive on turn 1, Guard on turn 2, and Press on
+turn 3 without earning or preserving a sequence.
+
+**Progression direction:** more Forms, deeper branch-specific riders, and stronger or more
+conditional Counters. It must not add opening/flow/finisher prerequisites; that would cross the
+collision boundary.
+
+### 6.5 Adept prototype card
+
+**Tracked state:** opening, flow, or finishing. It begins at opening.
+
+**Technique action — Main:** choose any known technique matching the current state and make its
+printed attack. Hit or miss, move to the printed next state. After a finishing technique, return to
+opening.
+
+**Restart:** an opening is legal from any state. Using one voluntarily abandons the current flow or
+finishing permission and starts a new sequence. Taking a Main that is not an Adept technique resets
+the next technique to opening.
+
+The prototype knows two forms and may mix their elements:
+
+| Current state | Driving Path | Guarded Path | Next state |
+|---|---|---|---|
+| opening | **Closing Step:** deal Light harm and take one bounded step. | **Set the Root:** deal Light harm and gain the printed minor guard until next turn. | flow |
+| flow | **Turning Drive:** deal Light harm and reposition the target on success. | **Catching Guard:** deal Light harm and arm Deflect under the normal Reaction cap. | finishing |
+| finishing | **Break the Line:** deal Heavy harm and Hinder the target on success. | **Return the Force:** deal Heavy harm and reposition the target on success. | opening |
+
+The player can use Closing Step, then Catching Guard, then Break the Line; the form names organize
+the catalog but do not lock the character into one three-button script. What is locked is the
+element order.
+
+**Progression direction:** more current-stage choices, alternative links, and branch exceptions.
+Flow may add movement and cross-links. Stillness may preserve or redirect the sequence through one
+bounded disruption. Neither branch may make finishers freely selectable every turn.
+
+### 6.6 Fixture A — stable four-round duel
+
+The opponent remains engaged, has no special vulnerability, and changes no terrain. Both characters
+receive the same attack-result tape. The fixture asks whether either loop degenerates when the world
+does not create an obvious tactical prompt.
+
+**Armsmaster:** Pressing Form is a legal choice every round. The player may repeat it for steady
+output or choose Guarding because the incoming hit matters. There is no delayed permission.
+
+**Adept:** the first three Mains must be opening → flow → finishing to reach a finisher. On the
+fourth, the sequence returns to opening. At flow and finishing, the player still chooses between
+the Driving and Guarded elements, but the broad stage order is fixed.
+
+**Result:** order is mechanically real, because a random technique order cannot legally produce the
+same finishers. The fixture also exposes the main design risk: if one element is best at every stage,
+Adept becomes a rote rotation rather than a repeated decision. Before roster approval, the starting
+card therefore needs at least two situationally competitive choices at flow and finishing, and
+playtests must show that no single three-step line dominates ordinary fights.
+
+### 6.7 Fixture B — moving rescue under disruption
+
+The fight runs in normal initiative. A blocker holds a narrow route, an ally is pulled toward a
+hazard on turn 2, the blocker attempts to flee on turn 3, and the character must spend one later
+Main helping the ally instead of attacking.
+
+| Turn and changed need | Armsmaster decision | Adept decision |
+|---|---|---|
+| 1 — cross the blocker | Choose Driving immediately for bounded reposition. | Choose either opening; both advance to flow. The choice shapes immediate guard or movement, not access to a finisher yet. |
+| 2 — protect the endangered ally | Switch immediately to Guarding and arm Deflect. | At flow, choose Catching Guard and preserve finishing permission, or restart with Set the Root and delay the finisher. |
+| 3 — stop the fleeing blocker | Switch immediately to Pressing and arm Pursue. | At finishing, use Break the Line for control, use Return the Force for position, or abandon the finisher for an opening if neither fits. |
+| 4 — spend Main helping the ally | No Form action this turn; next turn any Form is still selectable. | The non-technique Main resets the sequence; next turn must be an opening unless a bounded Stillness feature says otherwise. |
+
+Injecting the same miss on turn 2 does not erase the distinction. Armsmaster simply chooses any Form
+on turn 3. Adept's missed flow still advances to finishing, following the established precedent, so
+the miss costs its immediate effect without also deleting two turns of sequence work.
+
+**Result:** the Adept repeatedly trades immediate adaptation against future legal permission.
+Armsmaster adapts without that debt. Adding sequence prerequisites to Armsmaster would recreate the
+Adept engine; removing them from Adept would reduce its techniques to Forms.
+
+### 6.8 Fixture C — genre and weapon regression
+
+The same mechanical fixture remains honest under three presentations:
+
+| Mechanical home | High fantasy | Cyberpunk | Cave-era hunt |
+|---|---|---|---|
+| Armsmaster | **Fighter:** choose Pressing, Driving, or Guarding Form for this exchange. | **Street Samurai:** load the combat routine needed now. | **Spear Hunter:** choose press, drive, or guard according to the animal's current movement. |
+| Adept | **Monk:** opening technique, then a chosen flow, then a legal finisher. | **Reflex Dancer:** entry routine, linked transition, finishing routine. | **Bear-Step Hunter:** close by taught footwork, turn the charge, then complete the spear sequence. |
+
+The cave-era Adept is not using magic, modern coaching language, or an electronic combo meter. The
+character has learned an exact physical sequence whose current step constrains the next one.
+
+Weapon and profession do not select the archetype. An axe fighter whose player wants ordered chains
+is an Adept; an unarmed brawler whose player wants a freely selected current-turn technique is an
+Armsmaster. Buying Melee, a weapon proficiency, or “martial artist” background grants neither Forms
+nor sequence permissions.
+
+### 6.9 Attempted collapse
+
+Translating every Adept element into an Armsmaster Form has only three possible outcomes:
+
+1. Make every technique freely selectable. The finisher becomes available on turn 1, and the
+   anticipation, restart, disruption, and legal-order decisions disappear.
+2. Add prior-Form requirements to the techniques. Armsmaster now tracks opening/flow/finishing
+   state and has recreated Adept.
+3. Let the character choose between unrestricted Forms and the stronger sequence each turn. The
+   merged class gains both adaptation and delayed payoff without paying either opportunity cost and
+   strictly dominates the matched cards.
+
+The distinction therefore cannot be collapsed while preserving both loops and the common action
+budget.
+
+### 6.10 Class-level verdict and remaining risks
+
+| Question | Result |
+|---|---|
+| Does technique order change later legal actions? | **Yes.** Only the current stage's elements are legal, and interruption resets the permission. |
+| Is the state character-owned? | **Yes.** The sequence travels with the character and begins with an always-legal opening. |
+| Does the loop require a campaign-authored subsystem? | **No.** Any ordinary conflict supplies a target; no special scene object is required. |
+| Can Melee, equipment, or profession reproduce it? | **No.** They grant competence or permission to use a weapon, not the sequence graph. |
+| Does it survive genre changes? | **Yes.** The exact order works as monastic form, combat routine, or taught hunting footwork. |
+| Is the loop automatically fun? | **No.** A dominant rotation would satisfy formal order while failing meaningful choice. |
+| Is numerical balance demonstrated? | **No.** The clean-chain budget and disruption cost still require package-specific tuning and playtest. |
+
+**Recommendation:** retain Adept as a separate universal candidate, pending the owner's ruling.
+Unlike intrusion, its defining state is on the character, its floor is always available, and its
+progression can deepen the same repeated sequence decision in every campaign.
+
+Calling both candidates “Warrior” in marketing would not collapse their mechanics. Under the
+current character-creation contract, the archetype choice tells the player which repeated loop they
+are buying; a single Warrior archetype whose genre class silently replaces free Forms with a
+sequence would stop that choice from being predictive.
+
+Before approval:
+
+1. the UI must always show current stage, next legal techniques, and what action would reset it;
+2. the starting card must offer competitive choices at flow and finishing rather than one solved
+   rotation;
+3. a clean three-action chain must remain within the same total action/effect budget as three
+   Armsmaster turns;
+4. hit or miss advances the sequence so one failed check does not also erase setup;
+5. non-technique actions reset it, with only bounded authored exceptions;
+6. Forms and sequence riders cannot stack through cheap multiclassing; and
+7. real play must show that planning and adaptation are enjoyable rather than bookkeeping.
+
+## 7. Remaining collapse prototype
+
+One collision remains: ordinary Leadership versus Catalyst, a learned capability against
+persistent ally-trigger Cues.
+
+The three frozen rules packages remain unchanged until that test also has concrete cards and
 scenario results and the owner rules on the resulting roster.

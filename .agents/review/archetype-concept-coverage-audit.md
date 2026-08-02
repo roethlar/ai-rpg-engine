@@ -11,7 +11,7 @@ no complete roster, rules package, or implementation is approved by this documen
 
 The current nine-archetype roster is not broad enough to approve. It has two clear missing mechanical homes—companion-centered characters and sequence-based martial adepts—and it hides a third plausible home for characters whose main play is enabling allies. It also incorrectly elevates intrusion from a learned specialization over shared scenario rules into its own class.
 
-After the first collapse prototype and owner ruling, this audit carries **ten universal roster candidates**, **one conditional candidate**, and **one campaign module** forward for comparison:
+After two collapse prototypes and the owner's Intruder ruling, this audit carries **ten universal roster candidates**, **one conditional candidate**, and **one campaign module** forward for comparison:
 
 - Universal candidates: Armsmaster, Berserker, Adept, Opportunist, Arcanist, Channeler, Oathbound, Shifter, Maker, Bonded.
 - Conditional candidate: Catalyst, when the campaign guarantees allied actors.
@@ -140,7 +140,7 @@ This battery was assembled by concept family before changing the current roster.
 |---|---|---|---|---|---|
 | **Armsmaster** | Universal | Choose a weapon Form each turn; its attack rider and one prepared Counter replace the prior Form | **Discipline:** deeper forms, guards, counters | **Pursuit:** quarry, movement, ranged/skirmish forms | Adept if forms become sequences rather than free choices |
 | **Berserker** | Universal | Voluntarily raise Exposure to unlock stronger riders while making retaliation or harm more dangerous | **Fury:** burst and self-exposure | **Endurance:** convert endured harm into staying power/retaliation | Ordinary high-HP fighter if Exposure has no consequential tradeoff |
-| **Adept** | Universal candidate newly exposed by audit | Techniques print entry and exit stances; chaining legal techniques reaches finishers, which reset the chain | **Flow:** longer/faster chains and repositioning | **Stillness:** holds or redirects stance for counters/control | Armsmaster if order of techniques does not matter |
+| **Adept** | Universal candidate supported by matched prototype; owner ruling pending | Techniques print entry and exit stances; chaining legal techniques reaches finishers, which reset the chain | **Flow:** longer/faster chains and repositioning | **Stillness:** holds or redirects stance for counters/control | Armsmaster if order of techniques does not matter |
 | **Opportunist** | Universal | Create one rules-defined Opening, exploit it once for a precision effect or mastered stunt, then build the next | **Opening:** conflict setup/payoff | **Mastery:** expertise, preparation, reliable noncombat stunts | intrusion training must not replace the target-bound Opening with a second class loop |
 | **Arcanist** | Universal | Prepare a limited immediate loadout from a broad learned catalog; decide which exact ranked effect is worth its package-specific use | **Formula:** broader immediate effects | **Ritual:** slower, larger workings with requirements | Channeler if preparation ceases to constrain choices |
 | **Channeler** | Universal | Use a narrow known repertoire without preparation; choose whether a printed overreach is worth its recovery consequence | **Restoration:** prevent, cleanse, restore | **Manifestation:** force, influence, phenomena | Arcanist if it acquires broad on-demand catalog access |
@@ -445,7 +445,7 @@ No text or named mechanic below is adopted by this audit. It records where a fin
 
 | Pair | Meaningful difference | Collapse rule |
 |---|---|---|
-| Armsmaster vs Adept | Free choice of one turn Form/counter versus ordered opener/flow/finisher chain | If random technique order produces materially the same legal effects, fold Adept into Armsmaster |
+| Armsmaster vs Adept | Free choice of one turn Form/counter versus ordered opener/flow/finisher chain | **Prototype supports separation, owner ruling pending:** random order loses legal finishers, interruption resets Adept, and adding prerequisites to Armsmaster recreates the Adept engine |
 | Opportunist vs former Intruder candidate | One setup/payoff on a target versus persistent multi-node permissions under rising lockdown | **Resolved:** preserve the latter as shared scenario rules plus training; remove Intruder as a class |
 | Arcanist vs Channeler | Broad catalog constrained by preparation versus narrow repertoire constrained by overreach/recovery | If both see the same catalog at the same time and differ only in resource name, merge them |
 | Maker vs Bonded | Devices/installations never take a separate turn versus a persistent second body under a shared action budget | Any action-taking construct belongs to Bonded; Maker keeps only non-actor devices |
@@ -537,7 +537,7 @@ The three rules packages remain useful economy hypotheses, but their shared rost
 | Finding | Consequence |
 |---|---|
 | Bonded is a missing universal mechanic | Add a shared-action companion chassis to each package; do not disguise it as Maker Companion |
-| Adept has a plausible unique sequence loop | Prototype opener/flow/finisher against Armsmaster Forms in each package before deciding whether it remains separate |
+| Adept has a distinct character-owned sequence loop | Matched cards and stable/mobile/cross-genre fixtures support a separate universal candidate; owner ruling and numerical playtest remain |
 | Catalyst is coherent only under a party guarantee | Mark it campaign-conditional and compare Cues against ordinary Leadership; never equate it with command rank |
 | Intruder is not an archetype | Preserve Access/Alert as shared scenario rules where protected systems exist; build hackers/spies through an actual class, skills, and intrusion training |
 | Rider changes scene scale | Keep it out of universal class count; design it only as an opted-in campaign module |
@@ -546,6 +546,6 @@ The three rules packages remain useful economy hypotheses, but their shared rost
 
 ### Recommended working roster for the next design pass
 
-Use the ten universal candidates as the baseline. Carry Catalyst as a conditional row with a machine-checkable allied-actor prerequisite. Carry Rider separately as a campaign module. Intruder is removed; its useful mechanics move to shared protected-system rules and training. Regenerate all three packages only after the remaining Armsmaster/Adept and Leadership/Catalyst collapse tests have concrete sample cards and scenario results.
+Use the ten universal candidates as the baseline. Adept remains among them as a prototype-supported candidate pending the owner's ruling. Carry Catalyst as a conditional row with a machine-checkable allied-actor prerequisite and Rider separately as a campaign module. Intruder is removed; its useful mechanics move to shared protected-system rules and training. Regenerate all three packages only after the remaining Leadership/Catalyst collapse test has concrete sample cards and scenario results and the owner rules on the resulting roster.
 
 This recommendation is deliberately not “add four rows to the old matrix.” It changes Maker's boundary, class availability, and the meaning of the genre catalog. No package is approved, no current runtime is changed, and no external reviewer is invoked by this audit.
