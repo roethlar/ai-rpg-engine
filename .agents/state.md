@@ -105,12 +105,12 @@ to `docs/history/state-archive.md`.
   campaign-canonical narrator, server-resolved NPC voices, shared host/seat synthesis, and
   save-once replay. `.agents/review/index.md` owns the accepted implementation trail. The phase
   remains open until a real session confirms the voice experience is better.
-- **THE OWNER-APPROVED UI BACKLOG REMAINS UNSTARTED, REVERIFIED AT `c2e6521`.**
+- **THE OWNER-APPROVED UI BACKLOG REMAINS UNSTARTED, REVERIFIED AT `3b659bc`.**
   `.agents/review/index.md` owns the exact findings and order; resume at `jt-1`.
 - **THE REMOTE TWO-HUMAN MULTIPLAYER PLAYTEST REMAINS PENDING.** App-side seat work is landed;
   connectivity is owner-handled and out of repo scope. Seat isolation must be re-tested whenever a
   field crosses a seat payload, audio, or error boundary.
-- **KNOWN PARKED DEFECT, REVERIFIED AT `c2e6521`:** `map-render.js:142` draws the location title
+- **KNOWN PARKED DEFECT, REVERIFIED AT `3b659bc`:** `map-render.js:142` draws the location title
   as an unclipped SVG `<text>`. A long location name can overrun the canvas; the landed `map-1`
   fix deliberately covered area labels only.
 
@@ -155,7 +155,8 @@ remaining bullets retain their independent priority.
 
 ## Verification
 
-- Automated: `node test.js` — green 2026-08-02 after the Gate 5 dominant-guide-pane revision.
+- Automated: `node test.js` — green at `3b659bc` (2026-08-02), first proved after the Gate 5
+  dominant-guide-pane revision and re-run unchanged since; every commit after it is docs-only.
   Prototype-local `node .agents/review/gate-5-character-creation-prototype/verify.mjs` is also green;
   prominence guard proof temporarily narrowed the right pane from 390px to 300px, and the new
   assertion failed before restoration and passed afterward.
