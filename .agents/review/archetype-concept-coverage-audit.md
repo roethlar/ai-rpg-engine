@@ -1,11 +1,17 @@
 # Cross-genre archetype option atlas and coverage audit
 
-**Status:** owner-requested design audit; Intruder was removed by the 2026-08-02 owner decision;
-no complete roster, rules package, or implementation is approved by this document
+**Status:** retained taxonomy evidence; Intruder was removed by the 2026-08-02 owner decision; the
+later text-entry interaction audit supersedes this document's working-roster recommendation; no
+complete roster, rules package, or implementation is approved
 
 **Date:** 2026-08-02
 
 **Scope:** test the class taxonomy independently of the three frozen rules-system variants in `rules-system-variants.md`
+
+> **Later interaction finding:** `.agents/review/interaction-burden-audit.md` applies the actual
+> text-entry play surface that this taxonomy did not test. It recommends removing/folding Adept and
+> Catalyst, redesigning five other candidate loops, and retaining the cards below as evidence rather
+> than as the next roster baseline. No owner roster ruling has yet adopted those recommendations.
 
 ## Bottom line
 
@@ -550,8 +556,13 @@ The three rules packages remain useful economy hypotheses, but their shared rost
 | Maker's Companion branch crosses the actor boundary | Replace that branch with Forge; route all separate-body constructs to Bonded |
 | Genre naming cannot cure ontology | Strictly mundane catalogs must omit incompatible effects; portability cannot silently reskin magic into technology |
 
-### Recommended working roster for the next design pass
+### Superseded working-roster recommendation
 
-Use the ten universal candidates as the baseline. Adept remains among them as a prototype-supported candidate pending the owner's ruling. Carry Catalyst as a conditional row with a machine-checkable allied-actor prerequisite and Rider separately as a campaign module. Intruder is removed; its useful mechanics move to shared protected-system rules and training. Regenerate all three packages only after the remaining Leadership/Catalyst collapse test has concrete sample cards and scenario results and the owner rules on the resulting roster.
+This recommendation preceded the text-entry interaction-burden audit and is no longer the next-work
+baseline. At this point in the evidence trail, the audit proposed using the ten universal candidates,
+keeping Adept pending an owner ruling, carrying Catalyst conditionally, and treating Rider as a
+module. `.agents/review/interaction-burden-audit.md` later found that formal loop separation was an
+insufficient admission test and replaced the proposed next step. Intruder remains removed under the
+separate owner decision.
 
 This recommendation is deliberately not “add four rows to the old matrix.” It changes Maker's boundary, class availability, and the meaning of the genre catalog. No package is approved, no current runtime is changed, and no external reviewer is invoked by this audit.

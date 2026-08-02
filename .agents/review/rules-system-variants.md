@@ -2,12 +2,17 @@
 
 **Status:** frozen design evidence; none is approved or implemented. The 2026-08-02 intrusion
 decision removes Intruder as an archetype, so the Intruder rows below are superseded and no package
-can be adopted as written. They are retained to show the compared packages; regeneration waits for
-the remaining Leadership/Catalyst collapse test and an owner roster ruling.
+can be adopted as written. They are retained to show the compared packages. The later text-entry
+interaction audit also rejects Slots and rests and Cadence as next candidates, permits only a
+simplified Commitment shape to continue, and recommends no regeneration from this frozen roster.
 
 **Date:** 2026-08-02
 
 **Scope:** exactly three complete rules packages built around the signed Aetheria d100 resolution and effect-operation contracts. A package is selected as a whole. The document is not a menu for combining one package's recovery, another package's class resources, and a third package's advancement.
+
+> **Later interaction finding:** `.agents/review/interaction-burden-audit.md` adds the player-facing
+> burden criterion this comparison lacked. Its recommendations are not an owner rules ruling, but
+> they supersede this document's pre-review ranking as the next-work direction.
 
 The purpose of this comparison is to replace the Gate 5 prototype's unexplained pool, rest, spell-rank, progression, class, and opposition placeholders with operational rules derived from established open systems. It does not authorize product code.
 
@@ -538,6 +543,10 @@ Mechanics were paraphrased and reconciled to the signed house contracts; no dono
 | Main balance risk | Scene commitment degenerates into ordinary encounter charges | Counter and rest proliferation | Content burden and cadence-icon overload |
 
 ## 11. Pre-review recommendation
+
+**Superseded as the next-work recommendation by the later text-entry interaction-burden audit.**
+The ranking below remains the conclusion reached from completeness, mechanical coherence, and
+licensing before player-facing interaction load was tested.
 
 **Commitment is the strongest starting point.** It has the cleanest license, the shortest creation path, the smallest common resource surface, a proven hybrid-class answer, and a resource mechanic that is genuinely more than a themed mana name: commitment withholds capacity for an exact duration instead of buying an arbitrary effect magnitude. Arcanist castings, Intruder Access/Alert, forms, openings, and assets remain separate only where their state machines actually differ.
 

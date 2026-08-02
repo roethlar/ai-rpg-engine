@@ -1,13 +1,20 @@
 # Archetype collapse prototypes
 
-**Status:** prototypes 1 and 2 of 3 complete; owner removed Intruder after prototype 1; prototype 2
-supports Adept as a separate universal candidate pending an owner ruling; no roster, rules package,
-or implementation is approved
+**Status:** prototypes 1 and 2 complete; owner removed Intruder after prototype 1; prototype 2
+established formal Armsmaster/Adept separation, but the later text-entry interaction audit recommends
+removing/folding Adept because its sequence is too burdensome; no roster, rules package, or
+implementation is approved
 
 **Date:** 2026-08-02
 
 **Scope:** test whether candidate archetypes still create different repeated decisions after jobs,
 roles, status, skills, and genre flavor are stripped away
+
+> **Later interaction finding:** formal non-collapse is not sufficient for this product.
+> `.agents/review/interaction-burden-audit.md` finds that the Adept sequence becomes a prompted
+> rotation in text play and that Catalyst Cues have the same structural problem. It recommends not
+> running prototype 3 unless the owner rejects that finding. This note does not rewrite the matched
+> cards or record an owner roster ruling.
 
 ## Bottom line
 
@@ -546,10 +553,12 @@ Before approval:
 6. Forms and sequence riders cannot stack through cheap multiclassing; and
 7. real play must show that planning and adaptation are enjoyable rather than bookkeeping.
 
-## 7. Remaining collapse prototype
+## 7. Former next collapse prototype
 
 One collision remains: ordinary Leadership versus Catalyst, a learned capability against
 persistent ally-trigger Cues.
 
-The three frozen rules packages remain unchanged until that test also has concrete cards and
-scenario results and the owner rules on the resulting roster.
+The later interaction-burden audit recommends removing/folding Catalyst because the Cue itself
+creates cross-actor setup/trigger maintenance. Do not run this prototype unless the owner rejects
+that interaction finding. The three frozen rules packages remain unchanged and may not be
+regenerated from this record.
