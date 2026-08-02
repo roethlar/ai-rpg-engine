@@ -6,6 +6,8 @@ to `docs/history/state-archive.md`.
 
 ## Now
 
+- **AN OUT-OF-SAMPLE ARCHETYPE AUDIT NOW BLOCKS APPROVAL OF THE SHARED NINE-ROW ROSTER.** `.agents/review/archetype-concept-coverage-audit.md` freezes the three rules variants as hypotheses and independently audits common martial, expert, supernatural, technical, companion, vehicle, social, role, job, and status concepts. It exposes Adept and Bonded as missing mechanical homes, separates action-taking companions from Maker devices, makes Intruder and Catalyst conditional on campaign guarantees, and keeps Rider as a campaign module. It includes concrete loops, an archetype-by-genre option matrix, authored help-language examples, fiction/game touchstones, collapse tests, situationality, and balance fixtures. No replacement roster is approved; do not regenerate the three packages from it without owner direction.
+
 - **THREE CLOSED RULES-SYSTEM VARIANTS HAVE ONE COMPLETED FABLE REVIEW; NONE IS APPROVED OR IMPLEMENTED.** `.agents/review/rules-system-variants.md` owns exactly three whole packages over the signed d100/effect contracts: WWN/CWN-derived Commitment, SRD 5.2.1-derived Slots and rests, and 13th Age-derived Cadence. All share nine mechanical archetypes, eighteen meaningful branches, a complete 9×10 genre-class mapping, deterministic 7–10 minute creation, exact spell/resource/recovery rules, opposition curves, assets/status, persistent help, worked adversarial builds, and a licensing/deviation ledger. One `claude-fable-5` openreview ran at the owner-specified `high` over `dadc64a..54bf01b`; there was no model follow-up. Fable returned four candidates: legacy-runtime orientation and one spell-target phrase are admitted/open, the stale NEXT was corrected by this mandatory state sync without re-review, and the claimed high-vs-max conflict is declined because the explicit owner instruction controls. `.agents/review/index.md` and `findings/rsv-*.md` own the trail. The review found no class-taxonomy or economy-level contradiction, so Commitment remains the working recommendation, not an approval.
 
 - **GATE 5'S PROTOTYPE EXPOSED AN UNDEFINED CORE RULES CONTRACT AND IS NOT READY FOR APPROVAL.**
@@ -113,7 +115,7 @@ to `docs/history/state-archive.md`.
 
 ## Next
 
-**NEXT:** Present the three packages, the one Fable review, and the resulting Commitment recommendation to the owner. Await one package-level ruling or a scoped repair instruction; do not implement, push, or invoke another reviewer. Open review items are `rsv-1` and `rsv-4`.
+**NEXT:** Present the independent archetype option atlas and failure map to the owner. Await a roster-level ruling or a scoped prototype instruction before changing the three frozen rules variants; do not implement, push, or invoke another reviewer. The prior Fable review items `rsv-1` and `rsv-4` remain open but are downstream of the roster problem.
 
 ## Prior queue context
 
@@ -182,6 +184,7 @@ remaining bullets retain their independent priority.
 
 ## Active Sources
 
+- `.agents/review/archetype-concept-coverage-audit.md` — current independent roster option atlas and failure map; no roster approved.
 - `AGENTS.md`, `.agents/repo-guidance.md`, `.agents/decisions.md`
 - `docs/rules/effects.md`, `.agents/review/effect-catalog-review.md`, and
   `.agents/review/rules-system-plan-intake.md`
