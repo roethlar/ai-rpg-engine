@@ -6,7 +6,7 @@ to `docs/history/state-archive.md`.
 
 ## Now
 
-- **GATE 5'S REVISED CHARACTER-CREATION, PROGRESSION, AND CONTEXTUAL RULES GUIDE AWAITS OWNER EVALUATION.**
+- **GATE 5'S PROTOTYPE EXPOSED AN UNDEFINED CORE RULES CONTRACT AND IS NOT READY FOR APPROVAL.**
   The owner accepted the interaction hierarchy as the direction: choose a mechanical archetype,
   conditionally choose among its campaign-specific classes, then choose training, background,
   standing, and identity; one class mapping is automatic.
@@ -19,8 +19,17 @@ to `docs/history/state-archive.md`.
   budget for Combat Forms and counters while Weapon Mastery remains passive. Training, background,
   title, command, wealth, and institutional standing each show operative examples and boundaries.
   The local verifier covers assets-only/no-network/no-storage structure, guide controls, resource
-  coherence, and player-copy leak guards. All catalogs, values, and mechanics remain provisional;
-  nothing is approved or shipped.
+  coherence, and player-copy leak guards. Owner evaluation found that the common pool mostly changes
+  names while "breather," "safe rest," capacity growth, and spell rank/cost/upcasting lack operational
+  rules; the hard-coded full recovery to six also conflicts with the sample progression to seven.
+  All catalogs, values, and mechanics remain provisional; nothing is approved or shipped.
+- **THE SIGNED TARGET CHASSIS AND THE SHIPPED LEGACY RUNTIME ARE DIFFERENT SYSTEMS.** Canonical
+  `docs/rules/resolution.md` specifies d100 meet-or-beat checks and `docs/rules/effects.md` specifies
+  an engine-owned effect vocabulary, but neither is implemented as the complete game. The shipped
+  rules-mode path still uses optional d20 + four-attribute modifiers, generated per-campaign rule
+  sheets, HP/mana, and XP-per-level behavior. Attributes, spend economy, tactical space, initiative,
+  opposition curves, dying, recovery, class roster/mechanics, and version migration remain unsettled
+  or merely proposed. Do not present prototype mechanics as the rules system.
 
 - **GATE 5'S RESTRICTIVE CLASS MODEL NEEDS REVISION BEFORE AN OWNER RULING.**
   The owner explicitly rejected §7's prose-to-model-selected-mechanics flow and retrying generation
@@ -91,22 +100,22 @@ to `docs/history/state-archive.md`.
   campaign-canonical narrator, server-resolved NPC voices, shared host/seat synthesis, and
   save-once replay. `.agents/review/index.md` owns the accepted implementation trail. The phase
   remains open until a real session confirms the voice experience is better.
-- **THE OWNER-APPROVED UI BACKLOG REMAINS UNSTARTED, REVERIFIED AT `c0bedb6`.**
+- **THE OWNER-APPROVED UI BACKLOG REMAINS UNSTARTED, REVERIFIED AT `c2e6521`.**
   `.agents/review/index.md` owns the exact findings and order; resume at `jt-1`.
 - **THE REMOTE TWO-HUMAN MULTIPLAYER PLAYTEST REMAINS PENDING.** App-side seat work is landed;
   connectivity is owner-handled and out of repo scope. Seat isolation must be re-tested whenever a
   field crosses a seat payload, audio, or error boundary.
-- **KNOWN PARKED DEFECT, REVERIFIED AT `c0bedb6`:** `map-render.js:142` draws the location title
+- **KNOWN PARKED DEFECT, REVERIFIED AT `c2e6521`:** `map-render.js:142` draws the location title
   as an unclipped SVG `<text>`. A long location name can overrun the canvas; the landed `map-1`
   fix deliberately covered area labels only.
 
 ## Next
 
-**NEXT:** The owner evaluates the local Gate 5 click-through's dominant contextual guide—especially
-Tempo, costs and recovery, billionaire/royal standing examples, selection-versus-preview behavior,
-mobile access, and ordinary versus multiclass advancement. Gather the owner's experience verdict
-before revising the class-model plan or presenting any approval decision. Do not invoke another
-reviewer without a separate explicit request.
+**NEXT:** Reconcile the rules system before any further Gate 5 prototype or class-roster work: present
+the owner a compact map of signed target rules, legacy runtime behavior, and unresolved mechanics,
+then compare the unresolved contracts against coherent open-system baselines rather than inventing
+them. The owner sees the source mapping before any approval decision. Do not invoke another reviewer
+without a separate explicit request.
 
 - Ask the owner to approve or reject the drafted Phase PT review repair plan. No code repair is
   authorized before that ruling. If approved, implement PT-R1 (`pt-1`) and PT-R2 (`pt-3`) in
@@ -128,9 +137,9 @@ reviewer without a separate explicit request.
 
 - Phase PT progression is held while the drafted two-slice repair plan awaits owner approval;
   `.agents/review/index.md` owns the admitted findings and `plan.md` owns the proposed repairs.
-- Phase PT S1.4 is landed. Gate 5 awaits the owner's experience verdict on the deterministic local
-  creation/progression prototype and its contextual rules guide; the exact class catalog, balance,
-  and all sample mechanics remain unsettled. The later classification ruling and the `pt-5`
+- Phase PT S1.4 is landed. The owner found Gate 5's deterministic local prototype mechanically
+  under-specified: resource recovery, capacity growth, ability rank/cost scaling, the exact class
+  catalog, balance, and all sample mechanics remain unsettled. A later classification ruling and the `pt-5`
   description-scope ruling still block S1.5 Creator/onboarding work.
 - Broader Chapter 1/2 effect-catalog runtime implementation remains blocked until promoted into
   a concrete owner-approved phase; the D2 catalog-design gate is closed.
