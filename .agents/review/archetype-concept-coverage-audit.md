@@ -1,20 +1,24 @@
 # Cross-genre archetype option atlas and coverage audit
 
-**Status:** owner-requested design audit; no roster, rules package, or implementation is approved by this document  
-**Date:** 2026-08-02  
+**Status:** owner-requested design audit; Intruder was removed by the 2026-08-02 owner decision;
+no complete roster, rules package, or implementation is approved by this document
+
+**Date:** 2026-08-02
+
 **Scope:** test the class taxonomy independently of the three frozen rules-system variants in `rules-system-variants.md`
 
 ## Bottom line
 
-The current nine-archetype roster is not broad enough to approve. It has two clear missing mechanical homes—companion-centered characters and sequence-based martial adepts—and it hides a third plausible home for characters whose main play is enabling allies. It also treats Intruder as universally viable even though that loop needs protected systems to be common.
+The current nine-archetype roster is not broad enough to approve. It has two clear missing mechanical homes—companion-centered characters and sequence-based martial adepts—and it hides a third plausible home for characters whose main play is enabling allies. It also incorrectly elevates intrusion from a learned specialization over shared scenario rules into its own class.
 
-This audit therefore carries **ten universal roster candidates**, **two conditional candidates**, and **one campaign module** forward for comparison:
+After the first collapse prototype and owner ruling, this audit carries **ten universal roster candidates**, **one conditional candidate**, and **one campaign module** forward for comparison:
 
 - Universal candidates: Armsmaster, Berserker, Adept, Opportunist, Arcanist, Channeler, Oathbound, Shifter, Maker, Bonded.
-- Conditional candidates: Intruder, when the campaign guarantees protected systems; Catalyst, when it guarantees allied actors.
+- Conditional candidate: Catalyst, when the campaign guarantees allied actors.
 - Campaign module: Rider, when vehicles or mounts are a first-class scene system.
+- Removed archetype: Intruder. ProtectedSystem, Access, and Alert remain shared scenario rules; intrusion is skills plus training or specialization, naturally housed in an Opportunist/Rogue-style build but available through normal cross-training.
 
-Those are options, not a ruling that the answer is twelve or thirteen classes. Every candidate below has a concrete repeated loop so the owner can see whether the distinction is mechanically real. Jobs, ranks, tactical roles, wealth, and ordinary learned capabilities remain outside the class roster.
+Those are options, not an approved eleven-class answer. Every remaining candidate below has a concrete repeated loop so the owner can see whether the distinction is mechanically real. Jobs, ranks, tactical roles, wealth, and ordinary learned capabilities remain outside the class roster.
 
 ## 1. How to read the taxonomy
 
@@ -68,9 +72,9 @@ This battery was assembled by concept family before changing the current roster.
 | Savant, skill specialist, improviser | Opportunist—Mastery | chosen professional skills | Class |
 | Bard whose main loop is timing ally payoffs | Catalyst—Resonance | performance idiom, Influence | Conditional class |
 | Bard who is mainly a broad expert or magical caster | Opportunist—Mastery or Channeler | performance background | Existing class plus expression; no forced Catalyst |
-| Spy, cat burglar, covert operative | Opportunist plus Stealth; Intruder—Ghost only if protected-system play is central | contacts, tools | Usually a build; conditional class when the subsystem is the point |
-| Hacker, netrunner, decker, slicer | Intruder—Breaker | Systems, deck/interface equipment | Conditional class with Access/Alert loop |
-| Saboteur, sapper, wardbreaker | Intruder—Breaker or Maker—Kit | Craft/Systems, demolition permission | Dominant loop decides |
+| Spy, cat burglar, covert operative | Opportunist plus Stealth and optional intrusion training | contacts, tools | Build; covert occupation does not define a class |
+| Hacker, netrunner, decker, slicer | Usually Opportunist plus Systems and intrusion training; another class may cross-train | deck/interface equipment | Build over shared ProtectedSystem rules, not a class |
+| Saboteur, sapper, wardbreaker | Intrusion training or Maker—Kit | Craft/Systems, demolition permission | Skill/build unless prepared devices are the dominant Maker loop |
 | Detective, investigator, inquisitive | Opportunist—Mastery plus Investigate/Insight | office or patron relationship | Build; investigation is a common capability |
 | Royal inquisitive | Opportunist—Mastery plus Investigate/Insight | officer standing, royal institution, player title | Build; “royal” and “inquisitive” are not class grants |
 | Face, diplomat, negotiator | Opportunist—Mastery or Catalyst if ally timing is central | Influence, Insight, standing | Build in the ordinary case |
@@ -114,7 +118,7 @@ This battery was assembled by concept family before changing the current roster.
 | Power armor user | Maker—Forge or Shifter—Adaptive if always available; Rider if vehicle-scale scene rules dominate | armor asset | Dominant loop decides |
 | Starship captain | Any class | Leadership, officer standing, starship asset | Job/status; may also be Rider or Catalyst by actual play |
 | Billionaire sponsor, noble patron, crime boss | Any class | opulent means, Duties, institution and assets | Status/assets, never class |
-| Billionaire netrunner | Intruder—Breaker | opulent means, corporation asset, Duties | One class plus independent status—the regression case passes |
+| Billionaire netrunner | Usually Opportunist plus Systems and intrusion training; any class may cross-train | opulent means, corporation asset, Duties | Training plus independent status—the regression case passes |
 | Guildmaster, monarch, garrison commander | Any class | standing, Leadership, domain/follower assets | Office/assets, never class |
 | Celebrity, icon, influencer | Any class; Catalyst only with its actual cue loop | fame/standing, Influence | Status/background in ordinary play |
 | Merchant, fixer, broker | Any class | Influence, contacts, assets | Job/build |
@@ -137,8 +141,7 @@ This battery was assembled by concept family before changing the current roster.
 | **Armsmaster** | Universal | Choose a weapon Form each turn; its attack rider and one prepared Counter replace the prior Form | **Discipline:** deeper forms, guards, counters | **Pursuit:** quarry, movement, ranged/skirmish forms | Adept if forms become sequences rather than free choices |
 | **Berserker** | Universal | Voluntarily raise Exposure to unlock stronger riders while making retaliation or harm more dangerous | **Fury:** burst and self-exposure | **Endurance:** convert endured harm into staying power/retaliation | Ordinary high-HP fighter if Exposure has no consequential tradeoff |
 | **Adept** | Universal candidate newly exposed by audit | Techniques print entry and exit stances; chaining legal techniques reaches finishers, which reset the chain | **Flow:** longer/faster chains and repositioning | **Stillness:** holds or redirects stance for counters/control | Armsmaster if order of techniques does not matter |
-| **Opportunist** | Universal | Create one rules-defined Opening, exploit it once for a precision effect or mastered stunt, then build the next | **Opening:** conflict setup/payoff | **Mastery:** expertise, preparation, reliable noncombat stunts | Intruder if Access is merely a renamed Opening |
-| **Intruder** | Conditional | Probe a protected system, gain and spend Access on exact permissions while Alert advances toward lockdown | **Ghost:** entry, concealment, extraction | **Breaker:** locks, wards, devices, networks | Opportunist/Maker, and blank scenes with no protected system |
+| **Opportunist** | Universal | Create one rules-defined Opening, exploit it once for a precision effect or mastered stunt, then build the next | **Opening:** conflict setup/payoff | **Mastery:** expertise, preparation, reliable noncombat stunts | intrusion training must not replace the target-bound Opening with a second class loop |
 | **Arcanist** | Universal | Prepare a limited immediate loadout from a broad learned catalog; decide which exact ranked effect is worth its package-specific use | **Formula:** broader immediate effects | **Ritual:** slower, larger workings with requirements | Channeler if preparation ceases to constrain choices |
 | **Channeler** | Universal | Use a narrow known repertoire without preparation; choose whether a printed overreach is worth its recovery consequence | **Restoration:** prevent, cleanse, restore | **Manifestation:** force, influence, phenomena | Arcanist if it acquires broad on-demand catalog access |
 | **Oathbound** | Universal | Choose one engine-authored declaration card and bind its exact ward, objective, zone, or foe; interdictions and marks work only through that binding | **Aegis:** protect a named ally/place | **Judgment:** pursue a named foe/wrong | Defender role or Leadership skill if target binding never constrains play |
@@ -150,7 +153,10 @@ This battery was assembled by concept family before changing the current roster.
 
 ### 3.3 Minimum playable mechanic cards
 
-These cards define the smallest mechanic that must survive in all three rules variants. Commitment, Slots and rests, and Cadence may price limited abilities differently; they may not replace the loop with a renamed generic Power pool.
+The archetype cards define the smallest mechanic that must survive in all three rules variants.
+Commitment, Slots and rests, and Cadence may price limited abilities differently; they may not
+replace the loop with a renamed generic Power pool. The protected-system subsection is now a shared
+scenario/training contract rather than an archetype card.
 
 #### Armsmaster
 
@@ -180,12 +186,12 @@ These cards define the smallest mechanic that must survive in all three rules va
 - **Progression:** adds setup routes and payoff choices rather than simply multiplying damage. Mastery makes selected common-skill stunts deterministic within printed limits.
 - **Floor:** every build can create a modest Opening without relying on another class or a special scene feature.
 
-#### Intruder
+#### Protected-system intrusion — shared subsystem and training, not an archetype
 
-- **Tracked state:** an engine-authored protected-system map, Access, and an Alert/lockdown clock. “System” can be a network, ward lattice, secure building, social security cordon, machine, or trap complex, but it must have real nodes and permissions.
-- **Ordinary turn:** Probe to reveal a node or defense; Breach a revealed node to gain Access; spend Access for an exact permission such as enter, extract, disable, redirect, or conceal. Failed or noisy actions advance Alert. Full Alert changes or closes routes instead of merely dealing damage.
-- **Progression:** adds programs/tools, simultaneous Access capacity, and bounded ways to suppress Alert. Systems and Stealth skills let anyone attempt ordinary tasks but do not grant Intruder programs or permission spends.
-- **Floor and gate:** a campaign must guarantee recurring protected systems and provide a small local target in ordinary scenes. Without that campaign contract, Intruder is not offered; pretending every creature is a “system” would collapse it into Opportunist.
+- **Tracked scenario state:** an engine-authored protected-system map, Access, and an Alert/lockdown clock. “System” can be a network, ward lattice, secure building, social security cordon, machine, or trap complex, but it must have real nodes and permissions.
+- **Ordinary action:** any character with the appropriate skill may Probe to reveal a node or defense and Breach a revealed node. Access pays for exact permissions such as enter, extract, disable, redirect, or conceal. Failed or noisy actions advance Alert. Full Alert changes or closes routes instead of merely dealing damage.
+- **Training direction:** authored intrusion training may improve tools, simultaneous Access, or bounded Alert suppression. It is naturally available to an Opportunist/Rogue-style build and may be bought by other classes through normal cross-training. Exact benefits and cost remain unsettled.
+- **Authoring gate:** instantiate the full subsystem only for real linked nodes and competing permissions. A single terminal, lock, ward, sentry, or trap remains an ordinary skill check or Opening; pretending every obstacle is a “system” is invalid.
 
 #### Arcanist
 
@@ -255,7 +261,6 @@ Each cell is `branch A genre class / branch B genre class`, in the branch order 
 | **Berserker** | Barbarian / Stoneblood | Berserker / Ironbound | Cursed Brute / Revenant | Rager / Diehard | Breacher / Juggernaut | Powerhouse / Invulnerable | Chrome Rager / Heavy | Warform / Heavyworlder | Mutant Ravager / Wasteland Juggernaut | Nightmare / Unbroken |
 | **Adept** | Monk / Ascetic | Pugilist / Disciple | Relic Fist / Penitent | Brawler / Quiet Hand | Martial Artist / Close-Quarters Adept | Speedster / Mystic Fist | Reflex Dancer / Ghost Monk | Kinetic Adept / Zero-G Disciple | Pit Dancer / Dust Ascetic | Motion Saint / Still Mind |
 | **Opportunist** | Rogue / Savant | Scoundrel / Savant | Grave Rogue / Occult Sleuth | Cardsharp / Maverick | Grifter / Specialist | Trickster / Pulp Ace | Edgerunner / Operator | Scoundrel / Specialist | Scavenger / Fixer | Fate Thief / Mnemonist |
-| **Intruder*** | Shadow / Runebreaker | Catspaw / Sapper | Veilwalker / Wardbreaker | Ghost / Safecracker | Infiltrator / Hacker | Phantom / Codebreaker | Ghost / Netrunner | Infiltrator / Slicer | Stalker / Relic Breaker | Dreamwalker / Sealbreaker |
 | **Arcanist** | Wizard / Ritualist | Natural Philosopher / Ceremonialist | Occultist / Necromancer | Hexslinger / Relic Scholar | Thaumaturge / Parapsychologist | Super-Scientist / Mystic | Protocol Mage / Simulationist | Technomancer / Noetic Scholar | Relic Adept / Ash Scholar | Reality Scribe / Dream Architect |
 | **Channeler** | Cleric / Sorcerer | Saint / Oracle | Exorcist / Medium | Faith Healer / Stormcaller | Empath / Psychic | Radiant / Elemental | Biochanneler / Resonant | Xenomedic / Psion | Mender / Mutant | Soulkeeper / Star Vessel |
 | **Oathbound** | Paladin / Avenger | Sworn Guardian / Zealot | Monster Warden / Witch Hunter | Lawbringer / Vindicator | Sentinel / Vigilant | Guardian / Avenger | Aegis / Renegade | Order Knight / Void Templar | Settlement Warden / Vindicator | Reality Anchor / Doom Judge |
@@ -273,7 +278,7 @@ Three readings are deliberately allowed:
 
 - An **Arcanist Necromancer** performs prepared death rites and may have no minion body. A **Bonded Necromancer** spends the shared action economy through undead companions. The same fiction supports two mechanically honest characters.
 - An **Oathbound Paladin** can buy Leadership and hold officer standing without becoming Catalyst. Only a Paladin whose progression also buys the Cue loop multiclasses into Catalyst.
-- A **Netrunner** can be opulent and own a corporation. Wealth changes means, Duties, and assets; it does not change Access/Alert or class progression.
+- A **Netrunner** can be any class with Systems and intrusion training, including an opulent Opportunist who owns a corporation. Wealth changes means, Duties, and assets; it does not grant Access/Alert permissions or training progression.
 
 Strictly mundane campaigns are a genuine boundary, not a naming exercise. Per the active 2026-08-02 catalog-generation decision in `.agents/decisions.md`, the generator must first search for an honest setting-native expression that preserves the exact mechanic; absence of its familiar magic, technology, profession, or aesthetic is not enough to exclude it. A catalog may omit the archetype only after every plausible expression would contradict canon, erase its loop, or require changed mechanics, and the exclusion records that failed fit. A later portability move still cannot make an existing Wizard mundane merely by calling spells “protocols”; that ontology problem remains outside this roster audit.
 
@@ -286,7 +291,7 @@ For a Neanderthal-era cave murder mystery, an honest attempt might find:
 - **Armsmaster—Pursuit:** spear hunter or stone hunter;
 - **Bonded—Partner:** wolf companion;
 - **Maker—Kit:** flint knapper, fire keeper, or trap builder;
-- **Intruder—Ghost:** hidden-route specialist, taboo-path breaker, or rival-clan infiltrator;
+- **Intrusion training:** hidden-route specialist, taboo-path breaker, or rival-clan infiltrator attached to the character's actual class;
 - **Catalyst—Tactics/Resonance:** hunt coordinator or oral-tradition keeper.
 
 It need not invent an **Artillery** class because Artillery is only a derived tactical role. Rider may still be excluded from a cave-bound premise if mount/vehicle-scale play cannot be expressed without changing either the campaign or Rider's mechanic; that record must say so plainly. Exclusion remains a disclosed failure to find a fit, not the generator's first convenience.
@@ -301,7 +306,6 @@ The help panel should lead with what the class actually does, using the chosen g
 | **Berserker** | **Barbarian:** “Raise Exposure to drive the attack harder. The printed rage rider applies, but retaliation against you becomes more dangerous until Exposure falls.” | **Chrome Rager:** “Open your limiters one step. You gain the routine's overdrive rider and accept its listed heat or defense consequence.” | **Warform:** “Increase overdrive to unlock the maneuver's extra effect; the same step increases chassis instability exactly as shown.” |
 | **Adept** | **Monk:** “Use an opener, follow its exit stance into a Flow technique, then finish the chain. A finisher returns you to an opener.” | **Reflex Dancer:** “Each routine hands off to printed next routines. Complete a legal sequence to unlock a finisher; no charge points are spent.” | **Kinetic Adept:** “Techniques move your alignment through a visible sequence. Finishers require the shown prior alignment and then reset it.” |
 | **Opportunist** | **Rogue:** “Create one Opening by meeting a setup on the card, then consume it once for the listed exploit.” | **Edgerunner:** “Expose a vulnerability through position, leverage, or distraction; cash it in once for the exact payoff, then find another.” | **Scoundrel:** “Put the target off balance, exploit that opening once, and rebuild the advantage. Openings do not stack.” |
-| **Intruder*** | **Runebreaker:** “Probe a ward node, breach it for Access, and spend Access on a named permission before the alarm seals the lattice.” | **Netrunner:** “Scan a network node, breach it for Access, then execute an authorized control while Trace advances toward lockdown.” | **Slicer:** “Map the ship system, obtain Access, and spend it to enter, extract, disable, redirect, or conceal before security locks the route.” |
 | **Arcanist** | **Wizard:** “Prepare a limited set of immediate spells from your learned book. Unprepared workings require an authored ritual; words alone cannot make one combat-ready.” | **Protocol Mage:** “Load a bounded routine set before the run. Archived protocols outside the loadout require their printed simulation procedure.” | **Technomancer:** “Prepare the protocols you can execute under pressure. Broader noetic workings remain rituals with exact time and requirements.” |
 | **Channeler** | **Sorcerer:** “Every known gift is available without preparation. Each card shows a base effect and, where allowed, one overreach with its exact consequence.” | **Biochanneler:** “Express any known pattern at base strength, or trigger its printed surge and accept the listed feedback.” | **Psion:** “Use a known discipline directly. An amplified line is legal only with the strain or recovery consequence printed beside it.” |
 | **Oathbound** | **Paladin:** “Choose a declaration card and bind its exact ward, objective, zone, or foe. Its printed distance and target rules—not a reading of your prose—govern every interdiction.” | **Aegis:** “Register one exact protectee, site, or hostile target on a protocol card. Defensive routines key only to that binding until you spend the action to replace it.” | **Order Knight:** “Bind your charge to a named person, place, objective, or threat. Marks and intercepts use the card's exact range and trigger rules.” |
@@ -310,6 +314,12 @@ The help panel should lead with what the class actually does, using the chosen g
 | **Bonded** | **Beastmaster:** “You and your companion occupy separate places but share one Main action. Coordinated techniques require the positions printed on the card.” | **Dronebond:** “Operator and drone can reposition separately, but only one takes the shared Main. Coordination protocols use both locations.” | **Droid Partner:** “You and the droid are two bodies under one action budget. Choose who acts, or meet a card's positioning rule for a coordinated effect.” |
 | **Catalyst*** | **Bard:** “Set one Verse Cue with a visible ally trigger. When that ally fulfills it, consume the Cue for the printed movement, defense, recovery, or condition rider.” | **Rockerboy:** “Establish one live cue; an ally who hits its trigger fires the listed response. Cues expire and never accumulate as generic points.” | **Mission Tactician:** “Issue one maneuver cue to an eligible ally. The cue resolves only on its printed trigger and never grants an unrestricted extra Main.” |
 | **Rider†** | **Dragon Rider:** “Rider and dragon share actions and use vehicle-scale position. Choose a maneuver, attack, passenger defense, or damage control.” | **Rig Jockey:** “You and the rig use one action budget; its hull, vector, and systems replace ordinary personal movement while mounted.” | **Starfighter Ace:** “Choose craft maneuver, fire, support, or damage control. The fighter's vector and hull govern the scene until you dismount.” |
+
+Protected-system help belongs to the scenario/training panel rather than this class table. Its genre
+wording still exposes the exact shared operations: a Runebreaker probes ward nodes and spends Access
+before an alarm seals them; a Netrunner does the same through network nodes and Trace; a Slicer does
+it through ship systems and security lockdown. The character's class remains whichever archetype
+owns their broader loop.
 
 ## 6. Fiction and game touchstones
 
@@ -321,7 +331,6 @@ These are recognizable approximations of the repeated loop, not licensed content
 | **Berserker** | the Hulk; Guts; Wolverine | Kratos; Olaf; Doom Slayer | Greater danger or injury drives the play loop rather than only supplying a tough visual |
 | **Adept** | Aang; Neo; Ip Man | Ryu; Liu Kang; the Student in *Sifu* | Ordered techniques, stance flow, and finishers make a different turn puzzle from freely selected weapon forms |
 | **Opportunist** | Han Solo; Catwoman; Indiana Jones | Varric Tethras; Nathan Drake; Zidane Tribal | Creates leverage and converts it into one decisive payoff; expertise matters outside combat |
-| **Intruder*** | David Lightman in *WarGames* (1983); Kevin Flynn in *TRON* (1982) | Solid Snake in *Metal Gear* (1987) | Defeats a defended digital or physical system under rising detection rather than making a single generic skill check |
 | **Arcanist** | Doctor Strange; Hermione Granger; Harry Dresden | Gale of Waterdeep; Edwin Odesseiron; Aloth Corfiser | Breadth comes from learned preparation and rituals, with lack of immediate access as the real constraint |
 | **Channeler** | Jean Grey; Eleven; Storm | Liara T'Soni; Aerith Gainsborough; Jesse Faden | A narrow, always-known power set can be pushed at a cost; it is not a disguised spellbook |
 | **Oathbound** | Michael Carpenter; Brienne of Tarth; Captain America | Cassandra Pentaghast; Tyrael; Reinhardt | A declaration and its limits organize protection or judgment; rank and command remain optional |
@@ -330,6 +339,10 @@ These are recognizable approximations of the repeated loop, not licensed content
 | **Bonded** | Hiccup and Toothless; Lyra and Pantalaimon; Daenerys and Drogon | Ash and Pikachu; Rexxar and Misha; V and his familiars | Two fictional bodies share one player action economy; the companion is neither a loose asset nor a Maker turret |
 | **Catalyst*** | Hannibal Smith in *The A-Team* (1983); Orpheus when song itself changes what companions can do | The Bard in *The Bard's Tale* (1985) is a class rather than a useful named-character example | The character's turns deliberately set up other actors; being charismatic or in charge is insufficient |
 | **Rider†** | Maverick in *Top Gun* (1986); Luke Skywalker in an X-wing; Mad Max in *The Road Warrior* (1981) | No comparably useful named 1980s game-character touchstone | Vehicle-scale maneuver is the repeated game, not merely ownership or a Pilot check |
+
+David Lightman in *WarGames* (1983), Kevin Flynn in *TRON* (1982), and Solid Snake in
+*Metal Gear* (1987) remain useful touchstones for intrusion training: they defeat defended systems
+under rising detection. They are no longer evidence for a separate archetype.
 
 ### 6.1 Hybrids are regression tests, not evidence for more archetypes
 
@@ -404,7 +417,7 @@ No text or named mechanic below is adopted by this audit. It records where a fin
 | Design problem | Established precedent worth testing | Candidate use |
 |---|---|---|
 | Commitment versus expenditure | *Worlds Without Number* / *Cities Without Number* Effort and System Strain | Arcanist/Channeler limited abilities without a generic all-class Power pool |
-| Protected-system intrusion | *Cities Without Number* Access/Alert and program structure | Intruder's conditional subsystem |
+| Protected-system intrusion | *Cities Without Number* Access/Alert and program structure | shared scenario subsystem plus intrusion training |
 | Prepared breadth versus spontaneous repertoire | SRD 5.2.1 prepared and known casting structures | Arcanist/Channeler separation |
 | Ranked permission and explicit scaling | SRD 5.2.1 spell rank/slot and printed higher-slot effects | All ranked catalog effects; no arbitrary point pouring |
 | Form-chain martial play | Open form-chain implementations such as the *13th Age* monk family | Adept opener → flow → finisher test |
@@ -413,7 +426,7 @@ No text or named mechanic below is adopted by this audit. It records where a fin
 | Whole-profile transformation | SRD wild-shape/stat-profile structures | Shifter replacement, never stacking |
 | Shared companion economy | Open d20 animal-companion/eidolon action-sharing structures | Bonded's two bodies under bounded actions |
 | Champion-style interdiction | Open d20 champion/paladin reaction structures | Oathbound Aegis/Judgment reactions |
-| Progress and danger clocks | Open clock procedures from Forged-in-the-Dark-family SRDs | Intruder Alert and other authored objective clocks |
+| Progress and danger clocks | Open clock procedures from Forged-in-the-Dark-family SRDs | protected-system Alert and other authored objective clocks |
 | Vehicle scene scale | Open science-fiction vehicle/chase SRDs | Rider module; only after campaign-level opt-in |
 
 ## 8. Failure map against the frozen nine
@@ -433,7 +446,7 @@ No text or named mechanic below is adopted by this audit. It records where a fin
 | Pair | Meaningful difference | Collapse rule |
 |---|---|---|
 | Armsmaster vs Adept | Free choice of one turn Form/counter versus ordered opener/flow/finisher chain | If random technique order produces materially the same legal effects, fold Adept into Armsmaster |
-| Opportunist vs Intruder | One setup/payoff on a target versus persistent multi-node permissions under rising lockdown | If a protected system can be resolved as one Opening plus Systems/Stealth without losing decisions, remove Intruder as a class |
+| Opportunist vs former Intruder candidate | One setup/payoff on a target versus persistent multi-node permissions under rising lockdown | **Resolved:** preserve the latter as shared scenario rules plus training; remove Intruder as a class |
 | Arcanist vs Channeler | Broad catalog constrained by preparation versus narrow repertoire constrained by overreach/recovery | If both see the same catalog at the same time and differ only in resource name, merge them |
 | Maker vs Bonded | Devices/installations never take a separate turn versus a persistent second body under a shared action budget | Any action-taking construct belongs to Bonded; Maker keeps only non-actor devices |
 | Oathbound vs Catalyst | Exact target/zone binding that keys marks/intercepts versus a Cue resolved by another actor | If Catalyst cues are only Leadership boons, delete Catalyst; if Oathbound bindings do not constrain legal targets, ranges, or triggers, reduce them to abilities/role |
@@ -454,7 +467,6 @@ No text or named mechanic below is adopted by this audit. It records where a fin
 | Shifter | alternate profile | Yes, profiles are character-owned | Universal |
 | Maker | prepared device | Yes, loadout and reusable floor are character-owned | Universal |
 | Bonded | companion | Yes, companion is part of the class record and travels with character | Universal |
-| Intruder | a protected system with nodes/permissions | No; the campaign/scene must supply it | Conditional campaign offering |
 | Catalyst | another allied actor able to hit triggers | No; solo play may not supply one | Conditional party offering |
 | Rider | supported mount/vehicle and vehicle-scale scene | No; dungeon/interior scenes can exclude it | Campaign module |
 
@@ -492,7 +504,6 @@ The roster is not balanced because it has equal row count or equal damage. It is
 | Berserker | High | Medium | Low | risk is real; subtle control is weak |
 | Adept | High | Medium | Medium | finishers require sequence; disruption matters |
 | Opportunist | Medium-high | High | High | strongest payoff must be rebuilt after each exploit |
-| Intruder* | Medium | High in supported scenes | Medium | deep loop unavailable without protected systems |
 | Arcanist | Medium burst | High | Medium | immediate breadth fixed by preparation |
 | Channeler | Medium support/burst | Medium | High | narrow repertoire and costly overreach |
 | Oathbound | High | Medium | Medium | declaration constrains target and behavior |
@@ -528,13 +539,13 @@ The three rules packages remain useful economy hypotheses, but their shared rost
 | Bonded is a missing universal mechanic | Add a shared-action companion chassis to each package; do not disguise it as Maker Companion |
 | Adept has a plausible unique sequence loop | Prototype opener/flow/finisher against Armsmaster Forms in each package before deciding whether it remains separate |
 | Catalyst is coherent only under a party guarantee | Mark it campaign-conditional and compare Cues against ordinary Leadership; never equate it with command rank |
-| Intruder also needs a campaign guarantee | Preserve Access/Alert only where protected systems are promised; otherwise build hackers/spies through Opportunist, Maker, and skills |
+| Intruder is not an archetype | Preserve Access/Alert as shared scenario rules where protected systems exist; build hackers/spies through an actual class, skills, and intrusion training |
 | Rider changes scene scale | Keep it out of universal class count; design it only as an opted-in campaign module |
 | Maker's Companion branch crosses the actor boundary | Replace that branch with Forge; route all separate-body constructs to Bonded |
 | Genre naming cannot cure ontology | Strictly mundane catalogs must omit incompatible effects; portability cannot silently reskin magic into technology |
 
 ### Recommended working roster for the next design pass
 
-Use the ten universal candidates as the baseline. Carry Intruder and Catalyst as conditional rows with machine-checkable campaign prerequisites. Carry Rider separately as a campaign module. Regenerate all three packages only after the Armsmaster/Adept, Opportunist/Intruder, and Leadership/Catalyst collapse tests have concrete sample cards and scenario results.
+Use the ten universal candidates as the baseline. Carry Catalyst as a conditional row with a machine-checkable allied-actor prerequisite. Carry Rider separately as a campaign module. Intruder is removed; its useful mechanics move to shared protected-system rules and training. Regenerate all three packages only after the remaining Armsmaster/Adept and Leadership/Catalyst collapse tests have concrete sample cards and scenario results.
 
 This recommendation is deliberately not “add four rows to the old matrix.” It changes Maker's boundary, class availability, and the meaning of the genre catalog. No package is approved, no current runtime is changed, and no external reviewer is invoked by this audit.

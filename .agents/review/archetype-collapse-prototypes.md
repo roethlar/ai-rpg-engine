@@ -1,42 +1,48 @@
 # Archetype collapse prototypes
 
-**Status:** prototype 1 of 3 complete; evidence for an owner roster ruling, not an approved roster,
-rules package, or implementation  
-**Date:** 2026-08-02  
+**Status:** prototype 1 of 3 complete; owner ruled that its mechanic survives but its archetype does
+not; no roster, rules package, or implementation is approved
+
+**Date:** 2026-08-02
+
 **Scope:** test whether candidate archetypes still create different repeated decisions after jobs,
 roles, status, skills, and genre flavor are stripped away
 
 ## Bottom line
 
-**Intruder survives the collapse test against Opportunist, but only as a conditional class.** The
-distinction is not that an Intruder is better at hacking, sneaking, traps, or investigation. Those
-remain common skills. The distinction is a persistent, engine-authored protected system: linked
-nodes, system-scoped Access that can be banked and spent on exact permissions, and Alert that
-changes later routes before lockdown.
+**Owner ruling: protected-system intrusion survives as a mechanic, but Intruder does not survive as
+an archetype.** The prototype established that linked nodes, system-scoped Access, exact
+permissions, and Alert can create meaningful repeated decisions. It did not establish that those
+scenario mechanics require a separate class. Treating the distinct subsystem as proof of a
+distinct archetype was the category error this prototype exposed.
 
-Both the cyberpunk data vault and the Neanderthal protected route produce the same extra decisions:
-which node to expose first, whether to spend Access on immediate safety or preserve it for the
-objective, whether to repair a rising Alert or accept a later response, and which permissions are
-still reachable after that choice. A single target-bound Opening cannot reproduce those decisions.
-Giving Opportunist multiple transferable Openings, a linked map, and system-wide Alert operations
-would merely rebuild Intruder inside Opportunist.
+The protected-system map, Access, and Alert belong to the authored scenario. Any character with the
+appropriate ordinary skills can participate in Probe and Breach actions. Intrusion training may
+grant efficiencies or advanced authored operations; it belongs naturally in an
+Opportunist/Rogue-style build and remains available to other classes through ordinary
+cross-training costs. The exact training package remains future rules work.
 
 The inverse boundary matters just as much: a single terminal, lock, ward, sentry, trap, clue, or
 social checkpoint is **not** a protected system. It is resolved by a common skill, equipment, or an
-Opportunist Opening. A campaign that cannot promise recurring multi-node systems must not offer
-Intruder. In that campaign, a hacker, spy, infiltrator, or taboo-path expert is an Opportunist,
-Maker, or another class with the relevant skills.
+Opportunist Opening. A campaign without recurring multi-node systems simply has little use for
+intrusion training; it does not need a conditional class offering. A hacker, spy, infiltrator, or
+taboo-path expert is an Opportunist, Maker, or another class with the relevant skills and training.
 
-This is a mechanical-identity verdict only. It does not show that Intruder is numerically balanced,
-approve its final progression, settle the universal roster, or unfreeze any rules package.
+This owner ruling removes only Intruder from contention. It does not approve the remaining roster,
+settle the training's progression or balance, or unfreeze any rules package.
 
 ## 1. Test and controls
 
-### 1.1 Collapse rule
+### 1.1 Prototype question and owner ruling
 
-Intruder survives only if matched characters encounter legal, repeated choices that are lost when
-its card is replaced by Opportunist plus the same skills. It collapses if Probe, Breach, Access,
-and Alert can all be restated as one local setup/payoff without removing a choice or permission.
+The prototype first asked whether a proposed Intruder card created legal, repeated choices that
+were lost when replaced by Opportunist plus the same skills. It showed that the full protected
+system cannot be reduced to one Opening without losing decisions.
+
+The owner then applied the more important classification question to this case: who owns that
+state? Because the map, Access, and Alert are authored by the scenario and ordinary skills already
+cover participation, the additional depth is intrusion training over shared scene rules, not a
+class chassis. “Mechanically distinct” and “class-level” are separate findings.
 
 The test deliberately asks a narrower question than “can both characters finish the scene?” Both
 must be able to contribute, and required evidence or progress must have physical, social, covert,
@@ -44,7 +50,7 @@ or destructive alternatives. A class can have a distinct loop without owning the
 
 ### 1.2 Matched prototype characters
 
-| Control | Opportunist | Intruder |
+| Control | Opportunist | Intrusion specialist |
 |---|---|---|
 | Prototype tier | Same notional first-tier character | Same notional first-tier character |
 | Relevant SkillBonus | `20` in each fixture | `20` in each fixture |
@@ -58,7 +64,8 @@ or destructive alternatives. A class can have a distinct loop without owning the
 The SkillBonus is a fixture control, not a proposed level-one value; D4 progression remains open.
 No random sample is used to infer class identity. Each walkthrough inspects the legal choices after
 clean successes and after one failed risky action. Because the check inputs are matched, different
-state comes from the class cards rather than favorable competence or rolls.
+state comes from the candidate mechanics and authored scenario rather than favorable competence or
+rolls.
 
 ### 1.3 Open-system lineage and deliberate changes
 
@@ -100,7 +107,11 @@ prototype.
 not gain a multi-node map, transferable openings, or system-wide permissions through progression;
 those would cross the collision boundary.
 
-### 2.2 Intruder prototype card
+### 2.2 Intrusion-specialist prototype card
+
+This is the candidate card the prototype tested. Under the owner ruling, its shared operations
+belong to the scenario and its advanced permissions become training benefits rather than class
+features.
 
 **Tracked state belongs to the protected system, not the character:** revealed and breached nodes;
 Access `0–3`; and Alert `0–3`. Each node can grant its first-breach Access only once. Access clears
@@ -125,10 +136,10 @@ or closes routes, adds active opposition, or executes another authored lockdown 
 means only “take damage.” Alert is shared scene state, so another character's noisy local action can
 advance it too. Only a printed permission can suppress it.
 
-**Progression direction:** a larger authored tool/program loadout, access to more exact permission
-types, deeper simultaneous control, and bounded Alert suppression. Final capacity and cadence are
-package questions. Progression cannot turn Access into class Power or let the player invent a
-permission in prose.
+**Training direction:** a larger authored tool/program loadout, access to more exact permission
+types, deeper simultaneous control, and bounded Alert suppression. Final costs, capacity, and
+cadence are rules questions. Training cannot turn Access into character Power or let the player
+invent a permission in prose.
 
 ### 2.3 What qualifies as a protected system
 
@@ -139,11 +150,11 @@ For this prototype, the engine may instantiate `ProtectedSystem` only when all o
 3. at least two useful permissions compete for the available Access or time;
 4. Alert has an exact response that changes the map, permissions, or opposition;
 5. ordinary local tasks remain available through common skills; and
-6. required progress has at least one non-Intruder route.
+6. required progress has at least one route that does not require intrusion training.
 
 If any of the first four conditions is missing, use one ordinary check or one Opportunist Opening.
 The GM cannot label every creature, locked door, or difficult conversation a “system” merely to
-create work for the class.
+create specialist work.
 
 ## 3. Fixture A — cyberpunk data vault
 
@@ -151,7 +162,7 @@ create work for the class.
 
 The party needs an authenticated murder file from a corporate evidence vault and then needs to
 leave. Physical entry, an employee's credentials, coercion, cutting power, and breaking the vault
-remain possible. Intruder offers a remote-control route; it does not own the evidence.
+remain possible. Intrusion training improves the remote-control route; it does not own the evidence.
 
 | Node | Links after revelation | First breach | Exact permissions |
 |---|---|---:|---|
@@ -169,7 +180,7 @@ The Alert card is visible when the gateway is revealed:
 | `2` | A watchdog joins normal initiative and may oppose later Probe or Breach actions. |
 | `3` | The gateway-to-vault link closes, the service exit relocks, and physical security enters the scene. Already extracted evidence remains valid; physical and social routes remain. |
 
-### 3.2 Intruder decision trace
+### 3.2 Intrusion-specialist decision trace
 
 An all-success objective-first route takes eight Mains:
 
@@ -184,7 +195,7 @@ An all-success objective-first route takes eight Mains:
 
 That route gets the evidence and silent exit quickly, but leaves the camera feed and copy log intact.
 A cover-first route breaches the camera grid and spends one Access on Loop feed before the vault.
-The team crosses safely, but the Intruder reaches the vault with less banked Access and has spent
+The team crosses safely, but the specialist reaches the vault with less banked Access and has spent
 two additional Mains. Safety now competes with evidence, exit, and time instead of being a free
 bonus attached to a high skill.
 
@@ -197,7 +208,7 @@ player now has a real recovery choice:
   Access exists to extract the file.
 
 The choice changes later legal actions even though both branches use the same skill bonus. At Alert
-`2`, the watchdog also acts between the Intruder's ordinary turns; there is no separate solo hacking
+`2`, the watchdog also acts between the specialist's ordinary turns; there is no separate solo hacking
 minigame or second initiative.
 
 ### 3.3 Matched Opportunist trace
@@ -215,12 +226,12 @@ The Opportunist can travel with the party and solve every local obstacle at the 
 This is useful and can complete the mission. It is also the same local setup/payoff repeated four
 times. The Opportunist cannot save the gateway Opening for the vault, divide it between camera and
 file permissions, or spend it to change the system's Alert. Route order remains an ordinary party
-decision, but there is no persistent class-state allocation across the route.
+decision, but there is no persistent Opening allocation across the route.
 
-To reproduce the Intruder trace, Opportunist would need permission to hold several Openings, carry
+To reproduce the specialist trace using Openings alone, Opportunist would need permission to hold several Openings, carry
 them between targets, expose linked hidden nodes, buy node-specific operations, and suppress a
-shared lockdown. That is not “Opportunist plus Systems”; it is the protected-system subsystem under
-different names.
+shared lockdown. That proves the shared protected-system subsystem is real. It does not require
+making the subsystem itself an archetype.
 
 ## 4. Fixture B — Neanderthal cave murder
 
@@ -231,8 +242,9 @@ signals, and resealable clay around a bone cache. None of it is electronic or ma
 a linked human security procedure: disturbing one sign warns later guardians, knowledge at one
 point enables choices at another, and the clan has a defined lockdown response.
 
-The genre class is provisionally a **Hidden-Way Keeper**. Its UI can use setting-native words while
-retaining the exact mechanic IDs:
+The intrusion-training presentation is provisionally **Hidden-Way Keeper**; the character retains
+their actual genre class. Its UI can use setting-native words while retaining the exact mechanic
+IDs:
 
 | Core mechanic | Cave-era wording |
 |---|---|
@@ -269,7 +281,7 @@ Suspicion is the same Alert state machine in genre language:
 | `2` | The watcher enters normal initiative and begins checking the marked route. |
 | `3` | The clan blocks the marked passage and actively guards the cache. The party must use the physical, social, or destructive alternatives. |
 
-### 4.3 Intruder decision trace
+### 4.3 Intrusion-specialist decision trace
 
 The Hidden-Way Keeper can read and answer the fork, then choose the deadfall or watcher route. The
 deadfall route earns enough Path Knowledge to preserve the cache seal only if the character banks
@@ -292,31 +304,29 @@ Mastery applications also make them the broader clue-reader or negotiator outsid
 Again, finishing the scene is not the distinction. The Opportunist repeatedly asks “how do I create
 one chance against this obstacle?” The Hidden-Way Keeper asks “which part of this linked protection
 do I understand, where do I spend that understanding, and how much suspicion can we accept before
-the remaining route changes?” Both are coherent playstyles; only the second needs the conditional
-class subsystem.
+the remaining route changes?” Both are coherent playstyles; only the second engages deeply with the
+shared protected-system rules and specialist training.
 
 ## 5. Collapse verdict
 
 | Question | Result |
 |---|---|
 | Can a common skill resolve a local terminal, lock, trap, mark, sentry, or ward? | **Yes.** No class permission is required. |
-| Can one Opportunist Opening reproduce one local Intruder permission? | **Yes.** For a one-node obstacle, Intruder collapses and the subsystem must not appear. |
+| Can one Opportunist Opening reproduce one local intrusion operation? | **Yes.** For a one-node obstacle, use the Opening or an ordinary skill; the subsystem must not appear. |
 | Can one target-bound Opening reproduce banked Access across linked nodes? | **No.** It loses allocation, route, and later-permission choices. |
 | Can ordinary failure consequences reproduce Alert? | **Not by themselves.** Alert persists across nodes and changes later legal routes; it must be authored system state. |
 | Does the distinction survive outside cyberpunk? | **Yes.** The cave route preserves the exact loop without technological or magical reskinning. |
-| Is the class universally portable? | **No.** The authoring substrate belongs to the campaign, not the character. |
+| Does the subsystem justify a separate class? | **No.** Its authoring substrate and state belong to the scenario; specialization belongs in training or a broader build. |
 | Is numerical balance demonstrated? | **No.** Equal controls isolate identity, not output or progression balance. |
 
-**Recommendation:** retain Intruder as a conditional candidate. Offer it only when campaign creation
-records an engine-known guarantee of recurring qualifying protected systems and the content pipeline
-can enforce that guarantee. Otherwise omit the archetype and build the concept through Opportunist,
-Maker, another class, and common skills. If the product rejects conditional classes as a creation
-concept, fold Intruder for availability reasons—not because its mechanic is indistinguishable.
+**Owner decision:** remove Intruder from the candidate roster. Keep qualifying protected systems as
+shared scenario rules; keep intrusion as skills plus a specialization/training path, naturally
+associated with an Opportunist/Rogue-style build but buyable by other classes at the normal
+cross-training cost. The exact benefits and cost remain unsettled.
 
-Before any roster approval, a package-specific balance pass still has to price the extra information,
-remote reach, exact permissions, and Alert suppression against Opportunist's broader investigation,
-social utility, and self-created floor. It must also prove that authored protected systems appear at
-the promised cadence without monopolizing evidence or forcing the rest of the party to watch a solo
+Before any rules approval, a balance pass still has to price specialist information, remote reach,
+exact permissions, and Alert suppression against other training choices. It must also prove that
+protected systems never monopolize evidence or force the rest of the party to watch a solo
 minigame.
 
 ## 6. Remaining collapse prototypes

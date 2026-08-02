@@ -1,6 +1,9 @@
 # Three closed rules-system variants
 
-**Status:** design candidates for owner comparison; none is approved or implemented.
+**Status:** frozen design evidence; none is approved or implemented. The 2026-08-02 intrusion
+decision removes Intruder as an archetype, so the Intruder rows below are superseded and no package
+can be adopted as written. They are retained to show the compared packages; regeneration waits for
+the remaining roster collapse tests and an owner ruling.
 
 **Date:** 2026-08-02
 
