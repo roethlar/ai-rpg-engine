@@ -6,7 +6,7 @@ to `docs/history/state-archive.md`.
 
 ## Now
 
-- **THREE CLOSED RULES-SYSTEM VARIANTS ARE DRAFTED FOR THE OWNER-REQUESTED FABLE REVIEW; NONE IS APPROVED OR IMPLEMENTED.** `.agents/review/rules-system-variants.md` combines the signed d100/effect contracts with exactly three whole packages: WWN/CWN-derived Commitment, SRD 5.2.1-derived Slots and rests, and 13th Age-derived Cadence. All share nine mechanical archetypes, eighteen meaningful branches, a complete 9×10 genre-class mapping, deterministic 7–10 minute creation, exact spell/resource/recovery rules, opposition curves, assets/status, persistent help, worked adversarial builds, and a licensing/deviation ledger. The draft recommends Commitment before review. One `claude-fable-5` openreview at `high`—never `max`, with no follow-up review—is the next action.
+- **THREE CLOSED RULES-SYSTEM VARIANTS HAVE ONE COMPLETED FABLE REVIEW; NONE IS APPROVED OR IMPLEMENTED.** `.agents/review/rules-system-variants.md` owns exactly three whole packages over the signed d100/effect contracts: WWN/CWN-derived Commitment, SRD 5.2.1-derived Slots and rests, and 13th Age-derived Cadence. All share nine mechanical archetypes, eighteen meaningful branches, a complete 9×10 genre-class mapping, deterministic 7–10 minute creation, exact spell/resource/recovery rules, opposition curves, assets/status, persistent help, worked adversarial builds, and a licensing/deviation ledger. One `claude-fable-5` openreview ran at the owner-specified `high` over `dadc64a..54bf01b`; there was no model follow-up. Fable returned four candidates: legacy-runtime orientation and one spell-target phrase are admitted/open, the stale NEXT was corrected by this mandatory state sync without re-review, and the claimed high-vs-max conflict is declined because the explicit owner instruction controls. `.agents/review/index.md` and `findings/rsv-*.md` own the trail. The review found no class-taxonomy or economy-level contradiction, so Commitment remains the working recommendation, not an approval.
 
 - **GATE 5'S PROTOTYPE EXPOSED AN UNDEFINED CORE RULES CONTRACT AND IS NOT READY FOR APPROVAL.**
   The owner accepted the interaction hierarchy as the direction: choose a mechanical archetype,
@@ -113,12 +113,13 @@ to `docs/history/state-archive.md`.
 
 ## Next
 
-**NEXT:** Commit the three closed rules-system variants, then run the owner-requested single unprimed `claude-fable-5` openreview at `high` over the pinned design range. Triage and record its findings without repair or redispatch, then present the three-way comparison and resulting recommendation. Do not implement or push.
+**NEXT:** Present the three packages, the one Fable review, and the resulting Commitment recommendation to the owner. Await one package-level ruling or a scoped repair instruction; do not implement, push, or invoke another reviewer. Open review items are `rsv-1` and `rsv-4`.
 
 ## Prior queue context
 
-The rules-system reconciliation request above is satisfied by
-`.agents/review/rules-system-variants.md`; the remaining bullets retain their independent priority.
+The three-package comparison is complete in `.agents/review/rules-system-variants.md`, but Fable's
+admitted `rsv-1` leaves the compact shipped-legacy versus signed-target orientation open. The
+remaining bullets retain their independent priority.
 
 - Ask the owner to approve or reject the drafted Phase PT review repair plan. No code repair is
   authorized before that ruling. If approved, implement PT-R1 (`pt-1`) and PT-R2 (`pt-3`) in

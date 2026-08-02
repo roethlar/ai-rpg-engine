@@ -3,6 +3,19 @@
 Current workflow: see the 2026-07-26 cross-harness review decision in `.agents/decisions.md`.
 Per-finding detail: see `.agents/review/findings/<id>.md`.
 
+## Openreview — three closed rules-system variants (2026-08-02)
+
+Owner-requested exactly one unprimed Fable review of `dadc64a4f65a74f4a906260f092415cafd3f214c..54bf01ba68a28824d09024a9dc84cc67d4c4c579`. Reviewer: claude / claude-fable-5 / high / frontier, competitive — `high` is the owner's explicit per-invocation override of the generic openreview maximum, inline and session-only. Claude Code 2.1.220 returned a schema-valid `findings` envelope with both SHA pins exact and `capability_ok: true`; result UUID `b77edcf8-a790-4343-ac1f-67c9512eb8e6`, session `4a7ab2bb-27fd-456e-b64f-9308b466373d`. No follow-up review or schema re-emission was sent.
+
+Transport note: two local CLI argument-parsing attempts failed before any model invocation. In the one model invocation, command-scoped permissions denied path-qualified test commands in the disposable worktree. The reviewer proved the worktree test file byte-identical to a clean shared tree at the reviewed head, then ran the allowlisted `node test.js` there successfully. This establishes repository-read and test capability for finding intake, but is recorded as an isolation caveat rather than laundered into a clean-pass proof. The CLI envelope also compressed portions of three finding strings into `<<ccr:...>>` references; intake re-established their evidence at the pinned SHA.
+
+| ID | Severity | Impact (one line) | Status | Branch | Reviewer |
+|---|---|---|---|---|---|
+| rsv-1 | MEDIUM | Proposals are not oriented beside the shipped legacy runtime, inviting approval or planning from the wrong baseline | `[ ]` admitted; repair not authorized | none | claude/claude-fable-5/high/frontier |
+| rsv-2 | MEDIUM | Claimed playbook/effort conflict | `[-]` declined; explicit owner instruction outranks generic max and now has provenance | none | claude/claude-fable-5/high/frontier |
+| rsv-3 | LOW | State NEXT asks a future agent to repeat the design commit | `[~]` addressed by mandatory state sync; no external re-review | `master` | claude/claude-fable-5/high/frontier |
+| rsv-4 | LOW | Rank-5 Ember Lance uses ambiguous Far/Near targeting in the exact-rules example | `[ ]` admitted; repair not authorized | none | claude/claude-fable-5/high/frontier |
+
 ## Accepted admin model-registry plan loop (2026-07-15)
 
 Owner-approved replacement for the incoherent repeated `/admin` provider/model/key forms and the
