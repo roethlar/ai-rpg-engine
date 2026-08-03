@@ -6,6 +6,8 @@ to `docs/history/state-archive.md`.
 
 ## Now
 
+- **THE ENTIRE OWNER-APPROVED UI BACKLOG IS FIXED, GUARDED, REVIEWED AND ACCEPTED ON FIVE STACKED BRANCHES; NOTHING IS MERGED.** `jt-1`, `dr-1`, `tts-1`, `fk-1` and `ds-1` — every remaining stale-cross-campaign finding — each landed as one fix commit plus one record commit, in a stack off master: `fix/jt-1-journal-epoch` → `fix/dr-1-settle-epoch` → `fix/tts-1-stop-on-transition` → `fix/fk-1-fork-epoch` → `fix/ds-1-submit-reentrancy` (tip `86a6786`). Each carries a new durable browser guard in `test-browser.mjs` with a two-direction proof run at least twice independently, and each was accepted by `codex / gpt-5.6-sol / xhigh` with zero comments. The integrated stack tip is green on `node test.js` and `npm run test:browser` (nine guard lines). Merging is owner-gated and has not happened; `.agents/review/index.md` on the stack owns the per-finding trail. All four findings other than `ds-1` were re-verified as still live in current code before any fix was written.
+- **THE EXTERNAL REVIEWER CANNOT EXECUTE BROWSER GUARDS ON THIS MACHINE; ITS VERDICTS ARE SOURCE-AUDITS, AND THE OWNER HAS AN OPEN CALL.** codex's macOS sandbox denies the Mach port rendezvous Playwright needs, so `npm run test:browser` cannot run inside it. (A first, separate denial — loopback socket binding — was fixed with codex's own `sandbox_workspace_write.network_access=true` and is recorded in the machine-local harness cache.) The only codex option that would lift the Chromium denial is `--dangerously-bypass-approvals-and-sandbox`, which grants an unsandboxed shell on the owner's machine; that exceeds the codereview playbook's "read-only inspection plus a disposable worktree" grant and was **not** taken on agent authority. All five reviews therefore ran a narrowed, explicitly labelled mandate: the reviewer read the finding and diff, ran `node test.js` itself, adversarially audited the guard **source** for vacuity, and judged the coder-run two-direction transcript against it. `guard_confirmed: true` in these records means *sound by construction and consistent with its transcript*, not *reviewer re-executed*. **Owner call:** authorize the bypass, accept source-audited guard proofs as the standing norm here, or route browser-guarded findings to a harness that can run Chromium. `jt-1.md` carries the full account.
 - **CAMPAIGN CLASS EXPOSURE, EVIDENCE TIERS, AND VERSION UPGRADES ARE SETTLED; IMPLEMENTATION IS NOT PLANNED OR AUTHORIZED.** The active 2026-08-02 decisions in `.agents/decisions.md` define cumulative Base (recommended), Advanced, and Expert (full) class sets selected at campaign creation from the sets allowed by the administrator. Expert holds the full candidate catalog, including unproven or deliberately demanding mechanics; Advanced holds mechanics that survived focused testing but retain noticeable burden; Base holds mechanics demonstrated to be understandable and enjoyable without repeated prompting. All included classes start at level 1; tiers are not power or level gates. Campaigns pin their set/catalog version. Safe host upgrades apply deterministic catalog migrations through a validated, atomic new campaign version while retaining the prior version read-only and saving player-owned compatible PC snapshots. Character versions progress independently and never merge. Exact tier membership, schemas, UI, migrations, and code remain open.
 - **THE TEXT-ENTRY INTERACTION-BURDEN AUDIT IS A PLAYTEST RISK INVENTORY, NOT A ROSTER FILTER.** `.agents/review/interaction-burden-audit.md` identifies where Forms, Exposure, ordered Adept sequences, Openings, loadouts, separately controlled companions, Catalyst Cues, Rider state, intrusion procedure, and the three frozen economies may produce repeated prompts, forgotten state, dictated rotations, or agency-erasing automation. None is admitted, removed, folded, simplified, or assigned to a tier by the paper audit. Focused testing must compare the same character and encounter with only the candidate mechanic changed, observing meaningful choice, UI direction, memory, voluntary use, automation, prompt count, and turn time. Promotion or demotion occurs through later catalog versions and safe upgrades. The audit alone approves no interaction gate, roster, economy, or implementation.
 - **THE REJECTED IBP-2 RUNNER IS DELIBERATELY UNCOMMITTED AND MUST NOT BE CLEANED UP.** The modified `README.md`/`verify.mjs` and untracked `app.js`/`index.html`/`styles.css` under `.agents/review/interaction-burden-playtest-harness/` are the owner-rejected menu-driven runner, held untouched pending explicit disposal authority (2026-08-02 decision in `.agents/decisions.md`). Do not resume it, commit it, stash it, or delete it. Committed IBP-1 remains evidence. The completed and owner-accepted ability-keyword composer prototype that this working tree accompanied is rotated to `docs/history/state-archive.md`; the landed production slices below supersede its no-integration clause.
@@ -111,8 +113,9 @@ to `docs/history/state-archive.md`.
   campaign-canonical narrator, server-resolved NPC voices, shared host/seat synthesis, and
   save-once replay. `.agents/review/index.md` owns the accepted implementation trail. The phase
   remains open until a real session confirms the voice experience is better.
-- **THE OWNER-APPROVED UI BACKLOG REMAINS UNSTARTED, REVERIFIED AT `3b659bc`.**
-  `.agents/review/index.md` owns the exact findings and order; resume at `jt-1`.
+- **THE OWNER-APPROVED UI BACKLOG IS COMPLETE PENDING MERGE.** All five findings are fixed,
+  guarded, reviewed and accepted on the branch stack described at the top of this section. The
+  backlog has no unstarted items left.
 - **THE REMOTE TWO-HUMAN MULTIPLAYER PLAYTEST REMAINS PENDING.** App-side seat work is landed;
   connectivity is owner-handled and out of repo scope. Seat isolation must be re-tested whenever a
   field crosses a seat payload, audio, or error boundary.
@@ -122,7 +125,11 @@ to `docs/history/state-archive.md`.
 
 ## Next
 
-**NEXT:** AKP-4 and real ability activation remain blocked until the versioned class/catalog creator
+**NEXT:** The five-branch UI-backlog stack is finished and awaits the owner's merge go — that go is
+the only thing standing between it and master, and the branches must not be merged, pushed or
+rebased without it. The owner also owes a ruling on how browser-guarded findings get reviewed on
+this machine (see the reviewer-transport entry above). Separately, AKP-4 and real ability
+activation remain blocked until the versioned class/catalog creator
 supplies complete stable character abilities, invocation families, and campaign bindings; do not
 seed provisional prototype abilities to populate the completed composer. Do not resume the rejected
 IBP-2 runner. Separately, no further Phase PT
@@ -143,8 +150,7 @@ remaining bullets retain their independent priority.
 
 - Continue the owner decision queue one item at a time from the canonical queue in
   `.agents/review/rules-system-plan-intake.md`.
-- The first approved UI backlog slice is `jt-1` (prevent stale cross-campaign Journal responses);
-  select it when UI implementation should resume.
+- The UI backlog is done pending merge; see the stack entry under `## Now`.
 - The concrete mapping candidate is the parked location-title overflow defect; draft and approve
   its fix plan before changing code.
 - Phase V's pending feel gate is a real voice session with narrator plus multiple NPC lines,
