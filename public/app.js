@@ -1514,6 +1514,11 @@ async function loadCampaign(campaignId) {
 
 // Delete campaign
 window.deleteCampaign = async function (campaignId) {
+  // dr-1: only the menu that asked may reload itself when this settles.
+  // If the user has since entered a table — or does so during the confirm
+  // dialog, whose overlay blocks pointers but is not a focus trap —
+  // reloading the menu would wipe that table's state and theme.
+  const epoch = sessionEpoch;
   const confirmed = await uiConfirm('Are you sure you want to delete this campaign? All history will be lost.', { danger: true, confirmLabel: 'Delete' });
   if (!confirmed) return;
 
@@ -1522,7 +1527,7 @@ window.deleteCampaign = async function (campaignId) {
       method: 'DELETE'
     });
     if (!response.ok) throw new Error('Delete request failed');
-    loadCampaignsMenu();
+    if (epoch === sessionEpoch) loadCampaignsMenu();
     showToast('Campaign deleted.', 'info');
   } catch (err) {
     showToast(`Delete Error: ${err.message}`, 'error');
@@ -1530,6 +1535,9 @@ window.deleteCampaign = async function (campaignId) {
 };
 
 window.releaseCampaignCharacter = async function (campaignId) {
+  // dr-1: same settle rule as deleteCampaign above — the menu reload only
+  // belongs to the session that asked for the release.
+  const epoch = sessionEpoch;
   const confirmed = await uiConfirm('Release this campaign character profile for use in new campaigns? The current campaign keeps a local snapshot.', { confirmLabel: 'Release' });
   if (!confirmed) return;
 
@@ -1541,7 +1549,7 @@ window.releaseCampaignCharacter = async function (campaignId) {
       const message = await getResponseErrorMessage(response, 'Release request failed');
       throw new Error(message);
     }
-    loadCampaignsMenu();
+    if (epoch === sessionEpoch) loadCampaignsMenu();
     showToast('Character profile released.', 'success');
   } catch (err) {
     showToast(`Release Error: ${err.message}`, 'error');
