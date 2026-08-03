@@ -1,8 +1,8 @@
 # Interaction-burden paired playtest plan and harness contract
 
-**Status:** DRAFT FOR OWNER APPROVAL — planning was authorized on 2026-08-02. This document does
-not authorize harness implementation, a playtest run, class or tier assignment, package
-regeneration, product code, an external review, or a push.
+**Status:** OWNER-APPROVED 2026-08-02 — authorizes IBP-1 and IBP-2 only. It does not authorize a
+human playtest result, class or tier assignment, another mechanic pair, package regeneration,
+product code, an external review, or a push.
 
 **Authority:** the active 2026-08-02 interaction-playtest and campaign-class-set decisions in
 `.agents/decisions.md`; the signed check contract in `docs/rules/resolution.md`; the signed effect
@@ -38,7 +38,7 @@ or a numerical score decides whether a class is fun.
 
 ## 2. Scope and first stopping point
 
-The first implementation approval, if granted, covers only:
+The approved implementation scope covers only:
 
 - an offline static browser harness under
   `.agents/review/interaction-burden-playtest-harness/`;
@@ -276,8 +276,10 @@ required. No information needed for a decision exists only on hover.
    nonempty and one legal action ID is selected. If the action has one legal target, the harness
    binds and displays it; with more than one legal target, the player selects one up front and no
    target is preselected. The harness cannot judge whether the prose matches and never interprets
-   it. The start screen asks the player to make them agree. Ordinary Standard attack, movement, and
-   scenario actions remain available where authored.
+   it. The start screen asks the player to make them agree. Ordinary Standard attack and scenario
+   actions remain available where authored. The shared one-Move budget is held identical, but this
+   pilot does not present a standalone Move selection; movement occurs only where a selected
+   action's printed payload or Counter already calls for it.
 4. One Submit resolves the declared action. A required follow-up prompt is legal only when the
    fixture explicitly declares it; it is logged. The pilot declares none.
 5. The harness applies the committed result, visible bookkeeping transitions, authored opponent or
@@ -588,7 +590,7 @@ public theme browser suite is not required because no file under `public/` chang
 
 ## 15. Approval boundary
 
-Approval of this plan would authorize IBP-1 and IBP-2 only: build and verify the offline
+Approval of this plan authorizes IBP-1 and IBP-2 only: build and verify the offline
 Armsmaster/Adept pilot, commit each slice, and hand the artifact to the owner. It would not authorize
 the agent to simulate or record a human playtest result, any tier or roster ruling, another mechanic
 pair, product integration, external review, or push.

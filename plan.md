@@ -2944,8 +2944,9 @@ playtests using the same character and encounter with only the candidate mechani
 the evidence for Advanced and Base placement. Promotion or demotion occurs through catalog versions
 and safe campaign upgrades. `.agents/review/interaction-burden-playtest-plan.md` now specifies a
 deterministic offline pilot using the existing matched Armsmaster/Adept cards and stable-duel/moving-
-rescue fixtures. The draft authorizes nothing: no harness implementation, tier membership, class
-removal, later pair, or playtest result is approved. The owner also requested a context-rich
+rescue fixtures. The owner approved only its fixture/validator and offline-runner slices on
+2026-08-02; no tier membership, class removal, later pair, human result, product integration,
+external review, or push is approved. The owner also requested a context-rich
 `claude-fable-5` review at high effort. The initial review reopened four concrete plan gaps; four
 one-finding commits repaired them, and a fresh high-effort repair-delta review accepted
 `ed91b95` with no comments. Until an owner ruling, the active 2026-07-31 Gate 6 shape above remains
