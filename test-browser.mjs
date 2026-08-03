@@ -1354,6 +1354,198 @@ async function runAbilityComposerGuard(browser, origin) {
   console.log('Seat ability composer browser guard passed.');
 }
 
+// jt-1: a departed campaign's journal response must never paint over the
+// live table — not the cards, not the search cache, and not the turn number
+// a Fork click carries.
+async function runJournalStaleGuard(browser, origin) {
+  const hold = projectedAbility({
+    id: 'ability-hold',
+    definitionId: 'warden.hold',
+    name: 'hold',
+    familyKey: 'protection',
+    familyLabel: 'Protection',
+    help: 'Keep the crossing shut for a breath.'
+  });
+  const mark = projectedAbility({
+    id: 'ability-mark',
+    definitionId: 'scout.mark',
+    name: 'mark',
+    familyKey: 'opportunity',
+    familyLabel: 'Opportunity',
+    help: 'Name the target everyone should watch.'
+  });
+  const alphaHero = browserCharacter({
+    id: 41,
+    name: 'Alpha Warden',
+    concept: 'Warden',
+    revision: REVISION_A,
+    invocableAbilities: [hold]
+  });
+  const betaHero = browserCharacter({
+    id: 42,
+    name: 'Beta Scout',
+    concept: 'Scout',
+    revision: REVISION_B,
+    invocableAbilities: [mark]
+  });
+
+  const states = new Map([
+    [21, campaignBrowserState({
+      campaignId: 21,
+      title: 'Alpha Hold',
+      characters: [alphaHero],
+      joinedCharacterId: 41,
+      actingCharacterId: 41,
+      turnNumber: 99
+    })],
+    [22, campaignBrowserState({
+      campaignId: 22,
+      title: 'Beta Live',
+      characters: [betaHero],
+      joinedCharacterId: 42,
+      actingCharacterId: 42,
+      turnNumber: 2
+    })],
+    [23, campaignBrowserState({
+      campaignId: 23,
+      title: 'Fork Result',
+      characters: [betaHero],
+      joinedCharacterId: 42,
+      actingCharacterId: 42,
+      turnNumber: 2
+    })]
+  ]);
+  const campaignList = [
+    { id: 21, title: 'Alpha Hold', genre: 'Browser fixture', summary: 'Departed table.', created_at: '2026-08-03T12:00:00Z', character_name: 'Alpha Warden', player_character_id: 141 },
+    { id: 22, title: 'Beta Live', genre: 'Browser fixture', summary: 'Live table.', created_at: '2026-08-03T12:00:00Z', character_name: 'Beta Scout', player_character_id: 142 }
+  ];
+  const journals = new Map([
+    [21, {
+      turns: [{
+        turn_number: 99,
+        player_action: 'ALPHA-STALE deed',
+        narrative: 'ALPHA-STALE narrative',
+        state_changes_json: '{}',
+        created_at: '2026-08-01T10:00:00Z'
+      }],
+      memories: []
+    }],
+    [22, {
+      turns: [{
+        turn_number: 2,
+        player_action: 'BETA-LIVE deed',
+        narrative: 'BETA-LIVE narrative',
+        state_changes_json: '{}',
+        created_at: '2026-08-01T11:00:00Z'
+      }],
+      memories: []
+    }],
+    [23, { turns: [], memories: [] }]
+  ]);
+
+  const journalGates = [];
+  const forkPosts = [];
+  const unknownApiRequests = [];
+
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  const page = await context.newPage();
+  page.setDefaultTimeout(6000);
+  const pageErrors = [];
+  page.on('pageerror', error => pageErrors.push(error.message));
+  await page.route('**/*', async route => {
+    const request = route.request();
+    const requestUrl = request.url();
+    if (!requestUrl.startsWith(origin + '/')) return route.abort();
+    const url = new URL(requestUrl);
+
+    if (url.pathname === '/api/campaigns' && request.method() === 'GET') {
+      return route.fulfill({ contentType: 'application/json', body: JSON.stringify(campaignList) });
+    }
+    const stateMatch = url.pathname.match(/^\/api\/campaigns\/(21|22|23)$/u);
+    if (stateMatch && request.method() === 'GET') {
+      // The 12s poll may fire mid-guard; serving it keeps the unknown-request
+      // assertion honest about the journal flow itself.
+      return route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify(states.get(Number(stateMatch[1])))
+      });
+    }
+    const journalMatch = url.pathname.match(/^\/api\/campaigns\/(21|22|23)\/journal$/u);
+    if (journalMatch && request.method() === 'GET') {
+      const campaignId = Number(journalMatch[1]);
+      if (campaignId === 21) {
+        // Hold the departed table's history in flight until the guard releases it.
+        let release;
+        const gate = new Promise(resolve => { release = resolve; });
+        journalGates.push({ release });
+        await gate;
+      }
+      return route.fulfill({ contentType: 'application/json', body: JSON.stringify(journals.get(campaignId)) });
+    }
+    const forkMatch = url.pathname.match(/^\/api\/campaigns\/(21|22)\/fork$/u);
+    if (forkMatch && request.method() === 'POST') {
+      forkPosts.push({ campaignId: Number(forkMatch[1]), body: request.postDataJSON() });
+      return route.fulfill({ contentType: 'application/json', body: JSON.stringify(states.get(23)) });
+    }
+    if (url.pathname.startsWith('/api/')) {
+      unknownApiRequests.push(`${request.method()} ${url.pathname}`);
+      return route.fulfill({ status: 404, contentType: 'application/json', body: '{"error":"unexpected browser fixture route"}' });
+    }
+    return route.continue();
+  });
+
+  const timeline = page.locator('#journal-timeline-container');
+  try {
+    await page.goto(origin + '/');
+    await page.locator('.campaign-card').first().waitFor();
+    await page.locator('.campaign-card').first().click();
+    await page.locator('#main-game-screen').waitFor({ state: 'visible' });
+
+    await page.locator('#tab-journal-btn').click();
+    await waitForCount(journalGates, 1, 'the departed campaign journal fetch is held by the fixture');
+
+    await page.locator('#btn-show-campaigns').click();
+    await page.locator('.campaign-card').nth(1).waitFor();
+    await page.locator('.campaign-card').nth(1).click();
+    await page.waitForFunction(() =>
+      document.querySelector('#journal-timeline-container').textContent.includes('BETA-LIVE'));
+
+    journalGates[0].release();
+    await new Promise(resolve => setTimeout(resolve, 150));
+
+    const liveText = await timeline.textContent();
+    browserAssert(liveText.includes('BETA-LIVE') && !liveText.includes('ALPHA-STALE'),
+      'a departed campaign journal response cannot paint over the live table');
+    const badges = await timeline.locator('.timeline-node-badge').allTextContents();
+    browserAssert(!badges.some(text => text.includes('Turn 99')),
+      'no rendered card carries the departed campaign turn number');
+
+    const search = page.locator('#journal-search-input');
+    await search.fill('ALPHA-STALE');
+    browserAssert(await timeline.locator('.timeline-node').count() === 0,
+      'journal search cannot resurrect a departed campaign cache');
+    await search.fill('');
+    browserAssert((await timeline.textContent()).includes('BETA-LIVE'),
+      'clearing the search restores the live table history');
+
+    await timeline.locator('.timeline-fork-btn').first().click();
+    const promptModal = page.locator('.modal').filter({ hasText: 'Branch timeline from Turn' });
+    await promptModal.waitFor({ state: 'visible' });
+    await promptModal.locator('.btn-primary').click();
+    await waitForCount(forkPosts, 1, 'the fork click reaches the fixture');
+    browserAssert(forkPosts[0].campaignId === 22 && forkPosts[0].body.turnNumber === 2,
+      'Fork posts the live campaign at the live turn, never the departed table turn');
+
+    browserAssert(pageErrors.length === 0,
+      'journal stale flow raises no page errors: ' + pageErrors.join(', '));
+    browserAssert(unknownApiRequests.length === 0,
+      'journal stale flow makes no unexpected API requests: ' + unknownApiRequests.join(', '));
+  } finally {
+    for (const gate of journalGates) gate.release();
+    await context.close();
+  }
+}
+
 async function main() {
   const dbPath = path.join(
     os.tmpdir(),
@@ -1461,6 +1653,8 @@ async function main() {
     assessResult(result, external);
     await runAdminRegistryGuard(page, origin, settingsResponseReads, settingsPosts);
     await runAbilityComposerGuard(browser, origin);
+    await runJournalStaleGuard(browser, origin);
+    console.log('Journal stale-response browser guard passed.');
   } catch (error) {
     runError = error;
   } finally {
