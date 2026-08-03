@@ -433,8 +433,14 @@ export function sanitizeDiceRollRecords(raw) {
 
 /**
  * Validates and sanitizes LLM JSON output to prevent malformed values from corrupting the DB/UI.
+ *
+ * `currentQuest` is the campaign's quest as the caller knows it, `{ title, description }`
+ * (the shape used by `outline.starting_quest` and `turnContext.active_quest`). It is the
+ * fallback for a turn that says nothing about the quest — symmetric with `currentAct`.
+ * Omitting it keeps the pre-quest default ('Explore the world'), which is only correct
+ * before a campaign has a quest at all.
  */
-export function validateTurnData(raw, currentAct = 1, tableStyle = null) {
+export function validateTurnData(raw, currentAct = 1, tableStyle = null, currentQuest = null) {
   const data = raw || {};
   const validated = {};
   const style = validateTableStyle(tableStyle);
@@ -507,14 +513,29 @@ export function validateTurnData(raw, currentAct = 1, tableStyle = null) {
   }
 
   // 4. Quest updates
+  // A turn whose model output omits (or blanks) quest_update must not reset the
+  // campaign's quest: the value is persisted, displayed, and replayed into the next
+  // turn's prompt as truth, so a placeholder here is self-reinforcing corruption.
+  // Fall back to the caller's current quest, exactly as current_act already falls
+  // back to currentAct. The literal survives only for callers with no quest yet.
   const questUp = data.quest_update || {};
+  const fallbackQuestName = typeof currentQuest?.title === 'string' && currentQuest.title.trim() !== ''
+    ? currentQuest.title.trim()
+    : 'Explore the world';
+  const fallbackQuestDesc = typeof currentQuest?.description === 'string'
+    ? currentQuest.description.trim()
+    : '';
+  const namedQuest = typeof questUp.active_quest === 'string' && questUp.active_quest.trim() !== ''
+    ? questUp.active_quest.trim()
+    : null;
   validated.quest_update = {
-    active_quest: typeof questUp.active_quest === 'string' && questUp.active_quest.trim() !== ''
-      ? questUp.active_quest.trim()
-      : 'Explore the world',
-    quest_description: typeof questUp.quest_description === 'string'
+    active_quest: namedQuest !== null ? namedQuest : fallbackQuestName,
+    // Description follows the name: a turn that named a quest owns its description
+    // (blank when it supplied none, as before); a turn that named none keeps the
+    // current quest's description rather than orphaning the name from its text.
+    quest_description: typeof questUp.quest_description === 'string' && questUp.quest_description.trim() !== ''
       ? questUp.quest_description.trim()
-      : '',
+      : (namedQuest !== null ? '' : fallbackQuestDesc),
     current_act: typeof questUp.current_act === 'number' && [1, 2, 3].includes(questUp.current_act)
       ? questUp.current_act
       : currentAct

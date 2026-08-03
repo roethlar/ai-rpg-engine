@@ -2079,7 +2079,13 @@ Output the JSON object containing the opening narrative, scene_grounding, sugges
   if (parsedRaw && typeof parsedRaw === 'object') {
     parsedRaw.input_kind = 'dialogue';
   }
-  const turnData = validateTurnData(parsedRaw, 1, tableStyleData);
+  // The opening scene has no prior turn, so the outline's starting quest is the
+  // campaign's quest: it is what the prompt just told the model to introduce
+  // (see turn1Prompt) and what createCampaign returns as currentQuest below.
+  // Without it, an opening turn that omits quest_update would persist a
+  // placeholder into turn 1's state_changes_json — which getCampaignState and
+  // the next turn's prompt both read back as truth.
+  const turnData = validateTurnData(parsedRaw, 1, tableStyleData, outline.starting_quest);
 
   const character = {
     name: resolvedCharacterName,
@@ -2556,7 +2562,13 @@ Output the JSON object containing the narrative response, scene_grounding, sugge
   });
 
   const parsedRaw = parseJsonSafe(aiResponse);
-  const turnData = validateTurnData(parsedRaw, currentAct, tableStyle);
+  // activeQuestName/Desc is DB truth for this turn (resolved above from the last
+  // turn that recorded a quest, else the outline). Passing it makes an omitted
+  // quest_update a no-op instead of a silent reset to a placeholder.
+  const turnData = validateTurnData(parsedRaw, currentAct, tableStyle, {
+    title: activeQuestName,
+    description: activeQuestDesc
+  });
   scrubDeclaredAbilityIdsFromPlayerText(turnData, abilityDeclarations);
 
   // Off-turn belt-and-braces (M2): the classification gate already rejected

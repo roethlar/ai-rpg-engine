@@ -458,6 +458,164 @@ function testForceNoOpTurnState() {
 }
 
 // -------------------------------------------------------------
+// Test: quest fallback (qr-1) — a turn that says nothing about the quest must
+// never reset it. The validated quest_update is persisted to
+// turns.state_changes_json, promoted into currentQuest by getCampaignState, and
+// replayed into the next turn's prompt as truth — so a placeholder here is
+// self-reinforcing corruption, not a transient display glitch. Only the
+// table-talk paths (forceNoOpTurnState, the takeTurn backstop) restored the
+// quest before this; an approved committed_action reached neither.
+// -------------------------------------------------------------
+async function testQuestFallback() {
+  console.log(' - Running quest fallback tests...');
+
+  const currentQuest = {
+    title: 'Recover the Sunken Crown',
+    description: 'Dive the reef chapel and bring the crown back to Vell.'
+  };
+
+  // 1. A committed action whose model output omits quest_update keeps the quest.
+  const silent = validateTurnData({
+    input_kind: 'committed_action',
+    narrative: 'You wade deeper into the flooded nave.'
+  }, 2, null, currentQuest);
+  assert.strictEqual(silent.quest_update.active_quest, currentQuest.title,
+    'A committed action that omits quest_update must preserve the current quest, not reset it to a placeholder');
+  assert.strictEqual(silent.quest_update.quest_description, currentQuest.description,
+    'A committed action that omits quest_update must preserve the current quest description');
+  assert.strictEqual(silent.quest_update.current_act, 2,
+    'The act fallback keeps working — quest and act stay symmetric');
+
+  // 2. A blank quest block is the same as no quest block.
+  for (const empty of [{}, { active_quest: '', quest_description: '' }, { active_quest: '   ' }]) {
+    const blanked = validateTurnData({
+      input_kind: 'committed_action', narrative: 'The tide shifts.', quest_update: empty
+    }, 1, null, currentQuest);
+    assert.strictEqual(blanked.quest_update.active_quest, currentQuest.title,
+      `An empty quest_update ${JSON.stringify(empty)} must preserve the current quest`);
+    assert.strictEqual(blanked.quest_update.quest_description, currentQuest.description,
+      `An empty quest_update ${JSON.stringify(empty)} must preserve the current quest description`);
+  }
+
+  // 3. Other direction: a real quest change must still land, or "preserve the
+  // quest" would degenerate into freezing it for the whole campaign.
+  const changed = validateTurnData({
+    input_kind: 'committed_action',
+    narrative: 'The crown is a forgery; the real one went north.',
+    quest_update: {
+      active_quest: '  Hunt the Forger  ',
+      quest_description: '  Follow the trail north to Ashfell.  ',
+      current_act: 2
+    }
+  }, 1, null, currentQuest);
+  assert.strictEqual(changed.quest_update.active_quest, 'Hunt the Forger',
+    'A turn that names a new quest must still replace the old one');
+  assert.strictEqual(changed.quest_update.quest_description, 'Follow the trail north to Ashfell.',
+    'A turn that supplies a new description must still replace the old one');
+  assert.strictEqual(changed.quest_update.current_act, 2);
+  const renamedOnly = validateTurnData({
+    input_kind: 'committed_action', narrative: 'A new thread opens.',
+    quest_update: { active_quest: 'Hunt the Forger' }
+  }, 1, null, currentQuest);
+  assert.strictEqual(renamedOnly.quest_update.active_quest, 'Hunt the Forger');
+  assert.strictEqual(renamedOnly.quest_update.quest_description, '',
+    'A renamed quest owns its description — the previous quest text must not be grafted onto it');
+
+  // 4. Callers that supply no quest are unchanged (pre-campaign default).
+  const noQuest = validateTurnData({ input_kind: 'committed_action', narrative: 'Nothing yet.' }, 1);
+  assert.strictEqual(noQuest.quest_update.active_quest, 'Explore the world',
+    'With no current quest supplied the pre-campaign default is unchanged');
+  assert.strictEqual(noQuest.quest_update.quest_description, '');
+
+  // 5. The takeTurn call site must actually hand the validator DB truth —
+  // the fix is worthless if the validator can fall back but is never told to.
+  const engineSource = fs.readFileSync(new URL('./rpg-engine.js', import.meta.url), 'utf8');
+  const takeTurnSource = engineSource.slice(
+    engineSource.indexOf('export async function takeTurn'),
+    engineSource.indexOf('export async function getCampaignState')
+  );
+  const takeTurnValidateCall = takeTurnSource.slice(
+    takeTurnSource.indexOf('validateTurnData('),
+    takeTurnSource.indexOf('scrubDeclaredAbilityIdsFromPlayerText')
+  );
+  assert.strictEqual(takeTurnValidateCall.includes('activeQuestName'), true,
+    'takeTurn must pass the resolved active quest into validateTurnData');
+  assert.strictEqual(takeTurnValidateCall.includes('activeQuestDesc'), true,
+    'takeTurn must pass the resolved active quest description into validateTurnData');
+
+  // 6. Opening scene: createCampaign has no prior turn, so the outline's
+  // starting quest is the campaign's quest — it is exactly what the opening
+  // prompt told the model to introduce. An opening turn that omits quest_update
+  // must persist that, because turn 1's state_changes_json is what
+  // getCampaignState and the next turn's prompt both read back as truth.
+  const db = await import('./db.js');
+  await db.initDb();
+  const { createCampaign } = await import('./rpg-engine.js');
+
+  const outline = {
+    title: 'Quest Fallback Probe',
+    setting: 'A compact test stage.',
+    theme_colors: { primary: '210, 50%, 50%', secondary: '30, 50%, 50%', background: '220, 20%, 8%' },
+    theme_fonts: { title: 'Cinzel', body: 'Inter', dialogue: 'Crimson Pro' },
+    acts: [{ act: 1, title: 'Probe', objective: 'Verify the quest fallback', key_events: ['begin'] }],
+    major_locations: [{ name: 'Test Stage', description: 'A single controlled room.' }],
+    key_npcs: [{ name: 'Aster', role: 'Guide', personality: 'Calm', quirks: 'Hums', voice_mood: 'warm' }],
+    starting_quest: { title: 'Silence the Bell', description: 'Climb the tower before dusk.' }
+  };
+  // Deliberately no quest_update: the exact model output that used to corrupt state.
+  const opening = {
+    input_kind: 'dialogue',
+    narrative: 'The test stage waits.',
+    scene_grounding: 'A single room with one exit.',
+    suggested_choices: ['Begin'],
+    character_update: {},
+    npc_updates: [],
+    memory_summary: 'The probe began.',
+    memory_importance: 1,
+    memory_keywords: 'probe'
+  };
+  const layout = {
+    name: 'Test Stage', description: 'A single controlled room.',
+    areas: [{ id: 'stage', name: 'Stage', x: 0, y: 0, w: 100, h: 100 }],
+    exits: [], features: []
+  };
+
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async (_url, options) => {
+    const body = JSON.parse(options.body);
+    const prompt = body.messages.map(message => message.content).join('\n');
+    const payload = prompt.includes('Draft an epic')
+      ? outline
+      : prompt.includes('Set the scene and begin')
+        ? opening
+        : layout;
+    return {
+      ok: true,
+      json: async () => ({ choices: [{ message: { content: JSON.stringify(payload) } }] })
+    };
+  };
+
+  try {
+    const created = await createCampaign({
+      genre: 'test', characterName: 'Tester', characterClass: 'Observer',
+      apiConfig: { provider: 'openai', apiKey: 'test-key' },
+      rulesMode: false, ruleset: 'none'
+    });
+    const turnOne = await db.get(
+      `SELECT state_changes_json FROM turns WHERE campaign_id = ? AND turn_number = 1`,
+      [created.campaignId]
+    );
+    const persistedQuest = JSON.parse(turnOne.state_changes_json).quest_update;
+    assert.strictEqual(persistedQuest.active_quest, 'Silence the Bell',
+      'An opening turn without quest_update must persist the outline starting quest, not a placeholder');
+    assert.strictEqual(persistedQuest.quest_description, 'Climb the tower before dusk.',
+      'An opening turn without quest_update must persist the outline starting quest description');
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+}
+
+// -------------------------------------------------------------
 // Test: character update application (shared by turns, creation, fork replay)
 // -------------------------------------------------------------
 function testApplyCharacterUpdate() {
@@ -7071,6 +7229,7 @@ async function runAll() {
     testProductionSsrfBlock();
     testJsonSchemaValidation();
     testForceNoOpTurnState();
+    await testQuestFallback();
     testApplyCharacterUpdate();
     testRefereeDiceFlow();
     testResolveAgentConfig();
