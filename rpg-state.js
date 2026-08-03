@@ -1196,6 +1196,18 @@ function seatStringArray(value, maxItems = 8, maxLength = 300) {
     .map(item => item.slice(0, maxLength));
 }
 
+/**
+ * Integers or null — the shape a character id has. Ids are ALREADY seat-visible
+ * (party[].id, seatCharacterId, turnOrder.actingCharacterId/order[].id), so
+ * carrying the acting character's id with a turn shares nothing new; the client
+ * resolves it to a name against the party it can already see. The coercion is
+ * the point: without it a permitted name could hold an arbitrary object, which
+ * is exactly the sv-4 round-3 defect class.
+ */
+function seatIntegerOrNull(value) {
+  return Number.isInteger(value) ? value : null;
+}
+
 /** Plain objects only — the shape the roll-badge renderer dereferences. */
 function seatPlainObjectArray(value, maxItems = 8) {
   if (!Array.isArray(value)) return [];
@@ -1304,6 +1316,7 @@ export function scopeStateForSeat(state, seatCharacterId) {
     // coercion is a string-typed leak waiting to happen — coerce, don't copy.
     turn: turn && {
       number: Number.isFinite(turn.number) ? turn.number : 1,
+      characterId: seatIntegerOrNull(turn.characterId),
       playerAction: seatScalarStringOrNull(turn.playerAction, 2000),
       inputKind: seatScalarString(turn.inputKind, 40),
       narrative: seatScalarString(turn.narrative, 20000),
@@ -1319,15 +1332,21 @@ export function scopeStateForSeat(state, seatCharacterId) {
 }
 
 /**
- * The seat journal shape (Phase S2): turn_number, player_action, narrative
- * only — no state_changes_json (it embeds memories, quest structure, and
- * NPC updates), no memories. The frontend timeline and the poll
- * gap-backfill consume this same shape for seats.
+ * The seat journal shape (Phase S2): turn_number, character_id,
+ * player_action, narrative only — no state_changes_json (it embeds memories,
+ * quest structure, and NPC updates), no memories. The frontend timeline and
+ * the poll gap-backfill consume this same shape for seats.
+ *
+ * character_id (pa-1) is the turn's author, so a backfilled turn is attributed
+ * to the player who took it instead of to whoever happens to be reading. It is
+ * an id, not a name: seats resolve it against the party strip they already
+ * have, so no character invisible to this seat becomes visible through it.
  */
 export function scopeJournalForSeat(turns) {
   const list = Array.isArray(turns) ? turns : [];
   return list.map(turn => ({
     turn_number: turn.turn_number,
+    character_id: seatIntegerOrNull(turn.character_id),
     player_action: turn.player_action,
     narrative: turn.narrative,
     created_at: turn.created_at

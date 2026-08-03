@@ -5040,6 +5040,7 @@ async function testSeatVisibility() {
     currentAct: 2,
     turn: {
       number: 9,
+      characterId: 2,
       playerAction: 'I case the lobby.',
       inputKind: 'committed_action',
       narrative: 'The lobby hums with drone traffic.',
@@ -5084,6 +5085,12 @@ async function testSeatVisibility() {
   assert.deepStrictEqual(scoped.turn.suggestedChoices, hostState.turn.suggestedChoices);
   assert.deepStrictEqual(scoped.ruleset, hostState.ruleset, 'Ruleset is player-viewable canon');
   assert.deepStrictEqual(scoped.turnOrder, hostState.turnOrder);
+  // pa-1: the acting character's id rides with the turn so a seat can label the
+  // shared transcript honestly. It shares nothing new — the same id is already
+  // in party[].id, seatCharacterId, and turnOrder — and it is an id, not a name,
+  // so a seat can only resolve characters its own party strip already shows.
+  assert.strictEqual(scoped.turn.characterId, 2,
+    'The turn author travels to the seat as an id');
   assert.strictEqual(scoped.currentAct, undefined, 'Act structure stays with the outline');
   // sv-4: and it must not ride along nested inside currentQuest either.
   assert.strictEqual(raw.includes('current_act'), false, 'No act index anywhere in the seat payload');
@@ -5138,7 +5145,7 @@ async function testSeatVisibility() {
   // seat-facing turn field with a poisoned object, so a future field added
   // without a coercion fails here instead of leaking silently.
   const poisonedFields = ['playerAction', 'inputKind', 'narrative', 'sceneGrounding', 'svg',
-    'suggestedChoices', 'rollResults', 'number'];
+    'suggestedChoices', 'rollResults', 'number', 'characterId'];
   for (const field of poisonedFields) {
     const marker = `LEAK_VIA_${field.toUpperCase()}_private_twist`;
     const poisoned = scopeStateForSeat({
@@ -5185,6 +5192,17 @@ async function testSeatVisibility() {
   }, 1);
   assert.strictEqual(sparse.turn.sceneGrounding, null, 'Absent grounding stays null');
   assert.strictEqual(sparse.turn.playerAction, null, 'Absent player action stays null');
+  assert.strictEqual(sparse.turn.characterId, null, 'Absent turn author stays null');
+  // A non-integer author is not an author: legacy strings and floats fall to
+  // null rather than reaching the client as something it would dereference.
+  for (const junkId of ['2', 2.5, true, [2], { id: 2 }]) {
+    const junkAuthor = scopeStateForSeat({
+      party: [{ id: 1, name: 'A' }], currentQuest: { active_quest: 'q', quest_description: 'd' },
+      turn: { number: 1, narrative: 'n', characterId: junkId }
+    }, 1);
+    assert.strictEqual(junkAuthor.turn.characterId, null,
+      `A non-integer turn author (${JSON.stringify(junkId)}) is coerced to null`);
+  }
 
   // Voice lines: speaker/tone/text only — the profile resolves server-side.
   assert.deepStrictEqual(scoped.turn.voiceLines[1], { speaker: 'Kessler', text: '"You again."', tone: 'menacing' });
@@ -5201,6 +5219,7 @@ async function testSeatVisibility() {
   const journal = scopeJournalForSeat([
     {
       turn_number: 1,
+      character_id: 2,
       player_action: 'start',
       narrative: 'It begins.',
       state_changes_json: `{"memory_update":"${LEAK.stateChanges}"}`,
@@ -5211,13 +5230,141 @@ async function testSeatVisibility() {
   assert.strictEqual(JSON.stringify(journal).includes(LEAK.stateChanges), false, 'Journal drops state_changes_json');
   assert.strictEqual(JSON.stringify(journal).includes(LEAK.partymateAbility), false,
     'Seat journals do not expose historical invocation metadata');
-  assert.deepStrictEqual(journal[0], { turn_number: 1, player_action: 'start', narrative: 'It begins.', created_at: 't0' });
+  assert.deepStrictEqual(journal[0], { turn_number: 1, character_id: 2, player_action: 'start', narrative: 'It begins.', created_at: 't0' });
+  // pa-1: the backfill path gets the same author the live poll does, and a
+  // missing or malformed one degrades to "no recorded author", never to junk.
+  assert.deepStrictEqual(
+    scopeJournalForSeat([{ turn_number: 2, player_action: 'a', narrative: 'n', created_at: 't1' },
+      { turn_number: 3, character_id: { nested: 'LEAK_AUTHOR' }, player_action: 'b', narrative: 'n', created_at: 't2' }])
+      .map(row => row.character_id),
+    [null, null],
+    'A journal row with no integer author scopes to null'
+  );
 
   // Silhouette tolerates junk without throwing.
   assert.strictEqual(silhouetteCharacter(null), null);
 
   // A state with no turn yet (defensive) scopes without throwing.
   assert.strictEqual(scopeStateForSeat({ party: [] }, 1).turn, null);
+}
+
+// -------------------------------------------------------------
+// Test: turn author attribution (pa-1)
+// -------------------------------------------------------------
+// The narrative log is a SHARED transcript: without an author on the payload,
+// every browser labels its partymates' actions as its own. turns.character_id
+// is already written on every turn — these guards prove it actually reaches
+// the client, on BOTH surfaces the transcript is built from (the campaign-state
+// poll and the journal used by the gap-backfill and the Journal tab), and that
+// it is the character who ACTED rather than whoever the round-robin has since
+// moved on to.
+async function testTurnAuthorAttribution() {
+  console.log(' - Running turn author attribution tests...');
+  const db = await import('./db.js');
+  const rpg = await import('./rpg-engine.js');
+  const { mintSeatToken, hashSeatToken } = await import('./seat-auth.js');
+  const { app } = await import('./server.js');
+  const http = await import('http');
+
+  await db.initDb();
+
+  const campaignId = (await db.run(
+    `INSERT INTO campaigns (title, genre, summary, current_act) VALUES ('Attribution','g','s',1)`
+  )).id;
+  await db.run(`INSERT INTO campaign_outlines (campaign_id, outline_json) VALUES (?, ?)`,
+    [campaignId, JSON.stringify({ acts: [], starting_quest: { title: 'q', description: 'd' }, theme_colors: {} })]);
+  const mkChar = async name => (await db.run(
+    `INSERT INTO characters (campaign_id, name, class, health, max_health, mana, max_mana, xp, level,
+      inventory_json, attributes_json, abilities_json, status)
+     VALUES (?, ?, 'c', 10, 10, 5, 5, 0, 1, '[]', '{}', '[]', 'active')`, [campaignId, name])).id;
+  const alice = await mkChar('Alice');
+  const bob = await mkChar('Bob');
+
+  const addTurn = async (turnNumber, characterId, action) => db.run(
+    `INSERT INTO turns (campaign_id, turn_number, character_id, player_action, narrative, state_changes_json)
+     VALUES (?, ?, ?, ?, ?, '{}')`,
+    [campaignId, turnNumber, characterId, action, `Narrative ${turnNumber}.`]
+  );
+  await addTurn(1, null, null);            // opening scene: no author
+  await addTurn(2, alice, 'Alice acts.');
+  await addTurn(3, bob, 'Bob acts.');
+
+  // The round-robin has ALREADY advanced past the character who took turn 3 —
+  // which is exactly why turnOrder.actingCharacterId cannot stand in for the
+  // author. Acting is Alice; the last turn was Bob's.
+  await db.run(`UPDATE campaigns SET turn_state_json = ? WHERE id = ?`,
+    [JSON.stringify({ order: [alice, bob], current_index: 0, round: 2 }), campaignId]);
+
+  const state = await rpg.getCampaignState(campaignId);
+  assert.strictEqual(state.turnOrder.actingCharacterId, alice,
+    'Fixture check: the acting character is NOT the one who took the last turn');
+  assert.strictEqual(state.turn.characterId, bob,
+    'The poll payload carries the character who ACTED, not the one whose turn it now is');
+
+  // A pre-attribution row keeps a null author rather than borrowing one.
+  await db.run(`UPDATE turns SET character_id = NULL WHERE campaign_id = ? AND turn_number = 3`, [campaignId]);
+  assert.strictEqual((await rpg.getCampaignState(campaignId)).turn.characterId, null,
+    'A turn with no recorded author reaches the client as null, never as a substitute');
+  await db.run(`UPDATE turns SET character_id = ? WHERE campaign_id = ? AND turn_number = 3`, [bob, campaignId]);
+
+  // The journal route feeds the gap-backfill and the Journal tab; both attribute
+  // from the same column, so the SELECT has to carry it.
+  const seatToken = mintSeatToken();
+  await db.run(`INSERT INTO seats (campaign_id, character_id, token_hash, label) VALUES (?,?,?,?)`,
+    [campaignId, alice, hashSeatToken(seatToken), 'Alice']);
+  const previousAccess = process.env.ACCESS_SECRET;
+  let listener;
+  try {
+    process.env.ACCESS_SECRET = 'pa1-host-secret';
+    listener = await new Promise(resolve => {
+      const server = app.listen(0, '127.0.0.1', () => resolve(server));
+    });
+    const port = listener.address().port;
+    const getJournal = token => new Promise((resolve, reject) => {
+      const req = http.request({
+        host: '127.0.0.1', port, path: `/api/campaigns/${campaignId}/journal`, method: 'GET',
+        headers: { Authorization: `Bearer ${token}` }
+      }, response => {
+        const chunks = [];
+        response.on('data', chunk => chunks.push(chunk));
+        response.on('end', () => resolve({
+          status: response.statusCode,
+          body: JSON.parse(Buffer.concat(chunks).toString('utf8'))
+        }));
+      });
+      req.on('error', reject);
+      req.end();
+    });
+
+    const hostJournal = await getJournal('pa1-host-secret');
+    assert.strictEqual(hostJournal.status, 200);
+    assert.deepStrictEqual(
+      hostJournal.body.turns.map(turn => [turn.turn_number, turn.character_id]),
+      [[1, null], [2, alice], [3, bob]],
+      'The host journal carries each turn author, including the null one'
+    );
+
+    const seatJournal = await getJournal(seatToken);
+    assert.strictEqual(seatJournal.status, 200);
+    assert.deepStrictEqual(
+      seatJournal.body.turns.map(turn => [turn.turn_number, turn.character_id]),
+      [[1, null], [2, alice], [3, bob]],
+      'The seat journal carries the same authors: a seat resolves them against the party strip it already has'
+    );
+    // Seat isolation is unchanged by the new field.
+    assert.strictEqual(JSON.stringify(seatJournal.body).includes('state_changes_json'), false,
+      'The seat journal still drops state_changes_json');
+    assert.deepStrictEqual(seatJournal.body.memories, [], 'The seat journal still carries no memories');
+    assert.deepStrictEqual(
+      Object.keys(seatJournal.body.turns[0]).sort(),
+      ['character_id', 'created_at', 'narrative', 'player_action', 'turn_number'],
+      'The seat journal shape gained the author and nothing else'
+    );
+  } finally {
+    if (listener) await new Promise(resolve => listener.close(resolve));
+    if (previousAccess === undefined) delete process.env.ACCESS_SECRET;
+    else process.env.ACCESS_SECRET = previousAccess;
+  }
 }
 
 // -------------------------------------------------------------
@@ -6945,6 +7092,7 @@ async function runAll() {
     await testSeatLifecycle();
     await testSeatErrorPayloads();
     await testSeatVisibility();
+    await testTurnAuthorAttribution();
     testThemeColorContract();
     await testThemeGeneration();
     await testVoiceScript();

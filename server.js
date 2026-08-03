@@ -818,7 +818,10 @@ app.get('/api/campaigns/:id/journal', requireSeatCampaign, async (req, res) => {
       return res.status(400).json({ error: 'Invalid campaign ID.' });
     }
     const turns = await db.all(
-      `SELECT turn_number, player_action, narrative, state_changes_json, created_at FROM turns WHERE campaign_id = ? ORDER BY turn_number ASC`,
+      // character_id (pa-1) is the turn's author: the poll's gap-backfill and
+      // the Journal timeline both render from this row, and without it every
+      // partymate's action is attributed to whoever is reading.
+      `SELECT turn_number, character_id, player_action, narrative, state_changes_json, created_at FROM turns WHERE campaign_id = ? ORDER BY turn_number ASC`,
       [campaignId]
     );
     // Phase S2: seats get the sanitized journal — no state_changes_json

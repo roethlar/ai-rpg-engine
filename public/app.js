@@ -1418,6 +1418,7 @@ async function loadCampaignsMenu() {
   lastRenderedTurnNumber = null;
   myCharacterId = null;
   pendingGaps = [];
+  characterNamesById = new Map();
   enterHolodeckIdle();
   // Whoever loads the menu owns the screen (poll-1 r3): when this runs as
   // a settle callback (campaign delete/release) it may have superseded an
@@ -1606,6 +1607,8 @@ function renderGame(gameState, resetNarrative = false, options = {}) {
   if (resetNarrative) {
     appendedTurnNumbers = new Set();
     pendingGaps = [];
+    // renderParty below refills this from the incoming table's own party.
+    characterNamesById = new Map();
   }
   if (typeof gameState.turn?.number === 'number') {
     highestAppendedTurn = resetNarrative
@@ -1735,6 +1738,40 @@ let appendedTurnNumbers = new Set();
 // tick retries them: a flaky journal request must not permanently seal
 // other players' turns out of the shared transcript.
 let pendingGaps = [];
+// Author names for the shared transcript (pa-1), keyed by character id. Every
+// party this browser sees feeds the map, so a turn stays attributed to its
+// author even after that player leaves the table (a released character drops
+// out of the party payload but its history keeps its character_id). Cleared
+// with the rest of the per-campaign state — a name from one table must never
+// label a turn at another.
+let characterNamesById = new Map();
+
+function rememberCharacterNames(party) {
+  (party || []).forEach(member => {
+    if (!member || typeof member.name !== 'string') return;
+    const id = Number(member.id);
+    if (Number.isInteger(id)) characterNamesById.set(id, member.name);
+  });
+}
+
+// Whose action this is. In multiplayer the transcript is SHARED: labelling
+// every entry "You" tells each player their partymates' deeds are their own.
+// `myCharacterId` is the one identity mechanism this client has (seat
+// credential, stored claim, or sole-member auto-claim) — this reuses it
+// rather than adding a second notion of "me".
+//
+// `fallbackLabel` covers turns with no recorded author — solo campaigns,
+// pre-attribution rows, the opening scene — which must render exactly as they
+// did before attribution existed.
+function turnAuthorLabel(characterId, fallbackLabel) {
+  if (characterId === null || characterId === undefined) return fallbackLabel;
+  const id = Number(characterId);
+  if (!Number.isInteger(id)) return fallbackLabel;
+  if (myCharacterId !== null && id === myCharacterId) return 'You';
+  // A character who has left the table is no longer in any party we can see,
+  // so there is no name to show — but it is still NOT this browser's action.
+  return characterNamesById.get(id) || 'Another player';
+}
 
 // Places a log node at its chronological position: nodes carry data-turn,
 // and a tagged node goes before the first node with a HIGHER turn — so
@@ -1764,7 +1801,9 @@ function appendJournalTurns(turns) {
     .sort((a, b) => a.turn_number - b.turn_number)
     .forEach(t => {
       if (appendedTurnNumbers.has(t.turn_number)) return;
-      if (t.player_action) appendPlayerAction(t.player_action, t.turn_number);
+      if (t.player_action) {
+        appendPlayerAction(t.player_action, t.turn_number, { characterId: t.character_id ?? null });
+      }
       appendGMDialogue(t.narrative, t.turn_number);
       appendedTurnNumbers.add(t.turn_number);
       highestAppendedTurn = Math.max(highestAppendedTurn ?? t.turn_number, t.turn_number);
@@ -1837,6 +1876,10 @@ function resolveMyCharacter(gameState) {
 function renderParty(gameState) {
   const strip = document.getElementById('party-strip');
   const party = gameState.party || [];
+  // The party strip is where character names become visible; it is also the
+  // one place both render paths pass through, so it feeds the transcript's
+  // author names (pa-1).
+  rememberCharacterNames(party);
   const actingId = gameState.turnOrder?.actingCharacterId ?? null;
   strip.style.display = '';
   strip.innerHTML = party.map(member => {
@@ -1968,6 +2011,10 @@ setInterval(async () => {
     if (!response.ok) return;
     const state = await response.json();
     if (epoch !== sessionEpoch) return;
+    // Learn this snapshot's party BEFORE anything appends to the transcript
+    // (pa-1): a player who joined and acted since the last render is only
+    // nameable from the payload that carries their turn.
+    rememberCharacterNames(state.party);
     // Retry gaps a failed backfill left behind (poll-1 r5) — on EVERY tick,
     // same-turn branch included; recovered turns insert in reading order
     // via placeLogEntry and dedupe by membership.
@@ -2005,7 +2052,10 @@ setInterval(async () => {
       if (typeof state.turn?.number === 'number' &&
           typeof lastRenderedTurnNumber === 'number' &&
           state.turn.number <= lastRenderedTurnNumber) return;
-      if (state.turn?.playerAction) appendPlayerAction(state.turn.playerAction, state.turn.number);
+      if (state.turn?.playerAction) {
+        appendPlayerAction(state.turn.playerAction, state.turn.number,
+          { characterId: state.turn.characterId ?? null });
+      }
       renderGame(state, false, { rollTheater: true });
     } else {
       // Same turn, possibly changed table (joins, releases, style edits):
@@ -2657,14 +2707,16 @@ function setActionInputState(enabled, focusInput = true) {
   renderAbilityCorrection();
 }
 
-// Append player bubble
-function appendPlayerAction(text, turnNumber, { optimistic = false } = {}) {
+// Append player bubble. `characterId` is the turn's author (pa-1): omitted for
+// the optimistic bubble, which is by construction this browser's own action.
+function appendPlayerAction(text, turnNumber, { optimistic = false, characterId = null } = {}) {
   const el = document.createElement('div');
   el.className = 'log-entry log-player';
   if (optimistic) el.dataset.optimistic = 'true';
+  const authorLabel = optimistic ? 'You' : turnAuthorLabel(characterId, 'You');
   const speaker = document.createElement('div');
   speaker.className = 'speaker';
-  speaker.innerHTML = '<i class="fa-solid fa-user"></i> You';
+  speaker.innerHTML = `<i class="fa-solid fa-user"></i> ${escapeHtml(authorLabel)}`;
   const content = document.createElement('div');
   content.className = 'content';
   content.textContent = text;
@@ -2994,8 +3046,10 @@ function renderChronologyTimeline(items) {
 
     if (item.type === 'turn') {
       const turn = item.data;
-      const turnText = turn.player_action 
-        ? `<strong>Player:</strong> "${escapeHtml(turn.player_action)}"`
+      // Same attribution as the transcript (pa-1): a turn with no recorded
+      // author keeps the generic label this surface has always used.
+      const turnText = turn.player_action
+        ? `<strong>${escapeHtml(turnAuthorLabel(turn.character_id, 'Player'))}:</strong> "${escapeHtml(turn.player_action)}"`
         : `<em>Campaign started</em>`;
       const narrativeSample = marked.parse(turn.narrative.substring(0, 180) + (turn.narrative.length > 180 ? '...' : ''));
       
