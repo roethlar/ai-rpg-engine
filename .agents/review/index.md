@@ -181,7 +181,7 @@ combined run is the integration proof. The branches were retained at that point,
 the owner's 2026-07-12 go after content-arrival verification.
 | jt-1 | HIGH | Pre-existing: Journal tab renders a stale campaign's history over the current one (empirically confirmed); Fork buttons then fork the wrong campaign | `[x]` verified; awaiting owner-gated merge (codex/gpt-5.6-sol/xhigh/frontier esc:T2 — guard audited, not reviewer-executed; see finding) | `fix/jt-1-journal-epoch` @ `09768e1` |
 | dr-1 | MEDIUM | Pre-existing: delete/release settle callbacks wipe theme/state over whichever table the user has since entered | `[x]` verified; awaiting owner-gated merge (codex/gpt-5.6-sol/xhigh — guard audited, not reviewer-executed; see jt-1) | `fix/dr-1-settle-epoch` @ `92c19eb` |
-| tts-1 | MEDIUM | Pre-existing: the old table's GM voice keeps narrating over the menu/next campaign; skip pill unreachable on the menu | `[ ]` owner-approved; not started | |
+| tts-1 | MEDIUM | Pre-existing: the old table's GM voice keeps narrating over the menu/next campaign; skip pill unreachable on the menu | `[x]` verified; awaiting owner-gated merge (codex/gpt-5.6-sol/xhigh — guard audited, not reviewer-executed; see jt-1) | `fix/tts-1-stop-on-transition` @ `5713d37` |
 | ds-1 | MEDIUM | Pre-existing: choice buttons allow overlapping submits — duplicated transcript entries and a mid-turn UI lie | `[ ]` owner-approved; not started | |
 | fk-1 | MEDIUM | Pre-existing: a fork resolving after the user left (keyboard path) silently seizes the table | `[ ]` owner-approved; not started | |
 
