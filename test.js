@@ -11,7 +11,15 @@ import {
   scanAbilityTriggers,
   validateAbilityTriggers
 } from './public/ability-keywords.js';
-import { buildCharacterAbilityTriggerState } from './ability-trigger-state.js';
+import {
+  abilityInvocationRecordFromDeclarations,
+  buildAbilityDeclarations,
+  buildCharacterAbilityTriggerState,
+  emptyAbilityInvocationRecord,
+  remapAbilityInvocationRecord,
+  safeAbilityInvocationRecord,
+  validateAbilityInvocationRecord
+} from './ability-trigger-state.js';
 
 // Hermetic store: db.js opens its file at module load, and several tests
 // dynamically import rpg-engine.js (which pulls db.js in). Redirect BEFORE
@@ -139,6 +147,15 @@ async function testSeatErrorPayloads() {
   const codedPayload = errorPayloadFor(seatReq, outOfTurn, 'generic');
   assert.strictEqual(codedPayload.code, 'OUT_OF_TURN', 'Machine-readable code survives for seats');
   assert.strictEqual(codedPayload.error, 'It is Mira\'s turn to act.', 'Authored ruling text reaches the player');
+  const staleTriggers = Object.assign(new Error('Your ability list changed.'), {
+    code: 'ABILITY_TRIGGERS_STALE',
+    publicMessage: 'Your ability list changed.'
+  });
+  assert.deepStrictEqual(
+    errorPayloadFor(seatReq, staleTriggers, 'generic'),
+    { error: 'Your ability list changed.', code: 'ABILITY_TRIGGERS_STALE' },
+    'A stale trigger ruling reaches the player without exposing server state'
+  );
 
   // ROUND 2, comment 1: A CODE IS NOT PROVENANCE. Three spoof probes.
   // (a) An INTERNAL error that merely carries a seat-safe code must not
@@ -2808,6 +2825,11 @@ async function testCampaignBundle() {
     vocabulary_entries: [],
     character_ability_bindings: []
   }, 'Released v1 bundles migrate to empty S1.4 portability state');
+  assert.deepStrictEqual(
+    bundle.turns.map(turn => turn.ability_invocations),
+    bundle.turns.map(() => emptyAbilityInvocationRecord()),
+    'Released bundles from before AKP-2 migrate to empty historical invocation records'
+  );
 
   const portableVoiceFixture = JSON.parse(JSON.stringify(fixture));
   portableVoiceFixture.campaign.narrator_voice_json = JSON.stringify({
@@ -3368,7 +3390,7 @@ async function testRulesetCanon() {
 // -------------------------------------------------------------
 // Test: ability-keyword matcher and canonical trigger projection (AKP-1)
 // -------------------------------------------------------------
-function testAbilityKeywordProjection() {
+async function testAbilityKeywordProjection() {
   console.log(' - Running ability-keyword projection tests...');
 
   const families = [
@@ -3606,6 +3628,425 @@ function testAbilityKeywordProjection() {
     }
   });
   assert.deepStrictEqual(inert.invocableAbilities, [], 'Legacy free-text names never become trigger fallbacks');
+
+  const exactPlayerAction = '  I BACKSTAB, then rally.  ';
+  const authoritativeCharacter = {
+    ...character,
+    ...state
+  };
+  const declarations = buildAbilityDeclarations({
+    character: authoritativeCharacter,
+    playerAction: exactPlayerAction
+  });
+  assert.strictEqual(Object.isFrozen(declarations), true, 'Server declaration record is immutable');
+  assert.deepStrictEqual(
+    declarations.abilities.map(ability => ability.ability_id),
+    ['owned-backstab', 'owned-rally'],
+    'Server recomputation derives ordered owned identities from exact prose'
+  );
+  assert.strictEqual(
+    declarations.abilities[0].canonical_description,
+    character.abilities[0].description,
+    'Council declarations carry the canonical mechanical definition'
+  );
+  const invocationRecord = abilityInvocationRecordFromDeclarations(
+    declarations,
+    exactPlayerAction
+  );
+  assert.deepStrictEqual(
+    invocationRecord.abilities[0].matches[0],
+    {
+      start: exactPlayerAction.indexOf('BACKSTAB'),
+      end: exactPlayerAction.indexOf('BACKSTAB') + 'BACKSTAB'.length,
+      spelling: 'BACKSTAB'
+    },
+    'Durable ranges reproduce the exact stored player prose'
+  );
+  assert.deepStrictEqual(
+    validateAbilityInvocationRecord(
+      invocationRecord,
+      exactPlayerAction,
+      { ownedAbilities: character.abilities }
+    ),
+    invocationRecord,
+    'The shared persistence/import validator accepts the server-built record'
+  );
+
+  const forgedInvocation = structuredClone(invocationRecord);
+  forgedInvocation.abilities[0].ability_id = 'another-character-ability';
+  assert.throws(
+    () => validateAbilityInvocationRecord(
+      forgedInvocation,
+      exactPlayerAction,
+      { ownedAbilities: character.abilities }
+    ),
+    /unowned definition/,
+    'A forged ability identity belonging to another character fails closed'
+  );
+  const forgedRange = structuredClone(invocationRecord);
+  forgedRange.abilities[0].matches[0].start += 1;
+  assert.throws(
+    () => validateAbilityInvocationRecord(forgedRange, exactPlayerAction),
+    /does not reproduce player_action/,
+    'A persisted range must reproduce the exact action spelling'
+  );
+  assert.deepStrictEqual(
+    safeAbilityInvocationRecord(forgedRange, exactPlayerAction),
+    emptyAbilityInvocationRecord(),
+    'Corrupt recent-history records become empty declarations, never permission'
+  );
+
+  const remappedAbilityId = 'imported-owned-backstab';
+  const remappedOwned = [{
+    ...character.abilities[0],
+    id: remappedAbilityId
+  }, character.abilities[1]];
+  const remappedInvocation = remapAbilityInvocationRecord(
+    {
+      ...structuredClone(invocationRecord),
+      abilities: [structuredClone(invocationRecord.abilities[0])]
+    },
+    new Map([['owned-backstab', remappedAbilityId]]),
+    exactPlayerAction,
+    { ownedAbilities: remappedOwned }
+  );
+  assert.strictEqual(remappedInvocation.abilities[0].ability_id, remappedAbilityId);
+  assert.strictEqual(
+    remappedInvocation.abilities[0].definition_id,
+    invocationRecord.abilities[0].definition_id,
+    'Import remaps instance identity without changing stable catalog identity'
+  );
+
+  const {
+    buildCouncilAbilityDeclarationInstructions,
+    stampServerAbilityDeclarations
+  } = await import('./rpg-engine.js');
+  const instruction = buildCouncilAbilityDeclarationInstructions(declarations);
+  assert.strictEqual(instruction.includes('owned-backstab'), true, 'Every Council role receives the exact declaration record');
+  assert.strictEqual(instruction.includes('does not prove intent, legality'), true,
+    'Council rules keep recognition separate from adjudication');
+  const engineSource = fs.readFileSync(new URL('./rpg-engine.js', import.meta.url), 'utf8');
+  const councilSource = engineSource.slice(
+    engineSource.indexOf('async function runMultiAgentTurn'),
+    engineSource.indexOf('export async function createCampaign')
+  );
+  assert.strictEqual((councilSource.match(/\$\{abilityDeclarationRules\}/g) || []).length, 6,
+    'Interaction, table-talk verifier, both Continuity calls, Referee, and Narration share one declaration contract');
+  const modelTurn = {
+    narrative: 'Result.',
+    ability_declarations: { forged: true },
+    abilityIds: ['another-character-ability']
+  };
+  stampServerAbilityDeclarations(modelTurn, declarations);
+  assert.strictEqual(modelTurn.ability_declarations, declarations,
+    'Engine declarations overwrite model-emitted declaration fields');
+  assert.strictEqual('abilityIds' in modelTurn, false, 'Forged shadow authority fields are removed');
+
+  const { validateTurnRequestBody } = await import('./server.js');
+  const exactRequest = validateTurnRequestBody({
+    playerAction: exactPlayerAction,
+    characterId: 41,
+    abilityTriggerRevision: state.abilityTriggerRevision
+  });
+  assert.strictEqual(exactRequest.playerAction, exactPlayerAction,
+    'The HTTP boundary uses trim only for emptiness and preserves exact prose');
+  assert.throws(
+    () => validateTurnRequestBody({
+      ...exactRequest,
+      abilityIds: ['another-character-ability']
+    }),
+    error => error.code === 'TURN_REQUEST_INVALID',
+    'Client-supplied ability identities are rejected instead of ignored'
+  );
+}
+
+// -------------------------------------------------------------
+// Test: authoritative declaration boundary and invocation portability (AKP-2)
+// -------------------------------------------------------------
+async function testAbilityKeywordAuthorityPersistence() {
+  console.log(' - Running ability-keyword authority and persistence tests...');
+  const db = await import('./db.js');
+  const rpg = await import('./rpg-engine.js');
+  const { readCampaignHistory } = await import('./campaign-context.js');
+  const { validateCampaignBundle } = await import('./rpg-state.js');
+  await db.initDb();
+
+  const outline = {
+    title: 'Invocation Boundary Probe',
+    setting: 'A sealed test chamber.',
+    theme_colors: {
+      primary: '210, 50%, 50%', secondary: '30, 50%, 50%', background: '220, 20%, 8%'
+    },
+    theme_fonts: { title: 'Cinzel', body: 'Inter', dialogue: 'Crimson Pro' },
+    acts: [{ act: 1, title: 'Probe', objective: 'Verify authority', key_events: ['begin'] }],
+    major_locations: [{ name: 'Test Chamber', description: 'A controlled room.' }],
+    key_npcs: [],
+    starting_quest: { title: 'Verify', description: 'Exercise the declaration boundary.' }
+  };
+  const campaignId = (await db.run(
+    `INSERT INTO campaigns (title, genre, summary, current_act, rules_mode)
+     VALUES ('Invocation Boundary Probe', 'test', 'A sealed test chamber.', 1, 0)`
+  )).id;
+  await db.run(
+    `INSERT INTO campaign_outlines (campaign_id, outline_json) VALUES (?, ?)`,
+    [campaignId, JSON.stringify(outline)]
+  );
+
+  const ownedAbility = {
+    id: 'source-owned-backstab',
+    definition_id: 'opportunist.backstab',
+    definition_version: 4,
+    name: 'Exploit Opening',
+    description: 'Use a clear opening for a decisive strike.'
+  };
+  const otherAbility = {
+    id: 'other-character-rally',
+    definition_id: 'commander.rally',
+    definition_version: 2,
+    name: 'Restore Cohesion',
+    description: 'Steady an ally under pressure.'
+  };
+  const baseline = ability => JSON.stringify({
+    health: 10,
+    max_health: 10,
+    mana: 5,
+    max_mana: 5,
+    xp: 0,
+    level: 1,
+    inventory: [],
+    abilities: [ability],
+    progression_notes: ''
+  });
+  const insertCharacter = async (name, ability) => (await db.run(
+    `INSERT INTO characters (
+       campaign_id, name, class, health, max_health, mana, max_mana, xp, level,
+       inventory_json, attributes_json, abilities_json, progression_notes, status, baseline_json
+     ) VALUES (?, ?, 'Tester', 10, 10, 5, 5, 0, 1, '[]', '{}', ?, '', 'active', ?)`,
+    [campaignId, name, JSON.stringify([ability]), baseline(ability)]
+  )).id;
+  const ownerCharacterId = await insertCharacter('Owner', ownedAbility);
+  const otherCharacterId = await insertCharacter('Other', otherAbility);
+  await db.run(
+    `UPDATE campaigns SET turn_state_json = ? WHERE id = ?`,
+    [JSON.stringify({ order: [ownerCharacterId, otherCharacterId], current_index: 0, round: 1 }), campaignId]
+  );
+
+  const liveState = await rpg.getCampaignState(campaignId);
+  const ownerState = liveState.party.find(member => member.id === ownerCharacterId);
+  const otherState = liveState.party.find(member => member.id === otherCharacterId);
+  assert.notStrictEqual(ownerState.abilityTriggerRevision, otherState.abilityTriggerRevision,
+    'Trigger revisions bind the authenticated table character even when both projections are empty');
+
+  const realFetch = globalThis.fetch;
+  let modelCalls = 0;
+  globalThis.fetch = async () => {
+    modelCalls += 1;
+    throw new Error('A stale request must stop before any model call.');
+  };
+  try {
+    await assert.rejects(
+      () => rpg.takeTurn(
+        campaignId,
+        '  I wait and watch.  ',
+        { provider: 'openai', apiKey: 'must-not-be-used' },
+        otherCharacterId,
+        ownerState.abilityTriggerRevision
+      ),
+      error => error.code === 'ABILITY_TRIGGERS_STALE'
+    );
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+  assert.strictEqual(modelCalls, 0, 'Stale trigger metadata stops before Council or dice work');
+  assert.strictEqual(
+    (await db.get(`SELECT COUNT(*) AS count FROM turns WHERE campaign_id = ?`, [campaignId])).count,
+    0,
+    'Stale trigger metadata inserts no turn'
+  );
+  assert.deepStrictEqual(
+    JSON.parse((await db.get(`SELECT abilities_json FROM characters WHERE id = ?`, [otherCharacterId])).abilities_json),
+    [otherAbility],
+    'Stale trigger metadata mutates no character state'
+  );
+
+  const { app } = await import('./server.js');
+  const { mintSeatToken, hashSeatToken } = await import('./seat-auth.js');
+  const http = await import('http');
+  const previousAccess = process.env.ACCESS_SECRET;
+  const seatToken = mintSeatToken();
+  await db.run(
+    `INSERT INTO seats (campaign_id, character_id, token_hash, label)
+     VALUES (?, ?, ?, 'AKP-2 authority probe')`,
+    [campaignId, otherCharacterId, hashSeatToken(seatToken)]
+  );
+  let listener;
+  let unexpectedHttpModelCalls = 0;
+  globalThis.fetch = async () => {
+    unexpectedHttpModelCalls += 1;
+    throw new Error('Authenticated stale requests must not reach a model.');
+  };
+  try {
+    process.env.ACCESS_SECRET = 'akp2-host-secret';
+    listener = await new Promise(resolve => {
+      const server = app.listen(0, '127.0.0.1', () => resolve(server));
+    });
+    const port = listener.address().port;
+    const request = (token, body) => new Promise((resolve, reject) => {
+      const payload = Buffer.from(JSON.stringify(body));
+      const req = http.request({
+        host: '127.0.0.1',
+        port,
+        path: `/api/campaigns/${campaignId}/turn`,
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'Content-Length': payload.length
+        }
+      }, response => {
+        const chunks = [];
+        response.on('data', chunk => chunks.push(chunk));
+        response.on('end', () => resolve({
+          status: response.statusCode,
+          body: JSON.parse(Buffer.concat(chunks).toString('utf8'))
+        }));
+      });
+      req.on('error', reject);
+      req.end(payload);
+    });
+    const seatStale = await request(seatToken, {
+      playerAction: 'I wait.',
+      characterId: ownerCharacterId,
+      abilityTriggerRevision: ownerState.abilityTriggerRevision
+    });
+    assert.deepStrictEqual(
+      { status: seatStale.status, code: seatStale.body.code },
+      { status: 409, code: 'ABILITY_TRIGGERS_STALE' },
+      'Seat credentials select their bound character before scanning and ignore a spoofed body characterId'
+    );
+    const hostStale = await request('akp2-host-secret', {
+      playerAction: 'I wait.',
+      characterId: otherCharacterId,
+      abilityTriggerRevision: ownerState.abilityTriggerRevision
+    });
+    assert.deepStrictEqual(
+      { status: hostStale.status, code: hostStale.body.code },
+      { status: 409, code: 'ABILITY_TRIGGERS_STALE' },
+      'Host character selection also occurs before authoritative scanning'
+    );
+  } finally {
+    if (listener) await new Promise(resolve => listener.close(resolve));
+    globalThis.fetch = realFetch;
+    if (previousAccess === undefined) delete process.env.ACCESS_SECRET;
+    else process.env.ACCESS_SECRET = previousAccess;
+  }
+  assert.strictEqual(unexpectedHttpModelCalls, 0, 'HTTP stale responses stop before every model call');
+
+  const playerAction = '  I backstab the orc.  ';
+  const start = playerAction.indexOf('backstab');
+  const invocations = validateAbilityInvocationRecord({
+    schema_version: 1,
+    trigger_revision: `ak1:${'c'.repeat(64)}`,
+    abilities: [{
+      ability_id: ownedAbility.id,
+      definition_id: ownedAbility.definition_id,
+      definition_version: ownedAbility.definition_version,
+      matches: [{ start, end: start + 'backstab'.length, spelling: 'backstab' }]
+    }]
+  }, playerAction, { ownedAbilities: [ownedAbility] });
+  const stateChanges = {
+    input_kind: 'committed_action',
+    action_resolved: true,
+    character_update: { health_change: 0, mana_change: 0, xp_gain: 0, inventory_changes: [] },
+    ability_updates: [],
+    npc_updates: [],
+    dice_rolls: [],
+    quest_update: { active_quest: 'Verify', quest_description: 'Exercise the boundary.', current_act: 1 }
+  };
+  await db.run(
+    `INSERT INTO turns (
+       campaign_id, turn_number, character_id, player_action, narrative,
+       state_changes_json, ability_invocations_json
+     ) VALUES (?, 1, ?, ?, 'The probe records the strike.', ?, ?)`,
+    [campaignId, ownerCharacterId, playerAction, JSON.stringify(stateChanges), JSON.stringify(invocations)]
+  );
+
+  const history = await readCampaignHistory(campaignId, { window: 'latest', limit: 1 });
+  assert.strictEqual(history[0].player_action, playerAction, 'History preserves exact player prose');
+  assert.deepStrictEqual(
+    validateAbilityInvocationRecord(
+      history[0].ability_invocations_json,
+      history[0].player_action,
+      { ownedAbilities: [ownedAbility] }
+    ),
+    invocations,
+    'Recent history uses the same bounded invocation validator'
+  );
+
+  const exported = await rpg.exportCampaign(campaignId);
+  const validatedExport = validateCampaignBundle(exported);
+  assert.strictEqual(validatedExport.turns[0].player_action, playerAction,
+    'Bundle validation does not trim or rewrite audited player prose');
+  assert.deepStrictEqual(validatedExport.turns[0].ability_invocations, invocations,
+    'Export carries the structured invocation audit record');
+
+  const spoofedBundle = structuredClone(exported);
+  const spoofedAbility = spoofedBundle.turns[0].ability_invocations.abilities[0];
+  spoofedAbility.ability_id = otherAbility.id;
+  spoofedAbility.definition_id = otherAbility.definition_id;
+  spoofedAbility.definition_version = otherAbility.definition_version;
+  assert.throws(
+    () => validateCampaignBundle(spoofedBundle),
+    /Bundle ability invocation record is invalid/,
+    'A turn cannot import another character\'s otherwise-valid ability identity'
+  );
+
+  const importedState = await rpg.importCampaign(exported);
+  const importedOwner = await db.get(
+    `SELECT id, abilities_json FROM characters WHERE campaign_id = ? AND name = 'Owner'`,
+    [importedState.campaignId]
+  );
+  const importedOwnedAbility = JSON.parse(importedOwner.abilities_json)[0];
+  const importedTurn = await db.get(
+    `SELECT player_action, ability_invocations_json FROM turns WHERE campaign_id = ? AND turn_number = 1`,
+    [importedState.campaignId]
+  );
+  const importedInvocations = validateAbilityInvocationRecord(
+    importedTurn.ability_invocations_json,
+    importedTurn.player_action,
+    { ownedAbilities: [importedOwnedAbility] }
+  );
+  assert.strictEqual(importedTurn.player_action, playerAction, 'Import preserves exact audited prose');
+  assert.notStrictEqual(importedOwnedAbility.id, ownedAbility.id, 'Import remaps the ability instance ID');
+  assert.strictEqual(importedInvocations.abilities[0].ability_id, importedOwnedAbility.id,
+    'Import remaps the turn audit to the new owned ability instance');
+  assert.deepStrictEqual(
+    {
+      id: importedInvocations.abilities[0].definition_id,
+      version: importedInvocations.abilities[0].definition_version
+    },
+    { id: ownedAbility.definition_id, version: ownedAbility.definition_version },
+    'Import preserves stable catalog definition identity and version'
+  );
+
+  const forkedState = await rpg.forkCampaign(campaignId, 1, 'Invocation Boundary Fork');
+  const forkedOwner = await db.get(
+    `SELECT abilities_json FROM characters WHERE campaign_id = ? AND name = 'Owner'`,
+    [forkedState.campaignId]
+  );
+  const forkedTurn = await db.get(
+    `SELECT player_action, ability_invocations_json FROM turns WHERE campaign_id = ? AND turn_number = 1`,
+    [forkedState.campaignId]
+  );
+  const forkedOwnedAbility = JSON.parse(forkedOwner.abilities_json)[0];
+  const forkedInvocations = validateAbilityInvocationRecord(
+    forkedTurn.ability_invocations_json,
+    forkedTurn.player_action,
+    { ownedAbilities: [forkedOwnedAbility] }
+  );
+  assert.strictEqual(forkedTurn.player_action, playerAction, 'Fork preserves exact audited prose');
+  assert.strictEqual(forkedInvocations.abilities[0].ability_id, forkedOwnedAbility.id,
+    'Fork follows its existing identity policy consistently in the turn audit');
 }
 
 // -------------------------------------------------------------
@@ -3883,6 +4324,19 @@ async function testPortableVoicePersistence() {
     assert.deepStrictEqual(JSON.parse(createdCampaign.narrator_voice_json), {
       provider: 'grok', voice: 'leo', voiceSeed: null, mood: 'neutral'
     }, 'Campaign creation persists the active provider reserved narrator');
+    const openingInvocationRow = await db.get(
+      `SELECT player_action, ability_invocations_json FROM turns
+       WHERE campaign_id = ? AND turn_number = 1`,
+      [created.campaignId]
+    );
+    const openingInvocations = validateAbilityInvocationRecord(
+      openingInvocationRow.ability_invocations_json,
+      openingInvocationRow.player_action
+    );
+    assert.deepStrictEqual(openingInvocations.abilities, [],
+      'Opening turns persist the same empty versioned invocation shape');
+    assert.match(openingInvocations.trigger_revision, /^ak1:[a-f0-9]{64}$/,
+      'Opening invocation records bind to the opening character trigger revision');
 
     const createdNpcs = await db.all(`SELECT id, name, voice_json FROM npcs WHERE campaign_id = ? ORDER BY id`, [created.campaignId]);
     const createdProfiles = createdNpcs.map(npc => JSON.parse(npc.voice_json));
@@ -4641,9 +5095,18 @@ async function testSeatVisibility() {
 
   // Journal: sanitized shape, no state_changes_json.
   const journal = scopeJournalForSeat([
-    { turn_number: 1, player_action: 'start', narrative: 'It begins.', state_changes_json: `{"memory_update":"${LEAK.stateChanges}"}`, created_at: 't0' }
+    {
+      turn_number: 1,
+      player_action: 'start',
+      narrative: 'It begins.',
+      state_changes_json: `{"memory_update":"${LEAK.stateChanges}"}`,
+      ability_invocations_json: `{"abilities":[{"ability_id":"${LEAK.partymateAbility}"}]}`,
+      created_at: 't0'
+    }
   ]);
   assert.strictEqual(JSON.stringify(journal).includes(LEAK.stateChanges), false, 'Journal drops state_changes_json');
+  assert.strictEqual(JSON.stringify(journal).includes(LEAK.partymateAbility), false,
+    'Seat journals do not expose historical invocation metadata');
   assert.deepStrictEqual(journal[0], { turn_number: 1, player_action: 'start', narrative: 'It begins.', created_at: 't0' });
 
   // Silhouette tolerates junk without throwing.
@@ -6361,7 +6824,8 @@ async function runAll() {
     testRefereeDiceFlow();
     testResolveAgentConfig();
     await testRulesetCanon();
-    testAbilityKeywordProjection();
+    await testAbilityKeywordProjection();
+    await testAbilityKeywordAuthorityPersistence();
     await testAbilityIdentity();
     await testStageOneAbilityWordingProposal();
     await testCampaignContext();

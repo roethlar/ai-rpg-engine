@@ -489,6 +489,15 @@ export async function initDb() {
     // Ignore error if column already exists
   }
 
+  // AKP-2: ability invocation identity is engine-owned audit state, separate
+  // from model-produced state_changes_json. Legacy rows remain NULL and are
+  // normalized to an empty versioned record when read or exported.
+  try {
+    await run('ALTER TABLE turns ADD COLUMN ability_invocations_json TEXT;');
+  } catch (e) {
+    // Ignore error if column already exists
+  }
+
   // Create memories table
   await run(`
     CREATE TABLE IF NOT EXISTS memories (

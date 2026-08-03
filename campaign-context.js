@@ -120,7 +120,7 @@ export async function readCampaignHistory(campaignId, {
   const direction = window === 'latest' ? 'DESC' : 'ASC';
   const rows = await db.all(
     `SELECT id, campaign_id, turn_number, character_id, player_action, narrative,
-            state_changes_json, created_at
+            state_changes_json, ability_invocations_json, created_at
        FROM turns
       WHERE campaign_id = ?
       ORDER BY turn_number ${direction}, id ${direction}
@@ -137,6 +137,7 @@ export async function readCampaignHistory(campaignId, {
     player_action: row.player_action ?? null,
     gm_narrative: row.narrative,
     state_changes_json: row.state_changes_json ?? null,
+    ability_invocations_json: row.ability_invocations_json ?? null,
     created_at: row.created_at
   }));
 }

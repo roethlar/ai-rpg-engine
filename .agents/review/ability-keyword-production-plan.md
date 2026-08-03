@@ -23,6 +23,17 @@ temporarily disabled normalized trigger-collision rejection; the new collision a
 then passed after restoration. AKP-2 is next. No catalog content, turn request, Council declaration,
 persistence, or browser composer behavior changed in AKP-1.
 
+**Implementation:** AKP-2 COMPLETE 2026-08-03. Turn requests now carry only exact player prose,
+host/seat speaker selection, and an opaque trigger revision; unsupported client authority fields
+are rejected. Inside the serialized turn task the engine selects the authenticated speaker,
+checks the live revision before any Council call or mutation, rescans exact prose, resolves stable
+owned definitions, gives one immutable declaration record to every Council role, and persists a
+separate bounded invocation audit record. Bundle v3, older-bundle normalization, recent-history
+validation, import remapping, and fork copying preserve that record without name fallback; seat
+journals omit it. The full suite and syntax/diff checks pass. Guard proof temporarily trusted an
+extra forged `abilityIds` field; the cross-character spoof assertion failed, then passed after
+restoration. AKP-3 is next. No ability effects, costs, catalog content, or composer UI changed.
+
 **Prototype evidence:** `.agents/review/ability-keyword-composer-plan.md` and
 `.agents/review/ability-keyword-composer-prototype/` are the accepted interaction proof. Production
 must preserve its one-composer behavior: normal prose, exact deterministic recognition, clickable
@@ -393,6 +404,8 @@ Guard proof: temporarily allow two owned abilities to claim one normalized trigg
 collision test must fail before restoration; the focused and full tests must pass afterward.
 
 ### AKP-2 — authoritative server declaration, Council context, and turn record
+
+**Implementation: COMPLETE 2026-08-03.**
 
 Files:
 

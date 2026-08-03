@@ -190,6 +190,12 @@ const MAX_GENRE_LENGTH = 200;
 const MAX_CHARACTER_FIELD_LENGTH = 80;
 const MAX_ACTION_LENGTH = 2000;
 const MAX_TITLE_LENGTH = 160;
+const TURN_REQUEST_KEYS = new Set([
+  'playerAction',
+  'characterId',
+  'abilityTriggerRevision'
+]);
+const ABILITY_TRIGGER_REVISION_PATTERN = /^ak\d+:[a-f0-9]{64}$/u;
 
 function boundedString(value, fieldName, maxLength) {
   if (typeof value !== 'string') {
@@ -203,6 +209,49 @@ function boundedString(value, fieldName, maxLength) {
     throw new Error(`${fieldName} must be ${maxLength} characters or fewer.`);
   }
   return trimmed;
+}
+
+function invalidTurnRequest(message) {
+  const error = new Error(message);
+  error.code = 'TURN_REQUEST_INVALID';
+  error.publicMessage = message;
+  return error;
+}
+
+/**
+ * AKP-2 turn boundary: one exact prose string plus speaker selection and an
+ * opaque trigger revision. Any extra field is rejected so client-supplied
+ * matches, IDs, ranges, families, or mechanics can never become a shadow
+ * authority contract.
+ */
+export function validateTurnRequestBody(body) {
+  if (!body || typeof body !== 'object' || Array.isArray(body)) {
+    throw invalidTurnRequest('Turn request must be a JSON object.');
+  }
+  const extraKeys = Object.keys(body).filter(key => !TURN_REQUEST_KEYS.has(key));
+  if (extraKeys.length > 0) {
+    throw invalidTurnRequest('Turn request contains unsupported fields.');
+  }
+  if (typeof body.playerAction !== 'string') {
+    throw invalidTurnRequest('playerAction must be a string.');
+  }
+  if (body.playerAction.trim().length === 0) {
+    throw invalidTurnRequest('playerAction is required.');
+  }
+  if (body.playerAction.length > MAX_ACTION_LENGTH) {
+    throw invalidTurnRequest(`playerAction must be ${MAX_ACTION_LENGTH} characters or fewer.`);
+  }
+  if (
+    typeof body.abilityTriggerRevision !== 'string'
+    || !ABILITY_TRIGGER_REVISION_PATTERN.test(body.abilityTriggerRevision)
+  ) {
+    throw invalidTurnRequest('abilityTriggerRevision is required and must be an opaque trigger revision.');
+  }
+  return {
+    playerAction: body.playerAction,
+    characterId: body.characterId,
+    abilityTriggerRevision: body.abilityTriggerRevision
+  };
 }
 
 function parsePositiveInteger(value, fieldName) {
@@ -539,8 +588,7 @@ app.post('/api/campaigns/:id/turn', rateLimit(10, 60000), requireSeatCampaign, a
     if (isNaN(campaignId)) {
       return res.status(400).json({ error: 'Invalid campaign ID.' });
     }
-    const { playerAction, characterId } = req.body;
-    const cleanPlayerAction = boundedString(playerAction, 'playerAction', MAX_ACTION_LENGTH);
+    const { playerAction, characterId, abilityTriggerRevision } = validateTurnRequestBody(req.body);
     // Phase S1: for seats the speaking character DERIVES from the
     // credential — the body parameter is ignored entirely (nothing to
     // spoof). The host keeps explicit selection for solo/hosted play.
@@ -551,7 +599,13 @@ app.post('/api/campaigns/:id/turn', rateLimit(10, 60000), requireSeatCampaign, a
         : parsePositiveInteger(characterId, 'characterId'));
     const apiConfig = await getServerAiConfig();
     const state = await queueCampaignTask(campaignId, () =>
-      rpg.takeTurn(campaignId, cleanPlayerAction, apiConfig, speakingCharacterId)
+      rpg.takeTurn(
+        campaignId,
+        playerAction,
+        apiConfig,
+        speakingCharacterId,
+        abilityTriggerRevision
+      )
     );
     // Save-once narration (Phase V4): with the operator's always-generate
     // flag on, synthesize + persist this turn's audio in the background so
@@ -568,8 +622,9 @@ app.post('/api/campaigns/:id/turn', rateLimit(10, 60000), requireSeatCampaign, a
     // rawText (parseJsonSafe) carries the malformed model output: log it for
     // the operator, never serialize it to the client.
     console.error('Error processing turn:', error, error.rawText ? `\nRaw model output: ${error.rawText}` : '');
-    const status = error.code === 'OUT_OF_TURN' ? 409
+    const status = error.code === 'OUT_OF_TURN' || error.code === 'ABILITY_TRIGGERS_STALE' ? 409
       : error.code === 'CHARACTER_REQUIRED' ? 400
+      : error.code === 'TURN_REQUEST_INVALID' ? 400
       // sv-1: the credential authenticated, but its character has left the
       // table (possibly mid-request, after auth). It is dead, not malformed.
       : error.code === 'CHARACTER_NOT_AT_TABLE' ? 401

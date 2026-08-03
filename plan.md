@@ -2974,7 +2974,10 @@ roster. AKP-1 through AKP-3 may implement the inert generic infrastructure in or
 commit per slice. AKP-4 and real end-to-end activation remain blocked on that catalog-backed
 producer. AKP-1 is complete: the shared matcher/insertion helpers, canonical server-owned trigger
 projection and revision digest, inert live party projection, and seat-safe trigger whitelist are
-implemented and guard-proved. Existing free-text abilities remain non-invocable. AKP-2 is next.
+implemented and guard-proved. AKP-2 is also complete: exact prose and the opaque revision are the
+only turn-time invocation inputs; authenticated server recomputation produces one immutable Council
+declaration and a separate bounded turn audit record preserved through recent history, bundle v3,
+imports, and forks. Existing free-text abilities remain non-invocable. AKP-3 is next.
 
 ### Phase PT openreview repairs — DRAFT; held behind the required version-plan revision
 

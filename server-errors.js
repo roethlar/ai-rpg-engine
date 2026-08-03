@@ -25,7 +25,9 @@
 const SEAT_SAFE_CODES = new Set([
   'OUT_OF_TURN',
   'CHARACTER_REQUIRED',
-  'CHARACTER_NOT_AT_TABLE'
+  'CHARACTER_NOT_AT_TABLE',
+  'ABILITY_TRIGGERS_STALE',
+  'TURN_REQUEST_INVALID'
 ]);
 
 /** Own-property test: an inherited tag is not provenance (sv-2 round 2). */

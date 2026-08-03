@@ -2,6 +2,10 @@
  * RPG State Management Submodule
  */
 import { validateVoiceDelivery } from './tts-providers.js';
+import {
+  emptyAbilityInvocationRecord,
+  validateAbilityInvocationRecord
+} from './ability-trigger-state.js';
 
 /**
  * Bound for a narration line's speaker (sv-5). Delivery is no longer free
@@ -1339,7 +1343,7 @@ export function scopeJournalForSeat(turns) {
  * the same validators live play uses, bounded, and shape-normalized before
  * any caller may write it.
  */
-export const CAMPAIGN_BUNDLE_VERSION = 2;
+export const CAMPAIGN_BUNDLE_VERSION = 3;
 
 const CAMPAIGN_BUNDLE_PORTABILITY_ROW_LIMIT = 10000;
 const CAMPAIGN_BUNDLE_PORTABILITY_COUNTER_LIMIT = Number.MAX_SAFE_INTEGER - 1;
@@ -1588,6 +1592,19 @@ function bundleInt(value, fallback, min, max) {
   return Math.max(min, Math.min(max, Math.floor(num)));
 }
 
+function bundlePlayerAction(value) {
+  if (value === null || value === undefined) return null;
+  if (
+    typeof value !== 'string'
+    || value.length === 0
+    || value.length > 5000
+    || value.trim().length === 0
+  ) {
+    return null;
+  }
+  return value;
+}
+
 /** Object-entry array, capped in count and serialized size. */
 function bundleObjectList(value, maxEntries, maxBytes) {
   const list = bundleJsonArray(value)
@@ -1682,6 +1699,14 @@ export function validateCampaignBundle(raw) {
   if (!characters.some(c => c.status === 'active')) {
     throw new Error('Bundle contains no active characters.');
   }
+  const charactersBySourceId = new Map();
+  for (const character of characters) {
+    if (character.source_id === null) continue;
+    if (charactersBySourceId.has(character.source_id) && bundle.format_version >= 3) {
+      throw new Error('Bundle ability invocation character identity is duplicate.');
+    }
+    charactersBySourceId.set(character.source_id, character);
+  }
 
   const npcs = bundleJsonArray(bundle.npcs).map(row => {
     if (!row || typeof row !== 'object') return null;
@@ -1743,6 +1768,10 @@ export function validateCampaignBundle(raw) {
     if (!turnNumber || seenTurnNumbers.has(turnNumber)) return null;
     seenTurnNumbers.add(turnNumber);
     const narrative = cleanText(row.narrative, 60000) || 'The scene continues...';
+    const sourceCharacterId = Number.isInteger(row.source_character_id)
+      ? row.source_character_id
+      : null;
+    const playerAction = bundlePlayerAction(row.player_action);
     // Downstream consumers (fork replay, quest extraction, cadence) assume a
     // plain object; "null", scalars, and arrays parse as JSON but crash or
     // corrupt them — only object records survive. Presentation fields INSIDE
@@ -1803,12 +1832,34 @@ export function validateCampaignBundle(raw) {
     const svg = typeof row.svg_illustration === 'string' && row.svg_illustration.includes('<svg') && row.svg_illustration.length <= 500000
       ? row.svg_illustration
       : null;
+    let abilityInvocations = emptyAbilityInvocationRecord();
+    if (bundle.format_version >= 3) {
+      if (!Object.prototype.hasOwnProperty.call(row, 'ability_invocations')) {
+        throw new Error('Bundle ability invocation record is missing.');
+      }
+      const sourceCharacter = sourceCharacterId === null
+        ? null
+        : charactersBySourceId.get(sourceCharacterId);
+      try {
+        abilityInvocations = validateAbilityInvocationRecord(
+          row.ability_invocations,
+          playerAction,
+          { ownedAbilities: sourceCharacter?.abilities || [] }
+        );
+      } catch {
+        throw new Error('Bundle ability invocation record is invalid.');
+      }
+      if (abilityInvocations.abilities.length > 0 && (!sourceCharacter || playerAction === null)) {
+        throw new Error('Bundle ability invocation record has no owning character action.');
+      }
+    }
     return {
       turn_number: turnNumber,
-      source_character_id: Number.isInteger(row.source_character_id) ? row.source_character_id : null,
-      player_action: cleanText(row.player_action, 5000) || null,
+      source_character_id: sourceCharacterId,
+      player_action: playerAction,
       narrative,
       state_changes_json: stateChanges,
+      ability_invocations: abilityInvocations,
       svg_illustration: svg,
       created_at: cleanText(row.created_at, 40) || null
     };

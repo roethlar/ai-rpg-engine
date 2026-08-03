@@ -59,7 +59,15 @@ import {
   readCampaignOutline,
   readStageOneCanonContext
 } from './campaign-context.js';
-import { buildCharacterAbilityTriggerState } from './ability-trigger-state.js';
+import {
+  abilityInvocationRecordFromDeclarations,
+  buildAbilityDeclarations,
+  buildCharacterAbilityTriggerState,
+  emptyAbilityInvocationRecord,
+  remapAbilityInvocationRecord,
+  safeAbilityInvocationRecord,
+  validateAbilityInvocationRecord
+} from './ability-trigger-state.js';
 
 // Export these so index/test scripts still have direct access
 export { parseJsonSafe, createFallbackSvg };
@@ -1075,6 +1083,60 @@ function compactJson(value) {
   return JSON.stringify(value, null, 2);
 }
 
+export function buildCouncilAbilityDeclarationInstructions(abilityDeclarations) {
+  return `=== ENGINE-VALIDATED ABILITY DECLARATIONS ===
+${compactJson(abilityDeclarations)}
+
+These declarations mean only that the authenticated speaking character's exact owned campaign
+term appeared in the submitted prose. They are immutable engine context: do not invent, delete,
+rename, replace, or infer an undeclared ability from similar prose. A typo suggestion is not a
+declaration until the submitted prose is corrected. Recognition does not prove intent, legality,
+availability, resource payment, prerequisites, target, success, or action-economy compatibility.
+Interaction and Referee still classify whether the player is attempting use now; clarification and
+dialogue remain strict no-op turns even if a declaration is present. Never expose ability-instance
+IDs or catalog definition IDs in player-facing narration.`;
+}
+
+export function stampServerAbilityDeclarations(modelTurn, abilityDeclarations) {
+  if (!modelTurn || typeof modelTurn !== 'object' || Array.isArray(modelTurn)) return modelTurn;
+  for (const key of [
+    'abilityDeclarations',
+    'ability_invocations',
+    'abilityInvocations',
+    'ability_ids',
+    'abilityIds',
+    'ability_matches',
+    'abilityMatches'
+  ]) {
+    delete modelTurn[key];
+  }
+  modelTurn.ability_declarations = abilityDeclarations;
+  return modelTurn;
+}
+
+function scrubDeclaredAbilityIdsFromPlayerText(turnData, abilityDeclarations) {
+  const replacements = [];
+  for (const ability of abilityDeclarations.abilities) {
+    for (const opaque of [ability.ability_id, ability.definition_id]) {
+      if (opaque) replacements.push([opaque, ability.campaign_term || ability.canonical_name || 'ability']);
+    }
+  }
+  const scrub = value => {
+    if (typeof value !== 'string') return value;
+    return replacements.reduce(
+      (text, [opaque, replacement]) => text.split(opaque).join(replacement),
+      value
+    );
+  };
+  turnData.narrative = scrub(turnData.narrative);
+  turnData.scene_grounding = scrub(turnData.scene_grounding);
+  turnData.suggested_choices = turnData.suggested_choices.map(scrub);
+  turnData.narration_lines = turnData.narration_lines.map(line => ({
+    ...line,
+    text: scrub(line.text)
+  }));
+}
+
 /**
  * Structured location state (Phase V2): DB row ↔ engine shape helpers.
  * The lookup key is the normalized name so the Referee can reference
@@ -1320,12 +1382,14 @@ function buildTurnContext({
   party,
   actingCharacter,
   speakingCharacter,
-  pacing
+  pacing,
+  abilityDeclarations
 }) {
   // GM omniscience (decision 2026-06-11): the mechanical record — dice rolls, applied
   // damage and its causes — must be visible to the Council on later turns, so the GM
   // can always explain its own mechanics. Legacy roll_result/roll_damage records from
   // pre-refactor campaigns are mapped into the same shape.
+  const partyById = new Map((Array.isArray(party) ? party : []).map(member => [member.id, member]));
   const recentTurns = pastTurns.map(turn => {
     let diceRolls = [];
     try {
@@ -1344,7 +1408,12 @@ function buildTurnContext({
       turn_number: turn.turn_number,
       player_action: turn.player_action,
       narrative_excerpt: turn.narrative.substring(0, 700),
-      dice_rolls: diceRolls
+      dice_rolls: diceRolls,
+      ability_invocations: safeAbilityInvocationRecord(
+        turn.ability_invocations_json,
+        turn.player_action,
+        { ownedAbilities: partyById.get(turn.character_id)?.abilities || [] }
+      )
     };
   });
 
@@ -1376,6 +1445,7 @@ function buildTurnContext({
       keywords: memory.keywords
     })),
     recent_turns: recentTurns,
+    ability_declarations: abilityDeclarations,
     player_input: playerAction,
     final_player_input: finalPlayerAction,
     campaign_rules: ruleset || null,
@@ -1447,12 +1517,17 @@ async function runMultiAgentTurn({ apiConfig, gmSystem, turnContext, turnPrompt,
   // classifier. Unconfigured, it inherits the primary config as before.
   const narrationClient = new AIClient(resolveAgentConfig(apiConfig, 'narration'));
   const contextJson = compactJson(turnContext);
+  const abilityDeclarationRules = buildCouncilAbilityDeclarationInstructions(
+    turnContext.ability_declarations
+  );
 
   const interactionProposalSystem = `You are the interaction context call for a single-player RPG.
 You are extremely conservative and precise when classifying player input.
 You interpret the player's exact table input and propose what it means.
 You do not advance time, adjudicate outcomes, or write canonical state.
-Return JSON only.`;
+Return JSON only.
+
+${abilityDeclarationRules}`;
 
   const interactionProposalPrompt = `Review this current game context:
 ${contextJson}
@@ -1509,6 +1584,8 @@ Return JSON matching:
 
     const verifierSystem = `${gmSystem}
 
+${abilityDeclarationRules}
+
 === GROUNDING VERIFIER CONTEXT CALL ===
 You are the single GM voice the player sees, acting as an independent grounding check.
 Another context call proposed an answer to the player's table talk. Verify that answer
@@ -1545,7 +1622,9 @@ Verify the proposed answer against the campaign context and produce the final ca
     try {
       const finalData = coerceTurnObject(parseJsonSafe(finalRaw));
       console.log(`[CLARIFICATION] Table-talk path: forcing strict no-op (${kind}). scene_grounding + direct answer expected from verifier narration.`);
-      return JSON.stringify(forceNoOpTurnState(finalData, turnContext, kind));
+      forceNoOpTurnState(finalData, turnContext, kind);
+      stampServerAbilityDeclarations(finalData, turnContext.ability_declarations);
+      return JSON.stringify(finalData);
     } catch (error) {
       return finalRaw;
     }
@@ -1554,7 +1633,9 @@ Verify the proposed answer against the campaign context and produce the final ca
   const continuityReviewSystem = `You are the continuity context call for a persistent single-player RPG.
 You approve, deny, or revise the interaction proposal against campaign continuity.
 You protect pacing, act structure, known facts, NPC memory, and the game archive.
-You do not write canonical state. Return JSON only.`;
+You do not write canonical state. Return JSON only.
+
+${abilityDeclarationRules}`;
 
   const continuityReviewPrompt = `Review this current game context:
 ${contextJson}
@@ -1584,7 +1665,9 @@ Return JSON matching:
   const refereeSystem = `You are the referee context call for a persistent single-player RPG.
 You adjudicate the continuity-reviewed proposal fairly and conservatively.
 You may approve, deny, or request clarification. You define allowed state changes, but you do not write final narration.
-Return JSON only.`;
+Return JSON only.
+
+${abilityDeclarationRules}`;
 
   const refereePrompt = `Review this current game context:
 ${contextJson}
@@ -1736,7 +1819,9 @@ ${diceRolls.length > 0 ? compactJson(diceRolls) : 'No checks were required this 
   const continuityFinalSystem = `You are the final continuity context call for a persistent single-player RPG.
 You receive the referee decision and the engine-rolled dice results, perform a final consistency check, and prepare archive notes.
 Dice results are already final: do not re-roll, reinterpret, or contradict them.
-You do not narrate to the player. Return JSON only.`;
+You do not narrate to the player. Return JSON only.
+
+${abilityDeclarationRules}`;
 
   const continuityFinalPrompt = `Review this current game context:
 ${contextJson}
@@ -1772,6 +1857,8 @@ Return JSON matching:
   });
 
   const finalInteractionSystem = `${gmSystem}
+
+${abilityDeclarationRules}
 
 === FINAL INTERACTION CONTEXT CALL ===
 You are the single GM voice the player sees.
@@ -1851,6 +1938,7 @@ Produce the final canonical JSON response now. The player must experience one co
       finalData.memory_importance = finalData.memory_importance || 3;
     }
 
+    stampServerAbilityDeclarations(finalData, turnContext.ability_declarations);
     return JSON.stringify(finalData);
   } catch (error) {
     return finalRaw;
@@ -2115,6 +2203,19 @@ Output the JSON object containing the opening narrative, scene_grounding, sugges
 
     newCharacterRowId = characterInsert.id;
 
+    const openingTriggerState = buildCharacterAbilityTriggerState({
+      campaignId,
+      character: {
+        ...character,
+        id: newCharacterRowId,
+        player_character_id: playerCharacterId
+      },
+      bindings: []
+    });
+    const openingAbilityInvocations = emptyAbilityInvocationRecord(
+      openingTriggerState.abilityTriggerRevision
+    );
+
     // Turn order starts as an order of one (Phase 3 M2)
     await db.run(
       `UPDATE campaigns SET turn_state_json = ? WHERE id = ?`,
@@ -2134,9 +2235,17 @@ Output the JSON object containing the opening narrative, scene_grounding, sugges
 
     // Insert Turn 1
     await db.run(
-      `INSERT INTO turns (campaign_id, turn_number, player_action, narrative, state_changes_json, svg_illustration)
-       VALUES (?, 1, NULL, ?, ?, ?)`,
-      [campaignId, turnData.narrative, JSON.stringify(turnData), svg]
+      `INSERT INTO turns (
+         campaign_id, turn_number, player_action, narrative,
+         state_changes_json, ability_invocations_json, svg_illustration
+       ) VALUES (?, 1, NULL, ?, ?, ?, ?)`,
+      [
+        campaignId,
+        turnData.narrative,
+        JSON.stringify(turnData),
+        JSON.stringify(openingAbilityInvocations),
+        svg
+      ]
     );
 
     // Insert memory
@@ -2263,7 +2372,13 @@ Output the JSON object containing the opening narrative, scene_grounding, sugges
   };
 }
 
-export async function takeTurn(campaignId, playerAction, apiConfig, submittingCharacterId = null) {
+export async function takeTurn(
+  campaignId,
+  playerAction,
+  apiConfig,
+  submittingCharacterId = null,
+  abilityTriggerRevision = null
+) {
   // 1. Fetch current campaign details
   const campaign = await db.get(`SELECT * FROM campaigns WHERE id = ?`, [campaignId]);
   if (!campaign) throw new Error(`Campaign ${campaignId} not found.`);
@@ -2283,6 +2398,17 @@ export async function takeTurn(campaignId, playerAction, apiConfig, submittingCh
 
   // the speaking character — perspective and (gated) writes
   const character = selectSpeakingCharacter(party, submittingCharacterId);
+  if (abilityTriggerRevision !== character.abilityTriggerRevision) {
+    const error = new Error('Your ability list changed. Review the refreshed character sheet and resend your action.');
+    error.code = 'ABILITY_TRIGGERS_STALE';
+    error.publicMessage = error.message;
+    throw error;
+  }
+  const abilityDeclarations = buildAbilityDeclarations({ character, playerAction });
+  const abilityInvocations = abilityInvocationRecordFromDeclarations(
+    abilityDeclarations,
+    playerAction
+  );
   const allowCommitted = party.length === 1 || character.id === actingCharacter.id;
 
   const npcs = await db.all(`SELECT * FROM npcs WHERE campaign_id = ?`, [campaignId]);
@@ -2415,7 +2541,8 @@ Output the JSON object containing the narrative response, scene_grounding, sugge
     party,
     actingCharacter,
     speakingCharacter: character,
-    pacing
+    pacing,
+    abilityDeclarations
   });
   const aiResponse = await runMultiAgentTurn({
     apiConfig,
@@ -2427,6 +2554,7 @@ Output the JSON object containing the narrative response, scene_grounding, sugge
 
   const parsedRaw = parseJsonSafe(aiResponse);
   const turnData = validateTurnData(parsedRaw, currentAct, tableStyle);
+  scrubDeclaredAbilityIdsFromPlayerText(turnData, abilityDeclarations);
 
   // Off-turn belt-and-braces (M2): the classification gate already rejected
   // off-turn committed actions; if a later call relabeled table talk as
@@ -2655,9 +2783,20 @@ Output the JSON object containing the narrative response, scene_grounding, sugge
 
     // E. Save turn (character_id records who acted — Phase 3 M1)
     await db.run(
-      `INSERT INTO turns (campaign_id, turn_number, character_id, player_action, narrative, state_changes_json, svg_illustration)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [campaignId, currentTurnNumber, character.id, playerAction, turnData.narrative, JSON.stringify(turnData), svg]
+      `INSERT INTO turns (
+         campaign_id, turn_number, character_id, player_action, narrative,
+         state_changes_json, ability_invocations_json, svg_illustration
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        campaignId,
+        currentTurnNumber,
+        character.id,
+        playerAction,
+        turnData.narrative,
+        JSON.stringify(turnData),
+        JSON.stringify(abilityInvocations),
+        svg
+      ]
     );
 
     // F. Save memories with dynamic importance
@@ -3053,6 +3192,9 @@ async function buildCampaignExport(campaignId) {
     parseJsonObject(campaign.turn_state_json, null),
     characterRows.filter(row => (row.status || 'active') === 'active').map(row => row.id)
   );
+  const ownedAbilitiesByCharacterId = new Map(
+    characterRows.map(row => [row.id, parseJsonArray(row.abilities_json)])
+  );
 
   return {
     kind: 'aetheria-campaign',
@@ -3141,6 +3283,11 @@ async function buildCampaignExport(campaignId) {
       player_action: row.player_action,
       narrative: row.narrative,
       state_changes_json: row.state_changes_json,
+      ability_invocations: safeAbilityInvocationRecord(
+        row.ability_invocations_json,
+        row.player_action,
+        { ownedAbilities: ownedAbilitiesByCharacterId.get(row.character_id) || [] }
+      ),
       svg_illustration: row.svg_illustration,
       created_at: row.created_at
     })),
@@ -3188,6 +3335,7 @@ export async function importCampaign(rawBundle) {
 
     const characterIdMap = new Map();
     const profileIdMap = new Map();
+    const remappedAbilitiesBySourceCharacterId = new Map();
     // Imported ability records are new records in this store, so they get
     // fresh engine-issued ids — remapped consistently, so rows that shared an
     // id in the bundle still share one here. Bundles written before ids
@@ -3202,6 +3350,9 @@ export async function importCampaign(rawBundle) {
     });
     for (const character of bundle.characters) {
       character.abilities = remapAbilityIds(character.abilities);
+      if (character.source_id !== null) {
+        remappedAbilitiesBySourceCharacterId.set(character.source_id, character.abilities);
+      }
       let profileId = null;
       if (character.status === 'active') {
         const profileResult = await db.run(
@@ -3313,12 +3464,23 @@ export async function importCampaign(rawBundle) {
     }
 
     for (const turn of bundle.turns) {
+      const remappedInvocations = remapAbilityInvocationRecord(
+        turn.ability_invocations,
+        abilityIdMap,
+        turn.player_action,
+        {
+          ownedAbilities: remappedAbilitiesBySourceCharacterId.get(turn.source_character_id) || []
+        }
+      );
       await db.run(
-        `INSERT INTO turns (campaign_id, turn_number, character_id, player_action, narrative, state_changes_json, svg_illustration, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, COALESCE(?, CURRENT_TIMESTAMP))`,
+        `INSERT INTO turns (
+           campaign_id, turn_number, character_id, player_action, narrative,
+           state_changes_json, ability_invocations_json, svg_illustration, created_at
+         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, COALESCE(?, CURRENT_TIMESTAMP))`,
         [newCampaignId, turn.turn_number,
          characterIdMap.get(turn.source_character_id) ?? null,
-         turn.player_action, turn.narrative, turn.state_changes_json, turn.svg_illustration, turn.created_at]
+         turn.player_action, turn.narrative, turn.state_changes_json,
+         JSON.stringify(remappedInvocations), turn.svg_illustration, turn.created_at]
       );
     }
 
@@ -3602,11 +3764,19 @@ export async function forkCampaign(campaignId, turnNumber, newTitle) {
     // Copy Turns up to turnNumber (acting-character ids remapped to the
     // forked party; legacy/opening turns keep null)
     for (const turn of turns) {
+      const forkAbilityInvocations = safeAbilityInvocationRecord(
+        turn.ability_invocations_json,
+        turn.player_action,
+        { ownedAbilities: forkCharacters.get(turn.character_id)?.abilities || [] }
+      );
       await db.run(
-        `INSERT INTO turns (campaign_id, turn_number, character_id, player_action, narrative, state_changes_json, svg_illustration, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO turns (
+           campaign_id, turn_number, character_id, player_action, narrative,
+           state_changes_json, ability_invocations_json, svg_illustration, created_at
+         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [newCampaignId, turn.turn_number, characterIdMap.get(turn.character_id) ?? null,
-         turn.player_action, turn.narrative, turn.state_changes_json, turn.svg_illustration, turn.created_at]
+         turn.player_action, turn.narrative, turn.state_changes_json,
+         JSON.stringify(forkAbilityInvocations), turn.svg_illustration, turn.created_at]
       );
     }
 
