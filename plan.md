@@ -2977,7 +2977,13 @@ projection and revision digest, inert live party projection, and seat-safe trigg
 implemented and guard-proved. AKP-2 is also complete: exact prose and the opaque revision are the
 only turn-time invocation inputs; authenticated server recomputation produces one immutable Council
 declaration and a separate bounded turn audit record preserved through recent history, bundle v3,
-imports, and forks. Existing free-text abilities remain non-invocable. AKP-3 is next.
+imports, and forks. AKP-3 is complete: the live browser uses the native textarea/mirror, exact
+owned-term highlighting, campaign-worded ability-button insertion, suggestion-only typo recovery,
+opaque revision echo, exact-prose retry/stale handling, and character/table-safe optimistic
+response cleanup. Passive and existing free-text abilities remain non-invocable cards. The unit and
+browser suites are green and the exact-prose guard proof failed under trimming before restoration.
+No prototype ability content shipped. AKP-4 remains blocked on the real versioned class/catalog
+producer and its complete campaign bindings.
 
 ### Phase PT openreview repairs — DRAFT; held behind the required version-plan revision
 

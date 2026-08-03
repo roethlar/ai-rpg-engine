@@ -4,6 +4,11 @@
 
 import { baseThemeVars, fullThemeVars } from './theme-vars.js';
 import { normalizeVoiceLines, runVoiceNarration } from './voice-narration.js';
+import {
+  applyAbilitySuggestion,
+  computeAbilityInsertion,
+  scanAbilityTriggers
+} from './ability-keywords.js';
 
 // Application state
 let currentCampaignId = null;
@@ -18,6 +23,7 @@ function bumpSessionEpoch() {
   // A table transition also invalidates any dice theater still playing or
   // queued for the old table (dt-1); hoisted, defined with the theater code.
   dismissRollTheater();
+  resetAbilityComposerForSession();
 }
 let currentCampaignTitle = '';
 let savedCharacters = [];
@@ -90,6 +96,10 @@ const narrativeContainer = document.getElementById('narrative-container');
 const suggestedChoicesContainer = document.getElementById('suggested-choices-container');
 const actionForm = document.getElementById('action-form');
 const actionInput = document.getElementById('action-input');
+const actionComposer = document.getElementById('action-composer');
+const actionHighlightContent = document.getElementById('action-highlight-content');
+const abilityCorrection = document.getElementById('ability-correction');
+const abilityRecognitionStatus = document.getElementById('ability-recognition-status');
 const btnSendAction = document.getElementById('btn-send-action');
 
 // Stats Elements
@@ -131,6 +141,291 @@ const visualizerFrame = document.getElementById('visualizer-frame');
 let currentNarrationAudio = null;
 let currentNarrationFinish = null;
 let voiceErrorShown = false;
+
+// Ability-keyword composer (AKP-3). The native textarea is the only editable
+// source. Everything else here is derived feedback over the selected
+// character's server-owned trigger projection.
+const ABILITY_TRIGGER_REVISION_PATTERN = /^ak\d+:[a-f0-9]{64}$/u;
+const EMPTY_COMPOSER_SCAN = Object.freeze({ matches: [], abilityIds: [], suggestions: [] });
+let activeComposerCharacterId = null;
+let activeAbilityTriggerRevision = '';
+let activeInvocableAbilities = [];
+let activeInvocableAbilityById = new Map();
+let currentComposerScan = EMPTY_COMPOSER_SCAN;
+let composerScopeSerial = 0;
+let composerLocked = false;
+let composerIsComposing = false;
+let rememberedComposerSelection = { start: 0, end: 0 };
+let announcedAbilitySignature = '';
+
+function familyToneForKey(familyKey) {
+  let hash = 2166136261;
+  for (const point of String(familyKey || '')) {
+    hash ^= point.codePointAt(0);
+    hash = Math.imul(hash, 16777619);
+  }
+  return String((hash >>> 0) % 6);
+}
+
+function rememberComposerSelection() {
+  rememberedComposerSelection = {
+    start: actionInput.selectionStart ?? 0,
+    end: actionInput.selectionEnd ?? 0
+  };
+}
+
+function syncComposerMirrorScroll() {
+  actionHighlightContent.style.transform =
+    `translate(${-actionInput.scrollLeft}px, ${-actionInput.scrollTop}px)`;
+}
+
+function sizeActionComposer() {
+  actionInput.style.height = 'auto';
+  const height = Math.min(Math.max(actionInput.scrollHeight, 44), 132);
+  actionComposer.style.height = `${height}px`;
+  actionInput.style.height = '100%';
+  if (actionInput.clientWidth > 0) {
+    actionHighlightContent.style.width = `${actionInput.clientWidth}px`;
+  }
+  syncComposerMirrorScroll();
+}
+
+function renderComposerMirror(text, matches) {
+  const fragment = document.createDocumentFragment();
+  let cursor = 0;
+  for (const match of matches) {
+    fragment.append(document.createTextNode(text.slice(cursor, match.start)));
+    const mark = document.createElement('mark');
+    mark.className = 'ability-highlight';
+    mark.dataset.familyTone = familyToneForKey(match.familyKey);
+    mark.append(document.createTextNode(text.slice(match.start, match.end)));
+    fragment.append(mark);
+    cursor = match.end;
+  }
+  fragment.append(document.createTextNode(text.slice(cursor)));
+  if (text.endsWith('\n')) fragment.append(document.createTextNode('\u200b'));
+  actionHighlightContent.replaceChildren(fragment);
+  syncComposerMirrorScroll();
+}
+
+function announceRecognizedAbilities(abilityIds) {
+  const setSignature = [...new Set(abilityIds)].sort().join('|');
+  const signature = `${activeComposerCharacterId ?? ''}:${setSignature}`;
+  if (signature === announcedAbilitySignature) return;
+
+  const hadRecognizedAbilities = announcedAbilitySignature.includes(':')
+    && announcedAbilitySignature.split(':', 2)[1].length > 0;
+  announcedAbilitySignature = signature;
+  const names = abilityIds
+    .map(abilityId => activeInvocableAbilityById.get(abilityId)?.name)
+    .filter(Boolean);
+  if (names.length > 0) {
+    abilityRecognitionStatus.textContent =
+      `Recognized ${names.length === 1 ? 'ability' : 'abilities'}: ${names.join(', ')}.`;
+  } else if (hadRecognizedAbilities) {
+    abilityRecognitionStatus.textContent = 'No ability terms recognized.';
+  } else {
+    abilityRecognitionStatus.textContent = '';
+  }
+}
+
+function renderAbilityCorrection() {
+  const suggestion = currentComposerScan.suggestions[0] ?? null;
+  const ability = suggestion
+    ? activeInvocableAbilityById.get(suggestion.abilityId)
+    : null;
+  if (!suggestion || !ability) {
+    abilityCorrection.hidden = true;
+    abilityCorrection.textContent = '';
+    delete abilityCorrection.dataset.familyTone;
+    return;
+  }
+
+  abilityCorrection.textContent = `Did you mean “${ability.name}”?`;
+  abilityCorrection.dataset.familyTone = familyToneForKey(ability.familyKey);
+  abilityCorrection.hidden = false;
+  abilityCorrection.disabled = composerLocked;
+}
+
+function scanAndRenderComposer() {
+  try {
+    currentComposerScan = scanAbilityTriggers(actionInput.value, activeInvocableAbilities);
+  } catch (error) {
+    console.error('Ability recognition unavailable:', error);
+    currentComposerScan = EMPTY_COMPOSER_SCAN;
+  }
+  renderComposerMirror(actionInput.value, currentComposerScan.matches);
+  renderAbilityCorrection();
+  announceRecognizedAbilities(currentComposerScan.abilityIds);
+  sizeActionComposer();
+  return currentComposerScan;
+}
+
+function setComposerValue(text, selectionStart, selectionEnd, { focus = true } = {}) {
+  actionInput.value = text;
+  const start = Math.max(0, Math.min(selectionStart, text.length));
+  const end = Math.max(start, Math.min(selectionEnd, text.length));
+  if (focus) actionInput.focus();
+  actionInput.setSelectionRange(start, end);
+  rememberComposerSelection();
+  scanAndRenderComposer();
+}
+
+function restoreComposerDraft(text, selectionStart, selectionEnd) {
+  if (actionInput.value !== text) actionInput.value = text;
+  const start = Math.max(0, Math.min(selectionStart, text.length));
+  const end = Math.max(start, Math.min(selectionEnd, text.length));
+  actionInput.focus();
+  actionInput.setSelectionRange(start, end);
+  rememberComposerSelection();
+  scanAndRenderComposer();
+}
+
+function resetAbilityComposerForSession() {
+  activeComposerCharacterId = null;
+  activeAbilityTriggerRevision = '';
+  activeInvocableAbilities = [];
+  activeInvocableAbilityById = new Map();
+  currentComposerScan = EMPTY_COMPOSER_SCAN;
+  composerScopeSerial += 1;
+  announcedAbilitySignature = '';
+  abilityRecognitionStatus.textContent = '';
+  setComposerValue('', 0, 0, { focus: false });
+}
+
+function updateAbilityComposerForCharacter(character) {
+  const nextCharacterId = Number.isSafeInteger(character?.id) ? character.id : null;
+  const nextRevision = typeof character?.abilityTriggerRevision === 'string'
+    && ABILITY_TRIGGER_REVISION_PATTERN.test(character.abilityTriggerRevision)
+    ? character.abilityTriggerRevision
+    : '';
+  let nextAbilities = [];
+  if (Array.isArray(character?.invocableAbilities)) {
+    try {
+      scanAbilityTriggers('', character.invocableAbilities);
+      nextAbilities = character.invocableAbilities;
+    } catch (error) {
+      console.error('Invalid ability trigger projection:', error);
+    }
+  }
+
+  const characterChanged = activeComposerCharacterId !== nextCharacterId;
+  const scopeChanged = characterChanged || activeAbilityTriggerRevision !== nextRevision;
+  if (scopeChanged) composerScopeSerial += 1;
+  if (composerLocked && characterChanged && activeComposerCharacterId !== null) {
+    actionInput.value = '';
+    rememberedComposerSelection = { start: 0, end: 0 };
+  }
+
+  activeComposerCharacterId = nextCharacterId;
+  activeAbilityTriggerRevision = nextRevision;
+  activeInvocableAbilities = nextAbilities;
+  activeInvocableAbilityById = new Map(nextAbilities.map(ability => [ability.abilityId, ability]));
+  scanAndRenderComposer();
+}
+
+function insertInvocableAbility(ability) {
+  if (composerLocked || !activeInvocableAbilityById.has(ability.abilityId)) return;
+  const start = Math.max(0, Math.min(rememberedComposerSelection.start, actionInput.value.length));
+  const end = Math.max(start, Math.min(rememberedComposerSelection.end, actionInput.value.length));
+  const insertion = computeAbilityInsertion(actionInput.value, start, end, ability.trigger);
+  actionInput.focus();
+  actionInput.setRangeText(insertion.insertedText, start, end, 'end');
+  actionInput.setSelectionRange(insertion.selectionStart, insertion.selectionEnd);
+  rememberComposerSelection();
+  scanAndRenderComposer();
+}
+
+function acceptAbilityCorrection() {
+  const suggestion = currentComposerScan.suggestions[0] ?? null;
+  if (composerLocked || !suggestion) return;
+  const replacement = applyAbilitySuggestion(actionInput.value, suggestion);
+  actionInput.focus();
+  actionInput.setRangeText(suggestion.replacement, suggestion.start, suggestion.end, 'end');
+  actionInput.setSelectionRange(replacement.selectionStart, replacement.selectionEnd);
+  rememberComposerSelection();
+  scanAndRenderComposer();
+}
+
+function setupAbilityComposer() {
+  for (const eventName of ['select', 'click', 'keyup', 'blur']) {
+    actionInput.addEventListener(eventName, rememberComposerSelection);
+  }
+  actionInput.addEventListener('compositionstart', () => {
+    composerIsComposing = true;
+  });
+  actionInput.addEventListener('compositionend', () => {
+    composerIsComposing = false;
+    rememberComposerSelection();
+    scanAndRenderComposer();
+  });
+  actionInput.addEventListener('input', () => {
+    rememberComposerSelection();
+    if (!composerIsComposing) scanAndRenderComposer();
+  });
+  actionInput.addEventListener('scroll', syncComposerMirrorScroll);
+  actionInput.addEventListener('keydown', event => {
+    if (
+      event.key === 'Enter'
+      && !event.shiftKey
+      && !event.isComposing
+      && !composerIsComposing
+    ) {
+      event.preventDefault();
+      actionForm.requestSubmit();
+    }
+  });
+  abilityCorrection.addEventListener('click', acceptAbilityCorrection);
+  window.addEventListener('resize', sizeActionComposer);
+  scanAndRenderComposer();
+}
+
+function captureComposerScope() {
+  return {
+    epoch: sessionEpoch,
+    campaignId: currentCampaignId,
+    characterId: activeComposerCharacterId,
+    triggerRevision: activeAbilityTriggerRevision,
+    serial: composerScopeSerial
+  };
+}
+
+function isComposerScopeCurrent(scope) {
+  return scope.epoch === sessionEpoch
+    && scope.campaignId === currentCampaignId
+    && scope.characterId === activeComposerCharacterId
+    && scope.triggerRevision === activeAbilityTriggerRevision
+    && scope.serial === composerScopeSerial;
+}
+
+async function refreshComposerAfterStale(scope, draft) {
+  if (!isComposerScopeCurrent(scope)) return false;
+  const response = await fetchWithTimeout(
+    `/api/campaigns/${scope.campaignId}`,
+    {},
+    15000
+  );
+  if (!response.ok) {
+    throw new Error(await getResponseErrorMessage(response, 'Could not refresh character abilities'));
+  }
+  const state = await response.json();
+  if (!isComposerScopeCurrent(scope)) return false;
+
+  lastGameState = state;
+  renderPartyState(state);
+  renderChoices(state.turn?.suggestedChoices || []);
+  if (
+    scope.epoch !== sessionEpoch
+    || scope.campaignId !== currentCampaignId
+    || scope.characterId !== activeComposerCharacterId
+  ) {
+    return false;
+  }
+
+  restoreComposerDraft(draft.text, draft.selectionStart, draft.selectionEnd);
+  appendSystemNotice('Your abilities changed. Review your action, then send it again.');
+  return true;
+}
 
 // Init application on load
 window.addEventListener('DOMContentLoaded', () => {
@@ -321,6 +616,8 @@ function setActiveTab(tab) {
 
 // Bind UI triggers
 function setupEventListeners() {
+  setupAbilityComposer();
+
   // Settings buttons
   document.getElementById('btn-show-settings').addEventListener('click', openSettingsModal);
   btnMenuSettings.addEventListener('click', openSettingsModal);
@@ -452,23 +749,35 @@ function setupEventListeners() {
   // Action text submission
   actionForm.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const actionText = actionInput.value.trim();
-    if (!actionText || !currentCampaignId) return;
+    if (composerIsComposing || turnSubmitInFlight) return;
+    scanAndRenderComposer();
+    const actionText = actionInput.value;
+    if (!actionText.trim() || !currentCampaignId) return;
+    if (!ABILITY_TRIGGER_REVISION_PATTERN.test(activeAbilityTriggerRevision)) {
+      appendSystemNotice('Your character abilities are still loading. Try again after the sheet refreshes.');
+      return;
+    }
 
-    actionInput.value = '';
-    appendPlayerAction(actionText);
+    const draft = {
+      text: actionText,
+      selectionStart: actionInput.selectionStart ?? actionText.length,
+      selectionEnd: actionInput.selectionEnd ?? actionText.length
+    };
+    const scope = captureComposerScope();
+    const optimisticBubble = appendPlayerAction(actionText, undefined, { optimistic: true });
 
-    setActionInputState(false);
     turnSubmitInFlight = true;
-    const epoch = sessionEpoch;
+    setActionInputState(false);
 
     try {
-      const response = await fetchWithTimeout(`/api/campaigns/${currentCampaignId}/turn`, {
+      const response = await fetchWithTimeout(`/api/campaigns/${scope.campaignId}/turn`, {
         method: 'POST',
         body: JSON.stringify({
           playerAction: actionText,
           // Which character is speaking (Phase 3 M2/M3); harmless when solo
-          characterId: myCharacterId ?? undefined
+          characterId: scope.characterId ?? undefined,
+          // Opaque echo only. Matches and ability IDs are recomputed server-side.
+          abilityTriggerRevision: scope.triggerRevision
         })
       }, TURN_TIMEOUT_MS);
 
@@ -477,23 +786,33 @@ function setupEventListeners() {
         // failures: say whose turn it is, restore the input, and stop —
         // no "retry the connection" framing.
         const body = await response.json().catch(() => ({}));
-        // Stale rejection from a table we already left: no UI work here
-        // either (the finally block still re-enables the controls).
-        if (epoch !== sessionEpoch) return;
+        // A response for a table or character the player has since left may
+        // still represent a committed turn, but it cannot touch this composer.
+        if (!isComposerScopeCurrent(scope)) {
+          optimisticBubble.remove();
+          return;
+        }
+        if (body.code === 'ABILITY_TRIGGERS_STALE') {
+          optimisticBubble.remove();
+          await refreshComposerAfterStale(scope, draft);
+          return;
+        }
         if (body.code === 'OUT_OF_TURN' || body.code === 'CHARACTER_REQUIRED') {
+          optimisticBubble.remove();
           appendSystemNotice(body.error || 'It is not your turn to act.');
-          actionInput.value = actionText;
-          actionInput.focus();
+          restoreComposerDraft(draft.text, draft.selectionStart, draft.selectionEnd);
           return;
         }
         throw new Error(body.error || 'Failed to submit action');
       }
 
       const gameState = await response.json();
-      // The turn resolved on the campaign it was sent to; if the user has
-      // since left that table, its record is in that campaign's journal —
-      // rendering it here would paint the wrong table (poll-1).
-      if (epoch !== sessionEpoch) return;
+      // The turn resolved on its original table/character. A later poll will
+      // pick it up if the player switched while the request was in flight.
+      if (!isComposerScopeCurrent(scope)) {
+        optimisticBubble.remove();
+        return;
+      }
       // Gap backfill (poll-1 r2): other players' turns may sit between the
       // last thing in this log and the turn this submit produced. Without
       // this, rendering the submit's turn buries them permanently — the
@@ -505,9 +824,14 @@ function setupEventListeners() {
           gameState.turn.number > baseline + 1) {
         // Failure records the gap for the poll to retry (poll-1 r5): the
         // head still renders, but the missing turns are never sealed out.
-        await backfillGap(baseline, gameState.turn.number, epoch);
-        if (epoch !== sessionEpoch) return;
+        await backfillGap(baseline, gameState.turn.number, scope.epoch);
+        if (!isComposerScopeCurrent(scope)) {
+          optimisticBubble.remove();
+          return;
+        }
       }
+      setComposerValue('', 0, 0, { focus: false });
+      settleOptimisticPlayerAction(optimisticBubble, gameState.turn?.number);
       renderGame(gameState, false, { narrate: true, rollTheater: true });
     } catch (error) {
       console.error(error);
@@ -516,10 +840,10 @@ function setupEventListeners() {
       // only on the table that submitted (poll-1 reopen): a stale failure
       // must not append notices, restore a foreign action into the input,
       // or pop Settings over the replacement table.
-      if (epoch === sessionEpoch) {
-        appendSystemNotice(`The connection to the AI provider failed (${error.message}). Your action was not lost — it has been restored below. Press send to retry.`);
-        actionInput.value = actionText;
-        actionInput.focus();
+      optimisticBubble.remove();
+      if (isComposerScopeCurrent(scope)) {
+        appendSystemNotice(`Your action could not be sent (${error.message}). It remains below. Press send to retry.`);
+        restoreComposerDraft(draft.text, draft.selectionStart, draft.selectionEnd);
         if (shouldOpenSettingsForError(error.message)) {
           openSettingsModal();
         }
@@ -527,9 +851,14 @@ function setupEventListeners() {
     } finally {
       turnSubmitInFlight = false;
       // Always re-enable the controls; but focus only when still on the
-      // submitting table (poll-1 r2) — a stale settle must not steal focus
-      // from whatever the user is doing on the replacement table.
-      setActionInputState(true, epoch === sessionEpoch);
+      // submitting character/table — a stale settle must not steal focus
+      // from whatever the user is doing on a replacement sheet.
+      setActionInputState(
+        true,
+        scope.epoch === sessionEpoch
+          && scope.campaignId === currentCampaignId
+          && scope.characterId === activeComposerCharacterId
+      );
     }
   });
 }
@@ -1999,7 +2328,12 @@ function applyCampaignTheme(genre, colors, fonts) {
 
 // Character sheet renderer (extracted for party support — Phase 3 M3)
 function renderCharacterSheet(char) {
-  if (!char) return;
+  if (!char) {
+    updateAbilityComposerForCharacter(null);
+    renderAbilities([], []);
+    return;
+  }
+  updateAbilityComposerForCharacter(char);
   charName.textContent = char.name;
   charClass.textContent = char.class || char.archetype || 'Developing concept';
   charLevel.textContent = char.level;
@@ -2022,7 +2356,7 @@ function renderCharacterSheet(char) {
   attrWil.textContent = char.attributes.willpower || 10;
 
   renderInventory(char.inventory);
-  renderAbilities(char.abilities || []);
+  renderAbilities(char.abilities || [], activeInvocableAbilities);
 }
 
 // Render campaign outline in the sidebar
@@ -2097,31 +2431,85 @@ function renderInventory(items) {
   });
 }
 
-function renderAbilities(abilities) {
+function renderAbilities(abilities, invocableAbilities) {
   charAbilities.innerHTML = '';
-  if (!abilities || abilities.length === 0) {
+  const canonicalAbilities = Array.isArray(abilities) ? abilities : [];
+  const projectedAbilities = Array.isArray(invocableAbilities) ? invocableAbilities : [];
+  if (canonicalAbilities.length === 0 && projectedAbilities.length === 0) {
     charAbilities.innerHTML = `<div class="ability-empty">No abilities established yet.</div>`;
     return;
   }
 
-  abilities.forEach(ability => {
-    const div = document.createElement('div');
-    div.className = 'ability-item';
-    const safeName = escapeHtml(ability.name || 'Unnamed Ability');
-    const safeTier = escapeHtml(ability.tier || 'emerging');
-    const safeDescription = escapeHtml(ability.description || 'A developing capability.');
-    const safeSource = escapeHtml(ability.source || 'in-game development');
+  const projectedById = new Map(projectedAbilities.map(ability => [ability.abilityId, ability]));
+  const renderedProjectionIds = new Set();
 
-    div.innerHTML = DOMPurify.sanitize(`
-      <div class="ability-head">
-        <span class="ability-name">${safeName}</span>
-        <span class="ability-tier">${safeTier}</span>
-      </div>
-      <div class="ability-desc">${safeDescription}</div>
-      <div class="ability-source">${safeSource}</div>
-    `);
+  function appendInvocableAbility(ability) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'ability-item ability-button';
+    button.dataset.abilityId = ability.abilityId;
+    button.dataset.familyTone = familyToneForKey(ability.familyKey);
+    button.disabled = composerLocked;
+    button.setAttribute(
+      'aria-label',
+      `Insert ${ability.name}. ${ability.familyLabel}. ${ability.help}`
+    );
+
+    const head = document.createElement('span');
+    head.className = 'ability-head';
+    const name = document.createElement('span');
+    name.className = 'ability-name';
+    name.textContent = ability.name;
+    const family = document.createElement('span');
+    family.className = 'ability-family-label';
+    family.textContent = ability.familyLabel;
+    head.append(name, family);
+
+    const help = document.createElement('span');
+    help.className = 'ability-desc';
+    help.textContent = ability.help;
+    button.append(head, help);
+    button.addEventListener('click', () => insertInvocableAbility(ability));
+    charAbilities.appendChild(button);
+  }
+
+  function appendPassiveAbility(ability) {
+    const div = document.createElement('div');
+    div.className = 'ability-item ability-passive';
+    const head = document.createElement('div');
+    head.className = 'ability-head';
+    const name = document.createElement('span');
+    name.className = 'ability-name';
+    name.textContent = ability.name || 'Unnamed Ability';
+    const tier = document.createElement('span');
+    tier.className = 'ability-tier';
+    tier.textContent = ability.tier || 'emerging';
+    head.append(name, tier);
+
+    const description = document.createElement('div');
+    description.className = 'ability-desc';
+    description.textContent = ability.description || 'A developing capability.';
+    const source = document.createElement('div');
+    source.className = 'ability-source';
+    source.textContent = ability.source || 'in-game development';
+    div.append(head, description, source);
     charAbilities.appendChild(div);
-  });
+  }
+
+  for (const ability of canonicalAbilities) {
+    const projected = typeof ability?.id === 'string'
+      ? projectedById.get(ability.id)
+      : null;
+    if (projected) {
+      appendInvocableAbility(projected);
+      renderedProjectionIds.add(projected.abilityId);
+    } else {
+      appendPassiveAbility(ability || {});
+    }
+  }
+  for (const ability of projectedAbilities) {
+    if (!renderedProjectionIds.has(ability.abilityId)) appendInvocableAbility(ability);
+  }
 }
 
 // Render character Codex dossiers
@@ -2203,8 +2591,9 @@ function renderChoices(choices) {
     btn.className = 'choice-btn';
     btn.textContent = choice;
     btn.title = choice;
+    btn.disabled = composerLocked;
     btn.addEventListener('click', () => {
-      actionInput.value = choice;
+      setComposerValue(choice, choice.length, choice.length);
       // requestSubmit fires a cancelable submit event; dispatchEvent(new Event('submit'))
       // is non-cancelable, so preventDefault was ignored and Firefox performed the native
       // form submission (full page reload back to the campaign menu).
@@ -2216,8 +2605,17 @@ function renderChoices(choices) {
 
 // Dialog input handlers
 function setActionInputState(enabled, focusInput = true) {
+  composerLocked = !enabled;
   actionInput.disabled = !enabled;
   btnSendAction.disabled = !enabled;
+  abilityCorrection.disabled = !enabled;
+  charAbilities.querySelectorAll('button').forEach(button => {
+    button.disabled = !enabled;
+  });
+  suggestedChoicesContainer.querySelectorAll('button').forEach(button => {
+    button.disabled = !enabled;
+  });
+  actionForm.classList.toggle('is-submitting', !enabled);
 
   if (enabled) {
     btnSendAction.innerHTML = '<span>Send</span> <i class="fa-solid fa-paper-plane"></i>';
@@ -2225,20 +2623,37 @@ function setActionInputState(enabled, focusInput = true) {
   } else {
     btnSendAction.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
   }
+  renderAbilityCorrection();
 }
 
 // Append player bubble
-function appendPlayerAction(text, turnNumber) {
+function appendPlayerAction(text, turnNumber, { optimistic = false } = {}) {
   const el = document.createElement('div');
   el.className = 'log-entry log-player';
-  const cleanPlayerText = escapeHtml(text);
-
-  el.innerHTML = DOMPurify.sanitize(`
-    <div class="speaker"><i class="fa-solid fa-user"></i> You</div>
-    <div class="content">${cleanPlayerText}</div>
-  `);
+  if (optimistic) el.dataset.optimistic = 'true';
+  const speaker = document.createElement('div');
+  speaker.className = 'speaker';
+  speaker.innerHTML = '<i class="fa-solid fa-user"></i> You';
+  const content = document.createElement('div');
+  content.className = 'content';
+  content.textContent = text;
+  el.append(speaker, content);
   placeLogEntry(el, turnNumber);
   scrollToBottom();
+  return el;
+}
+
+function settleOptimisticPlayerAction(el, turnNumber) {
+  if (!el?.isConnected) return;
+  delete el.dataset.optimistic;
+  if (typeof turnNumber !== 'number') return;
+  const duplicate = [...narrativeContainer.querySelectorAll('.log-player[data-turn]')]
+    .find(node => node !== el && Number(node.dataset.turn) === turnNumber);
+  if (duplicate) {
+    el.remove();
+    return;
+  }
+  placeLogEntry(el, turnNumber);
 }
 
 // Append GM description with markdown support and DOMPurify sanitization

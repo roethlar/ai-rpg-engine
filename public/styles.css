@@ -392,6 +392,8 @@ body {
   font-size: 15px;
   font-weight: 500;
   color: #fff;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 .log-gm {
@@ -529,22 +531,135 @@ body {
 .action-form {
   display: flex;
   gap: 12px;
+  align-items: stretch;
 }
-.action-form input {
+
+.action-composer-column {
   flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.action-composer {
+  position: relative;
+  min-width: 0;
+  min-height: 44px;
   background: rgba(0, 0, 0, 0.3);
+  border-radius: 8px;
+}
+
+.action-highlight-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  border-radius: 8px;
+  pointer-events: none;
+}
+
+.action-highlight-content,
+.action-form textarea {
+  box-sizing: border-box;
+  width: 100%;
+  margin: 0;
+  padding: 10px 16px;
+  font-family: var(--font-body);
+  font-size: 14px;
+  line-height: 1.45;
+  letter-spacing: normal;
+  tab-size: 4;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+}
+
+.action-highlight-content {
+  position: absolute;
+  top: 0;
+  left: 0;
+  min-height: 100%;
+  border: 1px solid transparent;
+  color: transparent;
+  transform-origin: top left;
+}
+
+.action-form textarea {
+  position: relative;
+  z-index: 1;
+  display: block;
+  height: 100%;
+  min-height: 44px;
+  resize: none;
+  overflow: auto;
   border: 1px solid var(--theme-border);
   border-radius: 8px;
-  padding: 10px 16px;
   color: #fff;
-  font-size: 14px;
-  font-family: var(--font-body);
+  caret-color: #fff;
+  background: transparent;
   transition: border-color 0.2s ease, box-shadow 0.2s;
 }
-.action-form input:focus {
+
+.action-form textarea:focus {
   outline: none;
   border-color: var(--theme-primary);
   box-shadow: 0 0 10px color-mix(in srgb, var(--theme-primary) 20%, transparent);
+}
+
+.action-form textarea:disabled {
+  cursor: wait;
+  opacity: 0.72;
+}
+
+.ability-highlight {
+  border: 0;
+  border-bottom: 3px solid var(--theme-primary);
+  border-radius: 3px;
+  color: transparent;
+  background: color-mix(in srgb, var(--theme-primary) 24%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--theme-primary) 38%, transparent);
+}
+
+.ability-correction-region {
+  min-height: 0;
+}
+
+.ability-correction {
+  min-height: 30px;
+  border: 1px dashed var(--theme-primary);
+  border-radius: 999px;
+  padding: 4px 10px;
+  color: var(--theme-text);
+  background: color-mix(in srgb, var(--theme-primary) 9%, transparent);
+  font-family: var(--font-body);
+  font-size: 11.5px;
+  cursor: pointer;
+}
+
+.ability-correction[hidden] {
+  display: none;
+}
+
+.ability-correction:focus-visible {
+  outline: 2px solid var(--theme-primary);
+  outline-offset: 2px;
+}
+
+.send-btn {
+  min-width: 88px;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
 }
 
 /* RIGHT PANEL SPECIFICS */
@@ -705,6 +820,38 @@ body {
   background: rgba(255, 255, 255, 0.02);
 }
 
+.ability-button {
+  appearance: none;
+  display: block;
+  width: 100%;
+  border-left: 3px solid var(--theme-primary);
+  color: var(--theme-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s ease;
+}
+
+.ability-button:hover:not(:disabled) {
+  border-color: var(--theme-primary);
+  background: color-mix(in srgb, var(--theme-primary) 9%, transparent);
+  transform: translateY(-1px);
+}
+
+.ability-button:focus-visible {
+  outline: 2px solid var(--theme-primary);
+  outline-offset: 2px;
+}
+
+.ability-button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.ability-passive {
+  border-left-style: dotted;
+}
+
 .ability-head {
   display: flex;
   justify-content: space-between;
@@ -732,6 +879,17 @@ body {
   text-transform: uppercase;
 }
 
+.ability-family-label {
+  flex: 0 0 auto;
+  border: 1px solid var(--theme-primary);
+  border-radius: 4px;
+  padding: 1px 5px;
+  color: var(--theme-primary);
+  font-size: 9px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
 .ability-desc,
 .ability-source,
 .ability-empty {
@@ -743,6 +901,84 @@ body {
 .ability-source {
   margin-top: 4px;
   font-style: italic;
+}
+
+/* Six restrained, code-owned family tones. The server has already validated
+   each family key against its closed catalog registry; the browser hashes only
+   to one of these fixed presentation choices and never interpolates CSS. */
+.ability-highlight[data-family-tone="1"] {
+  border-bottom-color: var(--theme-secondary);
+  background: color-mix(in srgb, var(--theme-secondary) 24%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--theme-secondary) 38%, transparent);
+}
+.ability-correction[data-family-tone="1"] {
+  border-color: var(--theme-secondary);
+  background: color-mix(in srgb, var(--theme-secondary) 9%, transparent);
+}
+.ability-button[data-family-tone="1"] { border-left-color: var(--theme-secondary); }
+.ability-button[data-family-tone="1"] .ability-family-label {
+  border-color: var(--theme-secondary);
+  color: var(--theme-secondary);
+}
+
+.ability-highlight[data-family-tone="2"] {
+  border-bottom-color: #eab308;
+  background: color-mix(in srgb, #eab308 22%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, #eab308 38%, transparent);
+}
+.ability-correction[data-family-tone="2"] {
+  border-color: #eab308;
+  background: color-mix(in srgb, #eab308 9%, transparent);
+}
+.ability-button[data-family-tone="2"] { border-left-color: #eab308; }
+.ability-button[data-family-tone="2"] .ability-family-label {
+  border-color: #eab308;
+  color: #eab308;
+}
+
+.ability-highlight[data-family-tone="3"] {
+  border-bottom-color: #10b981;
+  background: color-mix(in srgb, #10b981 22%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, #10b981 38%, transparent);
+}
+.ability-correction[data-family-tone="3"] {
+  border-color: #10b981;
+  background: color-mix(in srgb, #10b981 9%, transparent);
+}
+.ability-button[data-family-tone="3"] { border-left-color: #10b981; }
+.ability-button[data-family-tone="3"] .ability-family-label {
+  border-color: #10b981;
+  color: #10b981;
+}
+
+.ability-highlight[data-family-tone="4"] {
+  border-bottom-color: #f97316;
+  background: color-mix(in srgb, #f97316 22%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, #f97316 38%, transparent);
+}
+.ability-correction[data-family-tone="4"] {
+  border-color: #f97316;
+  background: color-mix(in srgb, #f97316 9%, transparent);
+}
+.ability-button[data-family-tone="4"] { border-left-color: #f97316; }
+.ability-button[data-family-tone="4"] .ability-family-label {
+  border-color: #f97316;
+  color: #f97316;
+}
+
+.ability-highlight[data-family-tone="5"] {
+  border-bottom-color: #a78bfa;
+  background: color-mix(in srgb, #a78bfa 22%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, #a78bfa 38%, transparent);
+}
+.ability-correction[data-family-tone="5"] {
+  border-color: #a78bfa;
+  background: color-mix(in srgb, #a78bfa 9%, transparent);
+}
+.ability-button[data-family-tone="5"] { border-left-color: #a78bfa; }
+.ability-button[data-family-tone="5"] .ability-family-label {
+  border-color: #a78bfa;
+  color: #a78bfa;
 }
 
 .inventory-section {
@@ -1275,7 +1511,7 @@ body.holodeck-idle .stars-bg { display: none; }
   transition: border-color 0.15s, color 0.15s;
 }
 .party-seat-btn:hover { color: var(--theme-primary); border-color: var(--theme-primary); }
-.action-form.off-turn input::placeholder { color: var(--theme-secondary); opacity: 0.9; }
+.action-form.off-turn textarea::placeholder { color: var(--theme-secondary); opacity: 0.9; }
 
 /* SITUATION SURFACE (Phase V4): grounding text always; the deterministic
    location map coexists with it, revealed on positional turns or spotlight */
@@ -1955,4 +2191,27 @@ body.holodeck-idle .stars-bg { display: none; }
 .log-entry .btn-play-narration.playing {
   color: var(--theme-primary);
   border-color: var(--theme-primary);
+}
+
+@media (max-width: 640px) {
+  .main-layout.immersive-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .action-form {
+    flex-direction: column;
+  }
+
+  .send-btn {
+    width: 100%;
+    min-height: 44px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .action-form *,
+  .abilities-list * {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
 }

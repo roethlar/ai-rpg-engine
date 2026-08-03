@@ -534,7 +534,7 @@ function assessResult(result, external) {
 }
 
 function browserAssert(condition, message) {
-  if (!condition) throw new Error('Admin registry browser guard failed: ' + message);
+  if (!condition) throw new Error('Browser guard failed: ' + message);
 }
 
 async function addConfiguredModel(page, { label, provider = 'openai', model, keySource = 'provider', apiKey = '' }) {
@@ -671,6 +671,689 @@ async function runAdminRegistryGuard(page, origin, settingsResponseReads, settin
   console.log('Admin model registry browser guard passed.');
 }
 
+const REVISION_A = `ak1:${'a'.repeat(64)}`;
+const REVISION_B = `ak1:${'b'.repeat(64)}`;
+const REVISION_C = `ak1:${'c'.repeat(64)}`;
+const REVISION_D = `ak1:${'d'.repeat(64)}`;
+
+function jsonClone(value) {
+  return JSON.parse(JSON.stringify(value));
+}
+
+function projectedAbility({ id, definitionId, name, aliases = [], familyKey, familyLabel, help }) {
+  return {
+    abilityId: id,
+    definitionId,
+    definitionVersion: 1,
+    name,
+    trigger: name,
+    aliases,
+    familyKey,
+    familyLabel,
+    help
+  };
+}
+
+function browserCharacter({ id, name, concept, revision, invocableAbilities, passiveName = null }) {
+  const abilities = invocableAbilities.map(ability => ({
+    id: ability.abilityId,
+    definition_id: ability.definitionId,
+    definition_version: ability.definitionVersion,
+    name: `Internal ${ability.definitionId}`,
+    description: 'Canonical mechanic text stays behind campaign presentation.',
+    invocation: { schema_version: 1, family_key: ability.familyKey }
+  }));
+  if (passiveName) {
+    abilities.push({
+      id: `passive-${id}`,
+      name: passiveName,
+      tier: 'established',
+      description: 'A passive capability that remains readable but is never inserted.',
+      source: 'background'
+    });
+  }
+  return {
+    id,
+    name,
+    class: concept,
+    level: 2,
+    health: 12,
+    max_health: 14,
+    mana: 5,
+    max_mana: 7,
+    xp: 125,
+    attributes: { strength: 11, agility: 13, intellect: 10, willpower: 12 },
+    inventory: [],
+    abilities,
+    progression_notes: '',
+    player_character_id: id + 100,
+    abilityTriggerRevision: revision,
+    invocableAbilities
+  };
+}
+
+function campaignBrowserState({ campaignId, title, characters, joinedCharacterId, actingCharacterId, turnNumber = 1 }) {
+  return {
+    campaignId,
+    title,
+    genre: 'Browser fixture',
+    currentQuest: { active_quest: 'Hold the crossing', quest_description: 'Keep the fiction moving.' },
+    currentAct: 1,
+    outline: { acts: [] },
+    character: jsonClone(characters[0]),
+    party: jsonClone(characters),
+    joinedCharacterId,
+    turnOrder: {
+      actingCharacterId,
+      order: characters.map(character => ({ id: character.id, name: character.name }))
+    },
+    npcs: [],
+    ruleset: null,
+    tableStyle: null,
+    turn: {
+      number: turnNumber,
+      playerAction: null,
+      narrative: 'The crossing waits in a hush.',
+      suggestedChoices: ['Look around'],
+      svg: '',
+      rollResults: []
+    }
+  };
+}
+
+function replaceBrowserCharacter(state, character) {
+  const next = jsonClone(state);
+  next.party = next.party.map(member => member.id === character.id ? jsonClone(character) : member);
+  if (next.character?.id === character.id) next.character = jsonClone(character);
+  return next;
+}
+
+function resolvedBrowserTurn(state, requestBody) {
+  const next = jsonClone(state);
+  next.turn = {
+    ...next.turn,
+    number: (next.turn?.number || 0) + 1,
+    playerAction: requestBody.playerAction,
+    narrative: `Resolved: ${requestBody.playerAction}`,
+    suggestedChoices: []
+  };
+  next.turnOrder.actingCharacterId = requestBody.characterId || next.turnOrder.actingCharacterId;
+  return next;
+}
+
+async function waitForCount(items, expected, label, timeoutMs = 5000) {
+  const deadline = Date.now() + timeoutMs;
+  while (items.length < expected && Date.now() < deadline) {
+    await new Promise(resolve => setTimeout(resolve, 20));
+  }
+  browserAssert(items.length >= expected, label);
+}
+
+async function runSeatAbilityComposerGuard(browser, origin) {
+  const seatToken = `seat_${'1'.repeat(48)}`;
+  const guard = projectedAbility({
+    id: 'seat-guard',
+    definitionId: 'guardian.guard',
+    name: 'guard',
+    familyKey: 'protection',
+    familyLabel: 'Protection',
+    help: 'Hold the danger away from an ally.'
+  });
+  const ownCharacter = browserCharacter({
+    id: 10,
+    name: 'Seat Hero',
+    concept: 'Guardian',
+    revision: REVISION_D,
+    invocableAbilities: [guard],
+    passiveName: 'Stone Sense'
+  });
+  const state = campaignBrowserState({
+    campaignId: 11,
+    title: 'Seat Table',
+    characters: [ownCharacter],
+    joinedCharacterId: 10,
+    actingCharacterId: 10
+  });
+  state.seatCharacterId = 10;
+  state.party.push({
+    id: 11,
+    name: 'Other Seat',
+    class: 'Opportunist',
+    level: 2,
+    health: 9,
+    max_health: 12
+  });
+  state.turnOrder.order.push({ id: 11, name: 'Other Seat' });
+
+  const context = await browser.newContext({ viewport: { width: 1000, height: 800 } });
+  await context.addInitScript(({ token }) => {
+    localStorage.setItem('aetheria_settings', JSON.stringify({
+      accessToken: token,
+      enableDiagnostics: false,
+      voiceNarration: false,
+      voiceAutoPlay: true
+    }));
+  }, { token: seatToken });
+  const page = await context.newPage();
+  const pageErrors = [];
+  page.on('pageerror', error => pageErrors.push(error.message));
+  await page.route('**/*', route => {
+    const requestUrl = route.request().url();
+    if (requestUrl === origin + '/api/seat/session') {
+      return route.fulfill({ contentType: 'application/json', body: JSON.stringify(state) });
+    }
+    if (requestUrl === origin + '/api/campaigns/11') {
+      return route.fulfill({ contentType: 'application/json', body: JSON.stringify(state) });
+    }
+    if (requestUrl.startsWith(origin + '/')) return route.continue();
+    return route.abort();
+  });
+
+  try {
+    await page.goto(origin + '/');
+    await page.locator('#main-game-screen').waitFor({ state: 'visible' });
+    await page.locator('.ability-button[data-ability-id="seat-guard"]').waitFor();
+    browserAssert(await page.locator('.ability-button').count() === 1,
+      'a seat sees only its own invocable ability controls');
+    browserAssert((await page.locator('#char-abilities').innerText()).includes('guard'),
+      'the seat sees its own campaign term');
+    browserAssert(!(await page.locator('#char-abilities').innerText()).includes('backstab'),
+      'another seat ability term never crosses the scoped payload');
+    await page.locator('.party-member[data-character-id="11"]').click();
+    browserAssert(await page.locator('#char-name').textContent() === 'Seat Hero',
+      'seat party chips cannot switch the composer identity');
+    browserAssert(pageErrors.length === 0, 'seat composer raises no page errors');
+  } finally {
+    await context.close();
+  }
+}
+
+async function runAbilityComposerGuard(browser, origin) {
+  const backstab = projectedAbility({
+    id: 'ability-backstab',
+    definitionId: 'opportunist.backstab',
+    name: 'backstab',
+    aliases: ['back stab'],
+    familyKey: 'opportunity',
+    familyLabel: 'Opportunity',
+    help: 'Exploit an opening from a dangerous angle.'
+  });
+  const rally = projectedAbility({
+    id: 'ability-rally',
+    definitionId: 'commander.rally',
+    name: 'rally',
+    familyKey: 'command',
+    familyLabel: 'Command',
+    help: 'Steady allies who can hear you.'
+  });
+  const guard = projectedAbility({
+    id: 'ability-guard',
+    definitionId: 'guardian.guard',
+    name: 'guard',
+    familyKey: 'protection',
+    familyLabel: 'Protection',
+    help: 'Interpose yourself against a threat.'
+  });
+  const ward = projectedAbility({
+    id: 'ability-ward',
+    definitionId: 'mystic.ward',
+    name: 'ward',
+    familyKey: 'protection',
+    familyLabel: 'Protection',
+    help: 'Raise a brief protective boundary.'
+  });
+  const aria = browserCharacter({
+    id: 1,
+    name: 'Aria',
+    concept: 'Opportunist',
+    revision: REVISION_A,
+    invocableAbilities: [backstab, rally],
+    passiveName: 'Weather Eye'
+  });
+  const borin = browserCharacter({
+    id: 2,
+    name: 'Borin',
+    concept: 'Guardian',
+    revision: REVISION_B,
+    invocableAbilities: [guard],
+    passiveName: 'Stone Sense'
+  });
+  const wren = browserCharacter({
+    id: 3,
+    name: 'Wren',
+    concept: 'Mystic',
+    revision: REVISION_D,
+    invocableAbilities: [ward],
+    passiveName: 'Old Lore'
+  });
+
+  const states = new Map([
+    [7, campaignBrowserState({
+      campaignId: 7,
+      title: 'Crossing Test',
+      characters: [aria, borin],
+      joinedCharacterId: 1,
+      actingCharacterId: 2
+    })],
+    [8, campaignBrowserState({
+      campaignId: 8,
+      title: 'Ward Test',
+      characters: [wren],
+      joinedCharacterId: 3,
+      actingCharacterId: 3
+    })]
+  ]);
+  const campaignList = [
+    { id: 7, title: 'Crossing Test', genre: 'Browser fixture', summary: 'Composer test.', created_at: '2026-08-03T12:00:00Z', character_name: 'Aria', player_character_id: 101 },
+    { id: 8, title: 'Ward Test', genre: 'Browser fixture', summary: 'Session test.', created_at: '2026-08-03T12:00:00Z', character_name: 'Wren', player_character_id: 103 }
+  ];
+  const turnPosts = [];
+  const delayedTurnGates = [];
+  const unknownApiRequests = [];
+  let networkFailed = false;
+  let staleReturned = false;
+
+  const context = await browser.newContext({
+    viewport: { width: 1280, height: 900 },
+    permissions: ['clipboard-read', 'clipboard-write']
+  });
+  const page = await context.newPage();
+  page.setDefaultTimeout(6000);
+  const pageErrors = [];
+  page.on('pageerror', error => pageErrors.push(error.message));
+  await page.route('**/*', async route => {
+    const request = route.request();
+    const requestUrl = request.url();
+    if (!requestUrl.startsWith(origin + '/')) return route.abort();
+    const url = new URL(requestUrl);
+
+    if (url.pathname === '/api/campaigns' && request.method() === 'GET') {
+      return route.fulfill({ contentType: 'application/json', body: JSON.stringify(campaignList) });
+    }
+    const stateMatch = url.pathname.match(/^\/api\/campaigns\/(7|8)$/u);
+    if (stateMatch && request.method() === 'GET') {
+      return route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify(states.get(Number(stateMatch[1])))
+      });
+    }
+    const journalMatch = url.pathname.match(/^\/api\/campaigns\/(7|8)\/journal$/u);
+    if (journalMatch) {
+      return route.fulfill({ contentType: 'application/json', body: JSON.stringify({ turns: [], memories: [] }) });
+    }
+    const turnMatch = url.pathname.match(/^\/api\/campaigns\/(7|8)\/turn$/u);
+    if (turnMatch && request.method() === 'POST') {
+      const campaignId = Number(turnMatch[1]);
+      const body = request.postDataJSON();
+      turnPosts.push({ campaignId, body });
+      if (body.playerAction.includes('OFFTURN')) {
+        return route.fulfill({
+          status: 409,
+          contentType: 'application/json',
+          body: JSON.stringify({ error: 'Borin is acting.', code: 'OUT_OF_TURN' })
+        });
+      }
+      if (body.playerAction.includes('NETWORK') && !networkFailed) {
+        networkFailed = true;
+        return route.abort('failed');
+      }
+      if (body.playerAction.includes('STALE') && !staleReturned) {
+        staleReturned = true;
+        const ambush = { ...backstab, name: 'ambush', trigger: 'ambush', aliases: [] };
+        const refreshedAria = browserCharacter({
+          id: 1,
+          name: 'Aria',
+          concept: 'Opportunist',
+          revision: REVISION_C,
+          invocableAbilities: [ambush, rally],
+          passiveName: 'Weather Eye'
+        });
+        states.set(7, replaceBrowserCharacter(states.get(7), refreshedAria));
+        return route.fulfill({
+          status: 409,
+          contentType: 'application/json',
+          body: JSON.stringify({ error: 'Ability list changed.', code: 'ABILITY_TRIGGERS_STALE' })
+        });
+      }
+      if (body.playerAction.includes('DELAY_')) {
+        let release;
+        const gate = new Promise(resolve => { release = resolve; });
+        delayedTurnGates.push({ release });
+        await gate;
+      }
+      const next = resolvedBrowserTurn(states.get(campaignId), body);
+      states.set(campaignId, next);
+      return route.fulfill({ contentType: 'application/json', body: JSON.stringify(next) });
+    }
+    if (url.pathname.startsWith('/api/')) {
+      unknownApiRequests.push(`${request.method()} ${url.pathname}`);
+      return route.fulfill({ status: 404, contentType: 'application/json', body: '{"error":"unexpected browser fixture route"}' });
+    }
+    return route.continue();
+  });
+
+  const modifier = process.platform === 'darwin' ? 'Meta' : 'Control';
+  try {
+    await page.goto(origin + '/');
+    await page.locator('.campaign-card').first().waitFor();
+    await page.locator('.campaign-card').first().click();
+    await page.locator('#main-game-screen').waitFor({ state: 'visible' });
+    const input = page.locator('#action-input');
+    const send = page.locator('#btn-send-action');
+    const backstabButton = page.locator('.ability-button[data-ability-id="ability-backstab"]');
+    await backstabButton.waitFor();
+
+    browserAssert(await input.evaluate(node => node.tagName) === 'TEXTAREA',
+      'the action source is a native textarea');
+    browserAssert(await page.locator('#action-highlight-backdrop').getAttribute('aria-hidden') === 'true',
+      'the mirror is aria-hidden');
+    browserAssert(await page.locator('#action-highlight-backdrop').evaluate(node => getComputedStyle(node).pointerEvents) === 'none',
+      'the mirror is pointer-inert');
+    browserAssert(await page.locator('[contenteditable="true"]').count() === 0,
+      'the textarea is the only editable composer surface');
+    const desktopRects = await page.evaluate(() => {
+      const textarea = document.querySelector('#action-input').getBoundingClientRect();
+      const backdrop = document.querySelector('#action-highlight-backdrop').getBoundingClientRect();
+      return { textarea, backdrop };
+    });
+    browserAssert(Math.abs(desktopRects.textarea.width - desktopRects.backdrop.width) < 1,
+      'desktop mirror and textarea widths align');
+    browserAssert(await input.isEnabled(), 'off-turn table talk leaves prose entry enabled');
+    browserAssert((await input.getAttribute('placeholder')).startsWith('Table talk'),
+      'off-turn entry keeps its table-talk cue');
+    browserAssert(await page.locator('.ability-passive').filter({ hasText: 'Weather Eye' }).count() === 1,
+      'passive/free-text abilities remain non-button cards');
+    browserAssert(await page.locator('.ability-button').count() === 2,
+      'only invocable projections become ability buttons');
+    browserAssert(await backstabButton.locator('.ability-family-label').textContent() === 'Opportunity',
+      'ability buttons expose their family label');
+    browserAssert((await backstabButton.innerText()).includes('Exploit an opening'),
+      'ability buttons expose campaign help text');
+
+    await input.fill('backstab');
+    browserAssert(await page.locator('.ability-highlight').count() === 1,
+      'an exact owned term highlights');
+    await page.locator('.party-member[data-character-id="2"]').click();
+    const switchedName = await page.locator('#char-name').textContent();
+    const storedCharacter = await page.evaluate(() => localStorage.getItem('aetheria_my_character_7'));
+    browserAssert(switchedName === 'Borin',
+      `host character selection changes the displayed sheet (name=${switchedName}, stored=${storedCharacter})`);
+    browserAssert(await page.locator('.ability-highlight').count() === 0,
+      'the prior character term becomes ordinary prose after a host switch');
+    browserAssert(await page.locator('.ability-button[data-ability-id="ability-guard"]').count() === 1,
+      'the newly selected character supplies its own ability controls');
+    await page.locator('.party-member[data-character-id="1"]').click();
+    browserAssert(await page.locator('.ability-highlight').count() === 1,
+      'switching back restores recognition from that character projection');
+
+    await input.fill('I orc');
+    await input.evaluate(node => {
+      node.focus();
+      node.setSelectionRange(2, 2);
+      node.dispatchEvent(new Event('select', { bubbles: true }));
+    });
+    await backstabButton.click();
+    browserAssert(await input.inputValue() === 'I backstab orc',
+      'ability click inserts at the remembered caret with shared spacing');
+    browserAssert(await input.evaluate(node => node.selectionStart) === 11,
+      'caret lands after the inserted campaign term');
+
+    await input.fill('I poke orc');
+    await input.evaluate(node => {
+      node.focus();
+      node.setSelectionRange(2, 6);
+      node.dispatchEvent(new Event('select', { bubbles: true }));
+    });
+    await page.locator('.ability-button[data-ability-id="ability-rally"]').click();
+    browserAssert(await input.inputValue() === 'I rally orc',
+      'ability click replaces the remembered selection');
+
+    await input.fill('');
+    await input.focus();
+    await input.pressSequentially('backstab');
+    await page.keyboard.press(`${modifier}+z`);
+    const undoneValue = await input.inputValue();
+    browserAssert('backstab'.startsWith(undoneValue) && undoneValue.length < 'backstab'.length,
+      `mirror updates preserve native undo (value=${undoneValue})`);
+    await page.keyboard.press(`${modifier}+Shift+z`);
+    browserAssert(await input.inputValue() === 'backstab', 'mirror updates preserve native redo');
+
+    await input.fill('I ');
+    await input.focus();
+    await page.evaluate(() => navigator.clipboard.writeText('rally'));
+    await page.keyboard.press(`${modifier}+v`);
+    browserAssert(await input.inputValue() === 'I rally', 'native paste remains available');
+    browserAssert(await page.locator('.ability-highlight').count() === 1,
+      'pasted owned terms run through the same scanner');
+
+    const multiline = `${Array.from({ length: 18 }, (_, index) => `line ${index}`).join('\n')}\nbackstab`;
+    await input.fill(multiline);
+    const scroll = await input.evaluate(node => {
+      node.scrollTop = node.scrollHeight;
+      node.dispatchEvent(new Event('scroll'));
+      return { top: node.scrollTop, scrollHeight: node.scrollHeight, clientHeight: node.clientHeight };
+    });
+    browserAssert(scroll.scrollHeight > scroll.clientHeight && scroll.top > 0,
+      'multiline textarea grows to its cap and then scrolls natively');
+    browserAssert(
+      (await page.locator('#action-highlight-content').getAttribute('style')).includes(`-${scroll.top}px`),
+      'multiline mirror follows the textarea scroll offset'
+    );
+
+    await input.fill('I bakcstab now');
+    browserAssert(await page.locator('.ability-highlight').count() === 0,
+      'a one-edit typo never highlights or invokes');
+    const correction = page.locator('#ability-correction');
+    await correction.waitFor({ state: 'visible' });
+    browserAssert((await correction.innerText()).includes('backstab'),
+      'one unambiguous spelling correction is offered');
+    await correction.click();
+    browserAssert(await input.inputValue() === 'I backstab now',
+      'accepting a correction edits only the suggested range');
+    browserAssert(await page.locator('.ability-highlight').count() === 1,
+      'accepted spelling becomes exact recognition');
+
+    await input.fill('backstab then rally');
+    browserAssert(await page.locator('.ability-highlight').count() === 2,
+      'multiple non-overlapping owned terms highlight together');
+    browserAssert((await page.locator('#ability-recognition-status').textContent()).includes('backstab'),
+      'screen-reader status reports the changed recognized ability set');
+    const markStyle = await page.locator('.ability-highlight').first().evaluate(node => ({
+      width: getComputedStyle(node).borderBottomWidth,
+      style: getComputedStyle(node).borderBottomStyle
+    }));
+    browserAssert(markStyle.width !== '0px' && markStyle.style !== 'none',
+      'recognition includes a non-color underline cue');
+    await input.focus();
+    await page.keyboard.press('Tab');
+    browserAssert(await page.evaluate(() => document.activeElement?.id) === 'btn-send-action',
+      'focus order moves from the textarea to Send when correction is absent');
+
+    await input.fill('composition in progress');
+    const preCompositionPosts = turnPosts.length;
+    await input.evaluate(node => {
+      node.dispatchEvent(new CompositionEvent('compositionstart', { bubbles: true, data: '進' }));
+      node.dispatchEvent(new KeyboardEvent('keydown', {
+        key: 'Enter', bubbles: true, cancelable: true, isComposing: true
+      }));
+    });
+    await new Promise(resolve => setTimeout(resolve, 100));
+    browserAssert(turnPosts.length === preCompositionPosts,
+      'Enter during active IME composition never submits');
+    await input.evaluate(node => {
+      node.dispatchEvent(new CompositionEvent('compositionend', { bubbles: true, data: '進' }));
+    });
+
+    await input.fill('line one');
+    const preShiftEnterPosts = turnPosts.length;
+    await input.focus();
+    await page.keyboard.press('Shift+Enter');
+    browserAssert((await input.inputValue()).includes('\n'), 'Shift+Enter inserts a newline');
+    browserAssert(turnPosts.length === preShiftEnterPosts, 'Shift+Enter does not submit');
+
+    const exactProse = '  I BACKSTAB <mark>plain</mark>\nthen rally.  ';
+    const exactPostCount = turnPosts.length;
+    await input.fill(exactProse);
+    await input.focus();
+    await page.keyboard.press('Enter');
+    await waitForCount(turnPosts, exactPostCount + 1, 'Enter submits the action');
+    await page.waitForFunction(() => document.querySelector('#action-input').value === '');
+    const exactRequest = turnPosts[exactPostCount].body;
+    browserAssert(exactRequest.playerAction === exactProse,
+      'turn request preserves leading/trailing whitespace, casing, markup-like text, and newline exactly');
+    browserAssert(exactRequest.characterId === 1 && exactRequest.abilityTriggerRevision === REVISION_A,
+      'turn request pairs the selected character with only its opaque revision');
+    browserAssert(
+      JSON.stringify(Object.keys(exactRequest).sort()) === JSON.stringify(['abilityTriggerRevision', 'characterId', 'playerAction']),
+      'turn request contains no client-derived ability IDs, ranges, spellings, or family data'
+    );
+    const exactBubbles = (await page.locator('.log-player .content').allTextContents())
+      .filter(text => text === exactProse);
+    browserAssert(exactBubbles.length === 1,
+      'optimistic success leaves one exact plain-prose player bubble');
+
+    const bubblesBeforeOffTurn = await page.locator('.log-player').count();
+    const offTurnText = '  OFFTURN backstab  ';
+    await input.fill(offTurnText);
+    await input.evaluate(node => {
+      node.focus();
+      node.setSelectionRange(4, 11);
+      node.dispatchEvent(new Event('select', { bubbles: true }));
+    });
+    await page.keyboard.press('Enter');
+    await page.locator('.log-system .content').filter({ hasText: 'Borin is acting.' }).waitFor();
+    browserAssert(await input.inputValue() === offTurnText,
+      'off-turn rejection retains exact prose');
+    browserAssert(await input.evaluate(node => node.selectionStart === 4 && node.selectionEnd === 11),
+      'off-turn rejection restores the exact selection');
+    browserAssert(await page.locator('.log-player').count() === bubblesBeforeOffTurn,
+      'off-turn rejection removes its optimistic bubble');
+
+    const networkText = 'NETWORK rally';
+    await input.fill(networkText);
+    await input.evaluate(node => {
+      node.focus();
+      node.setSelectionRange(3, 8);
+      node.dispatchEvent(new Event('select', { bubbles: true }));
+    });
+    const networkStart = turnPosts.length;
+    await page.keyboard.press('Enter');
+    await page.locator('.log-system .content').filter({ hasText: 'could not be sent' }).waitFor();
+    browserAssert(await input.inputValue() === networkText,
+      'network failure keeps the exact draft');
+    browserAssert(await input.evaluate(node => node.selectionStart === 3 && node.selectionEnd === 8),
+      'network failure restores the exact selection');
+    await send.click();
+    await waitForCount(turnPosts, networkStart + 2, 'explicit network retry sends a second request');
+    await page.waitForFunction(() => document.querySelector('#action-input').value === '');
+    const networkBubbles = (await page.locator('.log-player .content').allTextContents())
+      .filter(text => text === networkText);
+    browserAssert(networkBubbles.length === 1,
+      'network retry resolves to one player bubble, not duplicate optimism');
+
+    const staleText = 'STALE backstab';
+    await input.fill(staleText);
+    await input.evaluate(node => {
+      node.focus();
+      node.setSelectionRange(6, 10);
+      node.dispatchEvent(new Event('select', { bubbles: true }));
+    });
+    const staleStart = turnPosts.length;
+    await page.keyboard.press('Enter');
+    await page.locator('.log-system .content').filter({ hasText: 'abilities changed' }).waitFor();
+    browserAssert(await input.inputValue() === staleText,
+      'stale refresh preserves exact prose');
+    browserAssert(await input.evaluate(node => node.selectionStart === 6 && node.selectionEnd === 10),
+      'stale refresh preserves the caret selection');
+    browserAssert(await page.locator('.ability-highlight').count() === 0,
+      'stale refresh rescans against the new sheet rather than old highlights');
+    browserAssert((await page.locator('.ability-button[data-ability-id="ability-backstab"]').innerText()).includes('ambush'),
+      'stale refresh replaces campaign ability wording atomically');
+    await new Promise(resolve => setTimeout(resolve, 150));
+    browserAssert(turnPosts.length === staleStart + 1,
+      'stale refresh never resends automatically');
+    await send.click();
+    await waitForCount(turnPosts, staleStart + 2, 'stale action resends only after explicit Send');
+    await page.waitForFunction(() => document.querySelector('#action-input').value === '');
+    browserAssert(turnPosts[staleStart].body.abilityTriggerRevision === REVISION_A
+      && turnPosts[staleStart + 1].body.abilityTriggerRevision === REVISION_C,
+    'explicit stale retry echoes the refreshed opaque revision');
+
+    const delayedCharacterText = 'DELAY_CHAR ambush';
+    await input.fill(delayedCharacterText);
+    const delayedCharacterStart = delayedTurnGates.length;
+    await send.click();
+    await waitForCount(delayedTurnGates, delayedCharacterStart + 1,
+      'delayed character-switch response is held by the fixture');
+    await page.locator('.party-member[data-character-id="2"]').click();
+    browserAssert(await page.locator('#char-name').textContent() === 'Borin',
+      'character may change while an old turn response is in flight');
+    delayedTurnGates[delayedCharacterStart].release();
+    await send.waitFor({ state: 'visible' });
+    await page.waitForFunction(() => !document.querySelector('#btn-send-action').disabled);
+    browserAssert(await page.locator('#char-name').textContent() === 'Borin',
+      'old character response cannot repaint the selected sheet');
+    browserAssert(!(await page.locator('.log-player .content').allTextContents()).includes(delayedCharacterText),
+      'old character response removes unowned optimistic prose and leaves canonical polling to catch up');
+
+    await page.locator('.party-member[data-character-id="1"]').click();
+    await input.fill('ambush draft');
+    await page.setViewportSize({ width: 500, height: 900 });
+    const narrowLayout = await page.evaluate(() => {
+      const composer = document.querySelector('#action-composer').getBoundingClientRect();
+      return {
+        scrollWidth: document.documentElement.scrollWidth,
+        viewport: innerWidth,
+        composerLeft: composer.left,
+        composerRight: composer.right
+      };
+    });
+    browserAssert(narrowLayout.scrollWidth <= narrowLayout.viewport + 1,
+      'narrow composer does not create horizontal page overflow');
+    browserAssert(narrowLayout.composerLeft >= 0 && narrowLayout.composerRight <= narrowLayout.viewport,
+      'narrow composer remains inside the viewport');
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    const reducedDurations = await page.locator('.ability-button').first().evaluate(node =>
+      getComputedStyle(node).transitionDuration
+    );
+    browserAssert(reducedDurations.split(',').every(value => parseFloat(value) <= 0.001),
+      'reduced-motion preference collapses ability-control transitions');
+
+    const delayedTableText = 'DELAY_TABLE ambush';
+    await input.fill(delayedTableText);
+    const delayedTableStart = delayedTurnGates.length;
+    await send.click();
+    await waitForCount(delayedTurnGates, delayedTableStart + 1,
+      'delayed table-switch response is held by the fixture');
+    await page.locator('#btn-show-campaigns').click();
+    await page.locator('.campaign-card').nth(1).waitFor();
+    await page.locator('.campaign-card').nth(1).click();
+    await page.locator('.ability-button[data-ability-id="ability-ward"]').waitFor();
+    delayedTurnGates[delayedTableStart].release();
+    await page.waitForFunction(() => !document.querySelector('#btn-send-action').disabled);
+    browserAssert(await page.locator('#char-name').textContent() === 'Wren',
+      'old table response cannot repaint the replacement campaign');
+    browserAssert(await input.inputValue() === '',
+      'campaign transition clears the prior table draft');
+    browserAssert(await page.locator('.ability-button[data-ability-id="ability-backstab"]').count() === 0,
+      'campaign transition replaces the trigger projection instead of merging it');
+    browserAssert(!(await page.locator('.log-player .content').allTextContents()).includes(delayedTableText),
+      'old table optimistic bubble cannot leak into the replacement campaign');
+
+    browserAssert(unknownApiRequests.length === 0,
+      'composer flow makes no unexpected API requests: ' + unknownApiRequests.join(', '));
+    browserAssert(pageErrors.length === 0,
+      'composer flow raises no page errors: ' + pageErrors.join(', '));
+    console.log('Ability composer browser guard passed.');
+  } finally {
+    for (const gate of delayedTurnGates) gate.release();
+    await context.close();
+  }
+
+  await runSeatAbilityComposerGuard(browser, origin);
+  console.log('Seat ability composer browser guard passed.');
+}
+
 async function main() {
   const dbPath = path.join(
     os.tmpdir(),
@@ -777,6 +1460,7 @@ async function main() {
     const result = await runOracle(page);
     assessResult(result, external);
     await runAdminRegistryGuard(page, origin, settingsResponseReads, settingsPosts);
+    await runAbilityComposerGuard(browser, origin);
   } catch (error) {
     runError = error;
   } finally {

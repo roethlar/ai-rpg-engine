@@ -79,7 +79,19 @@
           <!-- Dynamic choice buttons -->
         </div>
         <form id="action-form" class="action-form">
-          <input type="text" id="action-input" placeholder="Act or ask the GM (e.g., 'Scan the corridor', 'Do I know this symbol?', 'Take cover')..." autocomplete="off" required>
+          <div class="action-composer-column">
+            <label class="sr-only" for="action-input">Your action</label>
+            <div class="action-composer" id="action-composer">
+              <div class="action-highlight-backdrop" id="action-highlight-backdrop" aria-hidden="true">
+                <div class="action-highlight-content" id="action-highlight-content"></div>
+              </div>
+              <textarea id="action-input" rows="1" maxlength="2000" spellcheck="true" autocomplete="off" aria-describedby="ability-recognition-status" placeholder="Act or ask the GM (e.g., 'Scan the corridor', 'Do I know this symbol?', 'Take cover')..." required></textarea>
+            </div>
+            <div class="ability-correction-region" aria-live="polite">
+              <button type="button" class="ability-correction" id="ability-correction" hidden></button>
+            </div>
+            <span class="sr-only" id="ability-recognition-status" aria-live="polite"></span>
+          </div>
           <button type="submit" class="btn btn-primary send-btn" id="btn-send-action">
             <span>Send</span> <i class="fa-solid fa-paper-plane"></i>
           </button>

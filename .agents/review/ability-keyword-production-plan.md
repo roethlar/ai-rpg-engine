@@ -32,7 +32,23 @@ separate bounded invocation audit record. Bundle v3, older-bundle normalization,
 validation, import remapping, and fork copying preserve that record without name fallback; seat
 journals omit it. The full suite and syntax/diff checks pass. Guard proof temporarily trusted an
 extra forged `abilityIds` field; the cross-character spoof assertion failed, then passed after
-restoration. AKP-3 is next. No ability effects, costs, catalog content, or composer UI changed.
+restoration. No ability effects, costs, catalog content, or composer UI changed in AKP-2.
+
+**Implementation:** AKP-3 COMPLETE 2026-08-03. The production action surface is now a native
+textarea over a pointer-inert, `aria-hidden` mirror. Exact owned terms and aliases highlight,
+one-edit typos offer a correction without activation, invocable campaign-worded ability buttons
+insert at the remembered caret, and passive/free-text abilities remain non-button cards. The
+browser submits the exact textarea string with only the selected character ID and opaque revision;
+off-turn/network failures preserve text and selection, stale revisions refresh and require an
+explicit resend, and table/character epochs discard old responses and optimistic bubbles. The unit
+suite, JavaScript syntax checks, theme/browser suite, and diff checks pass. Browser coverage includes
+desktop/narrow layout, keyboard/IME/multiline behavior, host and seat identity boundaries, retries,
+accessibility cues, and duplicate suppression. Guard proof temporarily trimmed the outgoing prose;
+the exact-prose browser assertion failed, then the restored path returned green. A separate
+hands-on Chrome pass could not run because no controllable browser was available; the automated
+desktop and narrow browser runs are recorded instead. AKP-4 remains blocked on the real versioned
+class/catalog producer. No ability effects, costs, catalog content, generated-card migration, or
+prototype player option shipped.
 
 **Prototype evidence:** `.agents/review/ability-keyword-composer-plan.md` and
 `.agents/review/ability-keyword-composer-prototype/` are the accepted interaction proof. Production
@@ -424,6 +440,8 @@ Guard proof: temporarily trust a forged request `abilityIds` entry belonging to 
 The spoofing test must fail before restoration; the focused and full tests must pass afterward.
 
 ### AKP-3 — production textarea, highlights, insertion, and recovery
+
+**Implementation: COMPLETE 2026-08-03.**
 
 Files:
 

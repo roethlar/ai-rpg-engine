@@ -3148,7 +3148,14 @@ function testThemeColorContract() {
     ['--theme-panel', 80],
     ['--theme-primary', 8],
     ['--theme-primary', 20],
+    ['--theme-primary', 24],
+    ['--theme-primary', 38],
+    ['--theme-primary', 9],
+    ['--theme-primary', 9],
     ['--theme-primary', 25],
+    ['--theme-secondary', 24],
+    ['--theme-secondary', 38],
+    ['--theme-secondary', 9],
     ['--theme-primary', 10],
     ['--theme-primary', 60],
     ['--theme-primary', 15],
@@ -3162,7 +3169,7 @@ function testThemeColorContract() {
   assert.deepStrictEqual(
     alphaConsumers,
     expectedAlphaConsumers,
-    'Theme translucency must match the independently pinned 25-entry ordered alpha table'
+    'Theme translucency must match the independently pinned 32-entry ordered alpha table'
   );
 
   // Consumer typo lint. Case-insensitive because CSS function names are (`RGBA(` is legal).
@@ -3758,6 +3765,60 @@ async function testAbilityKeywordProjection() {
     error => error.code === 'TURN_REQUEST_INVALID',
     'Client-supplied ability identities are rejected instead of ignored'
   );
+}
+
+// -------------------------------------------------------------
+// Test: production ability composer structure (AKP-3)
+// -------------------------------------------------------------
+function testAbilityComposerStructure() {
+  console.log(' - Running production ability composer structure tests...');
+  const html = fs.readFileSync(new URL('./public/index.html', import.meta.url), 'utf8');
+  const appSource = fs.readFileSync(new URL('./public/app.js', import.meta.url), 'utf8');
+  const styles = fs.readFileSync(new URL('./public/styles.css', import.meta.url), 'utf8');
+
+  assert.match(html, /<textarea\s+id="action-input"/u,
+    'The sole action editor is a native textarea');
+  assert.match(
+    html,
+    /class="action-highlight-backdrop"[^>]*aria-hidden="true"/u,
+    'The highlight mirror is hidden from assistive technology'
+  );
+  assert.strictEqual(/contenteditable/iu.test(html), false,
+    'No second editable surface can diverge from the textarea');
+  assert.match(styles, /\.action-highlight-backdrop\s*\{[^}]*pointer-events:\s*none;/su,
+    'The highlight mirror is pointer-inert');
+  assert.match(styles, /\.ability-highlight\s*\{[^}]*border-bottom:\s*3px\s+solid/su,
+    'Recognition has a non-color underline cue');
+  assert.match(styles, /\.ability-family-label\s*\{/u,
+    'Invocable ability controls expose a visible family label');
+
+  assert.match(
+    appSource,
+    /import\s*\{[^}]*applyAbilitySuggestion[^}]*computeAbilityInsertion[^}]*scanAbilityTriggers[^}]*\}\s*from\s*'\.\/ability-keywords\.js'/su,
+    'The browser uses the same shared matcher and insertion helpers as the server'
+  );
+  const submissionSource = appSource.slice(
+    appSource.indexOf('// Action text submission'),
+    appSource.indexOf('// Renders the campaign')
+  );
+  assert.match(submissionSource, /const actionText = actionInput\.value;/u,
+    'Submission captures the exact textarea value');
+  assert.strictEqual(submissionSource.includes('actionInput.value.trim()'), false,
+    'Submission never rewrites prose through trim');
+  assert.match(submissionSource, /playerAction:\s*actionText/u,
+    'The exact textarea string is the turn payload');
+  assert.match(submissionSource, /abilityTriggerRevision:\s*scope\.triggerRevision/u,
+    'The browser echoes the selected character opaque revision');
+  assert.strictEqual(/\b(?:abilityIds|matches|familyKey)\s*:/u.test(submissionSource), false,
+    'The browser sends no derived ability authority');
+  assert.match(submissionSource, /body\.code === 'ABILITY_TRIGGERS_STALE'/u,
+    'A stale revision has a dedicated refresh-and-resend path');
+  assert.match(appSource, /event\.key === 'Enter'[\s\S]*!event\.shiftKey[\s\S]*!event\.isComposing/u,
+    'Enter submits while Shift+Enter and IME composition remain native textarea input');
+
+  const productionUi = `${html}\n${appSource}\n${styles}`;
+  assert.strictEqual(/\b(?:Backstab|Rally|Protect Ally)\b/iu.test(productionUi), false,
+    'No prototype ability fixture ships in production UI assets');
 }
 
 // -------------------------------------------------------------
@@ -6825,6 +6886,7 @@ async function runAll() {
     testResolveAgentConfig();
     await testRulesetCanon();
     await testAbilityKeywordProjection();
+    testAbilityComposerStructure();
     await testAbilityKeywordAuthorityPersistence();
     await testAbilityIdentity();
     await testStageOneAbilityWordingProposal();
