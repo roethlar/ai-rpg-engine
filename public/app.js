@@ -816,6 +816,20 @@ function setupEventListeners() {
         optimisticBubble.remove();
         return;
       }
+      // ds-1: never render a turn the log already shows — the poll's
+      // monotonicity rule (see its `<=` check). The server numbers every
+      // committed turn strictly upward, so an OK response at or below the
+      // rendered head is a duplicate; rendering it would double the GM
+      // narrative and replay dice theater and narration. The action itself
+      // was accepted, so the composer still clears and the optimistic bubble
+      // settles through the duplicate-aware path.
+      if (typeof gameState.turn?.number === 'number' &&
+          typeof lastRenderedTurnNumber === 'number' &&
+          gameState.turn.number <= lastRenderedTurnNumber) {
+        setComposerValue('', 0, 0, { focus: false });
+        settleOptimisticPlayerAction(optimisticBubble, gameState.turn.number);
+        return;
+      }
       // Gap backfill (poll-1 r2): other players' turns may sit between the
       // last thing in this log and the turn this submit produced. Without
       // this, rendering the submit's turn buries them permanently — the
