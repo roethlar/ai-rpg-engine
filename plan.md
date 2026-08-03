@@ -2960,6 +2960,19 @@ the owner-settled slice order is S1.1 → S1.8, S1.6–S1.8 are also blocked beh
 chain unless the owner separately approves a reorder for existing free-text characters; G5-A does
 not itself amend the order.
 
+### Ability-keyword production integration — DRAFT; no product code approved
+
+`.agents/review/ability-keyword-production-plan.md` defines the clean production contract behind
+the accepted prototype: stable character-owned ability identity, campaign-specific trigger
+bindings, a shared deterministic browser/server matcher, authenticated server recomputation,
+structured Council declarations, turn persistence/export, seat isolation, and the native-textarea
+composer. The owner ruled that current campaigns are disposable test data, so the plan contains no
+conversion from model-generated `ruleset.abilities` cards and no dual trigger source. The old Setup
+path is retired only when the real versioned class/catalog creation path can supply stable abilities
+and complete bindings; the plan must not seed its three prototype abilities or invent a provisional
+roster. The plan is drafted but not approved, and implementation remains blocked on both owner
+approval and that real catalog-backed producer.
+
 ### Phase PT openreview repairs — DRAFT; held behind the required version-plan revision
 
 The 2026-08-01 `claude-fable-5` review admitted `pt-1` and `pt-3` and declined `pt-2`.

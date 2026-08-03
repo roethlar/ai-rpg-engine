@@ -1644,3 +1644,29 @@ Reason:
 The owner selected the plain-word interaction after rejecting prose plus a second action-selection
 workflow as unrepresentative and intolerably slow for text multiplayer, then approved the bounded
 prototype plan after seeing its exact scope.
+
+### 2026-08-02 - Ability-keyword production cutover needs no generated-card migration (owner decision)
+
+**Status: Active for the ability-keyword production plan; product integration remains unapproved.**
+
+There are no real existing campaigns whose model-generated `ruleset.abilities` entries must be
+preserved for the production ability-keyword cutover. Disposable local test campaigns may be wiped
+deliberately if implementation later requires a clean database. The application must not build a
+rules-card-to-character conversion, name-based identity fallback, or second invocation source.
+
+New production campaigns must instead receive stable, character-owned abilities from the eventual
+versioned class/catalog path. Only those owned abilities and their campaign presentation bindings
+may become keyword triggers. The superseded generated rules-card path may be retired once that real
+catalog-backed creation path is ready. Code must never delete campaign data or a database
+automatically; any local wipe remains an explicit operator action against a resolved disposable
+target.
+
+This clean-cut ruling is narrower than future campaign/catalog upgrade policy. Once real campaigns
+exist on versioned catalogs, their settled safe-upgrade and player-owned character-version rules
+still apply. Existing generic bundle-format compatibility does not authorize synthesizing owned
+abilities from old free-text rule cards.
+
+Reason:
+The earlier production question assumed legacy campaign data needed preserving. The owner corrected
+that premise: current campaigns are test data, so a migration path would add complexity and retain a
+superseded generated-mechanics design for no user benefit.
