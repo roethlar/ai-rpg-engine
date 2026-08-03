@@ -2466,6 +2466,202 @@ async function runAuthorAttributionGuard(browser, origin) {
   }
 }
 
+// jd-1: Join hands the client the CURRENT HEAD state, not a new turn. The
+// party changed; the fiction did not. Re-appending that head beat corrupts the
+// shared transcript with a repeated GM narrative, a repeated dice card and a
+// repeated Current Situation block that only a full campaign reload clears.
+// This guard pins both directions: the head beat stays at exactly one copy of
+// each, AND the join genuinely happened (notice posted, party strip grew) so
+// the counts cannot be satisfied by a Join that silently does nothing.
+async function runJoinDuplicateGuard(browser, origin) {
+  const brace = projectedAbility({
+    id: 'ability-brace',
+    definitionId: 'warden.brace',
+    name: 'brace',
+    familyKey: 'protection',
+    familyLabel: 'Protection',
+    help: 'Set your shoulder against the gate.'
+  });
+  const sight = projectedAbility({
+    id: 'ability-sight',
+    definitionId: 'scout.sight',
+    name: 'sight',
+    familyKey: 'opportunity',
+    familyLabel: 'Opportunity',
+    help: 'Read the ground ahead.'
+  });
+  const me = browserCharacter({
+    id: 71,
+    name: 'Gate Warden',
+    concept: 'Warden',
+    revision: REVISION_A,
+    invocableAbilities: [brace]
+  });
+  const newcomer = browserCharacter({
+    id: 72,
+    name: 'Newcomer Scout',
+    concept: 'Deck scout',
+    revision: REVISION_B,
+    invocableAbilities: [sight]
+  });
+
+  // A head turn carrying all three appendable surfaces at once: narrative,
+  // a d20 card, and scene grounding. Each needle is unique to this turn, so a
+  // count of 2 can only mean the same beat was appended twice.
+  let state = campaignBrowserState({
+    campaignId: 9,
+    title: 'The Held Gate',
+    characters: [me],
+    joinedCharacterId: 71,
+    actingCharacterId: 71,
+    turnNumber: 3
+  });
+  state.turn = {
+    ...state.turn,
+    characterId: 71,
+    playerAction: 'I set my shoulder to the gate',
+    narrative: 'HEAD-NARRATIVE the gate holds against the tide.',
+    sceneGrounding: 'HEAD-GROUNDING the gate stands; the water climbs the steps.',
+    rollResults: [{
+      attribute: 'willpower',
+      roll: 17,
+      modifier: 2,
+      total: 19,
+      dc: 12,
+      success: true,
+      reason: 'HEAD-ROLL brace the gate'
+    }]
+  };
+  const campaignList = [
+    { id: 9, title: 'The Held Gate', genre: 'Browser fixture', summary: 'One warden, one gate.', created_at: '2026-08-03T12:00:00Z', character_name: 'Gate Warden', player_character_id: 171 }
+  ];
+  const journal = { turns: [], memories: [] };
+
+  const joinPosts = [];
+  const unknownApiRequests = [];
+
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  const page = await context.newPage();
+  page.setDefaultTimeout(6000);
+  const pageErrors = [];
+  page.on('pageerror', error => pageErrors.push(error.message));
+  await page.route('**/*', async route => {
+    const request = route.request();
+    const requestUrl = request.url();
+    if (!requestUrl.startsWith(origin + '/')) return route.abort();
+    const url = new URL(requestUrl);
+
+    if (url.pathname === '/api/campaigns' && request.method() === 'GET') {
+      return route.fulfill({ contentType: 'application/json', body: JSON.stringify(campaignList) });
+    }
+    if (url.pathname === '/api/campaigns/9' && request.method() === 'GET') {
+      return route.fulfill({ contentType: 'application/json', body: JSON.stringify(state) });
+    }
+    if (url.pathname === '/api/campaigns/9/journal' && request.method() === 'GET') {
+      return route.fulfill({ contentType: 'application/json', body: JSON.stringify(journal) });
+    }
+    if (url.pathname === '/api/campaigns/9/join' && request.method() === 'POST') {
+      joinPosts.push(request.postDataJSON());
+      // What the server really returns (rpg-engine joinCampaign): the current
+      // campaign state, head turn untouched, plus the new character.
+      state = jsonClone(state);
+      state.party = [...state.party, jsonClone(newcomer)];
+      state.turnOrder.order = state.party.map(member => ({ id: member.id, name: member.name }));
+      state.joinedCharacterId = 72;
+      return route.fulfill({ contentType: 'application/json', body: JSON.stringify(state) });
+    }
+    if (url.pathname.startsWith('/api/')) {
+      unknownApiRequests.push(`${request.method()} ${url.pathname}`);
+      return route.fulfill({ status: 404, contentType: 'application/json', body: '{"error":"unexpected browser fixture route"}' });
+    }
+    return route.continue();
+  });
+
+  // How many log entries of one kind carry this turn's needle.
+  const countEntries = (selector, needle) => page.evaluate(({ sel, text }) =>
+    Array.from(document.querySelectorAll('#narrative-container ' + sel))
+      .filter(entry => entry.textContent.includes(text)).length,
+    { sel: selector, text: needle });
+  // Both join prompts use the same dialog shell; waiting on the message text
+  // keeps the second answer from racing the first dialog's teardown.
+  const answerPrompt = async (messageNeedle, value) => {
+    const dialog = page.locator('.modal', { has: page.locator('h2', { hasText: 'Input Needed' }) });
+    await dialog.locator('p', { hasText: messageNeedle }).waitFor();
+    await dialog.locator('input[type="text"]').fill(value);
+    await dialog.locator('button.btn-primary').click();
+  };
+
+  try {
+    await page.goto(origin + '/');
+    await page.locator('.campaign-card').first().waitFor();
+    await page.locator('.campaign-card').first().click();
+    await page.locator('#main-game-screen').waitFor({ state: 'visible' });
+    await page.locator('.ability-button[data-ability-id="ability-brace"]').waitFor();
+    await page.waitForFunction(() =>
+      document.querySelector('#narrative-container').textContent.includes('HEAD-NARRATIVE'));
+
+    // The fixture must actually put ONE of each in the log first, or "still 1"
+    // after the join would prove nothing.
+    browserAssert(await countEntries('.log-gm', 'HEAD-NARRATIVE') === 1,
+      'the campaign load puts the head narrative in the log exactly once');
+    browserAssert(await countEntries('.log-roll', 'HEAD-ROLL') === 1,
+      'the campaign load puts the head dice card in the log exactly once');
+    browserAssert(await countEntries('.log-scene', 'HEAD-GROUNDING') === 1,
+      'the campaign load puts the head scene grounding in the log exactly once');
+
+    // --- Join the table. ---
+    await page.locator('#party-join-btn').click();
+    await answerPrompt('Character name', 'Newcomer Scout');
+    await answerPrompt('Character concept', 'Deck scout');
+    await waitForCount(joinPosts, 1, 'the join reaches the fixture');
+    // appendSystemNotice runs immediately after renderGame returns, so the
+    // notice landing means every append the join could make has happened.
+    await page.waitForFunction(() => Array.from(document.querySelectorAll('#narrative-container .log-system'))
+      .some(entry => entry.textContent.includes('joins the table')));
+
+    // --- The join really happened. ---
+    browserAssert(joinPosts[0].characterName === 'Newcomer Scout'
+      && joinPosts[0].characterClass === 'Deck scout',
+      'the join posts the name and concept the player typed: ' + JSON.stringify(joinPosts[0]));
+    const noticeText = await page.evaluate(() => {
+      const node = Array.from(document.querySelectorAll('#narrative-container .log-system'))
+        .find(entry => entry.textContent.includes('joins the table'));
+      return node ? node.textContent.trim() : null;
+    });
+    browserAssert(noticeText !== null && noticeText.includes('Newcomer Scout joins the table'),
+      'the join notice names the new character: ' + noticeText);
+    const partyNames = await page.evaluate(() =>
+      Array.from(document.querySelectorAll('#party-strip .party-member[data-character-id]'))
+        .map(chip => chip.textContent.trim()));
+    browserAssert(partyNames.some(name => name.includes('Newcomer Scout')),
+      'the party strip gains the new character: ' + partyNames.join(' | '));
+    browserAssert(partyNames.some(name => name.includes('Gate Warden')),
+      'the party strip keeps the character who was already at the table: ' + partyNames.join(' | '));
+
+    // --- ...and it appended the head beat exactly zero more times. ---
+    const gmCount = await countEntries('.log-gm', 'HEAD-NARRATIVE');
+    browserAssert(gmCount === 1,
+      'joining does not duplicate the head GM narrative (found ' + gmCount + ' copies)');
+    const rollCount = await countEntries('.log-roll', 'HEAD-ROLL');
+    browserAssert(rollCount === 1,
+      'joining does not duplicate the head dice card (found ' + rollCount + ' copies)');
+    const sceneCount = await countEntries('.log-scene', 'HEAD-GROUNDING');
+    browserAssert(sceneCount === 1,
+      'joining does not duplicate the head scene grounding (found ' + sceneCount + ' copies)');
+    const totalGm = await page.evaluate(() =>
+      document.querySelectorAll('#narrative-container .log-gm').length);
+    browserAssert(totalGm === 1,
+      'the log holds exactly one GM entry after the join (found ' + totalGm + ')');
+
+    browserAssert(pageErrors.length === 0,
+      'join flow raises no page errors: ' + pageErrors.join(', '));
+    browserAssert(unknownApiRequests.length === 0,
+      'join flow makes no unexpected API requests: ' + unknownApiRequests.join(', '));
+  } finally {
+    await context.close();
+  }
+}
+
 async function main() {
   const dbPath = path.join(
     os.tmpdir(),
@@ -2585,6 +2781,8 @@ async function main() {
     console.log('Submit race browser guard passed.');
     await runAuthorAttributionGuard(browser, origin);
     console.log('Author attribution browser guard passed.');
+    await runJoinDuplicateGuard(browser, origin);
+    console.log('Join duplicate browser guard passed.');
   } catch (error) {
     runError = error;
   } finally {
