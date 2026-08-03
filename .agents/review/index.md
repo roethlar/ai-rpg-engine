@@ -179,7 +179,7 @@ browser battery (poll 1/1b/1c/1d/1e/1f/1g + dice dt1/dt2/dt3) ALL PASS
 against merged master — the stack was reviewed on per-branch bases, so this
 combined run is the integration proof. The branches were retained at that point, then deleted on
 the owner's 2026-07-12 go after content-arrival verification.
-| jt-1 | HIGH | Pre-existing: Journal tab renders a stale campaign's history over the current one (empirically confirmed); Fork buttons then fork the wrong campaign | `[ ]` owner-approved; not started | |
+| jt-1 | HIGH | Pre-existing: Journal tab renders a stale campaign's history over the current one (empirically confirmed); Fork buttons then fork the wrong campaign | `[x]` verified; awaiting owner-gated merge (codex/gpt-5.6-sol/xhigh/frontier esc:T2 — guard audited, not reviewer-executed; see finding) | `fix/jt-1-journal-epoch` @ `09768e1` |
 | dr-1 | MEDIUM | Pre-existing: delete/release settle callbacks wipe theme/state over whichever table the user has since entered | `[ ]` owner-approved; not started | |
 | tts-1 | MEDIUM | Pre-existing: the old table's GM voice keeps narrating over the menu/next campaign; skip pill unreachable on the menu | `[ ]` owner-approved; not started | |
 | ds-1 | MEDIUM | Pre-existing: choice buttons allow overlapping submits — duplicated transcript entries and a mid-turn UI lie | `[ ]` owner-approved; not started | |

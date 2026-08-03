@@ -2898,14 +2898,22 @@ let activeTimelineData = [];
 // Fetch journal chronology and render it
 async function loadJournalTimeline() {
   if (!currentCampaignId) return;
+  // Stale-response guard (jt-1, poll-1's mechanism): capture at dispatch,
+  // discard after every await if the table has moved on.
+  const epoch = sessionEpoch;
+  // The search filter reads this cache synchronously; it must never hold a
+  // departed table's history while the replacement fetch is in flight.
+  activeTimelineData = [];
   journalTimelineContainer.innerHTML = `<div style="font-size: 12px; opacity: 0.6; padding: 8px;"><i class="fa-solid fa-spinner fa-spin"></i> Fetching journal history...</div>`;
 
   try {
     const response = await fetchWithTimeout(`/api/campaigns/${currentCampaignId}/journal`);
+    if (epoch !== sessionEpoch) return; // table changed while fetching
     if (!response.ok) throw new Error('Could not retrieve timeline data');
 
     const data = await response.json();
-    
+    if (epoch !== sessionEpoch) return;
+
     // Unify turns and memories
     const chronology = [];
     if (data.turns && Array.isArray(data.turns)) {
@@ -2934,6 +2942,7 @@ async function loadJournalTimeline() {
     renderChronologyTimeline(activeTimelineData);
   } catch (error) {
     console.error(error);
+    if (epoch !== sessionEpoch) return; // a stale failure must not paint over the new table
     journalTimelineContainer.innerHTML = `<div style="font-size: 12px; color: hsl(0, 70%, 65%); padding: 8px;"><i class="fa-solid fa-triangle-exclamation"></i> Error: ${error.message}</div>`;
   }
 }
