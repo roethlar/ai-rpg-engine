@@ -3,7 +3,7 @@
 **Severity**: HIGH — durable, self-reinforcing state corruption from a routine model omission. The
 wrong quest is persisted, displayed, AND replayed into the next turn's prompt as truth, so the
 campaign's real objective disappears and the GM is then told the placeholder is the quest.
-**Status**: In progress — fix landed, pending reviewer verdict
+**Status**: Verified — accepted by review, merged to master
 **Branch**: `qr-1-quest-fallback`
 **Commit**: `b04da44`
 
@@ -97,4 +97,13 @@ practice that caused it (running a coding agent in the shared working directory 
 branch operations) has stopped.
 
 ## Reviewer comments
-(pending)
+
+`Reviewer: kimi / kimi-code/k3 / max / frontier` — owner-named model and effort. Harness: kimi
+0.31.1, tools restricted by agent-file, working root a disposable worktree. Reviewed head
+`d9bf9c3`, base `ae2f2d9`. Verdict **accepted**, `guard_confirmed: true`, `capability_ok: true`,
+zero comments.
+
+**Executed, not supplied.** Confirmed from the reviewer's own transcript: unit suite green at
+head, `rpg-state.js` reverted to the base SHA with the guard retained, suite re-run and failed at
+the quest-fallback assertion, fix restored, suite green, and the browser suite run clean at the
+end.
