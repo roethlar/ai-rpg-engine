@@ -2,7 +2,7 @@
 
 **Severity**: MEDIUM — a deliberate one-click action corrupts the shared transcript with a
 repeated beat; only a full campaign reload clears it.
-**Status**: In progress — fix landed, pending reviewer verdict
+**Status**: Verified — accepted by review, merged to master
 **Branch**: `jd-1-join-duplicate`
 **Commit**: `182526b`
 
@@ -98,4 +98,12 @@ review, both suites green, and its own revert/restore cycle. The stale scratchpa
 caused the collision were deleted.
 
 ## Reviewer comments
-(pending)
+
+`Reviewer: kimi / kimi-code/k3 / max / frontier` — owner-named model and effort. Harness: kimi
+0.31.1, tools restricted by agent-file, working root a disposable worktree. Reviewed head
+`de2d17f`, base `ae2f2d9`. Verdict **accepted**, `guard_confirmed: true`, `capability_ok: true`,
+zero comments.
+
+**Executed, not supplied.** Confirmed from the reviewer's own transcript: both suites green at
+head, `public/app.js` reverted to the base SHA with the guard retained, browser suite re-run and
+failed, fix restored, suite green again.

@@ -53,6 +53,7 @@ verdicts below retain the workflow and roles actually used at the time.
 
 | ID | Severity | Impact (one line) | Status | Branch |
 |----|----------|-------------------|--------|--------|
+| jd-1 | MEDIUM | Clicking Join duplicated the current GM narrative, its dice cards and its scene grounding in the transcript | `[x]` verified; merged (kimi/kimi-code-k3/max — guard EXECUTED) | `jd-1-join-duplicate` |
 | pa-1 | HIGH | Multiplayer: every partymate's action was labelled "You" in the shared transcript; the Journal showed no author at all | `[x]` verified; merged (kimi/kimi-code-k3/max — guard EXECUTED, 3-part revert) | `pa-1-author-attribution` |
 | map-2 | MEDIUM | The location title overruns both canvas edges; a long GM-generated location name spills past the map | `[x]` verified; merged (kimi/kimi-code-k3/max — guard EXECUTED) | `fix/map-2-title-overflow` |
 | map-1 | MEDIUM | Situation-panel area labels overrun their box: adjacent labels collide and the rightmost is clipped by the canvas edge | `[x]` merged at `dd59c27` (APPROVED r2; branch deleted after content-arrival verification) | none |
