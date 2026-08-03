@@ -5,6 +5,11 @@ per slice and a stop for owner evaluation. It does not authorize product integra
 activation, disposal of the rejected uncommitted IBP-2 runner, external review, playtest verdict,
 or push.
 
+**Implementation:** AKC-1 and AKC-2 are complete. Focused verification, both required mutation
+guards, syntax checking, the repository suite, and diff checking pass. Browser control was
+unavailable for the required hands-on checks, so the owner-facing browser evaluation remains the
+only unfinished gate; no production work follows automatically.
+
 **Authority and context:** the owner rejected IBP-2's prose-plus-action-menu runner during manual
 evaluation. Normal play must remain one fiction-first text submission. A player may invoke an owned
 ability by using its ordinary name in that prose, with live inline recognition as confirmation; an

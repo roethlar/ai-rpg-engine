@@ -2946,9 +2946,10 @@ and safe campaign upgrades. `.agents/review/interaction-burden-playtest-plan.md`
 deterministic offline pilot using the existing matched Armsmaster/Adept cards and stable-duel/moving-
 rescue fixtures. IBP-1's fixture and validator landed. The owner then manually rejected IBP-2's
 uncommitted prose-plus-separate-action-selection runner as unrepresentative and too burdensome; it
-must not be committed or used for a tier verdict. A separate draft now proposes a non-shipping,
-product-shaped ability-keyword composer proof before any production integration. No replacement
-implementation, tier membership, class removal, later pair, human result, product integration,
+must not be committed or used for a tier verdict. The separately approved non-shipping,
+product-shaped ability-keyword composer proof is now implemented and guard-proved; hands-on owner
+browser evaluation remains because browser control was unavailable. No production replacement,
+tier membership, class removal, later pair, human result, product integration,
 external review, or push is approved. The owner also requested a context-rich
 `claude-fable-5` review at high effort. The initial review reopened four concrete plan gaps; four
 one-finding commits repaired them, and a fresh high-effort repair-delta review accepted

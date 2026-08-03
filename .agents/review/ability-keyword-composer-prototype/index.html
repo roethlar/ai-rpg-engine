@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'none'; img-src 'none'; font-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+  <title>Ability-word composer prototype</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="fixture.js" defer></script>
+  <script src="matcher.js" defer></script>
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <header class="site-header">
+    <div>
+      <p class="eyebrow">Interaction prototype</p>
+      <h1>Write the action once</h1>
+    </div>
+    <p class="prototype-note">This page tests the writing box. It does not resolve the action.</p>
+  </header>
+
+  <main class="workspace">
+    <section class="game-panel" aria-labelledby="scene-title">
+      <div class="scene-heading">
+        <p class="eyebrow">Current scene</p>
+        <h2 id="scene-title">The ruined watchtower</h2>
+      </div>
+
+      <div id="transcript" class="transcript" aria-live="polite" aria-label="Game transcript">
+        <article class="message message-gm">
+          <div class="speaker">Game Master</div>
+          <p id="opening-narration"></p>
+        </article>
+      </div>
+
+      <form id="action-form" class="action-form">
+        <label for="action-input">Your action</label>
+        <div id="composer-shell" class="composer-shell">
+          <div id="highlight-backdrop" class="highlight-backdrop" aria-hidden="true">
+            <div id="highlight-content" class="highlight-content"></div>
+          </div>
+          <textarea id="action-input" rows="1" placeholder="What do you do?" autocomplete="off" spellcheck="true" aria-describedby="composer-help recognition-status"></textarea>
+        </div>
+        <p id="composer-help" class="composer-help">Use an ability name naturally, or insert one from Rowan’s sheet.</p>
+        <div id="correction-region" class="correction-region" aria-live="polite">
+          <button type="button" id="correction-button" class="correction-button" hidden></button>
+        </div>
+        <span id="recognition-status" class="sr-only" role="status" aria-live="polite"></span>
+        <button type="submit" id="send-action" class="send-action">Send</button>
+      </form>
+    </section>
+
+    <aside class="ability-panel" aria-labelledby="ability-title">
+      <p class="eyebrow">Character sheet</p>
+      <h2 id="ability-title"><span id="character-name"></span>’s abilities</h2>
+      <p class="ability-instruction">Click an ability to insert its name wherever you were writing.</p>
+      <div id="ability-list" class="ability-list"></div>
+    </aside>
+  </main>
+
+  <section id="debug-panel" class="debug-panel" aria-labelledby="debug-title" hidden>
+    <h2 id="debug-title">Derived submission payload</h2>
+    <pre id="debug-output"></pre>
+  </section>
+</body>
+</html>

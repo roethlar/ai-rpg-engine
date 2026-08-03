@@ -8,7 +8,7 @@ to `docs/history/state-archive.md`.
 
 - **CAMPAIGN CLASS EXPOSURE, EVIDENCE TIERS, AND VERSION UPGRADES ARE SETTLED; IMPLEMENTATION IS NOT PLANNED OR AUTHORIZED.** The active 2026-08-02 decisions in `.agents/decisions.md` define cumulative Base (recommended), Advanced, and Expert (full) class sets selected at campaign creation from the sets allowed by the administrator. Expert holds the full candidate catalog, including unproven or deliberately demanding mechanics; Advanced holds mechanics that survived focused testing but retain noticeable burden; Base holds mechanics demonstrated to be understandable and enjoyable without repeated prompting. All included classes start at level 1; tiers are not power or level gates. Campaigns pin their set/catalog version. Safe host upgrades apply deterministic catalog migrations through a validated, atomic new campaign version while retaining the prior version read-only and saving player-owned compatible PC snapshots. Character versions progress independently and never merge. Exact tier membership, schemas, UI, migrations, and code remain open.
 - **THE TEXT-ENTRY INTERACTION-BURDEN AUDIT IS A PLAYTEST RISK INVENTORY, NOT A ROSTER FILTER.** `.agents/review/interaction-burden-audit.md` identifies where Forms, Exposure, ordered Adept sequences, Openings, loadouts, separately controlled companions, Catalyst Cues, Rider state, intrusion procedure, and the three frozen economies may produce repeated prompts, forgotten state, dictated rotations, or agency-erasing automation. None is admitted, removed, folded, simplified, or assigned to a tier by the paper audit. Focused testing must compare the same character and encounter with only the candidate mechanic changed, observing meaningful choice, UI direction, memory, voluntary use, automation, prompt count, and turn time. Promotion or demotion occurs through later catalog versions and safe upgrades. The audit alone approves no interaction gate, roster, economy, or implementation.
-- **IBP-1 REMAINS EVIDENCE; THE OWNER REJECTED IBP-2'S PLAYER INTERACTION.** The committed immutable Armsmaster/Adept fixture remains valid evidence, but manual evaluation found the uncommitted prose-plus-separate-action-selection runner unrepresentative and excruciating. Players must use one fiction-first text submission rather than operate Forms, sequence state, target menus, or designer vocabulary. The rejected runner remains uncommitted and untouched pending explicit disposal authority. The owner approved `.agents/review/ability-keyword-composer-plan.md` for two non-shipping proof slices only: exact owned ability words highlight inline, ability-card clicks insert canonical words at the caret, and fuzzy spelling recovery never silently activates. Product integration remains unapproved.
+- **THE FICTION-FIRST ABILITY-KEYWORD COMPOSER PROTOTYPE IS COMPLETE; OWNER EVALUATION IS PENDING.** `.agents/review/ability-keyword-composer-prototype/index.html` uses one plain textarea with an inline highlight mirror: exact owned ability words and curated aliases highlight, ability-card clicks insert canonical words at the remembered caret, and one-edit spelling recovery only offers a correction. Submitted transcript text remains exact plain prose; debug mode alone shows derived IDs/ranges. AKC-1 and AKC-2 are landed and guard-proved. Browser control was unavailable, so hands-on desktop/mobile/caret/undo verification was not run. This is non-shipping interaction evidence only; no product integration, mechanics activation, class verdict, or push is authorized. The rejected IBP-2 runner remains uncommitted and untouched pending explicit disposal authority; committed IBP-1 remains evidence.
 - **CATALOG AVAILABILITY IS CONFIGURED AND NEUTRAL, NOT A MODEL CHARACTER JUDGMENT.** Only the campaign's selected released set/catalog is given to generation and creation. Out-of-set, disabled-module, unreleased, or honestly incompatible options are simply unavailable with a factual reason when one is useful. The prior “exclusion is an admission of failed imagination” posture is superseded. Any offered genre expression must still preserve exact mechanics, and models still cannot invent mechanic IDs or permissions.
 - **THE OWNER ACCEPTED THE CLASSIFICATION METHOD AND REQUESTED FAMILIAR WORKED TOUCHSTONES; THE EXACT ROSTER IS STILL UNAPPROVED.** As `fe168cc`, the audit decomposes Indiana Jones, MacGyver, Hannibal Smith, Ellen Ripley, Michael Knight/KITT, Conan, and Batman into primary class mechanics plus separate skills, occupation, rank, wealth, and assets. It replaces the unfamiliar Intruder/Catalyst/Rider references and deliberately leaves a game-character exemplar blank where no honest familiar one exists. The acceptance was of this mechanic-first decomposition and example format, not a package-level ruling.
 - **THE OUT-OF-SAMPLE ARCHETYPE AUDIT IS RETAINED TAXONOMY EVIDENCE, NOT THE CURRENT WORKING-ROSTER RECOMMENDATION.** `.agents/review/archetype-concept-coverage-audit.md` still owns the concept battery, archetype-by-genre option matrix, familiar touchstones, situationality, and balance fixtures. Its proposed ten universal candidates plus conditional Catalyst predated the interaction-burden test and is superseded as the next design baseline. No replacement roster is approved; do not regenerate the three packages from it.
@@ -121,9 +121,10 @@ to `docs/history/state-archive.md`.
 
 ## Next
 
-**NEXT:** Implement and verify the approved AKC-1 matcher/fixture slice, then AKC-2 representative
-composer slice, and stop for owner evaluation; do not resume the rejected IBP-2 runner or integrate
-the feature into the product. Separately, no further Phase PT
+**NEXT:** The owner opens the completed ability-keyword composer prototype and evaluates typing,
+inline recognition, click-at-caret insertion, correction, undo, and narrow layout. Stop after that
+verdict; do not resume the rejected IBP-2 runner or integrate the feature into the product.
+Separately, no further Phase PT
 implementation may proceed until an owner-approved revision incorporates campaign sets, safe
 upgrades, class migrations, and player-owned character versions. The prior Fable items `rsv-1` and
 `rsv-4` remain downstream.
@@ -175,6 +176,13 @@ remaining bullets retain their independent priority.
   `node .agents/review/gate-5-character-creation-prototype/verify.mjs` is also green;
   prominence guard proof temporarily narrowed the right pane from 390px to 300px, and the new
   assertion failed before restoration and passed afterward.
+- Ability-keyword prototype: focused `node .agents/review/ability-keyword-composer-prototype/verify.mjs`,
+  `node --check` for its app, `node test.js`, and `git diff --check` are green. The AKC-1 guard failed
+  when a `bakcstab` suggestion was deliberately allowed to contribute Backstab's ID; the AKC-2 guard
+  failed when exact player prose was deliberately rewritten with bracket markup. Both mutations
+  were restored and the focused verifier returned green. Browser control was unavailable, so the
+  plan's hands-on Chromium desktop/narrow, caret, undo/redo, paste, IME, and visual alignment checks
+  remain unrun for the owner's evaluation.
 - S1.4 guard proof: temporarily disabling the campaign-vocabulary UPDATE trigger failed the new
   immutable-row assertion. Separately weakening direct-operation queue ownership, stale-owner expiry,
   Unicode-format echo normalization, proposal/persistence alignment, or shaping support made its
@@ -203,7 +211,8 @@ remaining bullets retain their independent priority.
 
 - `.agents/review/interaction-burden-audit.md` — current text-entry risk inventory, paired-test hypotheses, and settled tier-evidence policy; no roster or tier membership is approved.
 - `.agents/review/interaction-burden-playtest-plan.md` — retained Armsmaster/Adept fixture contract; IBP-1 is complete and its rejected menu-driven IBP-2 is superseded.
-- `.agents/review/ability-keyword-composer-plan.md` — owner-approved non-shipping proof for inline exact-word recognition, ability-card insertion, and non-activating spelling recovery; AKC-1 and AKC-2 only.
+- `.agents/review/ability-keyword-composer-plan.md` — completed non-shipping proof contract for inline exact-word recognition, ability-card insertion, and non-activating spelling recovery; owner browser evaluation remains.
+- `.agents/review/ability-keyword-composer-prototype/` — completed AKC-1/AKC-2 artifact and focused verifier; no production contract.
 - `.agents/review/archetype-collapse-prototypes.md` — matched-card evidence: Intruder removed by a separate decision; Adept formally differs and awaits paired interaction testing.
 - `.agents/review/archetype-concept-coverage-audit.md` — retained option atlas, mapping, touchstones, and failure evidence; its working-roster recommendation is superseded.
 - `AGENTS.md`, `.agents/repo-guidance.md`, `.agents/decisions.md`

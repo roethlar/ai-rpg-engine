@@ -3,9 +3,11 @@ import { readFile } from "node:fs/promises";
 
 await import("./fixture.js");
 await import("./matcher.js");
+await import("./app.js");
 
 const fixture = globalThis.ABILITY_KEYWORD_COMPOSER_FIXTURE;
 const matcher = globalThis.AbilityKeywordMatcher;
+const composer = globalThis.AbilityKeywordComposerApp;
 
 assert.ok(Object.isFrozen(fixture), "fixture root must be immutable");
 assert.ok(Object.isFrozen(fixture.abilities), "fixture abilities must be immutable");
@@ -136,14 +138,129 @@ assert.throws(
 
 const unchangedText = "I Protect Ally while Rowan says 🗡️.";
 const beforeText = unchangedText;
-scan(unchangedText);
+const unchangedScan = scan(unchangedText);
 assert.equal(unchangedText, beforeText, "scanning must preserve player prose byte-for-byte");
 
-for (const file of ["fixture.js", "matcher.js"]) {
+const submission = composer.createSubmission(unchangedText, unchangedScan);
+assert.equal(submission.prose, unchangedText, "submission must preserve exact player prose");
+assert.deepEqual(submission.abilityIds, ["fixture.ability.protect-ally"]);
+assert.deepEqual(submission.matches, [
+  {
+    abilityId: "fixture.ability.protect-ally",
+    start: unchangedText.indexOf("Protect Ally"),
+    end: unchangedText.indexOf("Protect Ally") + "Protect Ally".length,
+    spelling: "Protect Ally"
+  }
+]);
+
+assert.deepEqual(composer.computeAbilityInsertion("I the orc", 2, 2, "backstab"), {
+  text: "I backstab the orc",
+  insertedText: "backstab ",
+  selectionStart: 11,
+  selectionEnd: 11
+});
+assert.deepEqual(composer.computeAbilityInsertion("I", 1, 1, "backstab"), {
+  text: "I backstab ",
+  insertedText: " backstab ",
+  selectionStart: 11,
+  selectionEnd: 11
+});
+assert.deepEqual(composer.computeAbilityInsertion("strike the orc", 0, 6, "backstab"), {
+  text: "backstab the orc",
+  insertedText: "backstab",
+  selectionStart: 8,
+  selectionEnd: 8
+});
+assert.deepEqual(composer.computeAbilityInsertion("", 0, 0, "protect ally"), {
+  text: "protect ally",
+  insertedText: "protect ally",
+  selectionStart: 12,
+  selectionEnd: 12
+});
+
+const typoText = "I bakcstab the orc.";
+const typoSuggestion = scan(typoText).suggestions[0];
+assert.deepEqual(composer.applySuggestionToText(typoText, typoSuggestion), {
+  text: "I backstab the orc.",
+  selectionStart: 10,
+  selectionEnd: 10
+});
+
+const uiFiles = ["index.html", "styles.css", "app.js"];
+const [htmlText, cssText, appText] = await Promise.all(
+  uiFiles.map((file) => readFile(new URL(`./${file}`, import.meta.url), "utf8"))
+);
+
+for (const source of [htmlText, appText]) {
+  assert.doesNotMatch(source, /\b(?:fetch|XMLHttpRequest|WebSocket|EventSource|sendBeacon)\b/);
+  assert.doesNotMatch(source, /\b(?:localStorage|sessionStorage|indexedDB|document\.cookie)\b/);
+  assert.doesNotMatch(source, /\b(?:OpenAI|Anthropic|Claude|Gemini|AI_PROVIDER)\b/i);
+}
+assert.match(
+  htmlText,
+  /Content-Security-Policy[^>]+default-src 'none';[^>]+connect-src 'none';[^>]+object-src 'none'/
+);
+assert.match(
+  htmlText,
+  /src="fixture\.js" defer><\/script>[\s\S]*src="matcher\.js" defer><\/script>[\s\S]*src="app\.js" defer><\/script>/
+);
+assert.doesNotMatch(htmlText, /\son[a-z]+\s*=/iu, "HTML may not contain inline handlers");
+assert.doesNotMatch(htmlText, /\sstyle\s*=/iu, "HTML may not contain inline styles");
+assert.doesNotMatch(htmlText, /contenteditable/iu, "prototype must retain a native textarea");
+assert.match(htmlText, /<textarea[^>]+id="action-input"/u);
+assert.match(htmlText, /<label[^>]+for="action-input"/u);
+assert.match(htmlText, /id="highlight-backdrop"[^>]+aria-hidden="true"/u);
+assert.match(htmlText, /id="recognition-status"[^>]+role="status"[^>]+aria-live="polite"/u);
+assert.match(htmlText, /id="debug-panel"[^>]+hidden/u);
+assert.doesNotMatch(htmlText, /\[(?:backstab|rally|protect ally)\]/iu);
+assert.doesNotMatch(htmlText, /<(?:select|fieldset)\b/iu);
+
+const htmlIds = [...htmlText.matchAll(/\sid="([^"]+)"/gu)].map((match) => match[1]);
+assert.equal(new Set(htmlIds).size, htmlIds.length, "HTML IDs must be unique");
+for (const requiredId of [
+  "transcript",
+  "action-form",
+  "composer-shell",
+  "highlight-content",
+  "action-input",
+  "correction-button",
+  "recognition-status",
+  "send-action",
+  "ability-list",
+  "debug-panel",
+  "debug-output"
+]) {
+  assert.ok(htmlIds.includes(requiredId), `prototype is missing #${requiredId}`);
+}
+assert.ok(
+  htmlText.indexOf('id="action-input"') < htmlText.indexOf('id="correction-button"')
+  && htmlText.indexOf('id="correction-button"') < htmlText.indexOf('id="send-action"'),
+  "composer, correction, and Send must have logical source order"
+);
+
+assert.match(appText, /document\.createTextNode/u);
+assert.match(appText, /highlightContent\.replaceChildren/u);
+assert.match(appText, /playerText\.textContent = prose/u);
+assert.doesNotMatch(appText, /\.innerHTML\b|insertAdjacentHTML/u);
+assert.match(appText, /setRangeText\(insertion\.insertedText/u);
+assert.match(appText, /compositionstart/u);
+assert.match(appText, /compositionend/u);
+assert.match(appText, /new URLSearchParams\(globalThis\.location\.search\)\.get\("debug"\) === "1"/u);
+
+assert.match(cssText, /\.ability-highlight[\s\S]*border-bottom:/u);
+assert.match(cssText, /\.family-label/u);
+assert.match(cssText, /\[data-family="opportunity"\]/u);
+assert.match(cssText, /\[data-family="command"\]/u);
+assert.match(cssText, /\[data-family="protection"\]/u);
+assert.match(cssText, /@media \(max-width: 760px\)/u);
+assert.match(cssText, /@media \(prefers-reduced-motion: reduce\)/u);
+assert.match(cssText, /:focus-visible/u);
+
+for (const file of ["fixture.js", "matcher.js", "app.js"]) {
   const source = await readFile(new URL(`./${file}`, import.meta.url), "utf8");
   assert.doesNotMatch(source, /\b(?:fetch|XMLHttpRequest|WebSocket|EventSource|sendBeacon)\b/);
   assert.doesNotMatch(source, /\b(?:localStorage|sessionStorage|indexedDB|document\.cookie)\b/);
   assert.doesNotMatch(source, /\b(?:OpenAI|Anthropic|Claude|Gemini|AI_PROVIDER)\b/i);
 }
 
-console.log("Ability-keyword matcher verification passed.");
+console.log("Ability-keyword composer verification passed.");
