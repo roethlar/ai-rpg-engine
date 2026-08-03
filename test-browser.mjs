@@ -1752,6 +1752,192 @@ async function runMenuSettleGuard(browser, origin) {
   }
 }
 
+// tts-1: narration is queued per turn and cancelled only by its queue token.
+// A table transition must invalidate that token, or the departed table's GM
+// keeps fetching and playing segments over the menu (where the skip pill is
+// buried under the full-screen overlay) or over the next campaign. Two paths
+// leak: the running queue itself, and the live-synthesis fallback that a
+// failed saved-audio attempt starts with a FRESH token after the transition.
+async function runNarrationTransitionGuard(browser, origin) {
+  const chant = projectedAbility({
+    id: 'ability-chant',
+    definitionId: 'skald.chant',
+    name: 'chant',
+    familyKey: 'command',
+    familyLabel: 'Command',
+    help: 'Lift a verse the whole table can hear.'
+  });
+  const skald = browserCharacter({
+    id: 91,
+    name: 'Narrated Skald',
+    concept: 'Skald',
+    revision: REVISION_A,
+    invocableAbilities: [chant]
+  });
+  let state = campaignBrowserState({
+    campaignId: 7,
+    title: 'Narrated Table',
+    characters: [skald],
+    joinedCharacterId: 91,
+    actingCharacterId: 91
+  });
+  const campaignList = [
+    { id: 7, title: 'Narrated Table', genre: 'Browser fixture', summary: 'Narration transition test.', created_at: '2026-08-03T12:00:00Z', character_name: 'Narrated Skald', player_character_id: 191 }
+  ];
+
+  const manifestGates = [];
+  let segmentGets = 0;
+  let capabilityGets = 0;
+  let narratePosts = 0;
+  const unknownApiRequests = [];
+
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  // Auto-play narration is the state under test: without both flags the app
+  // never queues audio and every assertion below would hold vacuously.
+  await context.addInitScript(() => {
+    localStorage.setItem('aetheria_settings', JSON.stringify({
+      accessToken: '',
+      enableDiagnostics: false,
+      voiceNarration: true,
+      voiceAutoPlay: true
+    }));
+  });
+  const page = await context.newPage();
+  page.setDefaultTimeout(6000);
+  const pageErrors = [];
+  page.on('pageerror', error => pageErrors.push(error.message));
+  await page.route('**/*', async route => {
+    const request = route.request();
+    const requestUrl = request.url();
+    if (!requestUrl.startsWith(origin + '/')) return route.abort();
+    const url = new URL(requestUrl);
+
+    if (url.pathname === '/api/campaigns' && request.method() === 'GET') {
+      return route.fulfill({ contentType: 'application/json', body: JSON.stringify(campaignList) });
+    }
+    if (url.pathname === '/api/campaigns/7' && request.method() === 'GET') {
+      // The 12s poll may fire mid-guard; serving it keeps the unknown-request
+      // assertion honest about the narration flow itself.
+      return route.fulfill({ contentType: 'application/json', body: JSON.stringify(state) });
+    }
+    if (url.pathname === '/api/campaigns/7/journal' && request.method() === 'GET') {
+      return route.fulfill({ contentType: 'application/json', body: JSON.stringify({ turns: [], memories: [] }) });
+    }
+    if (url.pathname === '/api/campaigns/7/turn' && request.method() === 'POST') {
+      state = resolvedBrowserTurn(state, request.postDataJSON());
+      return route.fulfill({ contentType: 'application/json', body: JSON.stringify(state) });
+    }
+    // Saved-turn audio manifest: held in flight until the guard has left the
+    // table, then resolved either way ('ok' = a real one-segment manifest,
+    // 'fail' = the 500 that drives the live-synthesis fallback).
+    // The campaign segment is deliberately open: a leaked queue keeps running
+    // after the transition nulls currentCampaignId, so it requests
+    // /api/campaigns/null/audio/... — pinning "7" would make the
+    // segment-count assertion below pass vacuously in the broken direction.
+    const manifestMatch = url.pathname.match(/^\/api\/campaigns\/[^/]+\/audio\/(\d+)$/u);
+    if (manifestMatch && request.method() === 'GET') {
+      const turnNumber = Number(manifestMatch[1]);
+      let release;
+      const gate = new Promise(resolve => { release = resolve; });
+      manifestGates.push({ turnNumber, release });
+      const outcome = await gate;
+      if (outcome === 'fail') {
+        return route.fulfill({
+          status: 500,
+          contentType: 'application/json',
+          body: '{"error":"Turn narration is unavailable."}'
+        });
+      }
+      return route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify({ turnNumber, segments: [{ id: 0, speaker: 'narrator', mime: 'audio/mpeg' }] })
+      });
+    }
+    if (/^\/api\/campaigns\/[^/]+\/audio\/\d+\/segments\/\d+$/u.test(url.pathname) && request.method() === 'GET') {
+      segmentGets += 1;
+      return route.fulfill({ contentType: 'audio/mpeg', body: 'ID3' });
+    }
+    if (url.pathname === '/api/audio/capabilities' && request.method() === 'GET') {
+      capabilityGets += 1;
+      return route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify({ provider: 'openai', maxSegmentsPerRequest: 1 })
+      });
+    }
+    if (url.pathname === '/api/audio/narrate' && request.method() === 'POST') {
+      narratePosts += 1;
+      return route.fulfill({ contentType: 'audio/mpeg', body: 'ID3' });
+    }
+    if (url.pathname.startsWith('/api/')) {
+      unknownApiRequests.push(`${request.method()} ${url.pathname}`);
+      return route.fulfill({ status: 404, contentType: 'application/json', body: '{"error":"unexpected browser fixture route"}' });
+    }
+    return route.continue();
+  });
+
+  // The pill carries its own computed display, so this read is unaffected by
+  // whichever screen is on top — it reports what stopNarration did, or did not.
+  const pillDisplay = () => page.locator('#btn-skip-narration')
+    .evaluate(node => getComputedStyle(node).display);
+  const enterTable = async () => {
+    await page.locator('.campaign-card').first().waitFor();
+    await page.locator('.campaign-card').first().click();
+    await page.locator('#main-game-screen').waitFor({ state: 'visible' });
+    await page.locator('.ability-button[data-ability-id="ability-chant"]').waitFor();
+  };
+  const submitAction = async text => {
+    await page.locator('#action-input').fill(text);
+    await page.waitForFunction(() => !document.querySelector('#btn-send-action').disabled);
+    await page.locator('#btn-send-action').click();
+  };
+
+  try {
+    await page.goto(origin + '/');
+    await enterTable();
+
+    // Scenario A: the narration queue is live when the table changes.
+    await submitAction('I chant across the crossing');
+    await waitForCount(manifestGates, 1, 'the new turn queues saved narration the fixture holds in flight');
+    browserAssert(await pillDisplay() !== 'none',
+      'the skip pill is showing while the table narration is queued');
+
+    await page.locator('#btn-show-campaigns').click();
+    // Instantaneous read: the transition is synchronous, so no wait here may
+    // be load-bearing — a passing assertion must mean the queue was retired.
+    browserAssert(await pillDisplay() === 'none',
+      'a table transition silences the departed GM and retires its skip pill');
+
+    manifestGates[0].release('ok');
+    await new Promise(resolve => setTimeout(resolve, 250));
+    browserAssert(segmentGets === 0,
+      'no segment of a departed table narration is fetched after the transition');
+
+    // Scenario B: the saved-audio attempt FAILS after the user has left, and
+    // the live-synthesis fallback must not restart the departed table's lines.
+    await enterTable();
+    await submitAction('I chant once more');
+    await waitForCount(manifestGates, 2, 'the second turn queues its own held manifest fetch');
+
+    await page.locator('#btn-show-campaigns').click();
+    manifestGates[1].release('fail');
+    await new Promise(resolve => setTimeout(resolve, 250));
+    browserAssert(narratePosts === 0,
+      'a failed saved-narration attempt does not fall back to live synthesis for a table the user left');
+    browserAssert(await pillDisplay() === 'none',
+      'a failed saved-narration attempt leaves no skip pill stranded over the menu');
+    browserAssert(capabilityGets === 0,
+      'a failed saved-narration attempt for a departed table never reaches the voice provider');
+
+    browserAssert(pageErrors.length === 0,
+      'narration transition flow raises no page errors: ' + pageErrors.join(', '));
+    browserAssert(unknownApiRequests.length === 0,
+      'narration transition flow makes no unexpected API requests: ' + unknownApiRequests.join(', '));
+  } finally {
+    for (const gate of manifestGates) gate.release('ok');
+    await context.close();
+  }
+}
+
 async function main() {
   const dbPath = path.join(
     os.tmpdir(),
@@ -1863,6 +2049,8 @@ async function main() {
     console.log('Journal stale-response browser guard passed.');
     await runMenuSettleGuard(browser, origin);
     console.log('Menu settle browser guard passed.');
+    await runNarrationTransitionGuard(browser, origin);
+    console.log('Narration transition browser guard passed.');
   } catch (error) {
     runError = error;
   } finally {

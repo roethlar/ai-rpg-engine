@@ -23,6 +23,9 @@ function bumpSessionEpoch() {
   // A table transition also invalidates any dice theater still playing or
   // queued for the old table (dt-1); hoisted, defined with the theater code.
   dismissRollTheater();
+  // tts-1: and any narration playing or queued for it — the departed
+  // table's GM must not keep talking over the menu or the next campaign.
+  stopNarration();
   resetAbilityComposerForSession();
 }
 let currentCampaignTitle = '';
@@ -2219,6 +2222,7 @@ async function narrateGmResponse(turn) {
   // Auto-play is a gameplay-area preference (V4); the per-message play
   // button stays available when it is off.
   if (apiConfig.voiceAutoPlay === false) return;
+  const epoch = sessionEpoch;
 
   // Prefer the saved (save-once) performance: every seat hears the same
   // audio and a replay never pays for a second synthesis.
@@ -2232,6 +2236,11 @@ async function narrateGmResponse(turn) {
       console.warn('Saved narration unavailable; falling back to live synthesis.', error);
     }
   }
+
+  // tts-1: a failed saved-audio attempt must not restart narration for a
+  // table the user has already left — the fallback would mint a fresh
+  // token after the transition's stopNarration().
+  if (epoch !== sessionEpoch) return;
 
   stopNarration();
 
