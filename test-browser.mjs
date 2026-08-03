@@ -2090,6 +2090,177 @@ async function runForkEpochGuard(browser, origin) {
   }
 }
 
+// ds-1: two belts on the same turn submission. (1) Re-entrancy — a submit
+// dispatched while one is already in flight must never reach the server:
+// the second request would clear turnSubmitInFlight on the FIRST settle
+// (re-enabling the controls while the Council still resolves turn two) and
+// reopen every poll gate that relies on the flag. Disabled controls are not
+// the guard: the composer submits programmatically from the choice buttons
+// and the Enter keybinding, so a keyboard or scripted path still fires the
+// form. (2) Monotonicity — the server numbers every committed turn strictly
+// upward, so an OK /turn response at or below the rendered head is a
+// duplicate; rendering it doubles the GM narrative in the log and replays
+// dice theater and narration. The poll has that `<=` rule; the submit's own
+// render must have it too.
+async function runSubmitRaceGuard(browser, origin) {
+  const hold = projectedAbility({
+    id: 'ability-hold',
+    definitionId: 'warden.hold',
+    name: 'hold',
+    familyKey: 'protection',
+    familyLabel: 'Protection',
+    help: 'Keep the crossing shut while the Council resolves.'
+  });
+  const warden = browserCharacter({
+    id: 51,
+    name: 'Race Warden',
+    concept: 'Warden',
+    revision: REVISION_A,
+    invocableAbilities: [hold]
+  });
+  // One character, joined == acting: every submit is in turn and resolves,
+  // so the assertions below are about the race and nothing else.
+  let state = campaignBrowserState({
+    campaignId: 7,
+    title: 'Race Table',
+    characters: [warden],
+    joinedCharacterId: 51,
+    actingCharacterId: 51
+  });
+  const campaignList = [
+    { id: 7, title: 'Race Table', genre: 'Browser fixture', summary: 'Overlapping submits.', created_at: '2026-08-03T12:00:00Z', character_name: 'Race Warden', player_character_id: 151 }
+  ];
+
+  const turnPosts = [];
+  const turnGates = [];
+  const unknownApiRequests = [];
+
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  const page = await context.newPage();
+  page.setDefaultTimeout(6000);
+  const pageErrors = [];
+  page.on('pageerror', error => pageErrors.push(error.message));
+  await page.route('**/*', async route => {
+    const request = route.request();
+    const requestUrl = request.url();
+    if (!requestUrl.startsWith(origin + '/')) return route.abort();
+    const url = new URL(requestUrl);
+
+    if (url.pathname === '/api/campaigns' && request.method() === 'GET') {
+      return route.fulfill({ contentType: 'application/json', body: JSON.stringify(campaignList) });
+    }
+    if (url.pathname === '/api/campaigns/7' && request.method() === 'GET') {
+      // The 12s poll may fire mid-guard; serving it keeps the unknown-request
+      // assertion honest about the submit flow itself.
+      return route.fulfill({ contentType: 'application/json', body: JSON.stringify(state) });
+    }
+    if (url.pathname === '/api/campaigns/7/journal' && request.method() === 'GET') {
+      return route.fulfill({ contentType: 'application/json', body: JSON.stringify({ turns: [], memories: [] }) });
+    }
+    if (url.pathname === '/api/campaigns/7/turn' && request.method() === 'POST') {
+      const body = request.postDataJSON();
+      turnPosts.push(body);
+      // REPLAY marker: an OK response that re-serves the CURRENT committed
+      // turn — same number, same narrative. This is what a server or proxy
+      // replay looks like to the client, and what a regression of the
+      // re-entrancy guard would hand a second in-flight submit.
+      if (String(body.playerAction).includes('REPLAY')) {
+        return route.fulfill({ contentType: 'application/json', body: JSON.stringify(jsonClone(state)) });
+      }
+      // HOLD marker: the turn stays in flight until the guard releases it, so
+      // the second submit is dispatched into a genuinely open window. The
+      // state advances only after the gate, keeping turn numbers in release
+      // order however many requests are outstanding.
+      if (String(body.playerAction).includes('HOLD')) {
+        let release;
+        const gate = new Promise(resolve => { release = resolve; });
+        turnGates.push({ release });
+        await gate;
+      }
+      state = resolvedBrowserTurn(state, body);
+      return route.fulfill({ contentType: 'application/json', body: JSON.stringify(state) });
+    }
+    if (url.pathname.startsWith('/api/')) {
+      unknownApiRequests.push(`${request.method()} ${url.pathname}`);
+      return route.fulfill({ status: 404, contentType: 'application/json', body: '{"error":"unexpected browser fixture route"}' });
+    }
+    return route.continue();
+  });
+
+  const sendEnabled = () => page.waitForFunction(() => !document.querySelector('#btn-send-action').disabled);
+  const submitAction = async text => {
+    await page.locator('#action-input').fill(text);
+    await sendEnabled();
+    await page.locator('#btn-send-action').click();
+  };
+  const playerBubblesContaining = text => page.evaluate(needle =>
+    Array.from(document.querySelectorAll('#narrative-container .log-player'))
+      .filter(node => node.textContent.includes(needle)).length, text);
+  const gmEntriesForTurn = turnNumber => page.evaluate(n =>
+    Array.from(document.querySelectorAll('#narrative-container .log-gm'))
+      .filter(node => Number(node.dataset.turn) === n).length, turnNumber);
+
+  try {
+    await page.goto(origin + '/');
+    await page.locator('.campaign-card').first().waitFor();
+    await page.locator('.campaign-card').first().click();
+    await page.locator('#main-game-screen').waitFor({ state: 'visible' });
+    await page.locator('.ability-button[data-ability-id="ability-hold"]').waitFor();
+
+    // Scenario A: a submit dispatched while another is in flight.
+    await submitAction('I steady the line');
+    await page.waitForFunction(() => document.querySelector('#action-input').value === '');
+    await page.waitForFunction(() => Array.from(document.querySelectorAll('#narrative-container .log-gm'))
+      .some(node => node.textContent.includes('Resolved: I steady the line')));
+
+    const heldAction = 'I HOLD the crossing';
+    await submitAction(heldAction);
+    await waitForCount(turnGates, 1, 'the second submit is held in flight by the fixture');
+    const postsBeforeRace = turnPosts.length;
+
+    // A programmatic requestSubmit, not a pointer click: this is the vector
+    // that survives disabled controls (choice buttons and the Enter
+    // keybinding both call it), and a Playwright click on a disabled button
+    // would wait the flight out instead of racing it — vacuously passing.
+    await page.evaluate(() => { document.getElementById('action-form').requestSubmit(); });
+    // Fixed wait, deliberately not a conditional one: the assertion is that
+    // NOTHING happens, so there is no event to wait for in the fixed
+    // direction and any conditional wait would auto-satisfy.
+    await new Promise(resolve => setTimeout(resolve, 150));
+    browserAssert(turnPosts.length === postsBeforeRace,
+      'a submit dispatched while one is in flight never reaches the server');
+
+    turnGates[0].release();
+    await sendEnabled();
+    browserAssert(await playerBubblesContaining(heldAction) === 1,
+      'a held submit leaves exactly one player bubble for its action');
+
+    // Scenario B: an OK response that re-serves the already-rendered turn.
+    const headTurn = state.turn.number;
+    const postsBeforeReplay = turnPosts.length;
+    await submitAction('I REPLAY the same breath');
+    await waitForCount(turnPosts, postsBeforeReplay + 1, 'the replay submit reaches the fixture');
+    await sendEnabled();
+
+    // Instantaneous reads: the submit handler's render is synchronous, so a
+    // settled send button means the whole path has already run.
+    browserAssert(await gmEntriesForTurn(headTurn) === 1,
+      'an OK submit response at or below the rendered head renders nothing');
+    browserAssert(await page.locator('#action-input').inputValue() === '',
+      'an accepted action still clears the composer when its response renders nothing');
+    browserAssert(await playerBubblesContaining('REPLAY') === 0,
+      'a duplicate-turn response settles the optimistic bubble away instead of stranding it');
+
+    browserAssert(pageErrors.length === 0,
+      'submit race flow raises no page errors: ' + pageErrors.join(', '));
+    browserAssert(unknownApiRequests.length === 0,
+      'submit race flow makes no unexpected API requests: ' + unknownApiRequests.join(', '));
+  } finally {
+    for (const gate of turnGates) gate.release();
+    await context.close();
+  }
+}
+
 async function main() {
   const dbPath = path.join(
     os.tmpdir(),
@@ -2205,6 +2376,8 @@ async function main() {
     console.log('Narration transition browser guard passed.');
     await runForkEpochGuard(browser, origin);
     console.log('Fork epoch browser guard passed.');
+    await runSubmitRaceGuard(browser, origin);
+    console.log('Submit race browser guard passed.');
   } catch (error) {
     runError = error;
   } finally {
