@@ -2,7 +2,7 @@
 
 **Severity**: HIGH — in the flagship multiplayer mode the primary surface shows wrong data on
 *every* remote turn: the log claims the reader typed actions another player typed.
-**Status**: In progress — fix landed, pending reviewer verdict
+**Status**: Verified — accepted by review, merged to master
 **Branch**: `pa-1-author-attribution`
 **Commit**: `b651289`
 
@@ -104,4 +104,14 @@ re-test boundary. The existing set was run — `testSeatAuth`, `testSeatLifecycl
   session should confirm the transcript reads right in practice. Not run — owner playtest.
 
 ## Reviewer comments
-(pending)
+
+`Reviewer: kimi / kimi-code/k3 / max / frontier` — owner-named model and effort. Harness: kimi
+0.31.1, tools restricted by agent-file, working root a disposable worktree. Reviewed head `25c8f5e`,
+base `a5c15d2`. Verdict **accepted**, `guard_confirmed: true`, `capability_ok: true`, zero
+comments. 2026-08-03T18:35:30Z.
+
+**Executed, not supplied — and multi-part.** Confirmed from the reviewer's own transcript: it ran
+both suites green at head, then reverted each layer of the fix separately and observed a distinct
+failure for each — `public/app.js` (browser guard failed), `rpg-engine.js` (unit assertion), and
+`server.js` (unit assertion) — restoring between each, and finished with both suites green again.
+That matches the three-revert proof recorded above rather than merely asserting it.
