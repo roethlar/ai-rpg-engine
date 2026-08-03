@@ -1546,6 +1546,212 @@ async function runJournalStaleGuard(browser, origin) {
   }
 }
 
+// dr-1: a campaign delete or character release that settles after the user
+// has entered another table must not reload the menu. The reload nulls the
+// campaign, stops the poll, strips the theme, and forces the menu overlay
+// back over whatever table is now live.
+async function runMenuSettleGuard(browser, origin) {
+  const brace = projectedAbility({
+    id: 'ability-brace',
+    definitionId: 'warden.brace',
+    name: 'brace',
+    familyKey: 'protection',
+    familyLabel: 'Protection',
+    help: 'Set your feet against what comes.'
+  });
+  const scan = projectedAbility({
+    id: 'ability-scan',
+    definitionId: 'scout.scan',
+    name: 'scan',
+    familyKey: 'opportunity',
+    familyLabel: 'Opportunity',
+    help: 'Read the ground before anyone moves.'
+  });
+  const doomedHero = browserCharacter({
+    id: 71,
+    name: 'Doomed Warden',
+    concept: 'Warden',
+    revision: REVISION_A,
+    invocableAbilities: [brace]
+  });
+  const enteredHero = browserCharacter({
+    id: 81,
+    name: 'Entered Scout',
+    concept: 'Scout',
+    revision: REVISION_B,
+    invocableAbilities: [scan]
+  });
+
+  const states = new Map([
+    [7, campaignBrowserState({
+      campaignId: 7,
+      title: 'Doomed Table',
+      characters: [doomedHero],
+      joinedCharacterId: 71,
+      actingCharacterId: 71
+    })],
+    [8, campaignBrowserState({
+      campaignId: 8,
+      title: 'Entered Table',
+      characters: [enteredHero],
+      joinedCharacterId: 81,
+      actingCharacterId: 81
+    })]
+  ]);
+  // The entered table carries a generated theme (a `text` slot marks one),
+  // so rendering it replaces the holodeck-idle body class. Without a real
+  // theme the idle-class assertion below would hold in both directions and
+  // prove nothing.
+  states.get(8).themeColors = {
+    primary: '18, 90%, 55%',
+    secondary: '280, 70%, 60%',
+    background: '24, 40%, 10%',
+    text: '35, 60%, 92%',
+    text_dim: '35, 30%, 70%'
+  };
+
+  const campaignList = [
+    { id: 7, title: 'Doomed Table', genre: 'Browser fixture', summary: 'Deleted mid-flight.', created_at: '2026-08-03T12:00:00Z', character_name: 'Doomed Warden', player_character_id: 171 },
+    { id: 8, title: 'Entered Table', genre: 'Browser fixture', summary: 'Entered during the wait.', created_at: '2026-08-03T12:00:00Z', character_name: 'Entered Scout', player_character_id: 181 }
+  ];
+
+  let campaignListGets = 0;
+  const deleteGates = [];
+  const releaseGates = [];
+  const unknownApiRequests = [];
+
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  const page = await context.newPage();
+  page.setDefaultTimeout(6000);
+  const pageErrors = [];
+  page.on('pageerror', error => pageErrors.push(error.message));
+  await page.route('**/*', async route => {
+    const request = route.request();
+    const requestUrl = request.url();
+    if (!requestUrl.startsWith(origin + '/')) return route.abort();
+    const url = new URL(requestUrl);
+
+    if (url.pathname === '/api/campaigns' && request.method() === 'GET') {
+      campaignListGets += 1;
+      return route.fulfill({ contentType: 'application/json', body: JSON.stringify(campaignList) });
+    }
+    if (url.pathname === '/api/campaigns/7' && request.method() === 'DELETE') {
+      // Hold the delete in flight until the guard has entered the other table.
+      let release;
+      const gate = new Promise(resolve => { release = resolve; });
+      deleteGates.push({ release });
+      await gate;
+      return route.fulfill({ status: 200, contentType: 'application/json', body: '{}' });
+    }
+    if (url.pathname === '/api/campaigns/7/release-character' && request.method() === 'POST') {
+      let release;
+      const gate = new Promise(resolve => { release = resolve; });
+      releaseGates.push({ release });
+      await gate;
+      return route.fulfill({ status: 200, contentType: 'application/json', body: '{}' });
+    }
+    const stateMatch = url.pathname.match(/^\/api\/campaigns\/(7|8)$/u);
+    if (stateMatch && request.method() === 'GET') {
+      // The 12s poll may fire mid-guard; serving it keeps the unknown-request
+      // assertion honest about the settle flow itself.
+      return route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify(states.get(Number(stateMatch[1])))
+      });
+    }
+    const journalMatch = url.pathname.match(/^\/api\/campaigns\/(7|8)\/journal$/u);
+    if (journalMatch && request.method() === 'GET') {
+      return route.fulfill({ contentType: 'application/json', body: JSON.stringify({ turns: [], memories: [] }) });
+    }
+    if (url.pathname.startsWith('/api/')) {
+      unknownApiRequests.push(`${request.method()} ${url.pathname}`);
+      return route.fulfill({ status: 404, contentType: 'application/json', body: '{"error":"unexpected browser fixture route"}' });
+    }
+    return route.continue();
+  });
+
+  const menuScreen = page.locator('#campaign-menu-screen');
+  const menuDisplay = () => menuScreen.evaluate(node => getComputedStyle(node).display);
+  const bodyClasses = () => page.evaluate(() => document.body.className);
+  // The toast fires in BOTH directions, so it settles the race without
+  // asserting the outcome; every assertion below is an instantaneous read.
+  const waitForToast = text => page.waitForFunction(
+    expected => Array.from(document.body.children).some(node => node.innerText === expected),
+    text
+  );
+  const enterSecondCampaign = async () => {
+    await page.locator('.campaign-card').nth(1).click();
+    await page.locator('#main-game-screen').waitFor({ state: 'visible' });
+    // The generated theme replaces the idle class only once the state
+    // response has actually rendered — this is the entered-table signal.
+    await page.waitForFunction(() => !document.body.className.includes('holodeck-idle'));
+    await page.locator('.ability-button[data-ability-id="ability-scan"]').waitFor();
+    browserAssert(await page.locator('#char-name').textContent() === 'Entered Scout',
+      'the entered table renders its own character sheet');
+  };
+
+  try {
+    await page.goto(origin + '/');
+    await page.locator('.campaign-card').first().waitFor();
+    browserAssert(await page.locator('.campaign-card').count() === 2,
+      'the settle fixture lists both campaigns');
+
+    // Scenario A: delete campaign 7, enter campaign 8 while the DELETE is
+    // still in flight, then let it settle.
+    await page.locator('.campaign-card').first().locator('.delete-camp-btn').click();
+    const deleteModal = page.locator('.modal').filter({ hasText: 'delete this campaign' });
+    await deleteModal.waitFor({ state: 'visible' });
+    await deleteModal.locator('.btn-danger').click();
+    await waitForCount(deleteGates, 1, 'the campaign delete is held in flight by the fixture');
+
+    await enterSecondCampaign();
+    const getsBeforeDelete = campaignListGets;
+
+    deleteGates[0].release();
+    await waitForToast('Campaign deleted.');
+    await new Promise(resolve => setTimeout(resolve, 150));
+
+    browserAssert(await menuDisplay() === 'none',
+      'a settled delete does not resurrect the menu over an entered table');
+    browserAssert(campaignListGets === getsBeforeDelete,
+      'a stale delete settle does not re-fetch the campaign list');
+    browserAssert(!(await bodyClasses()).includes('holodeck-idle'),
+      'a stale delete settle does not strip the entered table theme');
+
+    // Scenario B: the same race against the character release POST.
+    await page.locator('#btn-show-campaigns').click();
+    await page.locator('.campaign-card').first().waitFor();
+    await page.locator('.campaign-card').first().locator('.release-camp-btn').click();
+    const releaseModal = page.locator('.modal').filter({ hasText: 'Release this campaign character profile' });
+    await releaseModal.waitFor({ state: 'visible' });
+    await releaseModal.locator('.btn-primary').click();
+    await waitForCount(releaseGates, 1, 'the character release is held in flight by the fixture');
+
+    await enterSecondCampaign();
+    const getsBeforeRelease = campaignListGets;
+
+    releaseGates[0].release();
+    await waitForToast('Character profile released.');
+    await new Promise(resolve => setTimeout(resolve, 150));
+
+    browserAssert(await menuDisplay() === 'none',
+      'a settled release does not resurrect the menu over an entered table');
+    browserAssert(campaignListGets === getsBeforeRelease,
+      'a stale release settle does not re-fetch the campaign list');
+    browserAssert(!(await bodyClasses()).includes('holodeck-idle'),
+      'a stale release settle does not strip the entered table theme');
+
+    browserAssert(pageErrors.length === 0,
+      'menu settle flow raises no page errors: ' + pageErrors.join(', '));
+    browserAssert(unknownApiRequests.length === 0,
+      'menu settle flow makes no unexpected API requests: ' + unknownApiRequests.join(', '));
+  } finally {
+    for (const gate of deleteGates) gate.release();
+    for (const gate of releaseGates) gate.release();
+    await context.close();
+  }
+}
+
 async function main() {
   const dbPath = path.join(
     os.tmpdir(),
@@ -1655,6 +1861,8 @@ async function main() {
     await runAbilityComposerGuard(browser, origin);
     await runJournalStaleGuard(browser, origin);
     console.log('Journal stale-response browser guard passed.');
+    await runMenuSettleGuard(browser, origin);
+    console.log('Menu settle browser guard passed.');
   } catch (error) {
     runError = error;
   } finally {
