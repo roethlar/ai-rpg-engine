@@ -1622,3 +1622,25 @@ Refines:
 This decision supplies the evidence standard for the immediately preceding campaign-class-set
 decision. It does not change cumulative set selection, level-1 availability, administrative
 controls, campaign/catalog pinning, safe upgrades, or player-owned character versions.
+
+### 2026-08-02 - Fiction-first ability-keyword composer prototype plan approved (owner decision)
+
+**Status: Active for the prototype; production contract remains unapproved.**
+
+The owner approved `.agents/review/ability-keyword-composer-plan.md` for its two non-shipping slices
+only. AKC-1 builds and guard-proves the deterministic owned-ability trigger matcher. AKC-2 builds a
+representative browser composer in which ordinary typed ability words highlight inline, clicking an
+ability inserts its canonical word at the current caret, and fuzzy spelling recovery only offers a
+correction and never silently activates an ability. The prototype preserves one plain-text player
+submission and stops for owner evaluation.
+
+This approval does not authorize product integration, a turn API or database change, model-selected
+mechanics, class prerequisites or action-economy rules, private narration cues, a paired class-test
+verdict, external review, push, or removal of the rejected uncommitted IBP-2 runner. A later
+production plan must establish canonical versioned trigger metadata and server-side validation
+before highlighted recognition can become authoritative mechanics activation.
+
+Reason:
+The owner selected the plain-word interaction after rejecting prose plus a second action-selection
+workflow as unrepresentative and intolerably slow for text multiplayer, then approved the bounded
+prototype plan after seeing its exact scope.

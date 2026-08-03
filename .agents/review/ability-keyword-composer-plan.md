@@ -1,8 +1,9 @@
 # Fiction-first ability-keyword composer plan
 
-**Status:** DRAFT 2026-08-02 — the owner selected the plain-word interaction direction, but this
-implementation plan is not yet approved. No code, product integration, mechanics activation,
-external review, playtest verdict, or push is authorized by this draft.
+**Status:** OWNER-APPROVED 2026-08-02 — authorizes AKC-1 and AKC-2 only, in order, with one commit
+per slice and a stop for owner evaluation. It does not authorize product integration, mechanics
+activation, disposal of the rejected uncommitted IBP-2 runner, external review, playtest verdict,
+or push.
 
 **Authority and context:** the owner rejected IBP-2's prose-plus-action-menu runner during manual
 evaluation. Normal play must remain one fiction-first text submission. A player may invoke an owned
