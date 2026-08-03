@@ -190,9 +190,9 @@ or a substitute for that evidence.
 
 1. Preserve the atlas candidates and frozen variants as hypotheses; do not regenerate the packages
    or infer a smaller roster from this paper audit.
-2. On explicit authorization, draft a concrete short-scenario harness before changing a class or
-   economy. Each comparison uses the same character and encounter with the candidate mechanic and
-   a simpler version, changing only the mechanic under test.
+2. `.agents/review/interaction-burden-playtest-plan.md` is the concrete harness draft. Its first
+   approval boundary covers only the offline Armsmaster/Adept pilot; no implementation or later
+   comparison is authorized while that draft awaits an owner ruling.
 3. Prototype ordinary text exchanges, not abstract cards. Show player input, optional explicit
    ability selection, engine state before/after, every UI prompt, the result when the special
    mechanic is not invoked, and elapsed turn time.

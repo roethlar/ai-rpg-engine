@@ -410,6 +410,10 @@ standard. Keep an unproven or demanding coherent option in Expert unless a separ
 category, safety, or owner decision removes it. Revise one class or shared rule per reviewable
 slice; do not sweep unrelated failures into one commit.
 
+`.agents/review/interaction-burden-playtest-plan.md` is the current concrete harness draft. Its
+offline Armsmaster/Adept pilot is the only implementation candidate; the draft neither authorizes
+that pilot nor pre-authorizes the remaining comparison queue.
+
 ### 8.5 G5-D — S1.5 implementation plan
 
 Only after G5-B and G5-C are owner-approved may `plan.md` receive a cold-implementable product-code
