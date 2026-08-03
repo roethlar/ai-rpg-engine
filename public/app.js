@@ -3071,6 +3071,11 @@ let forkInFlight = false;
 window.forkCampaignTimeline = async function(turnNumber) {
   if (forkInFlight) return;
   forkInFlight = true;
+  // fk-1: the table this fork was asked from. Both the name prompt and the
+  // fork fetch can outlive a table transition — the loading overlay blocks
+  // pointers, not keyboard focus, and the prompt has no overlay at all — so
+  // a stale resolution must not seize whatever table the user is on now.
+  const epoch = sessionEpoch;
   const newTitle = await uiPrompt(
     `Branch timeline from Turn ${turnNumber}?\nThis creates a new campaign fork without modifying the current run.\n\nEnter new campaign name:`,
     { defaultValue: `${currentCampaignTitle} [Fork - Turn ${turnNumber}]` }
@@ -3097,6 +3102,12 @@ window.forkCampaignTimeline = async function(turnNumber) {
     }
 
     const newCampaignState = await response.json();
+    if (epoch !== sessionEpoch) {
+      // The user left this table while the fork was reconstructing. The
+      // fork exists server-side; tell them where to find it, adopt nothing.
+      showToast(`Fork "${newTitle.trim()}" was created — find it in your campaign list.`, 'info');
+      return;
+    }
     // Adopting the fork is a table transition: invalidate anything still
     // in flight against the source campaign before rendering the new one.
     bumpSessionEpoch();

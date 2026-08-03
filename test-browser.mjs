@@ -1938,6 +1938,158 @@ async function runNarrationTransitionGuard(browser, origin) {
   }
 }
 
+// fk-1: the fork flow captures no epoch. Its name prompt has no blocking
+// overlay at all, and the loading overlay that follows blocks pointers but is
+// not a focus trap, so Campaigns stays reachable by keyboard mid-fork. A fork
+// that resolves after that must not seize the screen the user moved to:
+// adoption renders the fork's narrative, re-adopts its campaign id, and
+// restarts the poll behind the menu the user is looking at.
+async function runForkEpochGuard(browser, origin) {
+  const ward = projectedAbility({
+    id: 'ability-ward',
+    definitionId: 'warden.ward',
+    name: 'ward',
+    familyKey: 'protection',
+    familyLabel: 'Protection',
+    help: 'Hold the line while the branch resolves.'
+  });
+  const warden = browserCharacter({
+    id: 61,
+    name: 'Source Warden',
+    concept: 'Warden',
+    revision: REVISION_A,
+    invocableAbilities: [ward]
+  });
+  const sourceState = campaignBrowserState({
+    campaignId: 7,
+    title: 'Source Table',
+    characters: [warden],
+    joinedCharacterId: 61,
+    actingCharacterId: 61
+  });
+  const forkState = campaignBrowserState({
+    campaignId: 9,
+    title: 'Fork Result',
+    characters: [warden],
+    joinedCharacterId: 61,
+    actingCharacterId: 61,
+    turnNumber: 2
+  });
+  // The sentinel is exactly what an adopted fork paints into the narrative
+  // log; its absence is the assertion, so it must appear nowhere else.
+  forkState.turn.narrative = 'FORKED-NARRATIVE';
+
+  const campaignList = [
+    { id: 7, title: 'Source Table', genre: 'Browser fixture', summary: 'Forked mid-flight.', created_at: '2026-08-03T12:00:00Z', character_name: 'Source Warden', player_character_id: 161 }
+  ];
+
+  const forkGates = [];
+  const unknownApiRequests = [];
+
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  const page = await context.newPage();
+  page.setDefaultTimeout(6000);
+  const pageErrors = [];
+  page.on('pageerror', error => pageErrors.push(error.message));
+  await page.route('**/*', async route => {
+    const request = route.request();
+    const requestUrl = request.url();
+    if (!requestUrl.startsWith(origin + '/')) return route.abort();
+    const url = new URL(requestUrl);
+
+    if (url.pathname === '/api/campaigns' && request.method() === 'GET') {
+      return route.fulfill({ contentType: 'application/json', body: JSON.stringify(campaignList) });
+    }
+    if (url.pathname === '/api/campaigns/7/fork' && request.method() === 'POST') {
+      // Hold the fork reconstruction in flight until the guard has left the table.
+      let release;
+      const gate = new Promise(resolve => { release = resolve; });
+      forkGates.push({ release });
+      await gate;
+      return route.fulfill({ contentType: 'application/json', body: JSON.stringify(forkState) });
+    }
+    const stateMatch = url.pathname.match(/^\/api\/campaigns\/(7|9)$/u);
+    if (stateMatch && request.method() === 'GET') {
+      // The 12s poll may fire mid-guard, and in the broken direction it fires
+      // against the ADOPTED fork (9). Serving both keeps the unknown-request
+      // assertion honest about the fork flow itself rather than turning a
+      // leaked poll into a 404 that masks the real signal.
+      return route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify(Number(stateMatch[1]) === 7 ? sourceState : forkState)
+      });
+    }
+    if (/^\/api\/campaigns\/(7|9)\/journal$/u.test(url.pathname) && request.method() === 'GET') {
+      return route.fulfill({ contentType: 'application/json', body: JSON.stringify({ turns: [], memories: [] }) });
+    }
+    if (url.pathname.startsWith('/api/')) {
+      unknownApiRequests.push(`${request.method()} ${url.pathname}`);
+      return route.fulfill({ status: 404, contentType: 'application/json', body: '{"error":"unexpected browser fixture route"}' });
+    }
+    return route.continue();
+  });
+
+  const displayOf = id => page.locator('#' + id).evaluate(node => getComputedStyle(node).display);
+  // showToast appends a bare inline-styled div to the body with no id and no
+  // class, so the class-less, id-less body children ARE the toasts.
+  const toastTexts = () => page.evaluate(() => Array.from(document.body.children)
+    .filter(node => node.tagName === 'DIV' && !node.id && !node.className)
+    .map(node => node.innerText));
+
+  try {
+    await page.goto(origin + '/');
+    await page.locator('.campaign-card').first().waitFor();
+    await page.locator('.campaign-card').first().click();
+    await page.locator('#main-game-screen').waitFor({ state: 'visible' });
+    await page.locator('.ability-button[data-ability-id="ability-ward"]').waitFor();
+
+    // The journal timeline is only the fork's entry point; the flow itself is
+    // exposed on window, so start it directly and leave its promise pending
+    // on the fixture gate rather than awaiting it here.
+    await page.evaluate(() => { window.forkCampaignTimeline(1); });
+    const promptModal = page.locator('.modal').filter({ hasText: 'Branch timeline from Turn' });
+    await promptModal.waitFor({ state: 'visible' });
+    await promptModal.locator('.btn-primary').click();
+    await waitForCount(forkGates, 1, 'the fork POST is held in flight by the fixture');
+    browserAssert(await displayOf('loading-overlay') === 'flex',
+      'the fork holds the loading overlay while the branch reconstructs');
+
+    // A JS click, not a Playwright click: pointer actionability would wait the
+    // overlay out and never race. This models the keyboard path the overlay
+    // fails to trap.
+    await page.evaluate(() => { document.getElementById('btn-show-campaigns').click(); });
+    browserAssert(await displayOf('campaign-menu-screen') === 'flex',
+      'the campaign menu is reachable through the fork loading overlay');
+
+    forkGates[0].release();
+    // Fixed wait, deliberately not a toast wait: the toast text differs
+    // between the two directions, so a conditional wait would either hang or
+    // auto-satisfy. Every assertion below is an instantaneous read.
+    await new Promise(resolve => setTimeout(resolve, 300));
+
+    const narrativeText = await page.locator('#narrative-container').textContent();
+    browserAssert(!narrativeText.includes('FORKED-NARRATIVE'),
+      'a fork resolving after the user left does not render the fork');
+    const toasts = await toastTexts();
+    browserAssert(!toasts.some(text => text.includes('Successfully branched')),
+      'a stale fork does not announce adoption');
+    browserAssert(toasts.some(text => text.includes('find it in your campaign list')),
+      'a stale fork tells the player where the fork went');
+    browserAssert(await displayOf('loading-overlay') === 'none',
+      'the stale fork path still hides the loading overlay');
+    browserAssert(await displayOf('campaign-menu-screen') === 'flex',
+      'a stale fork does not seize the screen the user moved to');
+
+    browserAssert(pageErrors.length === 0,
+      'fork epoch flow raises no page errors: ' + pageErrors.join(', '));
+    browserAssert(unknownApiRequests.length === 0,
+      'fork epoch flow makes no unexpected API requests: ' + unknownApiRequests.join(', '));
+  } finally {
+    for (const gate of forkGates) gate.release();
+    await context.close();
+  }
+}
+
 async function main() {
   const dbPath = path.join(
     os.tmpdir(),
@@ -2051,6 +2203,8 @@ async function main() {
     console.log('Menu settle browser guard passed.');
     await runNarrationTransitionGuard(browser, origin);
     console.log('Narration transition browser guard passed.');
+    await runForkEpochGuard(browser, origin);
+    console.log('Fork epoch browser guard passed.');
   } catch (error) {
     runError = error;
   } finally {
