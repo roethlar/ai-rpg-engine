@@ -2355,6 +2355,9 @@ Output the JSON object containing the opening narrative, scene_grounding, sugges
     currentAct: 1,
     turn: {
       number: 1,
+      // Nobody acted on the opening scene: the transcript falls back to its
+      // pre-attribution label for a turn with no author (pa-1).
+      characterId: null,
       playerAction: null,
       narrative: turnData.narrative,
       sceneGrounding: turnData.scene_grounding || null,
@@ -2839,6 +2842,11 @@ Output the JSON object containing the narrative response, scene_grounding, sugge
     ruleset: rulesetData,
     turn: {
       number: currentTurnNumber,
+      // Who actually took this turn (pa-1). This is the SAME value written to
+      // turns.character_id above — never turnOrder.actingCharacterId, which
+      // has already advanced to the NEXT player by the time this view is
+      // built (step D4).
+      characterId: character.id,
       playerAction,
       inputKind: turnData.input_kind,
       narrative: turnData.narrative,
@@ -2926,6 +2934,10 @@ export async function getCampaignState(campaignId) {
     currentAct,
     turn: {
       number: lastTurn ? lastTurn.turn_number : 1,
+      // pa-1: the poll renders the shared transcript from THIS view, so the
+      // author travels with the action. Legacy and solo rows carry NULL and
+      // keep the pre-attribution label.
+      characterId: lastTurn ? (lastTurn.character_id ?? null) : null,
       playerAction: lastTurn ? lastTurn.player_action : null,
       inputKind,
       narrative: lastTurn ? lastTurn.narrative : 'Beginning campaign...',

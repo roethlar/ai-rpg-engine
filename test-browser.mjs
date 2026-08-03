@@ -2261,6 +2261,211 @@ async function runSubmitRaceGuard(browser, origin) {
   }
 }
 
+// pa-1: the narrative log is a SHARED transcript. Every entry used to be
+// labelled "You", so in multiplayer each browser claimed its partymates' deeds
+// as its own — the flagship mode's core surface lying about who acted. The
+// author now travels with the turn (turns.character_id, already written) down
+// BOTH paths a partymate's turn can arrive on: the 12s poll and the journal
+// gap-backfill. This guard drives both, in both directions, plus the
+// no-recorded-author rows that must keep rendering exactly as they always did.
+async function runAuthorAttributionGuard(browser, origin) {
+  const hold = projectedAbility({
+    id: 'ability-hold',
+    definitionId: 'warden.hold',
+    name: 'hold',
+    familyKey: 'protection',
+    familyLabel: 'Protection',
+    help: 'Keep the crossing shut for a breath.'
+  });
+  const mark = projectedAbility({
+    id: 'ability-mark',
+    definitionId: 'scout.mark',
+    name: 'mark',
+    familyKey: 'opportunity',
+    familyLabel: 'Opportunity',
+    help: 'Name the target everyone should watch.'
+  });
+  const me = browserCharacter({
+    id: 61,
+    name: 'Author Warden',
+    concept: 'Warden',
+    revision: REVISION_C,
+    invocableAbilities: [hold]
+  });
+  const partymate = browserCharacter({
+    id: 62,
+    name: 'Beta Scout',
+    concept: 'Scout',
+    revision: REVISION_D,
+    invocableAbilities: [mark]
+  });
+
+  // This browser plays 61; 62 is another player at the same table.
+  let state = campaignBrowserState({
+    campaignId: 8,
+    title: 'Shared Transcript',
+    characters: [me, partymate],
+    joinedCharacterId: 61,
+    actingCharacterId: 61,
+    turnNumber: 1
+  });
+  const campaignList = [
+    { id: 8, title: 'Shared Transcript', genre: 'Browser fixture', summary: 'Two players, one log.', created_at: '2026-08-03T12:00:00Z', character_name: 'Author Warden', player_character_id: 161 }
+  ];
+  const journalTurn = (turnNumber, characterId, action) => ({
+    turn_number: turnNumber,
+    character_id: characterId,
+    player_action: action,
+    narrative: `Narrative for turn ${turnNumber}.`,
+    state_changes_json: '{}',
+    created_at: `2026-08-01T1${turnNumber}:00:00Z`
+  });
+  // Turns 2-4 are the gap this browser never saw: its own action, a
+  // partymate's, and a pre-attribution row with no recorded author.
+  let journal = {
+    turns: [
+      journalTurn(2, 61, 'OWN-BACKFILL deed'),
+      journalTurn(3, 62, 'PARTYMATE-BACKFILL deed'),
+      journalTurn(4, null, 'LEGACY-BACKFILL deed')
+    ],
+    memories: []
+  };
+
+  const turnPosts = [];
+  const unknownApiRequests = [];
+
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  const page = await context.newPage();
+  page.setDefaultTimeout(6000);
+  const pageErrors = [];
+  page.on('pageerror', error => pageErrors.push(error.message));
+  await page.route('**/*', async route => {
+    const request = route.request();
+    const requestUrl = request.url();
+    if (!requestUrl.startsWith(origin + '/')) return route.abort();
+    const url = new URL(requestUrl);
+
+    if (url.pathname === '/api/campaigns' && request.method() === 'GET') {
+      return route.fulfill({ contentType: 'application/json', body: JSON.stringify(campaignList) });
+    }
+    if (url.pathname === '/api/campaigns/8' && request.method() === 'GET') {
+      return route.fulfill({ contentType: 'application/json', body: JSON.stringify(state) });
+    }
+    if (url.pathname === '/api/campaigns/8/journal' && request.method() === 'GET') {
+      return route.fulfill({ contentType: 'application/json', body: JSON.stringify(journal) });
+    }
+    if (url.pathname === '/api/campaigns/8/turn' && request.method() === 'POST') {
+      const body = request.postDataJSON();
+      turnPosts.push(body);
+      // The submit lands at turn 5, three turns above the rendered head: the
+      // submit path's own gap backfill pulls 2-4 out of the journal first.
+      state = jsonClone(state);
+      state.turn = {
+        ...state.turn,
+        number: 5,
+        characterId: 61,
+        playerAction: body.playerAction,
+        narrative: `Resolved: ${body.playerAction}`,
+        suggestedChoices: []
+      };
+      journal = {
+        turns: [...journal.turns, journalTurn(5, 61, body.playerAction)],
+        memories: []
+      };
+      return route.fulfill({ contentType: 'application/json', body: JSON.stringify(state) });
+    }
+    if (url.pathname.startsWith('/api/')) {
+      unknownApiRequests.push(`${request.method()} ${url.pathname}`);
+      return route.fulfill({ status: 404, contentType: 'application/json', body: '{"error":"unexpected browser fixture route"}' });
+    }
+    return route.continue();
+  });
+
+  // The speaker line of the bubble whose body carries `needle`.
+  const speakerFor = needle => page.evaluate(text => {
+    const node = Array.from(document.querySelectorAll('#narrative-container .log-player'))
+      .find(entry => (entry.querySelector('.content')?.textContent || '').includes(text));
+    return node ? node.querySelector('.speaker').textContent.trim() : null;
+  }, needle);
+  const timelineEntryFor = needle => page.evaluate(text => {
+    const node = Array.from(document.querySelectorAll('#journal-timeline-container .timeline-node-action'))
+      .find(entry => entry.textContent.includes(text));
+    return node ? node.textContent.trim() : null;
+  }, needle);
+
+  try {
+    await page.goto(origin + '/');
+    await page.locator('.campaign-card').first().waitFor();
+    await page.locator('.campaign-card').first().click();
+    await page.locator('#main-game-screen').waitFor({ state: 'visible' });
+    await page.locator('.ability-button[data-ability-id="ability-hold"]').waitFor();
+
+    // --- Path 1: the journal gap-backfill, reached through a submit. ---
+    await page.locator('#action-input').fill('I OWN-SUBMIT the crossing');
+    await page.waitForFunction(() => !document.querySelector('#btn-send-action').disabled);
+    await page.locator('#btn-send-action').click();
+    await waitForCount(turnPosts, 1, 'the submit reaches the fixture');
+    await page.waitForFunction(() => Array.from(document.querySelectorAll('#narrative-container .log-player'))
+      .some(entry => entry.textContent.includes('LEGACY-BACKFILL')));
+
+    browserAssert(await speakerFor('PARTYMATE-BACKFILL') === 'Beta Scout',
+      'a backfilled partymate action is attributed to the partymate, not to this browser');
+    browserAssert(await speakerFor('OWN-BACKFILL') === 'You',
+      "a backfilled action of this browser's own character still reads You");
+    browserAssert(await speakerFor('LEGACY-BACKFILL') === 'You',
+      'a turn with no recorded author renders exactly as it did before attribution');
+    browserAssert(await speakerFor('OWN-SUBMIT') === 'You',
+      "this browser's own submitted action reads You");
+
+    // --- Path 2: the 12s poll picking up a partymate's live turn. ---
+    state = jsonClone(state);
+    state.turn = {
+      ...state.turn,
+      number: 6,
+      characterId: 62,
+      playerAction: 'I PARTYMATE-LIVE the ford',
+      narrative: 'The scout slips across the ford.',
+      suggestedChoices: []
+    };
+    state.turnOrder.actingCharacterId = 62;
+    journal = {
+      turns: [...journal.turns, journalTurn(6, 62, 'I PARTYMATE-LIVE the ford')],
+      memories: []
+    };
+    // The poll interval is 12s: this wait is the interval, not a race.
+    await page.waitForFunction(() => Array.from(document.querySelectorAll('#narrative-container .log-player'))
+      .some(entry => entry.textContent.includes('PARTYMATE-LIVE')), null, { timeout: 25_000 });
+    browserAssert(await speakerFor('PARTYMATE-LIVE') === 'Beta Scout',
+      'a polled partymate action is attributed to the partymate, not to this browser');
+
+    // Nothing this browser did not do may be labelled as its own.
+    const misattributed = await page.evaluate(() =>
+      Array.from(document.querySelectorAll('#narrative-container .log-player'))
+        .filter(entry => entry.querySelector('.speaker').textContent.trim() === 'You')
+        .map(entry => entry.querySelector('.content').textContent.trim()));
+    browserAssert(!misattributed.some(text => text.includes('PARTYMATE')),
+      'no partymate action is labelled You: ' + misattributed.join(' | '));
+
+    // --- The Journal tab reads from the same author. ---
+    await page.locator('#tab-journal-btn').click();
+    await page.waitForFunction(() =>
+      document.querySelector('#journal-timeline-container').textContent.includes('PARTYMATE-LIVE'));
+    browserAssert((await timelineEntryFor('PARTYMATE-BACKFILL')).startsWith('Beta Scout:'),
+      'the Journal timeline names the partymate who acted');
+    browserAssert((await timelineEntryFor('OWN-BACKFILL')).startsWith('You:'),
+      "the Journal timeline reads You for this browser's own turn");
+    browserAssert((await timelineEntryFor('LEGACY-BACKFILL')).startsWith('Player:'),
+      'a Journal row with no recorded author keeps its generic label');
+
+    browserAssert(pageErrors.length === 0,
+      'author attribution flow raises no page errors: ' + pageErrors.join(', '));
+    browserAssert(unknownApiRequests.length === 0,
+      'author attribution flow makes no unexpected API requests: ' + unknownApiRequests.join(', '));
+  } finally {
+    await context.close();
+  }
+}
+
 async function main() {
   const dbPath = path.join(
     os.tmpdir(),
@@ -2378,6 +2583,8 @@ async function main() {
     console.log('Fork epoch browser guard passed.');
     await runSubmitRaceGuard(browser, origin);
     console.log('Submit race browser guard passed.');
+    await runAuthorAttributionGuard(browser, origin);
+    console.log('Author attribution browser guard passed.');
   } catch (error) {
     runError = error;
   } finally {
