@@ -2,7 +2,7 @@
 
 **Severity**: MEDIUM — a long location name is drawn past both canvas edges, so the map's own
 caption spills over whatever sits beside it. Centre-anchored, so it overflows symmetrically.
-**Status**: In progress — fix landed, pending reviewer verdict
+**Status**: Verified — accepted by review, merged to master
 **Branch**: `fix/map-2-title-overflow`
 **Commit**: `d4f680b`
 
@@ -77,4 +77,13 @@ unblocked defect. Flagged here rather than left silent, since it is a deviation 
 gate.
 
 ## Reviewer comments
-(pending)
+
+`Reviewer: kimi / kimi-code/k3 / max / frontier` — owner-named model and effort. Harness: kimi
+0.31.1, tools restricted by agent-file, working root a disposable worktree. Reviewed SHA
+`4a5e080545b544cce6cd6c64a3b8999fcc905dae`, base SHA `50711b480d0fd2922a31be9553db8150fd7b2e99`.
+Verdict **accepted**, `guard_confirmed: true`, `capability_ok: true`, zero comments.
+2026-08-03T18:07:30Z.
+
+**Executed, not supplied.** Confirmed from the reviewer's own transcript: it ran `node test.js`
+green at head, reverted `map-render.js` to the base SHA keeping the test, re-ran and hit the
+assertion failure, then restored and re-ran green.
