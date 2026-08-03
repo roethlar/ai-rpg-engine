@@ -1,8 +1,9 @@
 # jt-1: Journal timeline renders stale cross-campaign responses; Fork buttons then fork the wrong campaign
 
 **Severity**: HIGH — campaign B's Journal tab shows campaign A's turns/memories; a Fork click on a stale card POSTs `/api/campaigns/B/fork` with A's turn number.
-**Status**: In progress — fix landed, pending reviewer verdict (admitted 2026-07-11 from the
-skeptic-panel round; authorized by the Phase T2 approval and implementation order in `plan.md`)
+**Status**: Verified — accepted by review, awaiting owner-gated merge (admitted 2026-07-11 from
+the skeptic-panel round; authorized by the Phase T2 approval and implementation order in
+`plan.md`)
 **Branch**: `fix/jt-1-journal-epoch`
 **Commit**: `09768e1`
 
@@ -91,4 +92,41 @@ Restoring the fix returns the suite to green with all five guard lines, includin
   The guard above was written fresh as a durable member of `test-browser.mjs`.
 
 ## Reviewer comments
-(pending)
+
+`Reviewer: codex / gpt-5.6-sol / xhigh / frontier` — `escalated: T2` (recorded severity HIGH
+routes straight to frontier). Harness: codex-cli 0.146.0. Reviewed SHA
+`6d3f7253968005507658a9b927e5dd6d1b1ef640`, base SHA `ab5fde5f4d72aa2fab83a238fef35608947ca876`.
+Verdict **accepted**, `guard_confirmed: true`, `capability_ok: true`, zero comments.
+2026-08-03T07:13:30Z.
+
+**Recorded weakening of this verdict — read before treating it as a full playbook pass.**
+The reviewer could not execute the browser guard itself. Two dispatches failed on transport,
+both inside codex's macOS sandbox and neither caused by this change:
+
+1. `--sandbox workspace-write` denies binding a loopback socket, so `node test.js` and
+   `npm run test:browser` both died with `listen EPERM: operation not permitted 127.0.0.1`.
+   Fixed by adding `-c sandbox_workspace_write.network_access=true`, which is codex's own
+   documented option and is now recorded in the machine-local harness cache.
+2. With networking allowed, `npm run test:browser` still could not launch Chromium:
+   `MachPortRendezvousServer` permission denied. Playwright cannot run under codex's seatbelt
+   sandbox on this machine. The only codex option that would lift it is
+   `--dangerously-bypass-approvals-and-sandbox`, which grants the reviewer an unsandboxed shell
+   on the owner's machine; that exceeds the playbook's "read-only inspection plus a disposable
+   worktree" grant and was **not** used on agent authority.
+
+The third dispatch therefore ran with an explicitly narrowed and honestly labelled mandate: the
+reviewer read the finding, the diff and both changed files, ran `node test.js` itself, audited
+the guard's **source** adversarially for vacuity, and judged the supplied two-direction proof
+transcript for consistency with that source. So `guard_confirmed: true` here means *the guard is
+sound by construction and the proof transcript matches what its code would produce* — it does
+**not** mean the reviewer re-executed the revert/restore cycle.
+
+The executed two-direction proof rests on two independent local runs (the implementing agent and
+the orchestrator), which agreed: fail-on-revert with
+`Browser guard failed: a departed campaign journal response cannot paint over the live table`,
+pass-on-restore with `Journal stale-response browser guard passed.`
+
+**Open for the owner:** whether to authorize the sandbox bypass for future reviewer dispatches,
+accept reviewer-audited-not-reviewer-executed guard proofs as the standing norm for
+browser-guarded findings on this machine, or route such findings to a harness that can run
+Chromium. Until that ruling, this narrowing is applied per dispatch and recorded per finding.
