@@ -1,8 +1,9 @@
 # dr-1: Campaign delete/release settle callbacks wipe state and theme over whichever table the user has since entered
 
 **Severity**: MEDIUM — a slow DELETE settling after the user loads campaign Y snaps Y's theme to holodeck idle, nulls the campaign (Send silently no-ops, poll stops), and toasts "Campaign deleted." over the broken table.
-**Status**: In progress — fix landed, pending reviewer verdict (admitted 2026-07-11 from the
-skeptic-panel round; authorized by the Phase T2 approval and implementation order in `plan.md`).
+**Status**: Verified — accepted by review, awaiting owner-gated merge (admitted 2026-07-11 from
+the skeptic-panel round; authorized by the Phase T2 approval and implementation order in
+`plan.md`).
 The worst sub-case — the blank screen when the settle races an in-flight load — was a poll-1
 regression and is already fixed on that branch (`1409b58`); this finding covers the remaining
 wrong-table wipe.
@@ -92,4 +93,17 @@ and restoring returned it to green with `Menu settle browser guard passed.`
   finding; deliberately not folded in.
 
 ## Reviewer comments
-(pending)
+
+`Reviewer: codex / gpt-5.6-sol / xhigh / frontier` — owner-named model and effort at dispatch
+(`inline, session-only`; MEDIUM severity fires no mechanical escalation trigger, so the tier is
+the owner's word, not a routing outcome). Harness: codex-cli 0.146.0. Reviewed SHA
+`a606b72bbd3a4c7059395849e5dfe36c8e75b052`, base SHA `95b759a`. Verdict **accepted**,
+`guard_confirmed: true`, `capability_ok: true`, zero comments. 2026-08-03T07:21:53Z.
+
+Same recorded weakening as jt-1, and for the same reason: codex's macOS sandbox cannot launch
+Chromium, so the reviewer audited the guard's source adversarially and judged the supplied
+two-direction transcript against it, rather than re-executing the revert/restore cycle. It was
+asked specifically to audit the theme assertion, which is the one most easily made vacuous here.
+It ran `node test.js` itself. The executed proof rests on the implementing agent's six
+assertion/direction combinations plus the orchestrator's independent re-run of the primary
+direction. See `jt-1.md` for the full transport account and the open owner question.
