@@ -1206,10 +1206,78 @@ function scopeQuestForSeat(quest) {
   };
 }
 
+function scopeInvocableAbilitiesForSeat(value) {
+  if (!Array.isArray(value)) return [];
+  return value.slice(0, 100).flatMap(ability => {
+    if (!ability || typeof ability !== 'object' || Array.isArray(ability)) return [];
+    const exactString = (candidate, maximum) => (
+      typeof candidate === 'string'
+      && candidate.length <= maximum
+      && candidate.length > 0
+      && candidate.trim() === candidate
+    );
+    if (
+      !exactString(ability.abilityId, 128)
+      || !exactString(ability.definitionId, 128)
+      || !Number.isSafeInteger(ability.definitionVersion)
+      || ability.definitionVersion < 1
+      || !exactString(ability.name, 80)
+      || !exactString(ability.trigger, 80)
+      || !Array.isArray(ability.aliases)
+      || ability.aliases.length > 12
+      || ability.aliases.some(alias => !exactString(alias, 80))
+      || !exactString(ability.familyKey, 128)
+      || !exactString(ability.familyLabel, 80)
+      || !exactString(ability.help, 500)
+    ) {
+      return [];
+    }
+    return [{
+      abilityId: ability.abilityId,
+      definitionId: ability.definitionId,
+      definitionVersion: ability.definitionVersion,
+      name: ability.name,
+      trigger: ability.trigger,
+      aliases: [...ability.aliases],
+      familyKey: ability.familyKey,
+      familyLabel: ability.familyLabel,
+      help: ability.help
+    }];
+  });
+}
+
+function scopeOwnCharacterForSeat(member) {
+  if (!member || typeof member !== 'object' || Array.isArray(member)) return null;
+  const revision = typeof member.abilityTriggerRevision === 'string'
+    && /^ak\d+:[a-f0-9]{64}$/u.test(member.abilityTriggerRevision)
+    ? member.abilityTriggerRevision
+    : '';
+  return {
+    id: member.id,
+    name: member.name,
+    class: member.class,
+    health: member.health,
+    max_health: member.max_health,
+    mana: member.mana,
+    max_mana: member.max_mana,
+    xp: member.xp,
+    level: member.level,
+    initiative: member.initiative ?? null,
+    inventory: member.inventory,
+    attributes: member.attributes,
+    abilities: member.abilities,
+    progression_notes: member.progression_notes,
+    player_character_id: member.player_character_id,
+    abilityTriggerRevision: revision,
+    invocableAbilities: scopeInvocableAbilitiesForSeat(member.invocableAbilities)
+  };
+}
+
 export function scopeStateForSeat(state, seatCharacterId) {
   if (!state || typeof state !== 'object') return state;
   const party = Array.isArray(state.party) ? state.party : [];
   const own = party.find(member => member && member.id === seatCharacterId) || null;
+  const scopedOwn = scopeOwnCharacterForSeat(own);
   const turn = state.turn && typeof state.turn === 'object' ? state.turn : null;
   return {
     campaignId: state.campaignId,
@@ -1221,8 +1289,8 @@ export function scopeStateForSeat(state, seatCharacterId) {
     // Ruleset is player-viewable canon (decision 2026-07-03); the dials are not.
     ruleset: state.ruleset,
     seatCharacterId,
-    character: own,
-    party: party.map(member => (member && member.id === seatCharacterId ? member : silhouetteCharacter(member))),
+    character: scopedOwn,
+    party: party.map(member => (member && member.id === seatCharacterId ? scopedOwn : silhouetteCharacter(member))),
     turnOrder: state.turnOrder,
     currentQuest: scopeQuestForSeat(state.currentQuest),
     // sv-4 round 3 (reviewer): the same defect existed in FOUR more fields.

@@ -5,6 +5,13 @@ import path from 'path';
 import { parseJsonSafe, validateTurnData, validateRequiredChecks, rollCheck, forceNoOpTurnState, applyCharacterUpdate, applyDiceConsequences, buildVoiceScript, TABLE_TALK_KINDS } from './rpg-state.js';
 import { AIClient, resolveAgentConfig, isTransientAiError } from './api-client.js';
 import { baseThemeVars, fullThemeVars } from './public/theme-vars.js';
+import {
+  applyAbilitySuggestion,
+  computeAbilityInsertion,
+  scanAbilityTriggers,
+  validateAbilityTriggers
+} from './public/ability-keywords.js';
+import { buildCharacterAbilityTriggerState } from './ability-trigger-state.js';
 
 // Hermetic store: db.js opens its file at module load, and several tests
 // dynamically import rpg-engine.js (which pulls db.js in). Redirect BEFORE
@@ -3359,6 +3366,249 @@ async function testRulesetCanon() {
 }
 
 // -------------------------------------------------------------
+// Test: ability-keyword matcher and canonical trigger projection (AKP-1)
+// -------------------------------------------------------------
+function testAbilityKeywordProjection() {
+  console.log(' - Running ability-keyword projection tests...');
+
+  const families = [
+    { key: 'opportunity', label: 'Opportunity', cssToken: 'opportunity' },
+    { key: 'command', label: 'Command', cssToken: 'command' }
+  ];
+  const character = {
+    id: 41,
+    player_character_id: 501,
+    abilities: [
+      {
+        id: 'owned-backstab',
+        definition_id: 'opportunist.backstab',
+        definition_version: 3,
+        name: 'Exploit Opening',
+        description: 'Use an opening for a decisive attack.',
+        invocation: { schema_version: 1, family_key: 'opportunity' }
+      },
+      {
+        id: 'owned-rally',
+        definition_id: 'commander.rally',
+        definition_version: 2,
+        name: 'Restore Cohesion',
+        description: 'Steady an ally under pressure.',
+        invocation: { schema_version: 1, family_key: 'command' }
+      },
+      {
+        id: 'passive-mastery',
+        definition_id: 'armsmaster.weapon-mastery',
+        definition_version: 1,
+        name: 'Weapon Mastery',
+        description: 'A passive weapon benefit.',
+        invocation: null
+      },
+      { id: 'free-text-legacy', name: 'Ghostline', description: 'No catalog invocation metadata.' }
+    ]
+  };
+  const bindings = [
+    {
+      abilityId: 'owned-backstab',
+      term: 'backstab',
+      aliases: ['back stab'],
+      prose: 'Strike when attention is elsewhere.'
+    },
+    {
+      abilityId: 'owned-rally',
+      term: 'rally',
+      aliases: [],
+      prose: 'Call an ally back into the moment.'
+    }
+  ];
+  const state = buildCharacterAbilityTriggerState({
+    campaignId: 9,
+    character,
+    bindings,
+    familyRegistry: families,
+    catalogVersion: 'catalog-7',
+    characterVersionId: 4
+  });
+
+  assert.match(state.abilityTriggerRevision, /^ak1:[a-f0-9]{64}$/);
+  assert.strictEqual(Object.isFrozen(state), true, 'Trigger state is immutable');
+  assert.strictEqual(Object.isFrozen(state.invocableAbilities), true, 'Projected ability list is immutable');
+  assert.deepStrictEqual(
+    state.invocableAbilities.map(ability => ability.abilityId),
+    ['owned-backstab', 'owned-rally'],
+    'Only explicitly invocable catalog abilities project; passives and free-text rows remain inert'
+  );
+  assert.deepStrictEqual(state.invocableAbilities[0], {
+    abilityId: 'owned-backstab',
+    definitionId: 'opportunist.backstab',
+    definitionVersion: 3,
+    name: 'backstab',
+    trigger: 'backstab',
+    aliases: ['back stab'],
+    familyKey: 'opportunity',
+    familyLabel: 'Opportunity',
+    help: 'Strike when attention is elsewhere.'
+  });
+  assert.strictEqual(Object.isFrozen(state.invocableAbilities[0].aliases), true, 'Aliases are immutable');
+  assert.strictEqual(validateAbilityTriggers(state.invocableAbilities, families.map(family => family.key)), true);
+
+  let scan = scanAbilityTriggers('🗡️ I BACKSTAB, rally, then backstab again.', state.invocableAbilities, {
+    familyKeys: families.map(family => family.key)
+  });
+  assert.deepStrictEqual(scan.abilityIds, ['owned-backstab', 'owned-rally'], 'IDs are ordered and deduplicated');
+  assert.strictEqual(scan.matches.length, 3, 'Every exact non-overlapping occurrence highlights');
+  assert.strictEqual(scan.matches[0].start, '🗡️ I '.length, 'Ranges use textarea-compatible UTF-16 indices');
+  assert.strictEqual(scan.matches[0].spelling, 'BACKSTAB');
+  assert.deepStrictEqual(
+    scanAbilityTriggers('I back stab, not backstabbed.', state.invocableAbilities).abilityIds,
+    ['owned-backstab'],
+    'Curated aliases match while joined suffixes do not'
+  );
+
+  scan = scanAbilityTriggers('I bakcstab the orc.', state.invocableAbilities);
+  assert.deepStrictEqual(scan.abilityIds, [], 'A typo never activates an ability');
+  assert.deepStrictEqual(scan.matches, [], 'A typo never highlights');
+  assert.deepStrictEqual(scan.suggestions, [
+    { start: 2, end: 10, replacement: 'backstab', abilityId: 'owned-backstab' }
+  ]);
+  assert.deepStrictEqual(
+    applyAbilitySuggestion('I bakcstab the orc.', scan.suggestions[0]),
+    { text: 'I backstab the orc.', selectionStart: 10, selectionEnd: 10 },
+    'Accepting a suggestion replaces only the typo'
+  );
+  assert.deepStrictEqual(computeAbilityInsertion('I orc', 2, 2, 'backstab'), {
+    text: 'I backstab orc',
+    insertedText: 'backstab ',
+    selectionStart: 11,
+    selectionEnd: 11
+  });
+
+  const collision = structuredClone(state.invocableAbilities);
+  collision[1].aliases.push('BACKSTAB');
+  assert.throws(
+    () => validateAbilityTriggers(collision, families.map(family => family.key)),
+    /collides with an existing trigger or alias/,
+    'One character cannot own two normalized spellings with ambiguous identity'
+  );
+
+  const shadowAbility = {
+    ...structuredClone(state.invocableAbilities[0]),
+    abilityId: 'owned-buckstab',
+    definitionId: 'opportunist.buckstab',
+    name: 'buckstab',
+    trigger: 'buckstab',
+    aliases: []
+  };
+  const ambiguous = [...state.invocableAbilities, shadowAbility];
+  assert.deepStrictEqual(
+    scanAbilityTriggers('I bickstab.', ambiguous).suggestions,
+    [],
+    'Equally close abilities never produce a guessed correction'
+  );
+  const shadowStep = {
+    ...structuredClone(state.invocableAbilities[0]),
+    abilityId: 'owned-shadow-step',
+    definitionId: 'opportunist.shadow-step',
+    name: 'shadow step',
+    trigger: 'shadow step',
+    aliases: []
+  };
+  const shadow = {
+    ...structuredClone(state.invocableAbilities[0]),
+    abilityId: 'owned-shadow',
+    definitionId: 'opportunist.shadow',
+    name: 'shadow',
+    trigger: 'shadow',
+    aliases: []
+  };
+  assert.deepStrictEqual(
+    scanAbilityTriggers('I shadow step behind it.', [shadow, shadowStep]).abilityIds,
+    ['owned-shadow-step'],
+    'At one starting position the longest exact trigger wins'
+  );
+
+  assert.throws(
+    () => buildCharacterAbilityTriggerState({
+      campaignId: 9,
+      character,
+      bindings: bindings.slice(1),
+      familyRegistry: families
+    }),
+    /has no campaign presentation binding/,
+    'Missing campaign wording never falls back to an internal catalog name'
+  );
+  assert.throws(
+    () => buildCharacterAbilityTriggerState({
+      campaignId: 9,
+      character,
+      bindings,
+      familyRegistry: families.slice(1)
+    }),
+    /not in the catalog registry/,
+    'Unknown families fail closed'
+  );
+
+  const repeat = buildCharacterAbilityTriggerState({
+    campaignId: 9,
+    character: structuredClone(character),
+    bindings: structuredClone(bindings),
+    familyRegistry: structuredClone(families),
+    catalogVersion: 'catalog-7',
+    characterVersionId: 4
+  });
+  assert.strictEqual(repeat.abilityTriggerRevision, state.abilityTriggerRevision, 'Unchanged trigger state has one revision');
+  const changedAlias = structuredClone(bindings);
+  changedAlias[0].aliases.push('knife opening');
+  assert.notStrictEqual(
+    buildCharacterAbilityTriggerState({
+      campaignId: 9,
+      character,
+      bindings: changedAlias,
+      familyRegistry: families,
+      catalogVersion: 'catalog-7',
+      characterVersionId: 4
+    }).abilityTriggerRevision,
+    state.abilityTriggerRevision,
+    'Relevant presentation changes invalidate the revision'
+  );
+  assert.notStrictEqual(
+    buildCharacterAbilityTriggerState({
+      campaignId: 10,
+      character,
+      bindings,
+      familyRegistry: families,
+      catalogVersion: 'catalog-7',
+      characterVersionId: 4
+    }).abilityTriggerRevision,
+    state.abilityTriggerRevision,
+    'A revision cannot be replayed across campaigns'
+  );
+  const changedDefinition = structuredClone(character);
+  changedDefinition.abilities[0].definition_version += 1;
+  assert.notStrictEqual(
+    buildCharacterAbilityTriggerState({
+      campaignId: 9,
+      character: changedDefinition,
+      bindings,
+      familyRegistry: families,
+      catalogVersion: 'catalog-7',
+      characterVersionId: 4
+    }).abilityTriggerRevision,
+    state.abilityTriggerRevision,
+    'A catalog definition change invalidates the revision'
+  );
+
+  const inert = buildCharacterAbilityTriggerState({
+    campaignId: 9,
+    character: {
+      id: 42,
+      player_character_id: 502,
+      abilities: [{ id: 'free-text-only', name: 'Grid Dive' }]
+    }
+  });
+  assert.deepStrictEqual(inert.invocableAbilities, [], 'Legacy free-text names never become trigger fallbacks');
+}
+
+// -------------------------------------------------------------
 // Test: ability identity — engine-issued ids (Phase PT S1.1)
 // -------------------------------------------------------------
 async function testAbilityIdentity() {
@@ -3445,7 +3695,12 @@ async function testAbilityIdentity() {
     [JSON.stringify(sourceAbilities)]
   )).id;
 
-  await rpg.joinCampaign(campaignId, { characterProfileId: profileId, characterMode: 'copy' });
+  const joinedState = await rpg.joinCampaign(campaignId, { characterProfileId: profileId, characterMode: 'copy' });
+  const joinedCharacter = joinedState.party.find(member => member.id === joinedState.joinedCharacterId);
+  assert.match(joinedCharacter.abilityTriggerRevision, /^ak1:[a-f0-9]{64}$/,
+    'Live party state carries an opaque server-owned trigger revision');
+  assert.deepStrictEqual(joinedCharacter.invocableAbilities, [],
+    'Existing free-text abilities stay non-invocable in live state');
   const copiedRow = await db.get(
     `SELECT abilities_json FROM characters WHERE campaign_id = ? ORDER BY id DESC LIMIT 1`, [campaignId]);
   const copied = JSON.parse(copiedRow.abilities_json);
@@ -4177,6 +4432,7 @@ async function testSeatVisibility() {
     voiceInstructions: 'LEAK_VOICE_speak_as_a_cold_patient_predator',
     summaryMemory: 'LEAK_SUMMARY_last_events_the_vault_heist',
     partymateInventory: 'LEAK_INVENTORY_mira_hidden_poison_vial',
+    partymateAbility: 'LEAK_ABILITY_mira_secret_trigger',
     dials: 'LEAK_DIALS_hardline',
     stateChanges: 'LEAK_STATE_CHANGES_memory_update_text',
     memory: 'LEAK_MEMORY_the_password_is_ravenlight'
@@ -4194,8 +4450,28 @@ async function testSeatVisibility() {
     tableStyle: { helpfulness: LEAK.dials, pacing: 'standard' },
     character: { id: 2, name: 'Mira', class: 'Face', level: 3, health: 9, max_health: 12, inventory: [LEAK.partymateInventory], attributes: { charm: 4 }, abilities: [], progression_notes: '' },
     party: [
-      { id: 1, name: 'Joe', class: 'Netrunner', level: 3, health: 10, max_health: 14, mana: 5, max_mana: 8, xp: 240, inventory: ['deck', 'sidearm'], attributes: { intellect: 4 }, abilities: [{ name: 'Ghostline' }], progression_notes: 'learned Ghostline turn 4', player_character_id: 11 },
-      { id: 2, name: 'Mira', class: 'Face', level: 3, health: 9, max_health: 12, mana: 6, max_mana: 6, xp: 230, inventory: [LEAK.partymateInventory], attributes: { charm: 4 }, abilities: [], progression_notes: '', player_character_id: 12 }
+      {
+        id: 1, name: 'Joe', class: 'Netrunner', level: 3, health: 10, max_health: 14,
+        mana: 5, max_mana: 8, xp: 240, inventory: ['deck', 'sidearm'], attributes: { intellect: 4 },
+        abilities: [{ name: 'Ghostline' }], progression_notes: 'learned Ghostline turn 4', player_character_id: 11,
+        abilityTriggerRevision: `ak1:${'a'.repeat(64)}`,
+        invocableAbilities: [{
+          abilityId: 'joe-ghostline', definitionId: 'operator.ghostline', definitionVersion: 1,
+          name: 'ghostline', trigger: 'ghostline', aliases: [], familyKey: 'access',
+          familyLabel: 'Access', help: 'Slip through a guarded system.'
+        }]
+      },
+      {
+        id: 2, name: 'Mira', class: 'Face', level: 3, health: 9, max_health: 12,
+        mana: 6, max_mana: 6, xp: 230, inventory: [LEAK.partymateInventory], attributes: { charm: 4 },
+        abilities: [], progression_notes: '', player_character_id: 12,
+        abilityTriggerRevision: `ak1:${'b'.repeat(64)}`,
+        invocableAbilities: [{
+          abilityId: 'mira-secret', definitionId: 'face.secret', definitionVersion: 1,
+          name: 'secret', trigger: 'secret', aliases: [], familyKey: 'influence',
+          familyLabel: 'Influence', help: LEAK.partymateAbility
+        }]
+      }
     ],
     turnOrder: { round: 2, actingCharacterId: 2, order: [{ id: 1, name: 'Joe' }, { id: 2, name: 'Mira' }] },
     npcs: [{ id: 5, name: 'Kessler', role: 'fixer', personality: LEAK.npcPersonality, quirks: 'never raises his voice', notes: LEAK.npcNotes, relationship_value: -2, voice_json: JSON.stringify({ voice: 'cedar', instructions: LEAK.voiceInstructions }) }],
@@ -4235,6 +4511,10 @@ async function testSeatVisibility() {
   assert.strictEqual(scoped.seatCharacterId, 1);
   assert.strictEqual(scoped.character.id, 1, 'Seat sees its OWN sheet, not the acting character');
   assert.deepStrictEqual(scoped.character.inventory, ['deck', 'sidearm'], 'Own inventory intact');
+  assert.strictEqual(scoped.character.abilityTriggerRevision, `ak1:${'a'.repeat(64)}`,
+    'Seat receives its own opaque trigger revision');
+  assert.deepStrictEqual(scoped.character.invocableAbilities.map(ability => ability.abilityId), ['joe-ghostline'],
+    'Seat receives only its own validated trigger projection');
   const mira = scoped.party.find(m => m.id === 2);
   assert.deepStrictEqual(Object.keys(mira).sort(), ['class', 'health', 'id', 'level', 'max_health', 'name'], 'Partymate is a silhouette');
 
@@ -4274,6 +4554,25 @@ async function testSeatVisibility() {
   assert.strictEqual(typeof hostile.currentQuest.active_quest, 'string',
     'Seat-facing quest fields are coerced to scalar strings');
   assert.strictEqual(typeof hostile.currentQuest.quest_description, 'string');
+
+  const hostileAbility = scopeStateForSeat({
+    party: [{
+      id: 1,
+      name: 'A',
+      abilityTriggerRevision: { nested: 'LEAK_TRIGGER_REVISION' },
+      invocableAbilities: [{
+        abilityId: 'a', definitionId: 'b', definitionVersion: 1,
+        name: 'n', trigger: 't', aliases: [], familyKey: 'f', familyLabel: 'F',
+        help: { nested: 'LEAK_TRIGGER_HELP' }
+      }]
+    }],
+    currentQuest: { active_quest: 'q', quest_description: 'd' },
+    turn: null
+  }, 1);
+  assert.strictEqual(JSON.stringify(hostileAbility).includes('LEAK_TRIGGER'), false,
+    'Malformed nested trigger metadata never crosses the seat whitelist');
+  assert.strictEqual(hostileAbility.character.abilityTriggerRevision, '');
+  assert.deepStrictEqual(hostileAbility.character.invocableAbilities, []);
 
   // sv-4 ROUND 3 (reviewer): fixing currentQuest alone patched the instance,
   // not the CLASS. inputKind and sceneGrounding forwarded arbitrary values
@@ -6062,6 +6361,7 @@ async function runAll() {
     testRefereeDiceFlow();
     testResolveAgentConfig();
     await testRulesetCanon();
+    testAbilityKeywordProjection();
     await testAbilityIdentity();
     await testStageOneAbilityWordingProposal();
     await testCampaignContext();

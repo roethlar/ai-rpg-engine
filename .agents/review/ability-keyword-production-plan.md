@@ -15,6 +15,14 @@ cutover slice must not land until the versioned class catalog and character-crea
 instantiate real, stable, character-owned ability definitions and complete campaign presentation
 bindings. Test fixtures may prove the generic contract but must never ship as player options.
 
+**Implementation:** AKP-1 COMPLETE 2026-08-03. The shared pure matcher/insertion helpers,
+server-owned catalog/binding projection, opaque revision digest, inert live party projection, and
+seat-safe trigger whitelist are implemented. Existing free-text abilities have no invocation
+metadata and project as non-invocable. The full unit suite and syntax/diff checks pass. Guard proof
+temporarily disabled normalized trigger-collision rejection; the new collision assertion failed,
+then passed after restoration. AKP-2 is next. No catalog content, turn request, Council declaration,
+persistence, or browser composer behavior changed in AKP-1.
+
 **Prototype evidence:** `.agents/review/ability-keyword-composer-plan.md` and
 `.agents/review/ability-keyword-composer-prototype/` are the accepted interaction proof. Production
 must preserve its one-composer behavior: normal prose, exact deterministic recognition, clickable
@@ -365,6 +373,8 @@ Each slice is one commit and must be green before the next starts. Do not stage,
 commit the unrelated uncommitted IBP-2 runner files.
 
 ### AKP-1 — shared matcher and canonical trigger projection
+
+**Implementation: COMPLETE 2026-08-03.**
 
 Files:
 

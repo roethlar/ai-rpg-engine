@@ -2972,7 +2972,9 @@ path is retired only when the real versioned class/catalog creation path can sup
 and complete bindings; the plan must not seed its three prototype abilities or invent a provisional
 roster. AKP-1 through AKP-3 may implement the inert generic infrastructure in order, one verified
 commit per slice. AKP-4 and real end-to-end activation remain blocked on that catalog-backed
-producer.
+producer. AKP-1 is complete: the shared matcher/insertion helpers, canonical server-owned trigger
+projection and revision digest, inert live party projection, and seat-safe trigger whitelist are
+implemented and guard-proved. Existing free-text abilities remain non-invocable. AKP-2 is next.
 
 ### Phase PT openreview repairs — DRAFT; held behind the required version-plan revision
 

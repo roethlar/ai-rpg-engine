@@ -59,6 +59,7 @@ import {
   readCampaignOutline,
   readStageOneCanonContext
 } from './campaign-context.js';
+import { buildCharacterAbilityTriggerState } from './ability-trigger-state.js';
 
 // Export these so index/test scripts still have direct access
 export { parseJsonSafe, createFallbackSvg };
@@ -980,7 +981,36 @@ async function loadParty(campaignId) {
     `SELECT * FROM characters WHERE campaign_id = ? AND COALESCE(status, 'active') = 'active' ORDER BY id ASC`,
     [campaignId]
   );
-  return rows.map(hydrateCharacterRow);
+  const party = rows.map(hydrateCharacterRow);
+  const bindingRows = await db.all(
+    `SELECT player_character_id, ability_id, term, prose
+       FROM character_ability_bindings
+      WHERE campaign_id = ?
+      ORDER BY player_character_id ASC, ability_id ASC`,
+    [campaignId]
+  );
+  const bindingsByProfile = new Map();
+  for (const row of bindingRows) {
+    const bindings = bindingsByProfile.get(row.player_character_id) || [];
+    bindings.push({
+      abilityId: row.ability_id,
+      term: row.term,
+      // AKP-1 keeps the runtime inert until the catalog/binding schema owns
+      // curated aliases. Never infer aliases from prose or spacing.
+      aliases: [],
+      prose: row.prose
+    });
+    bindingsByProfile.set(row.player_character_id, bindings);
+  }
+
+  return party.map(character => ({
+    ...character,
+    ...buildCharacterAbilityTriggerState({
+      campaignId,
+      character,
+      bindings: bindingsByProfile.get(character.player_character_id) || []
+    })
+  }));
 }
 
 function characterBaselineJson(seed) {
@@ -2169,6 +2199,28 @@ Output the JSON object containing the opening narrative, scene_grounding, sugges
     }
   }
 
+  const openingCharacter = {
+    id: newCharacterRowId,
+    name: resolvedCharacterName,
+    class: resolvedCharacterArchetype,
+    health: character.health,
+    max_health: character.max_health,
+    mana: character.mana,
+    max_mana: character.max_mana,
+    xp: character.xp,
+    level: character.level,
+    inventory: character.inventory,
+    attributes: character.attributes,
+    abilities: character.abilities,
+    progression_notes: character.progression_notes,
+    player_character_id: playerCharacterId
+  };
+  Object.assign(openingCharacter, buildCharacterAbilityTriggerState({
+    campaignId,
+    character: openingCharacter,
+    bindings: []
+  }));
+
   return {
     campaignId,
     title: outline.title,
@@ -2179,22 +2231,7 @@ Output the JSON object containing the opening narrative, scene_grounding, sugges
     rulesMode: !!rulesModeInt,
     ruleset: rulesetData,
     tableStyle: tableStyleData,
-    character: {
-      id: newCharacterRowId,
-      name: resolvedCharacterName,
-      class: resolvedCharacterArchetype,
-      health: character.health,
-      max_health: character.max_health,
-      mana: character.mana,
-      max_mana: character.max_mana,
-      xp: character.xp,
-      level: character.level,
-      inventory: character.inventory,
-      attributes: character.attributes,
-      abilities: character.abilities,
-      progression_notes: character.progression_notes,
-      player_character_id: playerCharacterId
-    },
+    character: openingCharacter,
     npcs: finalNpcList,
     outline,
     turnOrder: {
