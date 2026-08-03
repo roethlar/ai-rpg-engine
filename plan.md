@@ -2947,8 +2947,9 @@ deterministic offline pilot using the existing matched Armsmaster/Adept cards an
 rescue fixtures. IBP-1's fixture and validator landed. The owner then manually rejected IBP-2's
 uncommitted prose-plus-separate-action-selection runner as unrepresentative and too burdensome; it
 must not be committed or used for a tier verdict. The separately approved non-shipping,
-product-shaped ability-keyword composer proof is now implemented and guard-proved; hands-on owner
-browser evaluation remains because browser control was unavailable. No production replacement,
+product-shaped ability-keyword composer proof is now implemented, guard-proved, and accepted by the
+owner after opening the artifact; exhaustive narrow-layout, undo/redo, paste, and IME results were
+not separately recorded. No production replacement,
 tier membership, class removal, later pair, human result, product integration,
 external review, or push is approved. The owner also requested a context-rich
 `claude-fable-5` review at high effort. The initial review reopened four concrete plan gaps; four
