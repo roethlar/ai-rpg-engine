@@ -1,8 +1,9 @@
 # ds-1: Suggested-choice buttons allow overlapping submits, corrupting turnSubmitInFlight and duplicating renders
 
 **Severity**: MEDIUM — a second submit dispatched mid-flight re-enables the controls when the FIRST settles (UI lies while the Council still resolves turn two); a poll landing in the window renders the second turn, then the submit renders it again — action, narrative, and dice duplicated in the log.
-**Status**: In progress — fix landed, pending reviewer verdict (admitted 2026-07-11 from the
-skeptic-panel round; authorized by the Phase T2 approval and implementation order in `plan.md`)
+**Status**: Verified — accepted by review, awaiting owner-gated merge (admitted 2026-07-11 from
+the skeptic-panel round; authorized by the Phase T2 approval and implementation order in
+`plan.md`)
 **Branch**: `fix/ds-1-submit-reentrancy`
 **Commit**: `2f893e1`
 
@@ -104,4 +105,18 @@ markers and observed the same failure, then restored and returned the suite to g
   finding does not order.
 
 ## Reviewer comments
-(pending)
+
+`Reviewer: codex / gpt-5.6-sol / xhigh / frontier` — owner-named model and effort at dispatch
+(`inline, session-only`). Harness: codex-cli 0.146.0. Reviewed SHA
+`bf501eff35962a0f25eff5f5f625fbff0d5543b2`, base SHA `6d80490`. Verdict **accepted**,
+`guard_confirmed: true`, `capability_ok: true`, zero comments. 2026-08-03T08:05:05Z.
+
+The reviewer was explicitly invited to return `invalid` — i.e. to rule that this finding should
+have been closed as already-fixed rather than receiving a change — and was asked to judge whether
+the scoping section above oversells or undersells the slice. It was also asked to confirm the
+backfill-unreachability argument, the server-side numbering argument behind the `<=` rule, and
+that Scenario A genuinely exercises code this slice did not write. It accepted with no comments.
+
+Same recorded weakening as jt-1: codex's macOS sandbox cannot launch Chromium, so the guard was
+source-audited against the supplied transcript rather than reviewer-executed; the reviewer ran
+`node test.js` itself. See `jt-1.md` for the full transport account and the open owner question.
