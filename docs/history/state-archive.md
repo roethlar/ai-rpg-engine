@@ -6,6 +6,18 @@ state — never read it to answer "what is true now".
 
 ---
 
+## Rotated 2026-08-03 (catchup)
+
+### Ability-keyword composer prototype completed and superseded by the landed production slices
+
+Superseded by the 2026-08-03 production ability-keyword approval and the landed AKP-1 through
+AKP-3 slices: this entry's "no product integration ... is authorized" clause no longer holds. The
+live constraint on the uncommitted IBP-2 runner was retained in `.agents/state.md`.
+
+- **THE FICTION-FIRST ABILITY-KEYWORD COMPOSER PROTOTYPE IS COMPLETE AND OWNER-ACCEPTED.** `.agents/review/ability-keyword-composer-prototype/index.html` uses one plain textarea with an inline highlight mirror: exact owned ability words and curated aliases highlight, ability-card clicks insert canonical words at the remembered caret, and one-edit spelling recovery only offers a correction. Submitted transcript text remains exact plain prose; debug mode alone shows derived IDs/ranges. AKC-1 and AKC-2 are landed and guard-proved. Browser control was unavailable to the implementing agent, but the owner opened the artifact and accepted the visible interaction as looking right; exhaustive narrow-layout, undo/redo, paste, and IME results were not separately recorded. This remains non-shipping interaction evidence only; no product integration, mechanics activation, class verdict, or push is authorized. The rejected IBP-2 runner remains uncommitted and untouched pending explicit disposal authority; committed IBP-1 remains evidence.
+
+---
+
 ## Rotated 2026-07-15 (drift)
 
 ### Phase CT landed
