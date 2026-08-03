@@ -1610,6 +1610,18 @@ function renderGame(gameState, resetNarrative = false, options = {}) {
     // renderParty below refills this from the incoming table's own party.
     characterNamesById = new Map();
   }
+  // Append-once (jd-1). The transcript is append-only, so an INCREMENTAL
+  // render must never re-append a turn the log already shows. Callers that
+  // hand renderGame the current head state rather than a new turn — the join
+  // flow does exactly that — would otherwise duplicate the GM narrative, its
+  // dice cards and its scene grounding. Membership, not a watermark, for the
+  // same reason appendJournalTurns uses it: gap recovery legitimately appends
+  // turns BELOW the watermark. Read BEFORE the add below, which records this
+  // turn as present. Panels (party, sheet, situation, choices) still re-render:
+  // they replace rather than append, and a join must refresh them.
+  const alreadyInLog = !resetNarrative
+    && typeof gameState.turn?.number === 'number'
+    && appendedTurnNumbers.has(gameState.turn.number);
   if (typeof gameState.turn?.number === 'number') {
     highestAppendedTurn = resetNarrative
       ? gameState.turn.number
@@ -1651,21 +1663,26 @@ function renderGame(gameState, resetNarrative = false, options = {}) {
   if (resetNarrative) {
     narrativeContainer.innerHTML = '';
   }
-  const turnRolls = Array.isArray(gameState.turn.rollResults)
-    ? gameState.turn.rollResults
-    : (gameState.turn.rollResult ? [gameState.turn.rollResult] : []);
-  turnRolls.forEach(r => appendRollResultBubble(r, gameState.turn?.number));
-  // Theater only on turns that just happened (own submit, poll pickup) —
-  // never on campaign load, join, or backfill, where the rolls are history.
-  if (options.rollTheater) queueRollTheater(turnRolls);
-  appendGMDialogue(gameState.turn.narrative, gameState.turn?.number);
-  if (options.narrate) {
-    narrateGmResponse(gameState.turn);
-  }
+  // A turn already in the log is re-rendered, never re-appended (jd-1):
+  // no second narrative, no second dice card, no replayed theater or
+  // narration for a beat the player has already lived through.
+  if (!alreadyInLog) {
+    const turnRolls = Array.isArray(gameState.turn.rollResults)
+      ? gameState.turn.rollResults
+      : (gameState.turn.rollResult ? [gameState.turn.rollResult] : []);
+    turnRolls.forEach(r => appendRollResultBubble(r, gameState.turn?.number));
+    // Theater only on turns that just happened (own submit, poll pickup) —
+    // never on campaign load, join, or backfill, where the rolls are history.
+    if (options.rollTheater) queueRollTheater(turnRolls);
+    appendGMDialogue(gameState.turn.narrative, gameState.turn?.number);
+    if (options.narrate) {
+      narrateGmResponse(gameState.turn);
+    }
 
-  // Scene grounding — especially valuable on clarification turns
-  if (gameState.turn.sceneGrounding) {
-    appendSceneGrounding(gameState.turn.sceneGrounding, gameState.turn?.number);
+    // Scene grounding — especially valuable on clarification turns
+    if (gameState.turn.sceneGrounding) {
+      appendSceneGrounding(gameState.turn.sceneGrounding, gameState.turn?.number);
+    }
   }
 
   // If the active tab is Journal, refresh the timeline
@@ -1949,6 +1966,11 @@ async function joinTableFlow() {
     const state = await response.json();
     localStorage.setItem(myCharacterKey(currentCampaignId), String(state.joinedCharacterId));
     myCharacterId = state.joinedCharacterId;
+    // The join response is the CURRENT HEAD state, not a new turn: nothing new
+    // happened in the fiction, only the party changed. renderGame refreshes
+    // every panel and re-appends nothing, because the head turn is already in
+    // the log (jd-1's append-once rule); the notice below is the only new
+    // entry the join adds.
     renderGame(state, false);
     appendSystemNotice(`${name.trim()} joins the table. The GM will meet them in the fiction on their first turn.`);
   } catch (error) {
