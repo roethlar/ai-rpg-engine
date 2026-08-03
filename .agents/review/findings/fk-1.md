@@ -1,8 +1,9 @@
 # fk-1: Fork adoption never checks the epoch it bumps — a fork resolving after the user left still seizes the table
 
 **Severity**: MEDIUM — narrow reachability (the loading overlay blocks pointers but not keyboard: Tab+Enter to Campaigns during a slow fork), but the outcome is the app silently re-entering the fork underneath the menu, polling a table the user believes they left.
-**Status**: In progress — fix landed, pending reviewer verdict (admitted 2026-07-11 from the
-skeptic-panel round; authorized by the Phase T2 approval and implementation order in `plan.md`)
+**Status**: Verified — accepted by review, awaiting owner-gated merge (admitted 2026-07-11 from
+the skeptic-panel round; authorized by the Phase T2 approval and implementation order in
+`plan.md`)
 **Branch**: `fix/fk-1-fork-epoch`
 **Commit**: `60df275`
 
@@ -90,4 +91,16 @@ Restoring returned the suite to green with `Fork epoch browser guard passed.`
 - The seat-token re-route path named in the original evidence still has no guard exercising it.
 
 ## Reviewer comments
-(pending)
+
+`Reviewer: codex / gpt-5.6-sol / xhigh / frontier` — owner-named model and effort at dispatch
+(`inline, session-only`). Harness: codex-cli 0.146.0. Reviewed SHA
+`6ed5842b2fe501d71623c7179cfe9f46bfdecb63`, base SHA `fa2e63e`. Verdict **accepted**,
+`guard_confirmed: true`, `capability_ok: true`, zero comments. 2026-08-03T07:50:47Z.
+
+Same recorded weakening as jt-1 (codex's macOS sandbox cannot launch Chromium, so the guard was
+source-audited rather than reviewer-executed; `node test.js` was run by the reviewer). It was
+pointed at three specific soft spots and asked to confirm each: that the `#campaign-menu-screen`
+assertion is honestly labelled a non-discriminating tripwire rather than passed off as proof;
+that pinning the fork POST to campaign 7 does not repeat the null-campaign route hole found in
+tts-1; and that serving state for both campaign 7 and the fork's campaign 9 does not mask a real
+signal. See `jt-1.md` for the full transport account and the open owner question.
