@@ -1,8 +1,9 @@
 # tts-1: Voice narration queue survives table transitions — the old table's GM keeps talking over the menu and the next campaign
 
 **Severity**: MEDIUM — audible wrong-table bleed; on the menu the skip pill is buried under the full-screen overlay (z-index 6 vs 100), so it cannot even be dismissed.
-**Status**: In progress — fix landed, pending reviewer verdict (admitted 2026-07-11 from the
-skeptic-panel round; authorized by the Phase T2 approval and implementation order in `plan.md`)
+**Status**: Verified — accepted by review, awaiting owner-gated merge (admitted 2026-07-11 from
+the skeptic-panel round; authorized by the Phase T2 approval and implementation order in
+`plan.md`)
 **Branch**: `fix/tts-1-stop-on-transition`
 **Commit**: `5713d37`
 
@@ -98,4 +99,15 @@ restored and returned the suite to green with `Narration transition browser guar
   table. User-initiated path, minor, out of scope.
 
 ## Reviewer comments
-(pending)
+
+`Reviewer: codex / gpt-5.6-sol / xhigh / frontier` — owner-named model and effort at dispatch
+(`inline, session-only`). Harness: codex-cli 0.146.0. Reviewed SHA
+`d734d7c3280700ae85c4efc20a492c6d8c483678`, base SHA `a87a750`. Verdict **accepted**,
+`guard_confirmed: true`, `capability_ok: true`, zero comments. 2026-08-03T07:37:10Z.
+
+Same recorded weakening as jt-1: the reviewer audited the guard's source and judged the supplied
+two-direction transcript against it rather than re-executing the browser cycle, because codex's
+macOS sandbox cannot launch Chromium. It ran `node test.js` itself. It was pointed explicitly at
+the null-campaign route hole described in the Guard proof section and asked to confirm the
+shipped routes catch that leak and that no other assertion in the guard has the same shape of
+hole. See `jt-1.md` for the full transport account and the open owner question.
