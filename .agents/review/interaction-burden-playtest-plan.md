@@ -1,8 +1,10 @@
 # Interaction-burden paired playtest plan and harness contract
 
-**Status:** OWNER-APPROVED 2026-08-02 — authorizes IBP-1 and IBP-2 only. It does not authorize a
-human playtest result, class or tier assignment, another mechanic pair, package regeneration,
-product code, an external review, or a push.
+**Status:** IBP-1 LANDED; IBP-2 SUPERSEDED 2026-08-02. The owner manually evaluated the uncommitted
+IBP-2 runner and rejected its prose-plus-separate-action-selection interaction as unrepresentative
+and too burdensome for normal text play. Do not implement or commit IBP-2 as specified below.
+Committed IBP-1 fixtures remain retained evidence. A replacement fiction-first ability-keyword
+composer is drafted separately in `ability-keyword-composer-plan.md`; that draft authorizes no code.
 
 **Authority:** the active 2026-08-02 interaction-playtest and campaign-class-set decisions in
 `.agents/decisions.md`; the signed check contract in `docs/rules/resolution.md`; the signed effect
