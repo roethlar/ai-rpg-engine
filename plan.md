@@ -2960,7 +2960,7 @@ the owner-settled slice order is S1.1 → S1.8, S1.6–S1.8 are also blocked beh
 chain unless the owner separately approves a reorder for existing free-text characters; G5-A does
 not itself amend the order.
 
-### Ability-keyword production integration — DRAFT; no product code approved
+### Ability-keyword production integration — OWNER-APPROVED 2026-08-03
 
 `.agents/review/ability-keyword-production-plan.md` defines the clean production contract behind
 the accepted prototype: stable character-owned ability identity, campaign-specific trigger
@@ -2970,8 +2970,9 @@ composer. The owner ruled that current campaigns are disposable test data, so th
 conversion from model-generated `ruleset.abilities` cards and no dual trigger source. The old Setup
 path is retired only when the real versioned class/catalog creation path can supply stable abilities
 and complete bindings; the plan must not seed its three prototype abilities or invent a provisional
-roster. The plan is drafted but not approved, and implementation remains blocked on both owner
-approval and that real catalog-backed producer.
+roster. AKP-1 through AKP-3 may implement the inert generic infrastructure in order, one verified
+commit per slice. AKP-4 and real end-to-end activation remain blocked on that catalog-backed
+producer.
 
 ### Phase PT openreview repairs — DRAFT; held behind the required version-plan revision
 

@@ -1670,3 +1670,20 @@ Reason:
 The earlier production question assumed legacy campaign data needed preserving. The owner corrected
 that premise: current campaigns are test data, so a migration path would add complexity and retain a
 superseded generated-mechanics design for no user benefit.
+
+### 2026-08-03 - Production ability-keyword integration plan approved (owner decision)
+
+**Status: Active; implementation authorized in ordered slices.**
+
+The owner approved `.agents/review/ability-keyword-production-plan.md`. Implement AKP-1 through
+AKP-4 in order, one verified commit per slice. AKP-1 through AKP-3 may establish inert generic
+matcher, authoritative server declaration/persistence, and browser composer infrastructure without
+shipping prototype ability content. AKP-4 remains gated until the real versioned class/catalog and
+character-creation path supplies stable character-owned abilities, complete campaign bindings, and
+the family registry. No provisional roster, generated-rules-card migration, automatic data wipe,
+external review, or push is authorized by this approval.
+
+Reason:
+The accepted prototype established the interaction. The approved production plan preserves that
+single prose entry while making authentication, ability identity, Council context, persistence,
+seat isolation, and stale-state recovery deterministic behind it.

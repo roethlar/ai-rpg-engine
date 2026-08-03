@@ -1,11 +1,13 @@
 # Production ability-keyword integration plan
 
-**Status:** DRAFTED 2026-08-02; NOT OWNER-APPROVED. This document authorizes no product code,
-database change, data deletion, external review, or push. The owner has settled the clean-cut data
-boundary: there are no real campaigns whose generated rules-card abilities need preservation, so
-the product must not build a rules-card-to-character migration. Disposable local test campaigns
-may be wiped deliberately if the later implementation needs a clean database; the application
-must never delete them automatically.
+**Status:** OWNER-APPROVED 2026-08-03. Implement AKP-1 through AKP-4 in order, one verified commit
+per slice. AKP-1 through AKP-3 may establish the inert generic infrastructure; AKP-4 remains gated
+until the real versioned class/catalog creation path supplies complete stable abilities and
+bindings. Approval does not authorize data deletion, external review, or push. The owner has
+settled the clean-cut data boundary: there are no real campaigns whose generated rules-card
+abilities need preservation, so the product must not build a rules-card-to-character migration.
+Disposable local test campaigns may be wiped deliberately if later implementation needs a clean
+database; the application must never delete them automatically.
 
 **Implementation dependency:** the exact player-class roster and mechanics remain unsettled. This
 plan defines the production invocation contract without inventing a temporary roster. Its final
