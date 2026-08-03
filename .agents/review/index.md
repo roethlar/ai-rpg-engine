@@ -53,6 +53,7 @@ verdicts below retain the workflow and roles actually used at the time.
 
 | ID | Severity | Impact (one line) | Status | Branch |
 |----|----------|-------------------|--------|--------|
+| map-2 | MEDIUM | The location title overruns both canvas edges; a long GM-generated location name spills past the map | `[x]` verified; merged (kimi/kimi-code-k3/max — guard EXECUTED) | `fix/map-2-title-overflow` |
 | map-1 | MEDIUM | Situation-panel area labels overrun their box: adjacent labels collide and the rightmost is clipped by the canvas edge | `[x]` merged at `dd59c27` (APPROVED r2; branch deleted after content-arrival verification) | none |
 | css-1 | MEDIUM | Pre-existing: `rgba(var(--theme-*), α)` over HSL-triple vars is invalid CSS — header/glass/panel fills compute unpainted on every theme | `[x]` MERGED at `41e1938` (ACCEPTED r5); branch deleted | `09bb433` (was `fix/css-1-hsla-theme-vars`) |
 | css-2 | MEDIUM | The css-1 guard scanned only one authoring surface, but the attempted broader scanner crashed and rejected valid CSS | `[!]` **ABANDONED / REPLACED BY PHASE CT** — branch refs deleted; never merge or recreate it. See `docs/history/css-2-abandoned-scanner.md` | none (was `fix/css-2-scanner-scope` @ `0229679`) |

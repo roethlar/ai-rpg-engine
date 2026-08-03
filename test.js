@@ -2703,8 +2703,51 @@ async function testStructuredLocations() {
     []
   );
   const clipIds = [...twins.matchAll(/<clipPath id="([^"]+)"/g)].map(m => m[1]);
-  assert.strictEqual(clipIds.length, 2, 'Both colliding-slug areas get a clipPath');
+  // Area clips carry the `-a<index>-` segment; the title clip (map-2) does not.
+  const areaClipIds = clipIds.filter(id => /-a\d+-/.test(id));
+  assert.strictEqual(areaClipIds.length, 2, 'Both colliding-slug areas get a clipPath');
   assert.strictEqual(new Set(clipIds).size, clipIds.length, 'Clip-path ids are unique when slugs collide');
+
+  // map-2: the location title is an unclipped centred <text>. Because
+  // text-anchor="middle", a long name overruns the canvas on BOTH sides — the
+  // map-1 fix deliberately covered area labels only. Same two layers here:
+  // ellipsis for the common case, clip as the backstop. The full name must
+  // survive on the accessible name.
+  const LONG_TITLE = 'The Drowned Cathedral of the Seventh Tide and Its Attendant Reef Wardens';
+  const titledLayout = validateLocationLayout({
+    name: LONG_TITLE,
+    areas: [{ id: 'nave', name: 'Nave', x: 0, y: 0, w: 40, h: 20 }]
+  });
+  const titled = renderLocationMap(titledLayout, []);
+  const lastTextOf = svg => svg.slice(svg.lastIndexOf('<text'), svg.lastIndexOf('</text>') + '</text>'.length);
+  const titleEl = lastTextOf(titled);
+  assert.strictEqual(titleEl.includes('text-anchor="middle"'), true, 'Located the centred title element');
+  assert.strictEqual(titleEl.includes(LONG_TITLE), false, 'A long location title is not drawn at full length');
+  assert.strictEqual(titleEl.includes('…'), true, 'Overlong location titles are ellipsized');
+  assert.strictEqual(titled.includes(`aria-label="Map of ${LONG_TITLE}"`), true, 'The accessible name keeps the full location title');
+  const titleClip = titleEl.match(/clip-path="url\(#([^)"]+)\)"/);
+  assert.notStrictEqual(titleClip, null, 'The title carries a clip-path reference');
+  assert.strictEqual(titled.includes(`<clipPath id="${titleClip[1]}">`), true, 'The referenced title clipPath is defined');
+  const titledClipIds = [...titled.matchAll(/<clipPath id="([^"]+)"/g)].map(m => m[1]);
+  assert.strictEqual(new Set(titledClipIds).size, titledClipIds.length, 'The title clip id never collides with an area clip id');
+  assert.strictEqual(renderLocationMap(titledLayout, []), titled, 'Title render is deterministic');
+
+  // …and a title that fits the canvas is left whole.
+  const shortTitled = lastTextOf(renderLocationMap(
+    validateLocationLayout({ name: 'Dusthaven', areas: [{ id: 'plaza', name: 'Plaza', x: 0, y: 0, w: 40, h: 20 }] }),
+    []
+  ));
+  assert.strictEqual(shortTitled.includes('>Dusthaven<'), true, 'A title that fits the canvas is drawn in full');
+  assert.strictEqual(shortTitled.includes('…'), false, 'A title that fits is not ellipsized');
+
+  // Title ellipsizing is code-point-safe too — 80 emoji survive the validator's
+  // 120-unit cap as 60 whole glyphs, then the fitter has to cut them.
+  const emojiTitled = renderLocationMap(
+    validateLocationLayout({ name: '😀'.repeat(80), areas: [{ id: 'a', name: 'Nave', x: 0, y: 0, w: 40, h: 20 }] }),
+    []
+  );
+  assert.strictEqual(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])/u.test(emojiTitled), false, 'Title ellipsizing never emits a lone surrogate');
+  assert.strictEqual(lastTextOf(emojiTitled).includes('😀…'), true, 'The title cut lands after a whole glyph');
 
   // (3) The validator clamps position against the clamped size: x+w and y+h
   // stay inside the 100×70 canvas instead of overhanging by up to 92 units.

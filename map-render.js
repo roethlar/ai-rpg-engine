@@ -26,24 +26,32 @@ function initialsFor(name) {
   return (words[0][0] + words[1][0]).toUpperCase();
 }
 
+// Average glyph advance as a fraction of font-size. Deliberately generous:
+// overestimating glyph width keeps fewer characters, so a wide-glyph name
+// ("WWW") still fits rather than spilling. There is no text measurement
+// available here — the render is a pure string builder with no DOM.
+const GLYPH_RATIO = 0.62;
+
 const AREA_LABEL = {
   fontSize: 2.8,
-  padding: 1.5,
-  // Average glyph advance as a fraction of font-size. Deliberately generous:
-  // overestimating glyph width keeps fewer characters, so a wide-glyph name
-  // ("WWW") still fits rather than spilling. There is no text measurement
-  // available here — the render is a pure string builder with no DOM.
-  glyphRatio: 0.62
+  padding: 1.5
+};
+
+const TITLE = {
+  fontSize: 2.4,
+  // Applied as letter-spacing on the title <text>; it adds to *every* glyph
+  // advance, so leaving it out of the fit underestimates the drawn width.
+  letterSpacing: 0.4,
+  padding: 2
 };
 
 /**
- * Fits an area label to its box. SVG <text> neither wraps nor clips, so a name
- * longer than its rect runs straight out of it and over the neighbouring area.
- * Returns '' when the box cannot hold even one glyph (caller draws no label).
+ * Fits a label to the width available to it. SVG <text> neither wraps nor
+ * clips, so a string wider than its box runs straight out of it. Returns ''
+ * when the width cannot hold even one glyph (caller draws no label).
  */
-function fitAreaLabel(name, boxWidth) {
-  const available = boxWidth - AREA_LABEL.padding * 2;
-  const maxChars = Math.floor(available / (AREA_LABEL.fontSize * AREA_LABEL.glyphRatio));
+function fitLabel(name, availableWidth, fontSize, letterSpacing = 0) {
+  const maxChars = Math.floor(availableWidth / (fontSize * GLYPH_RATIO + letterSpacing));
   if (maxChars < 1) return '';
   const text = String(name).trim();
   // Measure and cut in code points, not UTF-16 units — String#slice on a
@@ -53,6 +61,22 @@ function fitAreaLabel(name, boxWidth) {
   if (glyphs.length <= maxChars) return text;
   if (maxChars === 1) return '…';
   return glyphs.slice(0, maxChars - 1).join('').trimEnd() + '…';
+}
+
+/**
+ * Fits an area label to its box: a name longer than its rect would otherwise
+ * run over the neighbouring area.
+ */
+function fitAreaLabel(name, boxWidth) {
+  return fitLabel(name, boxWidth - AREA_LABEL.padding * 2, AREA_LABEL.fontSize);
+}
+
+/**
+ * Fits the location title to the canvas. The title is centred
+ * (text-anchor="middle"), so an overlong name overruns *both* canvas edges.
+ */
+function fitTitle(name) {
+  return fitLabel(name, LOCATION_CANVAS.width - TITLE.padding * 2, TITLE.fontSize, TITLE.letterSpacing);
 }
 
 /** Stable, collision-free clip-path id — the render must stay deterministic. */
@@ -139,7 +163,15 @@ export function renderLocationMap(layout, occupancy = []) {
       `<text x="${tx}" y="${ty + 0.9}" font-size="1.9" text-anchor="middle" fill="hsl(220, 25%, 10%)" font-weight="bold" font-family="inherit">${escapeXml(initialsFor(occupant.name))}</text></g>`);
   }
 
-  parts.push(`<text x="${width / 2}" y="${height + 4.2}" font-size="2.4" text-anchor="middle" fill="var(--theme-text-dim, hsl(210 10% 65%))" font-family="inherit" letter-spacing="0.4">${escapeXml(layout.name)}</text>`);
+  // Title: same two layers as the area labels. Ellipsis fits the common case;
+  // the clip is the backstop a glyph-width underestimate cannot defeat. The
+  // band is the strip below the areas (viewBox runs to height + 6). The id
+  // cannot collide with an area's `${clipPrefix}-a<index>-<slug>` — those
+  // always carry the `-a<digits>-` segment — and the accessible name on the
+  // <svg> still carries the full, unabridged location name.
+  const titleClipId = `${clipPrefix}-title`;
+  parts.push(`<clipPath id="${titleClipId}"><rect x="${TITLE.padding}" y="${height}" width="${width - TITLE.padding * 2}" height="6" /></clipPath>`);
+  parts.push(`<text clip-path="url(#${titleClipId})" x="${width / 2}" y="${height + 4.2}" font-size="${TITLE.fontSize}" text-anchor="middle" fill="var(--theme-text-dim, hsl(210 10% 65%))" font-family="inherit" letter-spacing="${TITLE.letterSpacing}">${escapeXml(fitTitle(layout.name))}</text>`);
   parts.push('</svg>');
   return parts.join('');
 }
