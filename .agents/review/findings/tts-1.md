@@ -111,3 +111,24 @@ macOS sandbox cannot launch Chromium. It ran `node test.js` itself. It was point
 the null-campaign route hole described in the Guard proof section and asked to confirm the
 shipped routes catch that leak and that no other assertion in the guard has the same shape of
 hole. See `jt-1.md` for the full transport account and the open owner question.
+
+### Second review — the codex weakening is RESOLVED (2026-08-03)
+
+The owner named **kimi k3** as the reviewer and pinned effort **max**. Unlike codex,
+`kimi-code/k3` can launch Chromium, so this finding was re-reviewed on the **full mandate**, with
+the reviewer executing the guard proof itself.
+
+`Reviewer: kimi / kimi-code/k3 / max / frontier` — owner-named model and effort. Harness: kimi
+0.31.1, tools restricted by agent-file (Read/Grep/Glob/Bash/TodoList; Write, Edit, Agent and web
+disallowed), working root a disposable worktree with `node_modules` linked. Reviewed SHA
+`d734d7c3280700ae85c4efc20a492c6d8c483678`, base SHA `a87a7506380616c4362eb44366e38f98da55ac2e`.
+Verdict **accepted**, `guard_confirmed: true`, `capability_ok: true`, zero comments. 2026-08-03T17:35:51Z.
+
+**Executed, not supplied.** Verified from the reviewer's own transcript rather than from its
+claim: it ran the unit suite twice and the browser suite four times — this finding ships two independent edits, so it mutated each separately and observed a distinct guard failure for each before restoring.
+
+The orchestrator, not the reviewer, computed acceptance: schema match, both SHA pins exact,
+`guard_confirmed` and `capability_ok` literally true. The earlier codex verdict is retained
+above as history; both reviews reached the same verdict, and this is the one with executed
+evidence behind it. See `jt-1.md` for the full transport account and for the shell-exit-code
+caveat that applies when reading these transcripts.

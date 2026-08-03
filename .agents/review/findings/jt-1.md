@@ -130,3 +130,35 @@ pass-on-restore with `Journal stale-response browser guard passed.`
 accept reviewer-audited-not-reviewer-executed guard proofs as the standing norm for
 browser-guarded findings on this machine, or route such findings to a harness that can run
 Chromium. Until that ruling, this narrowing is applied per dispatch and recorded per finding.
+
+### Second review — the weakening above is RESOLVED (2026-08-03)
+
+The owner chose the third option: route review to a harness that can run Chromium. On
+2026-08-03 the owner named **kimi k3** as the reviewer and pinned effort **max** after being told
+kimi exposes only `low|high|max` and has no `xhigh`. `kimi-code/k3` was verified to run
+`npm run test:browser` to exit 0 in a disposable worktree, which codex could not do. All five
+findings in this batch were re-reviewed on the **full mandate**, with the reviewer executing the
+guard proof itself.
+
+`Reviewer: kimi / kimi-code/k3 / max / frontier` — owner-named model and effort, superseding
+codex/gpt-5.6-sol for review dispatches. Harness: kimi 0.31.1, tools restricted by agent-file
+(Read/Grep/Glob/Bash/TodoList; Write, Edit, Agent and web disallowed), working root a disposable
+worktree with `node_modules` linked. Reviewed SHA `6d3f7253968005507658a9b927e5dd6d1b1ef640`,
+base SHA `ab5fde5f4d72aa2fab83a238fef35608947ca876`. Verdict **accepted**, `guard_confirmed: true`,
+`capability_ok: true`, zero comments. 2026-08-03T17:24:53Z.
+
+**This verdict's guard proof was executed by the reviewer, not supplied to it.** Verified from its
+own transcript rather than from its claim: it ran `node test.js`, ran `npm run test:browser` at
+head, reverted `public/app.js` to the base SHA with `git checkout` (keeping the guard), re-ran the
+browser suite — **exit 1** — then restored the fix and re-ran — **exit 0**. `guard_confirmed: true`
+therefore now carries its full playbook meaning here.
+
+The orchestrator, not the reviewer, computed acceptance: schema match, both SHA pins exact,
+`guard_confirmed` and `capability_ok` literally true.
+
+Note on the earlier codex weakening: it is retained above as history, not deleted. Both reviews
+reached the same verdict; the second one is the one with executed evidence behind it.
+
+A note for future dispatches: a reviewer writing `npm run test:browser 2>&1 | tail -N; echo $?`
+captures `tail`'s exit status, not the suite's. Grade such runs on the
+`Browser guard failed: ...` line, not on the echoed code.

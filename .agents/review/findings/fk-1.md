@@ -104,3 +104,24 @@ assertion is honestly labelled a non-discriminating tripwire rather than passed 
 that pinning the fork POST to campaign 7 does not repeat the null-campaign route hole found in
 tts-1; and that serving state for both campaign 7 and the fork's campaign 9 does not mask a real
 signal. See `jt-1.md` for the full transport account and the open owner question.
+
+### Second review — the codex weakening is RESOLVED (2026-08-03)
+
+The owner named **kimi k3** as the reviewer and pinned effort **max**. Unlike codex,
+`kimi-code/k3` can launch Chromium, so this finding was re-reviewed on the **full mandate**, with
+the reviewer executing the guard proof itself.
+
+`Reviewer: kimi / kimi-code/k3 / max / frontier` — owner-named model and effort. Harness: kimi
+0.31.1, tools restricted by agent-file (Read/Grep/Glob/Bash/TodoList; Write, Edit, Agent and web
+disallowed), working root a disposable worktree with `node_modules` linked. Reviewed SHA
+`6ed5842b2fe501d71623c7179cfe9f46bfdecb63`, base SHA `fa2e63eb56a7b0fc68237010511e2f6737b06e39`.
+Verdict **accepted**, `guard_confirmed: true`, `capability_ok: true`, zero comments. 2026-08-03T17:38:24Z.
+
+**Executed, not supplied.** Verified from the reviewer's own transcript rather than from its
+claim: it ran `node test.js`, ran the browser suite at head, reverted `public/app.js` to the base SHA (keeping the guard), re-ran and observed `Browser guard failed: a fork resolving after the user left does not render the fork`, then restored the fix and re-ran green.
+
+The orchestrator, not the reviewer, computed acceptance: schema match, both SHA pins exact,
+`guard_confirmed` and `capability_ok` literally true. The earlier codex verdict is retained
+above as history; both reviews reached the same verdict, and this is the one with executed
+evidence behind it. See `jt-1.md` for the full transport account and for the shell-exit-code
+caveat that applies when reading these transcripts.

@@ -120,3 +120,24 @@ that Scenario A genuinely exercises code this slice did not write. It accepted w
 Same recorded weakening as jt-1: codex's macOS sandbox cannot launch Chromium, so the guard was
 source-audited against the supplied transcript rather than reviewer-executed; the reviewer ran
 `node test.js` itself. See `jt-1.md` for the full transport account and the open owner question.
+
+### Second review — the codex weakening is RESOLVED (2026-08-03)
+
+The owner named **kimi k3** as the reviewer and pinned effort **max**. Unlike codex,
+`kimi-code/k3` can launch Chromium, so this finding was re-reviewed on the **full mandate**, with
+the reviewer executing the guard proof itself.
+
+`Reviewer: kimi / kimi-code/k3 / max / frontier` — owner-named model and effort. Harness: kimi
+0.31.1, tools restricted by agent-file (Read/Grep/Glob/Bash/TodoList; Write, Edit, Agent and web
+disallowed), working root a disposable worktree with `node_modules` linked. Reviewed SHA
+`bf501eff35962a0f25eff5f5f625fbff0d5543b2`, base SHA `6d80490c208390b02301104edb502dca7b124787`.
+Verdict **accepted**, `guard_confirmed: true`, `capability_ok: true`, zero comments. 2026-08-03T17:43:00Z.
+
+**Executed, not supplied.** Verified from the reviewer's own transcript rather than from its
+claim: it ran `node test.js`, ran the browser suite at head, reverted `public/app.js` to the base SHA (keeping the guard), re-ran — **exit 1** — then restored the fix and re-ran — **exit 0**.
+
+The orchestrator, not the reviewer, computed acceptance: schema match, both SHA pins exact,
+`guard_confirmed` and `capability_ok` literally true. The earlier codex verdict is retained
+above as history; both reviews reached the same verdict, and this is the one with executed
+evidence behind it. See `jt-1.md` for the full transport account and for the shell-exit-code
+caveat that applies when reading these transcripts.

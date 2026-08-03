@@ -107,3 +107,24 @@ asked specifically to audit the theme assertion, which is the one most easily ma
 It ran `node test.js` itself. The executed proof rests on the implementing agent's six
 assertion/direction combinations plus the orchestrator's independent re-run of the primary
 direction. See `jt-1.md` for the full transport account and the open owner question.
+
+### Second review — the codex weakening is RESOLVED (2026-08-03)
+
+The owner named **kimi k3** as the reviewer and pinned effort **max**. Unlike codex,
+`kimi-code/k3` can launch Chromium, so this finding was re-reviewed on the **full mandate**, with
+the reviewer executing the guard proof itself.
+
+`Reviewer: kimi / kimi-code/k3 / max / frontier` — owner-named model and effort. Harness: kimi
+0.31.1, tools restricted by agent-file (Read/Grep/Glob/Bash/TodoList; Write, Edit, Agent and web
+disallowed), working root a disposable worktree with `node_modules` linked. Reviewed SHA
+`a606b72bbd3a4c7059395849e5dfe36c8e75b052`, base SHA `95b759acee9aa3e31b3107e0ddf9459236c928ad`.
+Verdict **accepted**, `guard_confirmed: true`, `capability_ok: true`, zero comments. 2026-08-03T17:30:52Z.
+
+**Executed, not supplied.** Verified from the reviewer's own transcript rather than from its
+claim: it ran `node test.js`, ran the browser suite at head, reverted `public/app.js` to the base SHA (keeping the guard), re-ran and observed `Browser guard failed: a settled delete does not resurrect the menu over an entered table`, then restored the fix and re-ran green.
+
+The orchestrator, not the reviewer, computed acceptance: schema match, both SHA pins exact,
+`guard_confirmed` and `capability_ok` literally true. The earlier codex verdict is retained
+above as history; both reviews reached the same verdict, and this is the one with executed
+evidence behind it. See `jt-1.md` for the full transport account and for the shell-exit-code
+caveat that applies when reading these transcripts.
