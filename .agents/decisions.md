@@ -90,26 +90,6 @@ The 2026-07-12 unconditional reviewloop requirement, the 2026-07-14 default divi
 labour, and the 2026-07-15 Claude Fable reviewer default. Historical verdicts remain valid, and a
 future explicit owner request may opt a specific task into a review playbook.
 
-### 2026-07-15 - Claude Code Fable 5 is the reviewloop reviewer
-
-Status: Superseded as an automatic default by the 2026-07-26 opt-in decision
-
-Decision:
-Independent reviewloop dispatches for Codex-authored plans and code use Claude Code with the exact
-`--model claude-fable-5` argument. Grok is not dispatched. Review remains fail-closed: a missing,
-invalid, mismatched-SHA, or incomplete Claude envelope is not acceptance, and the implementation
-author still cannot review their own work.
-
-Reason:
-Owner wording (2026-07-15): **"skip grok going forward and stick with claude --model
-claude-fable-5 for reviewloops"**. One consistently specified independent reviewer is the desired
-review process; repeated Grok envelope failures were not useful review signal.
-
-Supersedes:
-The Claude + Grok dual-acceptance requirement for new admin model-registry plan rounds and any
-repo-state wording that names Grok as a required reviewer. Historical dual-review verdicts remain
-valid evidence for the SHAs they accepted.
-
 ### 2026-07-15 - Admin AI configuration is a provider/model registry with per-role primary and fallback assignments
 
 Status: Active
@@ -257,54 +237,6 @@ This generalizes the vacuous-guard anti-pattern already recorded in `.agents/pla
 (a test that re-implements the logic it checks) to a second form: a test that passes against the
 wrong implementation. Both are guards that cannot fail.
 
-### 2026-07-14 - Division of labour: codex IMPLEMENTS, Claude PLANS and ADVERSARIALLY VERIFIES
-
-Status: Superseded as the default workflow by the 2026-07-26 opt-in decision
-
-Decision:
-The reviewloop's roles are **reassigned, not abandoned**. For work that is well-specified by an
-accepted plan, **codex writes the implementation** and **Claude reviews it adversarially**. Claude's
-job moves upstream: interrogate handed-over material, establish facts by experiment, write the plan,
-and attack the result. The loop's independence is preserved by *swapping* the roles, never by
-dropping the second pair of eyes. Owner wording (2026-07-14): "codex implement and judge the
-outcome… continue with this revised workflow."
-
-Superseded: the 2026-07-12 decision's assumption that Claude codes and codex reviews. The rest of
-that decision — **all code goes through the loop, unconditionally; planning completes before coding**
-— is UNCHANGED and still binding.
-
-Reason — decided by a controlled experiment, not by preference:
-Both agents implemented the SAME accepted plan (Phase CT), independently and blind. The results were
-compared on evidence (`.agents/review/findings/ct-1.md`):
-
-- **Correctness: a tie.** Both were behaviourally identical to each other AND to an oracle
-  transcribed from the original writer, across four cases including edge conditions. Both survived a
-  9-defect mutation battery, including two mutations that emit perfectly valid CSS.
-- **Completeness: codex won.** It updated `README.md` (Claude forgot), asserted the emitted SVG
-  source (Claude skipped it), and rewrote the dangerous superseded plan clause rather than merely
-  annotating it. It followed the plan more literally and did not get bored and skip a step.
-- **Speed: codex won decisively** — ~4.5 minutes against a much longer Claude session.
-- **Reliability: codex won.** Claude's own mutation script silently corrupted its working tree (a
-  `git checkout` that rejects the whole command when one path is untracked), and Claude came within
-  one verification step of committing four injected defects.
-
-Where Claude demonstrably added value on the same day, and where it should therefore be pointed:
-refusing a handed-over plan document that was largely fabricated; establishing an API's real
-behaviour **by experiment** when both the vendor docs and the model's own self-description were
-wrong; finding that a "just register a provider" task was blocked by a structurally coupled voice
-layer; and being wrong about the css-2 scanner in a way the loop caught. That is planning,
-verification and judgement — not typing.
-
-Consequences:
-- A plan must be good enough for a **cold** agent to execute. Plan reviews now include a
-  cold-implementer lens ("could a context-free agent execute this and get it right?") alongside the
-  correctness lens. That lens found what four correctness rounds missed — twice — including that the
-  plan's own commits were stranded on a branch the plan forbids merging.
-- codex cannot review what codex wrote. When codex implements, **Claude is the reviewer**, and the
-  review must be adversarial and executed (mutation testing, oracles), not read-and-approve.
-- Design-heavy or trust-boundary work (e.g. Phase V, which touches the seat/auth boundary) may still
-  warrant Claude implementing, with codex reviewing. Choose by the nature of the work, not by habit.
-
 ### 2026-07-14 - Grok Imagine is out for NPC and location imagery; TTS is the provider priority
 
 Status: Active
@@ -416,47 +348,6 @@ Supersedes:
 The 2026-07-03 first-cut "lightweight house system generated by the Setup role per
 campaign" (landed code, described in plan.md). The generated-ruleset half of that is now
 dead: setup generates flavor, never mechanics.
-
-### 2026-07-12 - All code goes through the reviewloop playbook; plan first, then code
-
-Status: Superseded by the 2026-07-26 opt-in review decision
-
-Decision:
-Every code change goes through `.agents/playbooks/codereview.md` with an independent
-reviewer. This is unconditional and there is no per-change exemption: size, urgency,
-obviousness, an owner go on the change itself, and a passing test suite are all
-irrelevant to whether the loop is required. An owner approval to *make* a change is
-not an approval to merge it unreviewed. Docs-only changes are outside this rule.
-
-The original assignment (Claude codes, Codex reviews) was superseded by the 2026-07-14
-division-of-labour decision. The default is now Codex implementation with Claude planning and
-adversarial verification; roles may swap, but authors never review their own code.
-
-Sequencing: planning completes before coding starts. Work is planned — and, where the
-playbook calls for it, the plan itself is review-accepted — before implementation
-begins. "Get everything planned, then coding can start" (owner, 2026-07-12).
-
-Consequence for work already on disk: any code branch built without going through the
-loop is unreviewed and must not be merged until it has. As of this decision that names
-`fix/map-label-overflow` @ `b178222` (the Situation-panel label fix — owner-approved to
-build, built, suite green with a proven revert-guard, but never review-dispatched).
-It stays parked and enters the loop when coding starts.
-
-Reason:
-The loop has repeatedly earned its keep on this repo, and the failures it catches are
-exactly the ones a passing suite does not: on the 2026-07-09 seat-visibility round, four
-of six findings were reopened by the reviewer and every reopen named a real defect —
-including two that were caught only because the *fixes themselves* were re-reviewed. Two
-guards were caught being vacuous in the same period. A change that looks obviously
-correct to its author is precisely the change that gets merged without a second pair of
-eyes, so exempting "small" or "obvious" changes would exempt the highest-risk ones.
-Planning first exists so the loop reviews a plan against intent rather than reverse-
-engineering intent from a diff.
-
-Supersedes:
-Nothing. Tightens the standing development contract (2026-06-05, above) — that decision
-gates *phases* on a playtest; this one gates *every code change* on the review loop and
-puts planning ahead of implementation.
 
 ### 2026-06-05 - Phased development with promotion gates and playtest review (from plan.md)
 
