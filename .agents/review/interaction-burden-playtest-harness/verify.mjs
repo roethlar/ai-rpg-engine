@@ -385,6 +385,29 @@ const forms = fixtures.variants.find((variant) => variant.id === "free-forms");
 const techniques = fixtures.variants.find(
   (variant) => variant.id === "linked-techniques"
 );
+const ordinaryById = Object.fromEntries(
+  fixtures.shared.ordinaryActions.map((action) => [action.id, action])
+);
+assert.deepEqual(Object.keys(ordinaryById).sort(), [
+  "ordinary.standard-attack",
+  "scene.extract-ally",
+  "scene.protect-ally"
+]);
+assert.deepEqual(ordinaryById["ordinary.standard-attack"].payload, {
+  harm: "standard",
+  reposition: null,
+  condition: null,
+  objectiveEffect: null
+});
+assert.equal(
+  ordinaryById["scene.protect-ally"].payload.objectiveEffect,
+  "clear_ally_threat_on_success"
+);
+assert.equal(
+  ordinaryById["scene.extract-ally"].payload.objectiveEffect,
+  "complete_rescue_on_success"
+);
+
 assert.equal(forms.stateKind, "form");
 assert.equal(techniques.stateKind, "stage");
 assertKeys(
@@ -414,6 +437,34 @@ assert.deepEqual(
   forms.actions.map((action) => action.id).sort(),
   ["form.driving", "form.guarding", "form.pressing"]
 );
+const formById = Object.fromEntries(forms.actions.map((action) => [action.id, action]));
+assert.deepEqual(formById["form.pressing"].payload, {
+  harm: "standard",
+  reposition: null,
+  condition: null,
+  guardShift: null
+});
+assert.deepEqual(formById["form.pressing"].transition, {
+  activeForm: "pressing",
+  nextStage: null,
+  armedCounter: "pursue"
+});
+assert.deepEqual(formById["form.driving"].payload, {
+  harm: "light",
+  reposition: { who: "self_or_target", steps: 1, on: "success" },
+  condition: null,
+  guardShift: null
+});
+assert.deepEqual(formById["form.driving"].targetIds, [
+  "pc.test.martial",
+  "npc.sparring-partner",
+  "npc.blocker"
+]);
+assert.deepEqual(formById["form.guarding"].transition, {
+  activeForm: "guarding",
+  nextStage: null,
+  armedCounter: "deflect"
+});
 for (const action of forms.actions) {
   assert.deepEqual(action.legalStages, ["any"]);
   assert.equal(action.transition.activeForm, action.id.split(".")[1]);
@@ -440,6 +491,36 @@ for (const action of byStage.finishing) {
   assert.equal(action.restartFromAny, false);
   assert.equal(action.transition.nextStage, "opening");
 }
+
+const techniqueById = Object.fromEntries(
+  techniques.actions.map((action) => [action.id, action])
+);
+assert.deepEqual(techniqueById["technique.closing-step"].payload, {
+  harm: "light",
+  reposition: { who: "self", steps: 1, on: "always" },
+  condition: null,
+  guardShift: null
+});
+assert.deepEqual(techniqueById["technique.set-root"].payload, {
+  harm: "light",
+  reposition: null,
+  condition: null,
+  guardShift: { defense: "guard", tiersHarder: 1, expires: "before_next_beat" }
+});
+assert.deepEqual(techniqueById["technique.turning-drive"].payload.reposition, {
+  who: "target",
+  steps: 1,
+  on: "success"
+});
+assert.equal(
+  techniqueById["technique.catching-guard"].transition.armedCounter,
+  "deflect"
+);
+assert.deepEqual(techniqueById["technique.return-force"].payload.reposition, {
+  who: "target",
+  steps: 1,
+  on: "success"
+});
 
 const weights = fixtures.shared.harmValues;
 assert.equal(weights.standard * 3, 15, "three Standard actions must total 15");
@@ -627,6 +708,12 @@ for (const question of fixtures.survey) {
 }
 
 const fixtureText = await readFile(new URL("./fixtures.js", import.meta.url), "utf8");
+const runnerPaths = ["index.html", "styles.css", "app.js"];
+const [htmlText, cssText, appText] = await Promise.all(
+  runnerPaths.map((path) => readFile(new URL(`./${path}`, import.meta.url), "utf8"))
+);
+const runnerText = `${htmlText}\n${cssText}\n${appText}`;
+
 for (const forbidden of [
   /\bfetch\s*\(/,
   /XMLHttpRequest/,
@@ -641,6 +728,189 @@ for (const forbidden of [
   /selectBestAction/
 ]) {
   assert.doesNotMatch(fixtureText, forbidden);
+  assert.doesNotMatch(runnerText, forbidden);
 }
 
-console.log("Interaction-burden pilot fixture verification passed.");
+for (const forbidden of [
+  /EventSource/,
+  /sendBeacon/,
+  /document\.cookie/,
+  /serviceWorker/,
+  /navigator\.clipboard/,
+  /<script(?![^>]*\bsrc=)[^>]*>/i,
+  /<style\b/i,
+  /\b(?:OpenAI|Anthropic|Claude|Gemini|AI_PROVIDER)\b/i
+]) {
+  assert.doesNotMatch(runnerText, forbidden);
+}
+assert.doesNotMatch(runnerText, /\brecommended\b/i);
+assert.doesNotMatch(htmlText, /\son[a-z]+\s*=/i);
+
+assert.match(
+  htmlText,
+  /Content-Security-Policy[\s\S]*connect-src 'none'[\s\S]*object-src 'none'/,
+  "runner must declare a network-denying content policy"
+);
+assert.match(
+  htmlText,
+  /<script src="fixtures\.js" defer><\/script>[\s\S]*<script src="app\.js" defer><\/script>/,
+  "plain scripts must load fixture before runner for direct-file use"
+);
+assert.doesNotMatch(htmlText, /<script[^>]*\btype="module"/i);
+assert.doesNotMatch(htmlText, /<form[^>]*\baction\s*=/i);
+assert.doesNotMatch(htmlText, /\b(?:checked|selected)\s*(?:=|>)/i);
+
+const htmlIds = [...htmlText.matchAll(/\sid="([^"]+)"/g)].map((match) => match[1]);
+unique(htmlIds, "HTML ids");
+const htmlIdSet = new Set(htmlIds);
+const appIdReferences = [...appText.matchAll(/\$\("([^"]+)"\)/g)].map(
+  (match) => match[1]
+);
+for (const id of appIdReferences) {
+  assert.ok(htmlIdSet.has(id), `app.js references missing #${id}`);
+}
+
+for (const requiredId of [
+  "start-view",
+  "agreement",
+  "start-session",
+  "play-view",
+  "history",
+  "intent",
+  "action-fieldset",
+  "ordinary-actions",
+  "class-actions",
+  "target-fieldset",
+  "target-options",
+  "submit-action",
+  "help-toggle",
+  "rules-panel",
+  "mechanic-state",
+  "rules-actions",
+  "survey-form",
+  "complete-view",
+  "preview-export",
+  "download-export",
+  "validation-status",
+  "export-preview"
+]) {
+  assert.ok(htmlIdSet.has(requiredId), `runner is missing #${requiredId}`);
+}
+
+assert.match(htmlText, /<aside[\s\S]*id="rules-panel"[\s\S]*aria-labelledby="rules-title"/);
+assert.match(htmlText, /id="rules-title" tabindex="-1"/);
+assert.match(htmlText, /id="live-region"[\s\S]*aria-live="assertive"/);
+assert.match(htmlText, /id="submit-action"[\s\S]*disabled/);
+assert.match(htmlText, /id="download-export"[\s\S]*disabled/);
+assert.match(htmlText, /id="reload-notice"[\s\S]*intentionally reset/);
+assert.match(htmlText, /not parsed or exported/i);
+assert.match(htmlText, /Nothing leaves the browser unless you explicitly download/i);
+assert.match(appText, /No target is preselected/);
+assert.match(htmlText, /No answer is preferred/);
+assert.match(htmlText, /does not score them/i);
+
+for (const fieldId of ["intent", "reminder-reason", "optional-note"]) {
+  assert.match(htmlText, new RegExp(`<label[^>]*for="${fieldId}"`));
+}
+assert.ok((htmlText.match(/<fieldset\b/g) ?? []).length >= 4);
+assert.ok((htmlText.match(/<legend\b/g) ?? []).length >= 4);
+assert.match(appText, /document\.createElement\("fieldset"\)/);
+assert.match(appText, /document\.createElement\("legend"\)/);
+
+assert.match(cssText, /@media \(max-width: 900px\)/);
+assert.match(cssText, /\.rules-panel[\s\S]*position: fixed/);
+assert.match(cssText, /@media \(prefers-reduced-motion: reduce\)/);
+assert.match(cssText, /:focus-visible/);
+assert.match(cssText, /\.action-card\[aria-disabled="true"\][\s\S]*Locked:/);
+assert.doesNotMatch(cssText, /:hover[^\{]*\{[^}]*(?:content|display)\s*:/s);
+
+assert.match(appText, /let selectedAction = null;/);
+assert.match(appText, /selectedAction = null;[\s\S]*selectedTargetId = null;/);
+const selectedActionAssignments = [
+  ...appText.matchAll(/selectedAction\s*=\s*([^;]+);/g)
+].map((match) => match[1].trim());
+assert.ok(selectedActionAssignments.length >= 3);
+assert.ok(
+  selectedActionAssignments.every((value) => value === "null" || value === "action"),
+  "runner may assign an action only inside the player's chooseAction handler"
+);
+assert.equal(selectedActionAssignments.filter((value) => value === "action").length, 1);
+assert.match(
+  appText,
+  /const ready = intentLength > 0 && selectedAction !== null && selectedTargetId !== null;/
+);
+assert.match(appText, /appendEvent\("action_select"/);
+assert.match(appText, /appendEvent\("target_select"/);
+assert.match(appText, /appendEvent\("locked_action_attempt"/);
+assert.match(appText, /reason: \{ intentLength: intent\.length \}/);
+assert.match(appText, /const fieldOr = \(name, fallback\)/);
+assert.match(appText, /deepFreeze\(event\);\s*session\.events\.push\(event\);/s);
+assert.equal((appText.match(/session\.events\.push\(/g) ?? []).length, 1);
+assert.doesNotMatch(appText, /session\.events\.(?:pop|shift|unshift|splice|sort|reverse)\s*\(/);
+
+const buildPacketStart = appText.indexOf("const buildPacket = () => {");
+const buildPacketEnd = appText.indexOf("const validateExport =", buildPacketStart);
+assert.ok(buildPacketStart >= 0 && buildPacketEnd > buildPacketStart);
+const buildPacketText = appText.slice(buildPacketStart, buildPacketEnd);
+assert.doesNotMatch(buildPacketText, /elements\.intent\b/);
+assert.match(buildPacketText, /metrics: deriveMetrics\(events\)/);
+assert.match(buildPacketText, /optionalNote: elements\.includeNote\.checked/);
+
+const appendAutomationStart = appText.indexOf("const appendAutomation =");
+const resetBeatStateStart = appText.indexOf("const resetBeatState =", appendAutomationStart);
+assert.ok(appendAutomationStart >= 0 && resetBeatStateStart > appendAutomationStart);
+const appendAutomationText = appText.slice(appendAutomationStart, resetBeatStateStart);
+assert.match(appendAutomationText, /category: "bookkeeping"/);
+assert.doesNotMatch(appendAutomationText, /tactical_choice/);
+for (const bookkeepingId of [
+  "apply_mechanic_transition",
+  "apply_selected_action_payload",
+  "apply_authored_opponent_response",
+  "close_beat"
+]) {
+  assert.match(appText, new RegExp(`appendAutomation\\("${bookkeepingId}"`));
+}
+
+const commitBeatStart = appText.indexOf("const commitBeat =");
+const narrationStart = appText.indexOf("const narrationFor =", commitBeatStart - 2000);
+const reviewStart = appText.indexOf("const reviewCommittedResult =", commitBeatStart);
+assert.ok(commitBeatStart >= 0 && reviewStart > commitBeatStart && narrationStart >= 0);
+const commitBeatText = appText.slice(commitBeatStart, reviewStart);
+const replayGuardIndex = commitBeatText.indexOf("activeRun.committedResults.has(key)");
+const resultConsumeIndex = commitBeatText.indexOf("resultForBeat(beat.resultId)");
+assert.ok(replayGuardIndex >= 0, "committed result replay guard is missing");
+assert.ok(
+  resultConsumeIndex > replayGuardIndex,
+  "result tape can be consumed before the replay guard"
+);
+assert.match(appText, /reviewCommittedResult[\s\S]*commitBeat\(/);
+
+assert.match(appText, /fixtures\.schedules\[stableBit\(id, 0\)\]/);
+assert.match(appText, /const assignmentBit = stableBit\(id, 2\);/);
+assert.match(appText, /debugMode[\s\S]*No debug control can alter them/);
+assert.doesNotMatch(appText, /URLSearchParams[\s\S]{0,300}(?:schedule|variantSlot)\s*=/i);
+assert.match(appText, /session\.runs\.map/);
+assert.match(appText, /packet\.events[\s\S]*result_commit/);
+assert.match(appText, /new Set\(resultKeys\)\.size === resultKeys\.length/);
+assert.match(appText, /A beat consumed more than one result/);
+assert.match(appText, /Typed intent leaked into export/);
+assert.match(appText, /Internal event record was mutable/);
+assert.match(appText, /elements\.downloadExport\.addEventListener\("click", downloadExport\)/);
+assert.doesNotMatch(appText, /(?:^|[^\w])downloadExport\(\);/m);
+assert.match(appText, /URL\.revokeObjectURL\(objectUrl\)/);
+
+const appendedEventTypes = [...appText.matchAll(/appendEvent\("([^"]+)"/g)].map(
+  (match) => match[1]
+);
+for (const eventType of appendedEventTypes) {
+  assert.ok(fixtures.enums.eventTypes.includes(eventType), `app emits unknown ${eventType}`);
+}
+
+assert.match(appText, /elements\.rulesPanel\.setAttribute\("inert", ""\)/);
+assert.match(appText, /const trapDrawerFocus =/);
+assert.match(appText, /event\.key === "Escape"/);
+assert.match(appText, /elements\.intent\.focus\(\)/);
+assert.match(appText, /elements\.helpClose\.focus\(\)/);
+assert.match(appText, /elements\.helpToggle\.focus\(\)/);
+
+console.log("Interaction-burden pilot fixture and runner verification passed.");
