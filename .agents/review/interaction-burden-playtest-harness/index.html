@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'"
+    >
+    <title>Paired interaction playtest</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="fixtures.js" defer></script>
+    <script src="app.js" defer></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main-content">Skip to playtest</a>
+
+    <header class="site-header">
+      <div>
+        <p class="eyebrow">Offline evaluation artifact</p>
+        <h1>Paired interaction playtest</h1>
+      </div>
+      <p class="header-note">Same character. Same situations. One control scheme changes.</p>
+    </header>
+
+    <main id="main-content">
+      <section id="start-view" class="start-card" aria-labelledby="start-title">
+        <p id="reload-notice" class="notice" role="status" hidden>
+          Page refreshed. The prior in-memory session was intentionally reset; no partial state was
+          reconstructed.
+        </p>
+        <p class="kicker">Before you begin</p>
+        <h2 id="start-title">Compare two ways to control Rowan</h2>
+        <p>
+          You will play the same seasoned spear fighter through two four-beat situations using two
+          control schemes. Character ability, checks, authored results, opposition, objectives, and
+          action budget stay fixed.
+        </p>
+        <ul class="plain-list">
+          <li>Your typed intent is shown only in the on-page transcript. It is never interpreted.</li>
+          <li>You must explicitly choose the engine-known action and target that resolve the beat.</li>
+          <li>Timing and interaction events stay in memory until this page is refreshed or closed.</li>
+          <li>Nothing leaves the browser unless you explicitly download the final JSON record.</li>
+          <li>A refresh always resets the session instead of restoring partial progress.</li>
+        </ul>
+        <label class="agreement">
+          <input id="agreement" type="checkbox">
+          <span>
+            I understand that my prose does not select mechanics, and I will make my intent and
+            explicit action choice agree.
+          </span>
+        </label>
+        <button id="start-session" class="primary" type="button" disabled>
+          Start paired playtest
+        </button>
+        <p id="debug-start" class="debug-line" hidden></p>
+      </section>
+
+      <section id="play-view" hidden aria-labelledby="run-title">
+        <div class="run-bar">
+          <div>
+            <p id="run-progress" class="eyebrow"></p>
+            <h2 id="run-title"></h2>
+          </div>
+          <button
+            id="help-toggle"
+            class="secondary"
+            type="button"
+            aria-controls="rules-panel"
+            aria-expanded="false"
+          >
+            Review rules and state
+          </button>
+        </div>
+
+        <div class="play-grid">
+          <section class="panel encounter-panel" aria-labelledby="encounter-title">
+            <p class="panel-label">Encounter</p>
+            <h3 id="encounter-title"></h3>
+            <p id="encounter-objective" class="objective"></p>
+            <div class="beat-card">
+              <p id="beat-progress" class="eyebrow"></p>
+              <p id="beat-prompt" class="beat-prompt"></p>
+            </div>
+            <dl id="scene-state" class="state-list"></dl>
+            <div class="history-heading">
+              <h4>Resolved history</h4>
+              <span>Reviewing never rerolls a beat.</span>
+            </div>
+            <ol id="history" class="history" aria-live="polite"></ol>
+          </section>
+
+          <section class="panel action-panel" aria-labelledby="intent-title">
+            <p class="panel-label">Your declaration</p>
+            <h3 id="intent-title">Say what Rowan intends, then choose its mechanics</h3>
+            <form id="action-form" novalidate>
+              <label for="intent">Intent in your own words</label>
+              <textarea
+                id="intent"
+                rows="3"
+                maxlength="500"
+                autocomplete="off"
+                spellcheck="true"
+                placeholder="What does Rowan try to do?"
+              ></textarea>
+              <p class="field-hint">
+                Presentation only; not parsed or exported. <span id="intent-count">0 / 500</span>
+              </p>
+
+              <fieldset id="action-fieldset">
+                <legend>Choose one Main action</legend>
+                <div id="ordinary-actions" class="action-group"></div>
+                <div id="class-actions" class="action-group"></div>
+              </fieldset>
+
+              <fieldset id="target-fieldset" hidden>
+                <legend id="target-legend">Choose a target</legend>
+                <p id="target-explanation" class="field-hint"></p>
+                <div id="target-options" class="target-options"></div>
+              </fieldset>
+
+              <p id="selection-summary" class="selection-summary" role="status">
+                No action selected.
+              </p>
+              <button id="submit-action" class="primary" type="submit" disabled>
+                Resolve declared action
+              </button>
+            </form>
+
+            <details class="operator-tools">
+              <summary>Operator reminder record</summary>
+              <p>Record a non-tactical interruption. Point to the rules panel; do not coach a move.</p>
+              <label for="reminder-reason">Reason</label>
+              <select id="reminder-reason">
+                <option value="">Choose a reason</option>
+                <option value="rules_pointer">Pointed to visible rules</option>
+                <option value="interface_clarification">Clarified interface only</option>
+                <option value="non_tactical_pause">Paused for non-tactical reason</option>
+              </select>
+              <button id="record-reminder" class="secondary" type="button" disabled>
+                Record reminder
+              </button>
+            </details>
+          </section>
+
+          <aside
+            id="rules-panel"
+            class="panel rules-panel"
+            aria-labelledby="rules-title"
+            aria-hidden="false"
+          >
+            <div class="rules-heading">
+              <div>
+                <p class="panel-label">Persistent help</p>
+                <h3 id="rules-title" tabindex="-1">Current rules and state</h3>
+              </div>
+              <button id="help-close" class="icon-button" type="button" aria-label="Close rules drawer">
+                Close
+              </button>
+            </div>
+            <section aria-labelledby="mechanic-state-title">
+              <h4 id="mechanic-state-title">Current mechanic state</h4>
+              <div id="mechanic-state" class="mechanic-state"></div>
+            </section>
+            <section aria-labelledby="rules-summary-title">
+              <h4 id="rules-summary-title">How this scheme works</h4>
+              <div id="rules-summary"></div>
+            </section>
+            <section aria-labelledby="rules-actions-title">
+              <h4 id="rules-actions-title">Every known scheme action</h4>
+              <div id="rules-actions" class="rules-actions"></div>
+            </section>
+            <section aria-labelledby="worked-example-title">
+              <h4 id="worked-example-title">Worked use</h4>
+              <p id="worked-example"></p>
+            </section>
+          </aside>
+        </div>
+
+        <div id="drawer-backdrop" class="drawer-backdrop" hidden></div>
+        <p id="debug-run" class="debug-line" hidden></p>
+      </section>
+
+      <section id="between-run-view" class="start-card" hidden aria-labelledby="between-run-title">
+        <p class="kicker">Run complete</p>
+        <h2 id="between-run-title"></h2>
+        <div id="run-summary" class="summary-box"></div>
+        <button id="continue-session" class="primary" type="button">Continue</button>
+      </section>
+
+      <section id="survey-view" class="start-card" hidden aria-labelledby="survey-title">
+        <p class="kicker">Paired response</p>
+        <h2 id="survey-title"></h2>
+        <p>Answer about the first and second runs you just completed. No answer is preferred.</p>
+        <form id="survey-form">
+          <div id="survey-questions"></div>
+          <button id="submit-survey" class="primary" type="submit" disabled>
+            Save paired response
+          </button>
+        </form>
+      </section>
+
+      <section id="complete-view" class="completion" hidden aria-labelledby="complete-title">
+        <p class="kicker">Session complete</p>
+        <h2 id="complete-title">Review the local evidence record</h2>
+        <p>
+          Both control schemes are revealed only now. This page does not score them or recommend a
+          tier.
+        </p>
+        <div id="mapping-reveal" class="mapping-grid"></div>
+
+        <fieldset class="completion-fieldset">
+          <legend>Declare any confounds</legend>
+          <p class="field-hint">Leave all unchecked when none occurred.</p>
+          <div id="confound-options" class="check-grid">
+            <label><input type="checkbox" value="harness_defect"> Harness defect</label>
+            <label><input type="checkbox" value="stale_state"> Stale or visibly wrong state</label>
+            <label><input type="checkbox" value="wrong_result"> Wrong committed result</label>
+            <label><input type="checkbox" value="tactic_coaching"> Tactic-specific coaching</label>
+            <label><input type="checkbox" value="interrupted_session"> Material interruption</label>
+            <label><input type="checkbox" value="other_declared"> Other declared confound</label>
+          </div>
+        </fieldset>
+
+        <fieldset class="completion-fieldset">
+          <legend>Optional bounded note</legend>
+          <label for="optional-note">Why, in your own words? (optional, 600 characters)</label>
+          <textarea id="optional-note" rows="4" maxlength="600"></textarea>
+          <label class="agreement compact">
+            <input id="include-note" type="checkbox">
+            <span>Include this note in the downloaded record.</span>
+          </label>
+        </fieldset>
+
+        <div class="export-actions">
+          <button id="preview-export" class="secondary" type="button">Preview and validate JSON</button>
+          <button id="download-export" class="primary" type="button" disabled>
+            Download validated JSON
+          </button>
+        </div>
+        <p id="validation-status" class="validation-status" role="status">
+          Preview has not been generated.
+        </p>
+        <details id="export-preview-wrap">
+          <summary>Export preview</summary>
+          <pre id="export-preview"></pre>
+        </details>
+      </section>
+    </main>
+
+    <div id="live-region" class="sr-only" aria-live="assertive"></div>
+    <noscript>This offline playtest requires JavaScript to run its deterministic fixture.</noscript>
+  </body>
+</html>
