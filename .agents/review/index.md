@@ -104,6 +104,10 @@ runs past the 100-wide viewBox). Detail and the coder's acceptance: `findings/ma
 
 ## Active rules-system plan loop (started 2026-07-11, reviewer: claude)
 
+Current portability revision: `campaign-character-version-plan.md` (2026-09-05), planning only.
+It owns the proposed version architecture and the next individual owner decision; the older
+Phase PT repair details remain historical input. No new review or finding closure occurred.
+
 Owner-requested synthesis of the handed-over rules-system survey into a
 custom, implementation-ready system and plan. Read-only intake reviewed pinned
 snapshot `526aa5c` with Claude Code 2.1.207 (`claude-opus-4-8`, high effort,

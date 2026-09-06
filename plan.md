@@ -2899,7 +2899,29 @@ valid CSS). Its project branch refs were deleted after CT landed; the postmortem
 
 ---
 
-## Phase PT: Cross-genre portability, Stage 1 — S1.1-S1.4 LANDED; ONE-RECORD PLAN FOUNDATION SUPERSEDED 2026-08-02; REVISED PLAN REQUIRED BEFORE FURTHER CODE
+## Phase PT: Cross-genre portability — VERSION REPLAN DRAFT; OWNER DECISIONS REQUIRED
+
+**Current planning authority:** `.agents/review/campaign-character-version-plan.md` is the
+2026-09-05 draft revision authorized for planning only. It proposes physical version identities,
+player ownership, catalog compatibility, atomic campaign upgrades, independent character versions,
+binding and invocation integration, lifecycle/bundle behavior, staged playtests, delivery order,
+and verification. Its first unresolved owner decision is persistent player ownership across
+campaigns. No implementation, taxonomy, catalog release, rules economy, or phase reorder is
+approved by this revision.
+
+**Landed:** S1.1-S1.4 and the generic composer/invocation infrastructure AKP-1 through AKP-3.
+AKP-4 still requires the real versioned catalog/creator and executable mechanics. The new plan
+owns the current dependency and decision sequence; `.agents/review/rules-system-plan-intake.md`
+continues to own the broader rules queue. Existing code is retained.
+
+### Retained pre-version specification
+
+The remainder of this Phase PT section records the superseded one-record phase and its prior
+repair proposals. It is implementation history/design evidence, not the current cold
+implementation contract. In particular, old bundle-v2 instructions, unchecked profile ownership,
+the rejected paired runner, and one-record membership/projection assumptions must not be used
+to implement the versioned design. Current repair reconciliation lives in section 7 of the new
+version plan. Historical approvals below retain only their explicitly unsuperseded scope.
 
 **Design authority**: `.agents/decisions.md` now controls the 2026-08-02 campaign class-set,
 campaign-version, class-migration, and player-owned character-version contract.

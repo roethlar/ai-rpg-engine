@@ -5,6 +5,10 @@
 **Branch**: none
 **Commit**: none — repair not started
 
+**Current planning:** `../campaign-character-version-plan.md` sections 4 and 7 reconcile source
+limits across live writes, catalogs and the invocation projector. Presentation limits remain
+separate. The finding remains open; no repair is authorized.
+
 ## Evidence
 
 - `rpg-state.js:586-621` trims ability names and descriptions from live turn output but imposes no field-length limit.

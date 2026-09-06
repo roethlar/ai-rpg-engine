@@ -1,5 +1,9 @@
 # Cross-genre character portability — v3.1
 
+**Current version architecture draft:** `campaign-character-version-plan.md` (2026-09-05).
+It replaces the pending version-replanning task with a concrete proposal and decision queue;
+implementation remains unapproved. This document retains only the boundaries identified below.
+
 **Status**: PARTIALLY SUPERSEDED working evidence. **Gates 1-4, 6, and Stage 1 Gate 7 (§16) were
 adopted/approved by the owner on 2026-07-31**, but the 2026-08-02 campaign-version decision in
 `.agents/decisions.md` replaces Gate 1's one-record/no-alternate-version foundation. Live-canon,

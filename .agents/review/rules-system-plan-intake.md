@@ -25,8 +25,9 @@ review occurs only when the owner invokes a current review operator.
 - D3's 2026-07-31 approvals retain their wording/canon/ordering authority, but the 2026-08-02
   campaign/character-version decision supersedes the one-record foundation. The active contract
   and supersession boundary live in `.agents/decisions.md` and
-  `.agents/review/archetype-portability-matrix-v3.1.md`; Phase PT needs a revised owner-approved
-  plan before more code. Stage 1 Gate 7's answer remains no automatic character-name/title
+  `.agents/review/archetype-portability-matrix-v3.1.md`; the 2026-09-05 revision is drafted in
+  `.agents/review/campaign-character-version-plan.md` and awaits individual owner decisions and
+  implementation approval. Stage 1 Gate 7's answer remains no automatic character-name/title
   translation; broader proper-name/alias policy and player-driven title-edit workflow remain future.
   Each independently playable character version is active in at most one compatible campaign;
   versions progress independently and never merge. First entry fills missing ability-presentation bindings,
@@ -88,7 +89,7 @@ owner-approved wording in `.agents/decisions.md` and the eventual plan status.
 | D0 | Overall frame | Bespoke fixed chassis plus campaign flavor skins | **DECIDED 2026-07-12** — fixed house chassis + generated flavor skins; see `.agents/decisions.md`. Unblocks D1, D2, D4, D6, D11, D12, D14. |
 | D1 | Dice engine | Keep d20, but prove the curve before wiring | **DECIDED 2026-07-16, then superseded same day** by the signed-off resolution chapter (`docs/rules/resolution.md` @ `8f7862d`): d100 meet-or-beat with licensed edge texture; die-agnostic core carries forward. See `.agents/decisions.md` sign-off entry. Unblocks D8. |
 | D2 | Ability representation | Fixed effect catalog, genre-spread prototype first | **DECIDED 2026-07-16; CATALOG SIGNED OFF 2026-07-27** — complications are free text with optional contextual suggestions, never a fixed complication table; any mechanical consequence maps to an engine **verb** (state operation) from the deliberately wide, canonical Chapter 2 r24 catalog (`docs/rules/effects.md`). Model trust is tuned via the ledgered stakes license, never by unledgered effects. The catalog-document design gate is satisfied; rules code still requires a concrete phase and owner-approved plan. Unblocks D3, D5, D13. |
-| D3 | Archetype boundary | Stable player-facing archetypes; campaign-tailored descriptions | **PARTIALLY SUPERSEDED 2026-08-02.** `.agents/decisions.md` owns the campaign/character-version replacement for the one-record foundation. `.agents/review/archetype-portability-matrix-v3.1.md` identifies retained wording/canon/identity rules; `plan.md` owns the required Phase PT revision. S1.1-S1.4 are landed. Further code, including S1.5, requires a revised owner-approved version plan; the exact class catalog and `findings/pt-5.md` description-scope ruling also remain open. |
+| D3 | Archetype boundary | Stable player-facing archetypes; campaign-tailored descriptions | **PARTIALLY SUPERSEDED 2026-08-02; VERSION REPLAN DRAFTED 2026-09-05.** `.agents/decisions.md` owns the replacement contract; `campaign-character-version-plan.md` owns the proposed architecture, prerequisite ownership decision and delivery/verification gates. S1.1-S1.4 are landed. No further code is approved; taxonomy, catalog and `findings/pt-5.md` remain separate decisions. |
 | D4 | Attribute count | Keep STR/AGI/INT/WIL | Pending owner decision |
 | D5 | Player spend economy | One Strain/Effort pool plus HP and XP | Ready — D2 catalog signed off 2026-07-27 |
 | D6 | Tactical space | Zones over existing location occupancy | Pending owner decision |

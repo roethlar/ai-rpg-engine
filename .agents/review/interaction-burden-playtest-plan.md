@@ -3,8 +3,10 @@
 **Status:** IBP-1 LANDED; IBP-2 SUPERSEDED 2026-08-02. The owner manually evaluated the uncommitted
 IBP-2 runner and rejected its prose-plus-separate-action-selection interaction as unrepresentative
 and too burdensome for normal text play. Do not implement or commit IBP-2 as specified below.
-Committed IBP-1 fixtures remain retained evidence. A replacement fiction-first ability-keyword
-composer is drafted separately in `ability-keyword-composer-plan.md`; that draft authorizes no code.
+Committed IBP-1 fixtures remain retained evidence. The separate ability-keyword composer prototype
+was accepted and production AKP-1 through AKP-3 landed; `ability-keyword-production-plan.md` owns
+that contract. A replacement paired runner remains unapproved; the current proposal is section 8
+of `campaign-character-version-plan.md`. The retained interaction instructions below do not govern it.
 
 **Authority:** the active 2026-08-02 interaction-playtest and campaign-class-set decisions in
 `.agents/decisions.md`; the signed check contract in `docs/rules/resolution.md`; the signed effect

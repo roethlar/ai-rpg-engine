@@ -6,10 +6,11 @@ to `docs/history/state-archive.md`.
 
 ## Now
 
+- **THE PORTABILITY VERSION REPLAN IS DRAFTED; THE FIRST OWNER DECISION IS PLAYER OWNERSHIP.** The owner authorized planning on 2026-09-05. `.agents/review/campaign-character-version-plan.md` owns the proposed physical version identities, atomic upgrades, independent progression, catalog/creator and safe-encounter dependencies, lifecycle/bundle boundaries, staged testing, and remaining decisions. Current seats identify only one campaign member; the shared host owns library access. The first question is a reusable private player credential versus account sign-in. No authentication design, taxonomy, catalog, phase reorder, or code is approved by this planning grant.
 - **THE PRODUCTION ABILITY-KEYWORD COMPOSER IS LANDED; ACTIVATION STILL NEEDS THE REAL CATALOG.** `.agents/review/ability-keyword-production-plan.md` owns the completed slices and their verification. AKP-4 remains gated on stable character-owned abilities, invocation families, and complete campaign bindings from the versioned class/catalog creator; prototype fixtures cannot satisfy that dependency.
 - **REVIEW REMAINS OPT-IN; THE OWNER-SELECTED REVIEWER IS KIMI K3 AT MAX EFFORT (2026-08-03).** `.agents/review/index.md` owns the verdicts and per-finding trail. Harness configuration is machine-local in `.agents/review/harnesses.local.json`; re-check local capability before dispatch.
-- **THE SIGNED RULES CHAPTERS AND VERSION DECISIONS ARE THE DESIGN BASELINE.** `.agents/decisions.md` owns the adopted resolution/effect chapters and campaign/character-version contract. Phase PT's landed storage does not implement that version architecture; its plan must be revised before further portability work. The remaining decision queue is `.agents/review/rules-system-plan-intake.md`.
-- **CAMPAIGN CLASS EXPOSURE, EVIDENCE TIERS, AND VERSION UPGRADES ARE SETTLED; IMPLEMENTATION IS NOT PLANNED OR AUTHORIZED.** The active 2026-08-02 decisions in `.agents/decisions.md` define cumulative Base (recommended), Advanced, and Expert (full) class sets selected at campaign creation from the sets allowed by the administrator. Expert holds the full candidate catalog, including unproven or deliberately demanding mechanics; Advanced holds mechanics that survived focused testing but retain noticeable burden; Base holds mechanics demonstrated to be understandable and enjoyable without repeated prompting. All included classes start at level 1; tiers are not power or level gates. Campaigns pin their set/catalog version. Safe host upgrades apply deterministic catalog migrations through a validated, atomic new campaign version while retaining the prior version read-only and saving player-owned compatible PC snapshots. Character versions progress independently and never merge. Exact tier membership, schemas, UI, migrations, and code remain open.
+- **THE SIGNED RULES CHAPTERS AND VERSION DECISIONS ARE THE DESIGN BASELINE.** `.agents/decisions.md` owns the adopted resolution/effect chapters and campaign/character-version contract. Phase PT's landed storage does not implement that architecture; the version-plan draft above awaits owner rulings and implementation approval. The broader rules decision queue remains `.agents/review/rules-system-plan-intake.md`.
+- **CAMPAIGN CLASS EXPOSURE, EVIDENCE TIERS, AND VERSION UPGRADES ARE SETTLED; IMPLEMENTATION REMAINS UNAPPROVED.** The active 2026-08-02 decisions in `.agents/decisions.md` define cumulative Base (recommended), Advanced, and Expert (full) class sets selected at campaign creation from the sets allowed by the administrator. Expert holds the full candidate catalog, including unproven or deliberately demanding mechanics; Advanced holds mechanics that survived focused testing but retain noticeable burden; Base holds mechanics demonstrated to be understandable and enjoyable without repeated prompting. All included classes start at level 1; tiers are not power or level gates. Campaigns pin their set/catalog version. Safe host upgrades apply deterministic catalog migrations through a validated, atomic new campaign version while retaining the prior version read-only and saving player-owned compatible PC snapshots. Character versions progress independently and never merge. Exact tier membership, schemas, UI, migrations, and code remain open.
 - **THE TEXT-ENTRY INTERACTION-BURDEN AUDIT IS A PLAYTEST RISK INVENTORY, NOT A ROSTER FILTER.** `.agents/review/interaction-burden-audit.md` identifies where Forms, Exposure, ordered Adept sequences, Openings, loadouts, separately controlled companions, Catalyst Cues, Rider state, intrusion procedure, and the three frozen economies may produce repeated prompts, forgotten state, dictated rotations, or agency-erasing automation. None is admitted, removed, folded, simplified, or assigned to a tier by the paper audit. Focused testing must compare the same character and encounter with only the candidate mechanic changed, observing meaningful choice, UI direction, memory, voluntary use, automation, prompt count, and turn time. Promotion or demotion occurs through later catalog versions and safe upgrades. The audit alone approves no interaction gate, roster, economy, or implementation.
 - **THE REJECTED IBP-2 RUNNER IS DELIBERATELY UNCOMMITTED AND MUST NOT BE CLEANED UP.** The modified `README.md`/`verify.mjs` and untracked `app.js`/`index.html`/`styles.css` under `.agents/review/interaction-burden-playtest-harness/` are the owner-rejected menu-driven runner, held untouched pending explicit disposal authority (2026-08-02 decision in `.agents/decisions.md`). Do not resume it, commit it, stash it, or delete it. Committed IBP-1 remains evidence. The completed and owner-accepted ability-keyword composer prototype that this working tree accompanied is rotated to `docs/history/state-archive.md`; the landed production slices below supersede its no-integration clause.
 - **CATALOG AVAILABILITY IS CONFIGURED AND NEUTRAL, NOT A MODEL CHARACTER JUDGMENT.** Only the campaign's selected released set/catalog is given to generation and creation. Out-of-set, disabled-module, unreleased, or honestly incompatible options are simply unavailable with a factual reason when one is useful. The prior “exclusion is an admission of failed imagination” posture is superseded. Any offered genre expression must still preserve exact mechanics, and models still cannot invent mechanic IDs or permissions.
@@ -62,11 +63,11 @@ to `docs/history/state-archive.md`.
   `.agents/decisions.md`). Do not invoke an external reviewer unless the owner explicitly requests
   `codereview`, `review`, `openreview`, or names one for the work. Code still requires an
   owner-approved plan and normal repository verification.
-- **PHASE PT REVIEW REPAIR PLAN IS DRAFTED, NOT APPROVED; GATE 5'S ROSTER IS STILL UNSETTLED.**
-  `plan.md` specifies two one-finding commits: PT-R1 makes live ability identity and Referee
-  authority exact end to end; PT-R2 unifies source-ability text limits without truncating mechanics
-  or rewriting local legacy rows. The owner authorized planning only, so no repair code is
-  authorized yet. `.agents/review/index.md` owns the admitted 2026-08-01 `claude-fable-5`
+- **PHASE PT REVIEW REPAIRS REMAIN UNAPPROVED; GATE 5'S ROSTER IS STILL UNSETTLED.**
+  Section 7 of the version-plan draft reconciles the two held repairs with selected-version ability
+  identity, Referee authority, catalog entitlements, and canonical source-text limits. The prior
+  detailed proposals in `plan.md` are historical input. The owner authorized planning only, so no
+  repair code is authorized yet. `.agents/review/index.md` owns the admitted 2026-08-01 `claude-fable-5`
   findings. Separately, the owner rejected the reduced roster because a shared tactical result does
   not imply a shared mechanical chassis: a Barbarian and Battle Mage cannot be conflated when only
   one requires spell mechanics. No replacement roster is authorized.
@@ -80,12 +81,14 @@ to `docs/history/state-archive.md`.
 
 ## Next
 
-**NEXT:** Revise Phase PT around the settled campaign/character-version contract before seeking
-approval for further portability work. AKP-4 and real ability activation remain blocked until the
-versioned class/catalog creator supplies complete stable character abilities, invocation families,
-and campaign bindings; do not seed provisional prototype abilities. Do not resume the rejected
-IBP-2 runner. The prior Fable items `rsv-1` and `rsv-4` remain downstream. Completed UI work is
-tracked in `.agents/review/index.md`; deleting retained local branches requires a separate owner go.
+**NEXT:** Obtain the player-ownership ruling in section 10, item 1 of the version-plan draft: reusable
+private player credential or account sign-in. Record the answer and refine its authorization,
+claim/recovery and version-library contract before the next individual decision. The current
+recommendation is the reusable credential, with explicit recovery/revocation work. This is a
+product decision, not a request to approve the whole draft or start code. AKP-4 still needs the
+real versioned catalog/creator; no provisional abilities or rejected IBP-2 runner may supply it.
+The prior Fable items `rsv-1` and `rsv-4` remain downstream. Completed UI work is tracked in the
+review index; retained local branch deletion still needs a separate owner go.
 
 ## Prior queue context
 
@@ -93,10 +96,9 @@ The three-package comparison is complete in `.agents/review/rules-system-variant
 admitted `rsv-1` leaves the compact shipped-legacy versus signed-target orientation open. The
 remaining bullets retain their independent priority.
 
-- Revise Phase PT around the settled campaign/character-version contract before returning either
-  admitted repair to the owner. The revision must incorporate staged interaction playtesting and
-  must not treat either formal chassis distinction or the paper audit as a roster verdict. No
-  portability repair code is authorized meanwhile.
+- Resolve and approve the version-plan draft before returning either admitted portability repair
+  for code approval. Its sections 7-10 own repair reconciliation, staged interaction evidence and
+  decision order; no paper roster verdict or portability repair implementation is authorized.
 
 - Continue the owner decision queue one item at a time from the canonical queue in
   `.agents/review/rules-system-plan-intake.md`.
@@ -114,11 +116,13 @@ remaining bullets retain their independent priority.
 - Ability activation remains gated on the real versioned class/catalog creator, as recorded in
   `.agents/review/ability-keyword-production-plan.md`; the landed generic composer supplies no
   provisional player abilities.
-- Phase PT's approved plan and v3.1 design still encode one canonical character record with no alternate versions. The 2026-08-02 owner decision supersedes that foundation; campaign/character version storage, atomic migrations, compatibility, and deletion require a revised plan before code work.
-- Phase PT's drafted two-slice repair plan still owns admitted findings, but a simple approval is no
-  longer sufficient: the campaign/character-version replan must first prove those repairs' identity
-  and storage assumptions still fit. `.agents/review/index.md` owns the findings and `plan.md` owns
-  the held proposal.
+- Phase PT's historical one-record plan is superseded. The version architecture is now drafted,
+  but player ownership, compatibility/legacy handling, Creator description, rules/catalog content
+  and recovery lifecycle still need the rulings identified in the new plan before code approval.
+  Safe upgrades also require a real persisted encounter boundary; the current turn encounter flag
+  cannot prove one.
+- Phase PT's two admitted repairs remain held for implementation approval. Section 7 of the new
+  version-plan draft owns their reconciled scope; `.agents/review/index.md` owns finding status.
 - Phase PT S1.4 is landed. The owner found Gate 5's deterministic local prototype mechanically
   under-specified: resource recovery, capacity growth, ability rank/cost scaling, the exact class
   catalog, balance, and all sample mechanics remain unsettled. A later classification ruling and the `pt-5`
@@ -140,6 +144,7 @@ remaining bullets retain their independent priority.
 
 ## Active Sources
 
+- `.agents/review/campaign-character-version-plan.md` — current unapproved version architecture, first owner decision, proposed delivery and verification gates.
 - `.agents/review/ability-keyword-production-plan.md` — landed composer contract and catalog-gated activation.
 - `.agents/review/rules-system-variants.md` — retained package comparison, not an approved roster or economy.
 - `.agents/review/interaction-burden-audit.md` — current text-entry risk inventory, paired-test hypotheses, and settled tier-evidence policy; no roster or tier membership is approved.

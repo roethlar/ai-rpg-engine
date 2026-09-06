@@ -6,6 +6,9 @@ leak into destination narration, depending on how later slices interpret the sam
 **Branch**: none
 **Commit**: none — no repair or ruling started
 
+**Current planning:** `../campaign-character-version-plan.md` section 10 retains this as a
+separate owner decision before Creator implementation. Version architecture does not settle it.
+
 ## Evidence
 
 - `.agents/decisions.md` says Creator writes a campaign-tailored description that may mention

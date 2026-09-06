@@ -15,6 +15,11 @@ cutover slice must not land until the versioned class catalog and character-crea
 instantiate real, stable, character-owned ability definitions and complete campaign presentation
 bindings. Test fixtures may prove the generic contract but must never ship as player options.
 
+**Version/producer replanning:** `campaign-character-version-plan.md` is the 2026-09-05 unapproved
+architecture draft. It identifies the missing live family registry, persisted aliases, explicit
+version inputs, source-text limit reconciliation and executable catalog prerequisites. It neither
+changes this plan's existing approval nor satisfies AKP-4's real-producer gate.
+
 **Implementation:** AKP-1 COMPLETE 2026-08-03. The shared pure matcher/insertion helpers,
 server-owned catalog/binding projection, opaque revision digest, inert live party projection, and
 seat-safe trigger whitelist are implemented. Existing free-text abilities have no invocation

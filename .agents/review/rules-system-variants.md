@@ -2,17 +2,18 @@
 
 **Status:** frozen design evidence; none is approved or implemented. The 2026-08-02 intrusion
 decision removes Intruder as an archetype, so the Intruder rows below are superseded and no package
-can be adopted as written. They are retained to show the compared packages. The later text-entry
-interaction audit also rejects Slots and rests and Cadence as next candidates, permits only a
-simplified Commitment shape to continue, and recommends no regeneration from this frozen roster.
+can be adopted as written. They are retained to show the compared packages. The later owner
+interaction-burden decision makes the audit a playtest risk inventory: it selects or rejects no
+economy and authorizes no simplified replacement or regeneration from this frozen roster.
 
 **Date:** 2026-08-02
 
 **Scope:** exactly three complete rules packages built around the signed Aetheria d100 resolution and effect-operation contracts. A package is selected as a whole. The document is not a menu for combining one package's recovery, another package's class resources, and a third package's advancement.
 
-> **Later interaction finding:** `.agents/review/interaction-burden-audit.md` adds the player-facing
-> burden criterion this comparison lacked. Its recommendations are not an owner rules ruling, but
-> they supersede this document's pre-review ranking as the next-work direction.
+> **Later interaction authority:** the active 2026-08-02 staged-playtesting decision in
+> `.agents/decisions.md` governs evidence. `.agents/review/interaction-burden-audit.md` identifies
+> risks to test, not admissions or rejections. `campaign-character-version-plan.md` owns the current
+> proposed planning sequence; none of these documents approves a rules package.
 
 The purpose of this comparison is to replace the Gate 5 prototype's unexplained pool, rest, spell-rank, progression, class, and opposition placeholders with operational rules derived from established open systems. It does not authorize product code.
 

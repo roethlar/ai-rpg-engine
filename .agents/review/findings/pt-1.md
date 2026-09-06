@@ -5,6 +5,9 @@
 **Branch**: none
 **Commit**: none — repair not started
 
+**Current planning:** `../campaign-character-version-plan.md` section 7 reconciles this repair
+with physical character-version ownership. The finding remains open; no repair is authorized.
+
 ## Evidence
 
 - `rpg-prompts.js:220-221` exposes known abilities to the live GM as name, tier, and description, without their engine-issued IDs.

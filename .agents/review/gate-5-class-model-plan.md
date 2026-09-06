@@ -1,5 +1,9 @@
 # Gate 5 restrictive character-class model — draft plan
 
+**Current version/replanning entry point:** `campaign-character-version-plan.md` (2026-09-05),
+sections 4, 8 and 10. It carries the real catalog/creator dependency and staged-test requirements;
+this document remains taxonomy evidence and does not become approved through that revision.
+
 **Status**: PARTIALLY SUPERSEDED DRAFT — the owner authorized this plan and a context-rich
 `claude-fable-5` codereview on 2026-08-01, but the 2026-08-02 campaign-version decision replaces
 its one-record portability premise and adds tiered class availability. The taxonomy, roster, revised
@@ -410,9 +414,10 @@ standard. Keep an unproven or demanding coherent option in Expert unless a separ
 category, safety, or owner decision removes it. Revise one class or shared rule per reviewable
 slice; do not sweep unrelated failures into one commit.
 
-`.agents/review/interaction-burden-playtest-plan.md` is the current concrete harness draft. Its
-offline Armsmaster/Adept pilot is the only implementation candidate; the draft neither authorizes
-that pilot nor pre-authorizes the remaining comparison queue.
+`.agents/review/interaction-burden-playtest-plan.md` retains the landed Armsmaster/Adept fixtures.
+Its IBP-2 runner was rejected; its separate action-selection flow is not an implementation candidate.
+Section 8 of `campaign-character-version-plan.md` proposes a separately approved replacement
+using the accepted single prose composer. No replacement runner or later comparison is authorized.
 
 ### 8.5 G5-D — S1.5 implementation plan
 

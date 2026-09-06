@@ -1580,3 +1580,16 @@ Reason:
 The accepted prototype established the interaction. The approved production plan preserves that
 single prose entry while making authentication, ability identity, Council context, persistence,
 seat isolation, and stale-state recovery deterministic behind it.
+
+### 2026-09-05 - Campaign and character version replanning authorized
+
+**Status: Active planning authorization only.**
+
+The owner authorized revising the portability plan around version storage, atomic campaign
+upgrades, compatibility, and staged class playtests, then presenting the first unresolved decision.
+`.agents/review/campaign-character-version-plan.md` records the resulting draft and its open gates.
+
+This grant approves drafting and maintaining the affected records. It does not approve the draft's
+authentication model, class taxonomy, catalog membership, rules economy, schemas, phase reorder,
+runtime implementation, external review, or data disposal. The active 2026-08-02 versioning and
+interaction-evidence decisions remain unchanged; further owner decisions come one at a time.
