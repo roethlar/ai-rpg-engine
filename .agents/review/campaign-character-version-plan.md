@@ -14,8 +14,9 @@ Implementation remains unapproved.
 **Already settled:** character/campaign compatibility is part of the active 2026-08-02 upgrade
 decision. Use a compatible saved character version or an allowed destination-campaign upgrade;
 never silently downgrade or translate mechanics. The draft's additional compatibility approval
-gate was an error and is removed. Remaining work concerns the Creator/class catalog and unresolved
-mechanics; recheck existing decisions before presenting another owner question.
+gate was an error and is removed. The next bounded Creator question is the starting ability set
+in `gate-5-class-model-plan.md` section 7.1: ready-to-play default versus required individual picks.
+That proposal chooses no class roster or mechanics. Recheck existing rulings before later questions.
 
 **Evidence baseline:** `e647c5a`. Function references identify current integration surfaces;
 re-read them at the implementation base. No runtime or browser tests were run for this draft.

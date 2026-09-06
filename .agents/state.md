@@ -82,13 +82,13 @@ to `docs/history/state-archive.md`.
 
 ## Next
 
-**NEXT:** Revise the Creator/class-model proposal around the existing class-set and upgrade
-decisions, carrying the open description-scope finding and actual unresolved mechanics. Present
-only a concrete new game-design choice after checking existing rulings. Compatibility is already
-settled by the 2026-08-02 upgrade decision: use a compatible saved character version or an allowed
-destination-campaign upgrade, never a silent downgrade. The duplicate compatibility approval gate
-has been removed. Keys/reset, the single-composer direction and staged evidence policy are also
-settled. Optional archive controls stay deferred; no whole-plan or code approval is implied.
+**NEXT:** Obtain the starting-ability decision in `.agents/review/gate-5-class-model-plan.md`
+section 7.1: selecting a class gives a ready-to-play default ability set (recommended), or the
+player must pick individual starting abilities before play. The accepted creation hierarchy is
+retained. This choice does not set the roster, ability count, economy or later customization rules.
+Record the answer and refine the Creator flow; carry the separate description-scope finding.
+Compatibility/upgrades, keys/reset, the single-composer direction and staged evidence policy are
+already settled. Optional archive controls stay deferred; no whole-plan or code approval is implied.
 AKP-4 still needs the real versioned catalog/creator; no provisional abilities or rejected IBP-2
 runner may supply it. The prior Fable items `rsv-1` and `rsv-4` remain downstream. Completed UI
 work is tracked in the review index; retained branch deletion still needs a separate owner go.

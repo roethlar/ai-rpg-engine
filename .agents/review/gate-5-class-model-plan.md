@@ -9,11 +9,11 @@ this document remains taxonomy evidence and does not become approved through tha
 its one-record portability premise and adds tiered class availability. The taxonomy, roster, revised
 plan, and implementation are not approved. No product code is authorized by this document.
 
-**Current gate**: Gate 5 remains open and S1.5 remains blocked. The later interaction-burden ruling
-makes the audit a playtest risk inventory rather than a paper roster filter. Gate 5 therefore needs
-a coherent candidate catalog followed by staged interaction testing, while the campaign-version
-decision still requires a rewritten portability/version section. Owner decisions come one at a
-time; this draft is not the next approval candidate.
+**Current gate**: Gate 5 remains open and S1.5 remains blocked. Version architecture is now drafted
+in `campaign-character-version-plan.md`; compatibility is already settled. The next bounded Creator
+decision is section 7.1: a ready-to-play default starting ability set versus required individual
+starting-ability choices. This is not approval of the older classification proposal or whole draft.
+The exact catalog and observed tier evidence remain separate work.
 
 **Purpose**: replace the failed one-of-22 archetype-roster question with a model that distinguishes
 restrictive classes from learnable skills, emergent party roles, backgrounds/status, assets, and
@@ -319,6 +319,34 @@ Merely describing the character correctly in prose does not pass.
 ---
 
 ## 7. Creator and S1.5 target shape after all gates close
+
+### 7.1 Current starting-ability proposal, 2026-09-06
+
+**Status: Awaiting owner decision; no code or catalog content approved.** Preserve the accepted
+creation hierarchy: mechanical archetype, campaign-specific class only when multiple mappings
+exist, then separate training, background, standing and identity. Automatically selecting a sole
+class mapping is already settled and is not this question.
+
+The open question is whether choosing the class supplies a complete authored starting ability set,
+or the player must make individual starting-ability choices before play. Recommend a ready-to-play
+default set: the engine expands the selected legal class into authored initial abilities, with no
+mandatory ability-shopping step. This trades required initial tailoring for faster entry. Optional
+customization, where later approved class rules allow it, is not prohibited by choosing a default.
+The alternative requires individual starting choices from that class's legal options before confirm.
+
+The default is fixed by the released class/catalog version, never selected or invented by a model.
+All choices already made in the creation hierarchy still apply. This decision selects no roster,
+ability count, class economy, numerical loadout, subclass rule, advancement choice or tier placement.
+Catalog authors must later supply a complete legal default and the Creator must display its actual
+abilities before confirmation. Exact definitions and invocation bindings still gate production use.
+
+The prototype's packages and the three frozen rules variants are evidence only. None already
+settled this starting-set policy. `pt-5` description scope remains a separate open finding.
+
+### 7.2 Prior rejected flow, retained as evidence
+
+The owner rejected this prose-to-model-selected-mechanics approach. Do not implement or present
+the flow below for renewed approval; section 7.1 is the current bounded proposal.
 
 The current S1.5 sentence is not implementable under this model and must remain blocked. Its later
 replacement must obey this flow:
