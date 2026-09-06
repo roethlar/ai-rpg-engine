@@ -1516,7 +1516,8 @@ controls, campaign/catalog pinning, safe upgrades, or player-owned character ver
 
 ### 2026-08-02 - Fiction-first ability-keyword composer prototype plan approved (owner decision)
 
-**Status: Active for the prototype; production contract remains unapproved.**
+**Status: Active for the prototype.** Production was separately approved by the 2026-08-03
+production ability-keyword integration decision below; this entry records the earlier bounded grant.
 
 The owner approved `.agents/review/ability-keyword-composer-plan.md` for its two non-shipping slices
 only. AKC-1 builds and guard-proves the deterministic owned-ability trigger matcher. AKC-2 builds a
@@ -1538,7 +1539,8 @@ prototype plan after seeing its exact scope.
 
 ### 2026-08-02 - Ability-keyword production cutover needs no generated-card migration (owner decision)
 
-**Status: Active for the ability-keyword production plan; product integration remains unapproved.**
+**Status: Active clean-cut data boundary.** The 2026-08-03 production ability-keyword integration
+decision below separately approved implementation; this entry records the earlier data ruling.
 
 There are no real existing campaigns whose model-generated `ruleset.abilities` entries must be
 preserved for the production ability-keyword cutover. Disposable local test campaigns may be wiped

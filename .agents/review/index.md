@@ -109,11 +109,14 @@ custom, implementation-ready system and plan. Read-only intake reviewed pinned
 snapshot `526aa5c` with Claude Code 2.1.207 (`claude-opus-4-8`, high effort,
 structured output). Verdict: `ready_for_owner_decisions` — **not** plan
 acceptance. It admitted 14 plan gaps (5 HIGH) and produced a 15-decision queue.
-D0-D2 are decided; D3 Gates 1-4, 6, and Stage 1 Gate 7 and Phase PT are approved, with S1.1 through
-S1.4 landed and S1.5 awaiting Gate 5. Stage 1 Gate 7's answer is no automatic character-name/title translation; broader
-proper-name/alias policy and player-driven title-edit workflow remain future.
-One persistent character ID is active in exactly one campaign; mechanics/progression travel, first
-entry fills missing ability-presentation bindings, and returns reuse saved ability wording exactly
+D0-D2 are decided. D3's retained approvals and the 2026-08-02 campaign/character-version
+supersession are recorded in `.agents/decisions.md`. S1.1-S1.4 are landed; further Phase PT code
+requires the revised owner-approved version plan, and S1.5 additionally awaits the class catalog
+and `findings/pt-5.md` description-scope ruling. Stage 1 Gate 7's answer is no automatic
+character-name/title translation; broader proper-name/alias policy and player-driven title-edit
+workflow remain future. Each independently playable character version is active in at most one
+compatible campaign; versions progress independently without merging. First entry fills missing
+ability-presentation bindings, and returns reuse saved ability wording exactly
 while reviewing only newly gained abilities without destination wording. Gate 3 rejects a
 second setting model: portability reads live outline/setting, latest six turns chronological, and
 top eight relevant memories by importance then recency through direct helpers shared with MCP. The
@@ -183,11 +186,15 @@ browser battery (poll 1/1b/1c/1d/1e/1f/1g + dice dt1/dt2/dt3) ALL PASS
 against merged master — the stack was reviewed on per-branch bases, so this
 combined run is the integration proof. The branches were retained at that point, then deleted on
 the owner's 2026-07-12 go after content-arrival verification.
-| jt-1 | HIGH | Pre-existing: Journal tab renders a stale campaign's history over the current one (empirically confirmed); Fork buttons then fork the wrong campaign | `[x]` verified; awaiting owner-gated merge (codex/gpt-5.6-sol/xhigh esc:T2 then kimi/kimi-code-k3/max — guard EXECUTED by the second reviewer) | `fix/jt-1-journal-epoch` @ `09768e1` |
-| dr-1 | MEDIUM | Pre-existing: delete/release settle callbacks wipe theme/state over whichever table the user has since entered | `[x]` verified; awaiting owner-gated merge (codex/gpt-5.6-sol/xhigh then kimi/kimi-code-k3/max — guard EXECUTED by the second reviewer) | `fix/dr-1-settle-epoch` @ `92c19eb` |
-| tts-1 | MEDIUM | Pre-existing: the old table's GM voice keeps narrating over the menu/next campaign; skip pill unreachable on the menu | `[x]` verified; awaiting owner-gated merge (codex/gpt-5.6-sol/xhigh then kimi/kimi-code-k3/max — guard EXECUTED by the second reviewer) | `fix/tts-1-stop-on-transition` @ `5713d37` |
-| ds-1 | MEDIUM | Pre-existing: choice buttons allow overlapping submits — duplicated transcript entries and a mid-turn UI lie | `[x]` verified; awaiting owner-gated merge (three quarters had already landed unguarded in `f042082`, now pinned; codex/gpt-5.6-sol/xhigh then kimi/kimi-code-k3/max — guard EXECUTED by the second reviewer) | `fix/ds-1-submit-reentrancy` @ `2f893e1` |
-| fk-1 | MEDIUM | Pre-existing: a fork resolving after the user left (keyboard path) silently seizes the table | `[x]` verified; awaiting owner-gated merge (codex/gpt-5.6-sol/xhigh then kimi/kimi-code-k3/max — guard EXECUTED by the second reviewer) | `fix/fk-1-fork-epoch` @ `60df275` |
+| jt-1 | HIGH | Pre-existing: Journal tab renders a stale campaign's history over the current one (empirically confirmed); Fork buttons then fork the wrong campaign | `[x]` verified; merged (codex/gpt-5.6-sol/xhigh esc:T2 then kimi/kimi-code-k3/max — guard EXECUTED by the second reviewer) | `fix/jt-1-journal-epoch` @ `09768e1` |
+| dr-1 | MEDIUM | Pre-existing: delete/release settle callbacks wipe theme/state over whichever table the user has since entered | `[x]` verified; merged (codex/gpt-5.6-sol/xhigh then kimi/kimi-code-k3/max — guard EXECUTED by the second reviewer) | `fix/dr-1-settle-epoch` @ `92c19eb` |
+| tts-1 | MEDIUM | Pre-existing: the old table's GM voice keeps narrating over the menu/next campaign; skip pill unreachable on the menu | `[x]` verified; merged (codex/gpt-5.6-sol/xhigh then kimi/kimi-code-k3/max — guard EXECUTED by the second reviewer) | `fix/tts-1-stop-on-transition` @ `5713d37` |
+| ds-1 | MEDIUM | Pre-existing: choice buttons allow overlapping submits — duplicated transcript entries and a mid-turn UI lie | `[x]` verified; merged (three quarters had already landed unguarded in `f042082`, now pinned; codex/gpt-5.6-sol/xhigh then kimi/kimi-code-k3/max — guard EXECUTED by the second reviewer) | `fix/ds-1-submit-reentrancy` @ `2f893e1` |
+| fk-1 | MEDIUM | Pre-existing: a fork resolving after the user left (keyboard path) silently seizes the table | `[x]` verified; merged (codex/gpt-5.6-sol/xhigh then kimi/kimi-code-k3/max — guard EXECUTED by the second reviewer) | `fix/fk-1-fork-epoch` @ `60df275` |
+
+Merge status re-verified as of `af69a85`: `4d8ad1e`, `1792a34`, `1367cbc`, `671df7a`, and
+`d1fd432` are on master. Each merge has an empty diff against its merged branch across the
+application, browser harness, and review records; later fixes remain independently recorded above.
 
 Skeptic-panel round (2026-07-11, three parallel adversarial agents, ultracode):
 13 candidates. Five admitted as NEW pre-existing findings of the poll-1 class

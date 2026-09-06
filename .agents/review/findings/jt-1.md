@@ -1,7 +1,7 @@
 # jt-1: Journal timeline renders stale cross-campaign responses; Fork buttons then fork the wrong campaign
 
 **Severity**: HIGH — campaign B's Journal tab shows campaign A's turns/memories; a Fork click on a stale card POSTs `/api/campaigns/B/fork` with A's turn number.
-**Status**: Verified — accepted by review, awaiting owner-gated merge (admitted 2026-07-11 from
+**Status**: Verified — accepted by review, merged to master (admitted 2026-07-11 from
 the skeptic-panel round; authorized by the Phase T2 approval and implementation order in
 `plan.md`)
 **Branch**: `fix/jt-1-journal-epoch`

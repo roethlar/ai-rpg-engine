@@ -1,7 +1,7 @@
 # dr-1: Campaign delete/release settle callbacks wipe state and theme over whichever table the user has since entered
 
 **Severity**: MEDIUM — a slow DELETE settling after the user loads campaign Y snaps Y's theme to holodeck idle, nulls the campaign (Send silently no-ops, poll stops), and toasts "Campaign deleted." over the broken table.
-**Status**: Verified — accepted by review, awaiting owner-gated merge (admitted 2026-07-11 from
+**Status**: Verified — accepted by review, merged to master (admitted 2026-07-11 from
 the skeptic-panel round; authorized by the Phase T2 approval and implementation order in
 `plan.md`).
 The worst sub-case — the blank screen when the settle races an in-flight load — was a poll-1

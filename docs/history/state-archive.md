@@ -6,6 +6,74 @@ state — never read it to answer "what is true now".
 
 ---
 
+## Rotated 2026-09-05 (drift, evidence at `af69a85`)
+
+Completed implementation, superseded review transport, and duplicated decision summaries follow
+verbatim. The parked location-title claim is historical: `map-2` is now merged and its record owns
+the correction. Remaining catalog, portability, and playtest gates stay in `.agents/state.md`.
+
+- **THE ENTIRE OWNER-APPROVED UI BACKLOG IS MERGED TO MASTER (owner go 2026-08-03).** `jt-1`, `dr-1`, `tts-1`, `fk-1` and `ds-1` — every remaining stale-cross-campaign finding — each landed as one fix commit plus one record commit, then merged to master in stack order with `--no-ff` (merges `4d8ad1e`, `1792a34`, `1367cbc`, `671df7a`, `d1fd432`; every merge auto-clean, no path overlap with master's concurrent state-file commit). Each carries a new durable browser guard in `test-browser.mjs` with a two-direction proof run at least twice independently, and each was accepted by `codex / gpt-5.6-sol / xhigh` with zero comments. Content arrival was verified by diff, not ancestry: the stack tip has a zero-line diff against master across `public/app.js`, `test-browser.mjs` and `.agents/review/`. **Merged-master integration proof:** `node test.js` green and `npm run test:browser` green with nine harness/guard pass lines and no failures. All four findings other than `ds-1` were re-verified as still live in current code before any fix was written. The five `fix/*` branches are retained pending an explicit owner go to delete them; `.agents/review/index.md` owns the per-finding trail.
+
+- **REVIEW IS NOW KIMI K3 AT MAX EFFORT, AND THE BROWSER-GUARD GAP IS CLOSED (owner decision 2026-08-03).** The owner named `kimi k3` as the reviewer and pinned effort `max` after being told kimi exposes only `low|high|max` and has no `xhigh`. This supersedes codex/gpt-5.6-sol for review dispatches. The reason is capability, not preference: `kimi-code/k3` can launch Chromium and run `npm run test:browser`, which codex's macOS sandbox denies, so a kimi reviewer executes the two-direction guard proof itself instead of auditing a supplied transcript. All five UI-backlog findings were re-reviewed on the full mandate and all five were accepted again with zero comments, each with a reviewer-executed revert→fail→restore→pass cycle confirmed from its own transcript rather than from its claim. **The trade-off is recorded, not hidden:** kimi's `-p` mode cannot command-scope Bash, so the reviewer holds broader shell access than codex did, restricted only by an agent-file tool allowlist and confined to a disposable worktree. Tighter sandbox versus ability to actually run the tests — the owner chose the latter. Machine-local incantations and the pinned tier live in `.agents/review/harnesses.local.json`. When reading kimi transcripts, note that `npm run test:browser | tail -N; echo $?` reports `tail`'s exit status: grade on the `Browser guard failed:` line, not the echoed code.
+
+- **SUPERSEDED, RETAINED AS HISTORY — the codex reviewer could not execute browser guards.** codex's macOS sandbox denies the Mach port rendezvous Playwright needs, so `npm run test:browser` cannot run inside it. (A first, separate denial — loopback socket binding — was fixed with codex's own `sandbox_workspace_write.network_access=true` and is recorded in the machine-local harness cache.) The only codex option that would lift the Chromium denial is `--dangerously-bypass-approvals-and-sandbox`, which grants an unsandboxed shell on the owner's machine; that exceeds the codereview playbook's "read-only inspection plus a disposable worktree" grant and was **not** taken on agent authority. All five reviews therefore ran a narrowed, explicitly labelled mandate: the reviewer read the finding and diff, ran `node test.js` itself, adversarially audited the guard **source** for vacuity, and judged the coder-run two-direction transcript against it. `guard_confirmed: true` in these records means *sound by construction and consistent with its transcript*, not *reviewer re-executed*. **Owner call:** authorize the bypass, accept source-audited guard proofs as the standing norm here, or route browser-guarded findings to a harness that can run Chromium. `jt-1.md` carries the full account.
+
+- **THE PRODUCTION ABILITY-KEYWORD PLAN IS OWNER-APPROVED; AKP-1 THROUGH AKP-3 ARE COMPLETE AS OF `f042082`.** `.agents/review/ability-keyword-production-plan.md` authorizes AKP-1 through AKP-4 in order, one verified commit per slice. AKP-1 supplies the shared deterministic matcher/insertion helpers, canonical server-owned trigger projection and revision digest, inert live party projection, and seat-safe trigger whitelist. AKP-2 adds the exact-prose/revision-only request boundary, authenticated server recomputation, immutable Council declarations, stale-before-model handling, and the separate bounded invocation record preserved through recent history, bundle v3 import/export, and forks while remaining absent from seat journals. AKP-3 replaces the live action input with the native textarea/pointer-inert mirror, exact owned-term highlights, campaign-worded ability insertion, suggestion-only typo recovery, opaque revision echo, exact-prose retry/stale recovery, and character/table-safe optimistic cleanup. Invocable abilities are accessible family-labelled buttons; passive and existing free-text abilities remain non-button cards. Unit/browser verification and the exact-prose guard proof are green; the separate hands-on Chrome pass was unavailable, while automated desktop and narrow runs passed. AKP-4 remains blocked until the real versioned class/catalog creator supplies complete stable abilities and bindings; prototype fixtures cannot fill that gap. No real campaigns need generated-rules-card migration, code never deletes disposable test campaigns automatically, and no generated-card converter or dual trigger path is built.
+
+- **THE OWNER ACCEPTED THE CLASSIFICATION METHOD AND REQUESTED FAMILIAR WORKED TOUCHSTONES; THE EXACT ROSTER IS STILL UNAPPROVED.** As `fe168cc`, the audit decomposes Indiana Jones, MacGyver, Hannibal Smith, Ellen Ripley, Michael Knight/KITT, Conan, and Batman into primary class mechanics plus separate skills, occupation, rank, wealth, and assets. It replaces the unfamiliar Intruder/Catalyst/Rider references and deliberately leaves a game-character exemplar blank where no honest familiar one exists. The acceptance was of this mechanic-first decomposition and example format, not a package-level ruling.
+
+- **THE OUT-OF-SAMPLE ARCHETYPE AUDIT IS RETAINED TAXONOMY EVIDENCE, NOT THE CURRENT WORKING-ROSTER RECOMMENDATION.** `.agents/review/archetype-concept-coverage-audit.md` still owns the concept battery, archetype-by-genre option matrix, familiar touchstones, situationality, and balance fixtures. Its proposed ten universal candidates plus conditional Catalyst predated the interaction-burden test and is superseded as the next design baseline. No replacement roster is approved; do not regenerate the three packages from it.
+
+- **THREE CLOSED RULES-SYSTEM VARIANTS HAVE ONE COMPLETED FABLE REVIEW; NONE IS APPROVED OR IMPLEMENTED.** `.agents/review/rules-system-variants.md` owns exactly three whole packages over the signed d100/effect contracts: WWN/CWN-derived Commitment, SRD 5.2.1-derived Slots and rests, and 13th Age-derived Cadence. The frozen packages share nine archetypes, eighteen branches, a 9×10 mapping, deterministic 7–10 minute creation, exact spell/resource/recovery rules, opposition curves, assets/status, persistent help, worked builds, and a licensing/deviation ledger; their Intruder rows are now superseded, so no package can be adopted as written. One `claude-fable-5` openreview ran at owner-specified `high` over `dadc64a..54bf01b`; there was no model follow-up. Fable returned four candidates: legacy-runtime orientation and one spell-target phrase are admitted/open, the stale NEXT was corrected by mandatory state sync without re-review, and the claimed high-vs-max conflict is declined because the explicit owner instruction controls. `.agents/review/index.md` and `findings/rsv-*.md` own the trail. That review found no taxonomy or economy contradiction in its frozen input; later rulings supersede its roster assumptions. The audit predicts Commitment has lower interaction burden than Slots and rests or Cadence, but all three remain playtest hypotheses rather than paper admissions or rejections.
+
+- **THE GREENFIELD RUNTIME REWRITE IS ABANDONED** (owner decision 2026-07-26). The shipped Council
+  pipeline remains canonical. Product work continues incrementally through rules, UI, mapping, and
+  related improvements. The discarded proposal survives only as historical evidence at
+  `docs/history/runtime-greenfield-plan-abandoned.md`; none of its gates or open questions apply.
+
+- **RULES CHAPTERS 1 AND 2 ARE OWNER-SIGNED; THE DECISION QUEUE CONTINUES.** Chapter 1
+  (`docs/rules/resolution.md`) and Chapter 2 (`docs/rules/effects.md`, r24 substantive pin
+  `6772d33`) are canonical. Chapter 2 closed r28 with zero findings and was signed off
+  2026-07-27, enacting its three declared Chapter 1 refinements and closing the D2 catalog-design
+  gate. `.agents/review/rules-system-plan-intake.md` owns the remaining decision queue; no rules
+  code before a concrete phase and an owner-approved plan.
+
+- **PHASE PT'S S1.1-S1.4 ARE LANDED, BUT ITS ONE-RECORD FOUNDATION IS SUPERSEDED AND THE PLAN MUST BE REVISED BEFORE MORE PORTABILITY WORK.** The 2026-08-02 versioning decision replaces one canonical character record/no branches with one player-owned lineage containing independently playable rules-version snapshots created during safe campaign upgrades. Each version may be active in at most one compatible campaign and progresses independently without merging. Retained D3 rules still require first entry to fill missing ability-presentation bindings; returns reuse saved ability wording exactly and review only newly gained abilities lacking destination wording. Archetype is
+  stable and player-facing; the player's own title never auto-translates. Creator maps a concept to
+  a known archetype ID, tailors its campaign description, may show public local profession-name
+  examples, and asks the player to confirm. Stage 1 Gate 7 is settled: no automatic
+  character-name/title translation; broader proper-name/alias policy and player-driven title-edit
+  workflow remain future. The exact archetype roster remains Gate 5 and blocks
+  S1.5 Creator/onboarding work, not S1.3. Portability reads
+  live destination outline/setting, latest six turns chronological, and top eight relevant
+  memories by importance then recency through direct helpers shared with MCP. The GM judges fit,
+  the engine validates exact requested known ability IDs and allowlisted display-name/prose fields,
+  and the player approves wording. S1.3's proposal seam is read-only, derives ability slots
+  internally, permits one generic contract retry, and treats wording as non-authoritative flavor.
+  Every actual number/stat/resource change, damage result, or XP award remains canonical-Council
+  authority. A
+  deterministic canon-basis digest detects stale drafts but is not canon. There is no second
+  settings checklist, classifier, editor, sync workflow, or self-network call. The landed storage
+  does not implement the new campaign-version, character-version, migration, or deletion contract;
+  `plan.md` and the v3.1 design record are no longer cold-implementable until revised.
+  S1.4 stores immutable character/campaign/ability wording separately from versioned campaign
+  vocabulary, gives every direct SQLite operation explicit transaction ownership, and round-trips
+  active linked rows through bundle v2 while v1 imports empty portability state. Because S1.3 emits
+  no engine-owned campaign semantic keys, runtime shared batches are rejected rather than inferred from prose;
+  shared storage awaits a later producer. Canon-echo comparison neutralizes Unicode formatting while
+  preserving legitimate script/emoji shaping; unsafe invisible and bidi controls fail at both proposal
+  and persistence boundaries. No route, UI, movement, narration, or mechanic path changed.
+
+- **THE OWNER-APPROVED UI BACKLOG IS COMPLETE AND MERGED.** All five findings are fixed, guarded,
+  reviewed, accepted and on master; see the stack entry at the top of this section. The backlog
+  has no items left.
+
+- **KNOWN PARKED DEFECT, REVERIFIED AT `3b659bc`:** `map-render.js:142` draws the location title
+  as an unclipped SVG `<text>`. A long location name can overrun the canvas; the landed `map-1`
+  fix deliberately covered area labels only.
+
+---
+
 ## Rotated 2026-08-03 (catchup)
 
 ### Ability-keyword composer prototype completed and superseded by the landed production slices

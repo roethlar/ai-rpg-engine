@@ -20,7 +20,7 @@ server-owned catalog/binding projection, opaque revision digest, inert live part
 seat-safe trigger whitelist are implemented. Existing free-text abilities have no invocation
 metadata and project as non-invocable. The full unit suite and syntax/diff checks pass. Guard proof
 temporarily disabled normalized trigger-collision rejection; the new collision assertion failed,
-then passed after restoration. AKP-2 is next. No catalog content, turn request, Council declaration,
+then passed after restoration. No catalog content, turn request, Council declaration,
 persistence, or browser composer behavior changed in AKP-1.
 
 **Implementation:** AKP-2 COMPLETE 2026-08-03. Turn requests now carry only exact player prose,

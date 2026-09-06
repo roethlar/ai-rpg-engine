@@ -1,7 +1,7 @@
 # fk-1: Fork adoption never checks the epoch it bumps — a fork resolving after the user left still seizes the table
 
 **Severity**: MEDIUM — narrow reachability (the loading overlay blocks pointers but not keyboard: Tab+Enter to Campaigns during a slow fork), but the outcome is the app silently re-entering the fork underneath the menu, polling a table the user believes they left.
-**Status**: Verified — accepted by review, awaiting owner-gated merge (admitted 2026-07-11 from
+**Status**: Verified — accepted by review, merged to master (admitted 2026-07-11 from
 the skeptic-panel round; authorized by the Phase T2 approval and implementation order in
 `plan.md`)
 **Branch**: `fix/fk-1-fork-epoch`

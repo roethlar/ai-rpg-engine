@@ -6,21 +6,16 @@ to `docs/history/state-archive.md`.
 
 ## Now
 
-- **THE ENTIRE OWNER-APPROVED UI BACKLOG IS MERGED TO MASTER (owner go 2026-08-03).** `jt-1`, `dr-1`, `tts-1`, `fk-1` and `ds-1` — every remaining stale-cross-campaign finding — each landed as one fix commit plus one record commit, then merged to master in stack order with `--no-ff` (merges `4d8ad1e`, `1792a34`, `1367cbc`, `671df7a`, `d1fd432`; every merge auto-clean, no path overlap with master's concurrent state-file commit). Each carries a new durable browser guard in `test-browser.mjs` with a two-direction proof run at least twice independently, and each was accepted by `codex / gpt-5.6-sol / xhigh` with zero comments. Content arrival was verified by diff, not ancestry: the stack tip has a zero-line diff against master across `public/app.js`, `test-browser.mjs` and `.agents/review/`. **Merged-master integration proof:** `node test.js` green and `npm run test:browser` green with nine harness/guard pass lines and no failures. All four findings other than `ds-1` were re-verified as still live in current code before any fix was written. The five `fix/*` branches are retained pending an explicit owner go to delete them; `.agents/review/index.md` owns the per-finding trail.
-- **REVIEW IS NOW KIMI K3 AT MAX EFFORT, AND THE BROWSER-GUARD GAP IS CLOSED (owner decision 2026-08-03).** The owner named `kimi k3` as the reviewer and pinned effort `max` after being told kimi exposes only `low|high|max` and has no `xhigh`. This supersedes codex/gpt-5.6-sol for review dispatches. The reason is capability, not preference: `kimi-code/k3` can launch Chromium and run `npm run test:browser`, which codex's macOS sandbox denies, so a kimi reviewer executes the two-direction guard proof itself instead of auditing a supplied transcript. All five UI-backlog findings were re-reviewed on the full mandate and all five were accepted again with zero comments, each with a reviewer-executed revert→fail→restore→pass cycle confirmed from its own transcript rather than from its claim. **The trade-off is recorded, not hidden:** kimi's `-p` mode cannot command-scope Bash, so the reviewer holds broader shell access than codex did, restricted only by an agent-file tool allowlist and confined to a disposable worktree. Tighter sandbox versus ability to actually run the tests — the owner chose the latter. Machine-local incantations and the pinned tier live in `.agents/review/harnesses.local.json`. When reading kimi transcripts, note that `npm run test:browser | tail -N; echo $?` reports `tail`'s exit status: grade on the `Browser guard failed:` line, not the echoed code.
-- **SUPERSEDED, RETAINED AS HISTORY — the codex reviewer could not execute browser guards.** codex's macOS sandbox denies the Mach port rendezvous Playwright needs, so `npm run test:browser` cannot run inside it. (A first, separate denial — loopback socket binding — was fixed with codex's own `sandbox_workspace_write.network_access=true` and is recorded in the machine-local harness cache.) The only codex option that would lift the Chromium denial is `--dangerously-bypass-approvals-and-sandbox`, which grants an unsandboxed shell on the owner's machine; that exceeds the codereview playbook's "read-only inspection plus a disposable worktree" grant and was **not** taken on agent authority. All five reviews therefore ran a narrowed, explicitly labelled mandate: the reviewer read the finding and diff, ran `node test.js` itself, adversarially audited the guard **source** for vacuity, and judged the coder-run two-direction transcript against it. `guard_confirmed: true` in these records means *sound by construction and consistent with its transcript*, not *reviewer re-executed*. **Owner call:** authorize the bypass, accept source-audited guard proofs as the standing norm here, or route browser-guarded findings to a harness that can run Chromium. `jt-1.md` carries the full account.
+- **THE PRODUCTION ABILITY-KEYWORD COMPOSER IS LANDED; ACTIVATION STILL NEEDS THE REAL CATALOG.** `.agents/review/ability-keyword-production-plan.md` owns the completed slices and their verification. AKP-4 remains gated on stable character-owned abilities, invocation families, and complete campaign bindings from the versioned class/catalog creator; prototype fixtures cannot satisfy that dependency.
+- **REVIEW REMAINS OPT-IN; THE OWNER-SELECTED REVIEWER IS KIMI K3 AT MAX EFFORT (2026-08-03).** `.agents/review/index.md` owns the verdicts and per-finding trail. Harness configuration is machine-local in `.agents/review/harnesses.local.json`; re-check local capability before dispatch.
+- **THE SIGNED RULES CHAPTERS AND VERSION DECISIONS ARE THE DESIGN BASELINE.** `.agents/decisions.md` owns the adopted resolution/effect chapters and campaign/character-version contract. Phase PT's landed storage does not implement that version architecture; its plan must be revised before further portability work. The remaining decision queue is `.agents/review/rules-system-plan-intake.md`.
 - **CAMPAIGN CLASS EXPOSURE, EVIDENCE TIERS, AND VERSION UPGRADES ARE SETTLED; IMPLEMENTATION IS NOT PLANNED OR AUTHORIZED.** The active 2026-08-02 decisions in `.agents/decisions.md` define cumulative Base (recommended), Advanced, and Expert (full) class sets selected at campaign creation from the sets allowed by the administrator. Expert holds the full candidate catalog, including unproven or deliberately demanding mechanics; Advanced holds mechanics that survived focused testing but retain noticeable burden; Base holds mechanics demonstrated to be understandable and enjoyable without repeated prompting. All included classes start at level 1; tiers are not power or level gates. Campaigns pin their set/catalog version. Safe host upgrades apply deterministic catalog migrations through a validated, atomic new campaign version while retaining the prior version read-only and saving player-owned compatible PC snapshots. Character versions progress independently and never merge. Exact tier membership, schemas, UI, migrations, and code remain open.
 - **THE TEXT-ENTRY INTERACTION-BURDEN AUDIT IS A PLAYTEST RISK INVENTORY, NOT A ROSTER FILTER.** `.agents/review/interaction-burden-audit.md` identifies where Forms, Exposure, ordered Adept sequences, Openings, loadouts, separately controlled companions, Catalyst Cues, Rider state, intrusion procedure, and the three frozen economies may produce repeated prompts, forgotten state, dictated rotations, or agency-erasing automation. None is admitted, removed, folded, simplified, or assigned to a tier by the paper audit. Focused testing must compare the same character and encounter with only the candidate mechanic changed, observing meaningful choice, UI direction, memory, voluntary use, automation, prompt count, and turn time. Promotion or demotion occurs through later catalog versions and safe upgrades. The audit alone approves no interaction gate, roster, economy, or implementation.
 - **THE REJECTED IBP-2 RUNNER IS DELIBERATELY UNCOMMITTED AND MUST NOT BE CLEANED UP.** The modified `README.md`/`verify.mjs` and untracked `app.js`/`index.html`/`styles.css` under `.agents/review/interaction-burden-playtest-harness/` are the owner-rejected menu-driven runner, held untouched pending explicit disposal authority (2026-08-02 decision in `.agents/decisions.md`). Do not resume it, commit it, stash it, or delete it. Committed IBP-1 remains evidence. The completed and owner-accepted ability-keyword composer prototype that this working tree accompanied is rotated to `docs/history/state-archive.md`; the landed production slices below supersede its no-integration clause.
-- **THE PRODUCTION ABILITY-KEYWORD PLAN IS OWNER-APPROVED; AKP-1 THROUGH AKP-3 ARE COMPLETE AS OF `f042082`.** `.agents/review/ability-keyword-production-plan.md` authorizes AKP-1 through AKP-4 in order, one verified commit per slice. AKP-1 supplies the shared deterministic matcher/insertion helpers, canonical server-owned trigger projection and revision digest, inert live party projection, and seat-safe trigger whitelist. AKP-2 adds the exact-prose/revision-only request boundary, authenticated server recomputation, immutable Council declarations, stale-before-model handling, and the separate bounded invocation record preserved through recent history, bundle v3 import/export, and forks while remaining absent from seat journals. AKP-3 replaces the live action input with the native textarea/pointer-inert mirror, exact owned-term highlights, campaign-worded ability insertion, suggestion-only typo recovery, opaque revision echo, exact-prose retry/stale recovery, and character/table-safe optimistic cleanup. Invocable abilities are accessible family-labelled buttons; passive and existing free-text abilities remain non-button cards. Unit/browser verification and the exact-prose guard proof are green; the separate hands-on Chrome pass was unavailable, while automated desktop and narrow runs passed. AKP-4 remains blocked until the real versioned class/catalog creator supplies complete stable abilities and bindings; prototype fixtures cannot fill that gap. No real campaigns need generated-rules-card migration, code never deletes disposable test campaigns automatically, and no generated-card converter or dual trigger path is built.
 - **CATALOG AVAILABILITY IS CONFIGURED AND NEUTRAL, NOT A MODEL CHARACTER JUDGMENT.** Only the campaign's selected released set/catalog is given to generation and creation. Out-of-set, disabled-module, unreleased, or honestly incompatible options are simply unavailable with a factual reason when one is useful. The prior “exclusion is an admission of failed imagination” posture is superseded. Any offered genre expression must still preserve exact mechanics, and models still cannot invent mechanic IDs or permissions.
-- **THE OWNER ACCEPTED THE CLASSIFICATION METHOD AND REQUESTED FAMILIAR WORKED TOUCHSTONES; THE EXACT ROSTER IS STILL UNAPPROVED.** As `fe168cc`, the audit decomposes Indiana Jones, MacGyver, Hannibal Smith, Ellen Ripley, Michael Knight/KITT, Conan, and Batman into primary class mechanics plus separate skills, occupation, rank, wealth, and assets. It replaces the unfamiliar Intruder/Catalyst/Rider references and deliberately leaves a game-character exemplar blank where no honest familiar one exists. The acceptance was of this mechanic-first decomposition and example format, not a package-level ruling.
-- **THE OUT-OF-SAMPLE ARCHETYPE AUDIT IS RETAINED TAXONOMY EVIDENCE, NOT THE CURRENT WORKING-ROSTER RECOMMENDATION.** `.agents/review/archetype-concept-coverage-audit.md` still owns the concept battery, archetype-by-genre option matrix, familiar touchstones, situationality, and balance fixtures. Its proposed ten universal candidates plus conditional Catalyst predated the interaction-burden test and is superseded as the next design baseline. No replacement roster is approved; do not regenerate the three packages from it.
 - **INTRUSION IS SETTLED AS TRAINING, NOT AN ARCHETYPE.** The active 2026-08-02 decision in `.agents/decisions.md` corrects the initial conclusion of `.agents/review/archetype-collapse-prototypes.md`: the prototype proved that linked nodes, system-scoped Access, exact permissions, and Alert can be a meaningful shared scenario subsystem, not that Intruder deserves a class seat. Appropriate skills let any character participate; intrusion specialization may add advanced authored operations and is naturally available to an Opportunist/Rogue-style build or through normal cross-training. The exact training package and numerical balance remain open.
 - **NPC CONSTRUCTION IS ASYMMETRIC BY DESIGN.** The active 2026-08-02 decision in `.agents/decisions.md` keeps NPCs in the common resolution, effect, harm, positioning, and encounter-budget language while giving them compact encounter kits rather than full player class sheets. Bespoke NPC-only mechanics are encouraged when they sharpen encounter identity; major bosses may have substantial exclusive actions, reactions, phases, and environmental effects. Those mechanics need difficulty/action-economy accounting, intelligible tells, and counterplay. Exact NPC cards and numerical pricing remain open.
 - **ADEPT PASSED FORMAL NON-COLLAPSE AND REMAINS A HIGH-RISK PLAYTEST HYPOTHESIS.** `.agents/review/archetype-collapse-prototypes.md` proves that ordered opening/flow/finisher state differs from freely selected Armsmaster Forms. The interaction audit predicts that exposing its legal sequence may yield “next, next, next, finish,” while automation may erase the choice. The owner did not approve folding it: a paired text-play comparison must establish whether the full sequence earns its burden.
-
-- **THREE CLOSED RULES-SYSTEM VARIANTS HAVE ONE COMPLETED FABLE REVIEW; NONE IS APPROVED OR IMPLEMENTED.** `.agents/review/rules-system-variants.md` owns exactly three whole packages over the signed d100/effect contracts: WWN/CWN-derived Commitment, SRD 5.2.1-derived Slots and rests, and 13th Age-derived Cadence. The frozen packages share nine archetypes, eighteen branches, a 9×10 mapping, deterministic 7–10 minute creation, exact spell/resource/recovery rules, opposition curves, assets/status, persistent help, worked builds, and a licensing/deviation ledger; their Intruder rows are now superseded, so no package can be adopted as written. One `claude-fable-5` openreview ran at owner-specified `high` over `dadc64a..54bf01b`; there was no model follow-up. Fable returned four candidates: legacy-runtime orientation and one spell-target phrase are admitted/open, the stale NEXT was corrected by mandatory state sync without re-review, and the claimed high-vs-max conflict is declined because the explicit owner instruction controls. `.agents/review/index.md` and `findings/rsv-*.md` own the trail. That review found no taxonomy or economy contradiction in its frozen input; later rulings supersede its roster assumptions. The audit predicts Commitment has lower interaction burden than Slots and rests or Cadence, but all three remain playtest hypotheses rather than paper admissions or rejections.
 
 - **GATE 5'S PROTOTYPE EXPOSED AN UNDEFINED CORE RULES CONTRACT AND IS NOT READY FOR APPROVAL.**
   The owner accepted the interaction hierarchy as the direction: choose a mechanical archetype,
@@ -67,41 +62,6 @@ to `docs/history/state-archive.md`.
   `.agents/decisions.md`). Do not invoke an external reviewer unless the owner explicitly requests
   `codereview`, `review`, `openreview`, or names one for the work. Code still requires an
   owner-approved plan and normal repository verification.
-- **THE GREENFIELD RUNTIME REWRITE IS ABANDONED** (owner decision 2026-07-26). The shipped Council
-  pipeline remains canonical. Product work continues incrementally through rules, UI, mapping, and
-  related improvements. The discarded proposal survives only as historical evidence at
-  `docs/history/runtime-greenfield-plan-abandoned.md`; none of its gates or open questions apply.
-- **RULES CHAPTERS 1 AND 2 ARE OWNER-SIGNED; THE DECISION QUEUE CONTINUES.** Chapter 1
-  (`docs/rules/resolution.md`) and Chapter 2 (`docs/rules/effects.md`, r24 substantive pin
-  `6772d33`) are canonical. Chapter 2 closed r28 with zero findings and was signed off
-  2026-07-27, enacting its three declared Chapter 1 refinements and closing the D2 catalog-design
-  gate. `.agents/review/rules-system-plan-intake.md` owns the remaining decision queue; no rules
-  code before a concrete phase and an owner-approved plan.
-- **PHASE PT'S S1.1-S1.4 ARE LANDED, BUT ITS ONE-RECORD FOUNDATION IS SUPERSEDED AND THE PLAN MUST BE REVISED BEFORE MORE PORTABILITY WORK.** The 2026-08-02 versioning decision replaces one canonical character record/no branches with one player-owned lineage containing independently playable rules-version snapshots created during safe campaign upgrades. Each version may be active in at most one compatible campaign and progresses independently without merging. Retained D3 rules still require first entry to fill missing ability-presentation bindings; returns reuse saved ability wording exactly and review only newly gained abilities lacking destination wording. Archetype is
-  stable and player-facing; the player's own title never auto-translates. Creator maps a concept to
-  a known archetype ID, tailors its campaign description, may show public local profession-name
-  examples, and asks the player to confirm. Stage 1 Gate 7 is settled: no automatic
-  character-name/title translation; broader proper-name/alias policy and player-driven title-edit
-  workflow remain future. The exact archetype roster remains Gate 5 and blocks
-  S1.5 Creator/onboarding work, not S1.3. Portability reads
-  live destination outline/setting, latest six turns chronological, and top eight relevant
-  memories by importance then recency through direct helpers shared with MCP. The GM judges fit,
-  the engine validates exact requested known ability IDs and allowlisted display-name/prose fields,
-  and the player approves wording. S1.3's proposal seam is read-only, derives ability slots
-  internally, permits one generic contract retry, and treats wording as non-authoritative flavor.
-  Every actual number/stat/resource change, damage result, or XP award remains canonical-Council
-  authority. A
-  deterministic canon-basis digest detects stale drafts but is not canon. There is no second
-  settings checklist, classifier, editor, sync workflow, or self-network call. The landed storage
-  does not implement the new campaign-version, character-version, migration, or deletion contract;
-  `plan.md` and the v3.1 design record are no longer cold-implementable until revised.
-  S1.4 stores immutable character/campaign/ability wording separately from versioned campaign
-  vocabulary, gives every direct SQLite operation explicit transaction ownership, and round-trips
-  active linked rows through bundle v2 while v1 imports empty portability state. Because S1.3 emits
-  no engine-owned campaign semantic keys, runtime shared batches are rejected rather than inferred from prose;
-  shared storage awaits a later producer. Canon-echo comparison neutralizes Unicode formatting while
-  preserving legitimate script/emoji shaping; unsafe invisible and bidi controls fail at both proposal
-  and persistence boundaries. No route, UI, movement, narration, or mechanic path changed.
 - **PHASE PT REVIEW REPAIR PLAN IS DRAFTED, NOT APPROVED; GATE 5'S ROSTER IS STILL UNSETTLED.**
   `plan.md` specifies two one-finding commits: PT-R1 makes live ability identity and Referee
   authority exact end to end; PT-R2 unifies source-ability text limits without truncating mechanics
@@ -114,28 +74,18 @@ to `docs/history/state-archive.md`.
   campaign-canonical narrator, server-resolved NPC voices, shared host/seat synthesis, and
   save-once replay. `.agents/review/index.md` owns the accepted implementation trail. The phase
   remains open until a real session confirms the voice experience is better.
-- **THE OWNER-APPROVED UI BACKLOG IS COMPLETE AND MERGED.** All five findings are fixed, guarded,
-  reviewed, accepted and on master; see the stack entry at the top of this section. The backlog
-  has no items left.
 - **THE REMOTE TWO-HUMAN MULTIPLAYER PLAYTEST REMAINS PENDING.** App-side seat work is landed;
   connectivity is owner-handled and out of repo scope. Seat isolation must be re-tested whenever a
   field crosses a seat payload, audio, or error boundary.
-- **KNOWN PARKED DEFECT, REVERIFIED AT `3b659bc`:** `map-render.js:142` draws the location title
-  as an unclipped SVG `<text>`. A long location name can overrun the canvas; the landed `map-1`
-  fix deliberately covered area labels only.
 
 ## Next
 
-**NEXT:** The UI backlog is merged and pushed to both remotes; the five retained `fix/*` branches
-carry nothing absent from master and may be deleted on an explicit owner go. The reviewer-transport
-question is settled — kimi k3 at max. Separately, AKP-4 and real ability
-activation remain blocked until the versioned class/catalog creator
-supplies complete stable character abilities, invocation families, and campaign bindings; do not
-seed provisional prototype abilities to populate the completed composer. Do not resume the rejected
-IBP-2 runner. Separately, no further Phase PT
-implementation may proceed until an owner-approved revision incorporates campaign sets, safe
-upgrades, class migrations, and player-owned character versions. The prior Fable items `rsv-1` and
-`rsv-4` remain downstream.
+**NEXT:** Revise Phase PT around the settled campaign/character-version contract before seeking
+approval for further portability work. AKP-4 and real ability activation remain blocked until the
+versioned class/catalog creator supplies complete stable character abilities, invocation families,
+and campaign bindings; do not seed provisional prototype abilities. Do not resume the rejected
+IBP-2 runner. The prior Fable items `rsv-1` and `rsv-4` remain downstream. Completed UI work is
+tracked in `.agents/review/index.md`; deleting retained local branches requires a separate owner go.
 
 ## Prior queue context
 
@@ -150,9 +100,6 @@ remaining bullets retain their independent priority.
 
 - Continue the owner decision queue one item at a time from the canonical queue in
   `.agents/review/rules-system-plan-intake.md`.
-- The UI backlog is done pending merge; see the stack entry under `## Now`.
-- The concrete mapping candidate is the parked location-title overflow defect; draft and approve
-  its fix plan before changing code.
 - Phase V's pending feel gate is a real voice session with narrator plus multiple NPC lines,
   checking sticky identities, moods/tones, Skip, and shared host/seat delivery.
 - For the combined host/seat playtest, configure `ACCESS_SECRET` and `ADMIN_SECRET`, expose the
@@ -160,6 +107,13 @@ remaining bullets retain their independent priority.
 
 ## Blockers
 
+- Former mapping blocker cleared as of `af69a85`: the parked location-title premise is false.
+  `map-render.js` now fits and clips the title; fix `d4f680b` arrived through merge `a5c15d2`,
+  whose renderer/test/review content matches its merged branch. `.agents/review/findings/map-2.md`
+  owns the completed proof and verdict; no title-overflow repair remains queued.
+- Ability activation remains gated on the real versioned class/catalog creator, as recorded in
+  `.agents/review/ability-keyword-production-plan.md`; the landed generic composer supplies no
+  provisional player abilities.
 - Phase PT's approved plan and v3.1 design still encode one canonical character record with no alternate versions. The 2026-08-02 owner decision supersedes that foundation; campaign/character version storage, atomic migrations, compatibility, and deletion require a revised plan before code work.
 - Phase PT's drafted two-slice repair plan still owns admitted findings, but a simple approval is no
   longer sufficient: the campaign/character-version replan must first prove those repairs' identity
@@ -176,65 +130,18 @@ remaining bullets retain their independent priority.
 
 ## Verification
 
-- AKP-1: `node test.js`, `node --check public/ability-keywords.js`, `node --check ability-trigger-state.js`,
-  and `git diff --check` are green on 2026-08-03. Guard proof temporarily disabled normalized
-  trigger-collision rejection; the dedicated collision assertion failed, then the restored code
-  returned the full suite green. Coverage includes exact/alias matching, Unicode UTF-16 ranges,
-  word boundaries, longest overlap, typo suggestion without activation, passive/legacy exclusion,
-  binding/family validation, revision invalidation, live inert projection, and seat isolation.
-- AKP-2: `node test.js`, syntax checks for every changed JavaScript file, and `git diff --check`
-  are green on 2026-08-03. Guard proof temporarily accepted unsupported request fields; the forged
-  cross-character `abilityIds` assertion failed, then the restored request allowlist returned the
-  full suite green. Coverage includes exact untrimmed prose, shared scan parity, host/seat speaker
-  selection, stale 409 before model/write, immutable Council context and model-field overwrite,
-  bounded range validation, corrupt-history fail-closed behavior, opening empty records, bundle-v3
-  import remapping, fork identity, older bundle normalization, and seat journal isolation.
-- AKP-3: `node test.js`, `npm run test:browser`, syntax checks for `public/app.js`,
-  `test-browser.mjs`, and `test.js`, and `git diff --check` are green on 2026-08-03. Guard proof
-  temporarily trimmed outgoing player prose; the exact-prose browser assertion failed, then the
-  restored submission path returned the full suite green. Automated desktop and narrow-layout
-  coverage passed. A separate hands-on Chrome pass could not run because no controllable browser
-  was available.
-- Automated: `node test.js` — green for IBP-1 on 2026-08-02. The focused
-  `node .agents/review/interaction-burden-playtest-harness/verify.mjs` is also green. Its guard proof
-  rejected a variant-owned result tape, a linked technique that advanced only on success, and an
-  unknown nested character field before each mutation was restored. Prototype-local
-  `node .agents/review/gate-5-character-creation-prototype/verify.mjs` is also green;
-  prominence guard proof temporarily narrowed the right pane from 390px to 300px, and the new
-  assertion failed before restoration and passed afterward.
-- Ability-keyword prototype: focused `node .agents/review/ability-keyword-composer-prototype/verify.mjs`,
-  `node --check` for its app, `node test.js`, and `git diff --check` are green. The AKC-1 guard failed
-  when a `bakcstab` suggestion was deliberately allowed to contribute Backstab's ID; the AKC-2 guard
-  failed when exact player prose was deliberately rewritten with bracket markup. Both mutations
-  were restored and the focused verifier returned green. Browser control was unavailable, so the
-  plan's hands-on Chromium desktop/narrow, caret, undo/redo, paste, IME, and visual alignment checks
-  remain unrun for the owner's evaluation.
-- S1.4 guard proof: temporarily disabling the campaign-vocabulary UPDATE trigger failed the new
-  immutable-row assertion. Separately weakening direct-operation queue ownership, stale-owner expiry,
-  Unicode-format echo normalization, proposal/persistence alignment, or shaping support made its
-  corresponding regression fail; restoring each returned the full suite green.
-- S1.4 adversarial coverage proves missing-only exact reuse, two-character isolation, no runtime
-  arbitrary shared keys, atomic conflict/idempotency behavior, owned read/export snapshots with stale
-  async-owner rejection, Unicode canon-copy resistance without an English-only presentation boundary,
-  mechanics/canon/title/inventory exclusion, bundle v1→v2 compatibility and exact ID remapping,
-  counter headroom, and unchanged host/seat payloads.
-- S1.3 guard proof: temporarily allowing a nested model-supplied `cost` field failed the suite at
-  the invalid-first retry assertion; restoring the strict row allowlist returned the full suite green.
-- Read-only adversarial review confirmed flavor-only sensation passes, explicit numeric/stat/resource
-  claims fail, and the proposal has no DML or mechanics-application path.
-- Privacy boundary is structural plus verbatim-overlap lint: raw canon/basis/anchors never return.
-  Canon has no visibility metadata, so semantic secret paraphrases cannot be proven impossible.
-- Manual/browser playtest: not run for the Gate 5 contextual guide; the owner's experience evaluation
-  is pending. S1.3-S1.4 remain internal-only seams with no route or shipped UI change. See
-  `.agents/repo-guidance.md` (Verification) for required surfaces and coverage boundaries.
-- Guard-proof requirements and anti-vacuity practice live in `AGENTS.md` and
-  `.agents/decisions.md`; the codereview playbook applies only when explicitly invoked.
-- Live seat verification uses a throwaway store: mint seat → `/api/seat/session` → leak-scan the
-  payload. Release/revoke are destructive.
-- Desktop shell verification is `cargo build` in `desktop/src-tauri`.
+- `.agents/repo-guidance.md` owns the required automated and playtest entry points.
+- `.agents/review/ability-keyword-production-plan.md` owns production composer verification and
+  its outstanding hands-on browser limitation. Prototype results remain in their plan records.
+- `.agents/review/index.md` and its per-finding records own landed fixes and guard proofs;
+  Phase PT's implementation evidence remains in `plan.md` and the portability design record.
+- Phase V's owner voice verdict and the remote two-human session remain unrecorded; neither feel
+  gate is treated as complete by the automated implementation results.
 
 ## Active Sources
 
+- `.agents/review/ability-keyword-production-plan.md` — landed composer contract and catalog-gated activation.
+- `.agents/review/rules-system-variants.md` — retained package comparison, not an approved roster or economy.
 - `.agents/review/interaction-burden-audit.md` — current text-entry risk inventory, paired-test hypotheses, and settled tier-evidence policy; no roster or tier membership is approved.
 - `.agents/review/interaction-burden-playtest-plan.md` — retained Armsmaster/Adept fixture contract; IBP-1 is complete and its rejected menu-driven IBP-2 is superseded.
 - `.agents/review/ability-keyword-composer-plan.md` — completed and owner-accepted non-shipping proof contract for inline exact-word recognition, ability-card insertion, and non-activating spelling recovery.
