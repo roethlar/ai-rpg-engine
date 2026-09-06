@@ -2907,8 +2907,10 @@ player ownership, catalog compatibility, atomic campaign upgrades, independent c
 binding and invocation integration, lifecycle/bundle behavior, staged playtests, delivery order,
 and verification. Reusable player keys and simple administrator recovery are settled as of
 2026-09-06; section 3.3 removes the overbuilt credential workflows at the owner's direction.
-Campaign/character compatibility is the next question. No implementation, taxonomy, catalog
-release, rules economy, or phase reorder is approved by this revision.
+Campaign/character compatibility is already settled by the 2026-08-02 upgrade decision; its
+duplicate approval gate is removed. Remaining design work concerns Creator/class definitions,
+description scope and unresolved mechanics. No implementation, taxonomy, catalog release,
+rules economy, or phase reorder is approved by this revision.
 
 **Landed:** S1.1-S1.4 and the generic composer/invocation infrastructure AKP-1 through AKP-3.
 AKP-4 still requires the real versioned catalog/creator and executable mechanics. The new plan

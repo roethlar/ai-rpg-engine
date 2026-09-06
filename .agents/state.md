@@ -82,11 +82,13 @@ to `docs/history/state-archive.md`.
 
 ## Next
 
-**NEXT:** Present campaign/character compatibility in gameplay terms from section 4 and section 10,
-item 2 of the version-plan draft. Proposed initial rule: matching rules/catalog versions and all
-the character's options allowed by the destination campaign; otherwise use a compatible saved
-character version or an explicit campaign upgrade. Key choice and simple admin recovery are settled.
-No whole-plan or code approval is implied.
+**NEXT:** Revise the Creator/class-model proposal around the existing class-set and upgrade
+decisions, carrying the open description-scope finding and actual unresolved mechanics. Present
+only a concrete new game-design choice after checking existing rulings. Compatibility is already
+settled by the 2026-08-02 upgrade decision: use a compatible saved character version or an allowed
+destination-campaign upgrade, never a silent downgrade. The duplicate compatibility approval gate
+has been removed. Keys/reset, the single-composer direction and staged evidence policy are also
+settled. Optional archive controls stay deferred; no whole-plan or code approval is implied.
 AKP-4 still needs the real versioned catalog/creator; no provisional abilities or rejected IBP-2
 runner may supply it. The prior Fable items `rsv-1` and `rsv-4` remain downstream. Completed UI
 work is tracked in the review index; retained branch deletion still needs a separate owner go.
@@ -117,9 +119,11 @@ remaining bullets retain their independent priority.
 - Ability activation remains gated on the real versioned class/catalog creator, as recorded in
   `.agents/review/ability-keyword-production-plan.md`; the landed generic composer supplies no
   provisional player abilities.
-- Phase PT's historical one-record plan is superseded. The version architecture is now drafted,
-  but compatibility/legacy handling, Creator description, rules/catalog content
-  and recovery lifecycle still need the rulings identified in the new plan before code approval.
+- Phase PT's historical one-record plan is superseded. The version architecture is drafted and
+  awaits implementation approval. Creator/class-catalog work still needs the open taxonomy,
+  description and mechanics rulings; compatibility and upgrade behavior are already settled.
+  Remaining legacy/freeform changes are raised only when a concrete cutover changes that behavior;
+  optional archive features do not block unrelated slices.
   Safe upgrades also require a real persisted encounter boundary; the current turn encounter flag
   cannot prove one.
 - Phase PT's two admitted repairs remain held for implementation approval. Section 7 of the new
@@ -145,7 +149,7 @@ remaining bullets retain their independent priority.
 
 ## Active Sources
 
-- `.agents/review/campaign-character-version-plan.md` — current unapproved version architecture, simple player-key/admin-reset contract, next compatibility decision, proposed delivery and verification gates.
+- `.agents/review/campaign-character-version-plan.md` — current unapproved version architecture applying settled compatibility/upgrades and simple player keys; remaining Creator/mechanics work and delivery gates.
 - `.agents/review/ability-keyword-production-plan.md` — landed composer contract and catalog-gated activation.
 - `.agents/review/rules-system-variants.md` — retained package comparison, not an approved roster or economy.
 - `.agents/review/interaction-burden-audit.md` — current text-entry risk inventory, paired-test hypotheses, and settled tier-evidence policy; no roster or tier membership is approved.
