@@ -6,9 +6,13 @@ staged class playtests, then present the first unresolved decision. The authoriz
 planning and record updates only. No class roster, economy, authentication design, implementation
 slice, external review, data disposal, or phase reorder is approved by it.
 
-**Current decision:** player ownership across campaigns, section 10, item 1. The proposed data
-model below deliberately leaves credential implementation gated on that ruling. Subsequent
-decisions are presented individually; approval of one never approves the rest of this draft.
+**Settled 2026-09-05:** the owner chose a reusable private player key, not account sign-in, for
+cross-campaign library ownership. `../decisions.md` owns that ruling. Section 3.3 proposes the
+ownership/credential contract; its implementation is still unapproved.
+
+**Current decision:** lost-key recovery authority, section 10, item 1. Administrator-assisted
+recovery and player-held recovery proof have different trust/cost consequences. Present that
+choice alone before the compatibility decision; no other pending ruling is implied by choosing keys.
 
 **Evidence baseline:** `e647c5a`. Function references identify current integration surfaces;
 re-read them at the implementation base. No runtime or browser tests were run for this draft.
@@ -68,7 +72,7 @@ Public responses name `campaignId`/`characterVersionId` explicitly and add disti
 |---|---|
 | New `campaign_lineages` | Logical campaign ID and one active physical `campaign_id`; unique active head |
 | Existing `campaigns` | One physical campaign version; add lineage, parent version, monotonic version number, lifecycle, mutation revision, rules/catalog pins, selected class set |
-| New `character_lineages` | Logical player character ID and owner principal reference; ownership implementation awaits section 10.1 |
+| New `character_lineages` | Logical player character ID with stable player-principal FK; key rotation never changes ownership; proposed contract in section 3.3 |
 | Existing `player_characters` | One independently playable character version; add lineage, parent version, monotonic version number, rules/catalog pins and mutation revision; retain checkout fields |
 | Existing `characters` | Campaign-version-local member and arrival/current snapshots; its `player_character_id` identifies a physical character version, never the lineage |
 | Existing vocabulary/bindings | Physical campaign/version keys remain; profile key now denotes a physical character version; add validated `aliases_json` with empty-array legacy default |
@@ -124,6 +128,111 @@ This proposal preserves data; it does not settle the future legacy/freeform prod
 remaining ruling must define legacy play/import availability at final cutover. No real data is
 deleted by schema startup, import, activation or catalog installation. Disposal of a resolved
 throwaway store remains a separate explicit operator action.
+
+### 3.3 Player-key ownership and recovery
+
+The reusable private key is owner-selected. The following schema, transport and lifecycle details
+are proposed implementation requirements, not a separate implementation approval. Key recovery
+authority remains the one product choice identified at the end of this section.
+
+**Principal and credential:** add a stable server-local player principal, with every owned
+character lineage referencing that principal. A key is a replaceable credential for the principal,
+not the lineage ID or the ownership record. Initially permit one active private key per principal,
+usable across that server's campaigns; no cross-server identity federation or account provider.
+Generate an opaque typed token from cryptographically random bytes, store only its SHA-256 hash,
+and return the raw value once. Reuse the existing seat-token crypto pattern with a separate prefix
+and validator. Do not reuse a seat token or a host/admin secret as a player key.
+
+**Initial claims:** propose administrator-provisioned, expiring one-use enrollment grants. The
+player redeems the grant to receive the private key; enrollment consumption, principal creation
+and initial credential creation commit atomically. A grant is not a normal library/play credential.
+For an existing unowned legacy lineage, use a separate one-use claim bound to that exact lineage
+and the authenticated player. Recheck unowned status at commit. Possession of a seat, a display
+name, a numeric profile ID, an import bundle or the shared host secret never auto-claims a library.
+Existing owned lineages cannot be claimed again; ownership transfer is outside this phase.
+
+**Credential transport and browser state:** use explicit same-origin bearer authentication on the
+designated player/library and admitted play routes, following the existing API header mechanism.
+Keep the player key separate from `aetheria_settings.accessToken`, host and admin credentials.
+Propose memory plus origin-scoped session storage for the active player key, allowing reloads but
+requiring the retained key on a new browser session. Do not place it in URLs, localStorage-backed
+shared settings, bundles, logs, model context, campaign records or error diagnostics. Clear it on
+logout and invalidate pending player-specific UI work on identity switch. Reuse `uiShowCopyDialog`
+for show-once issuance, including its selectable-field fallback; clipboard failure must never log
+the raw value. Record only a redacted operation failure in that case.
+
+Bootstrap from server-returned principal capabilities, not a browser prefix check that treats every
+non-seat credential as host. Capture/check the session epoch around bootstrap as well as polls.
+Player-to-player and player-to-host switches clear library/member caches and cannot reuse the
+host's `aetheria_my_character_<campaignId>` selection as ownership. Authentication expiry locks the
+session and stops reads/actions instead of ignoring failed polls. Preserve unsent prose only for
+the same principal; it must not appear after another player signs in. Forget/rotation notifications
+across open tabs contain no secret and trigger the same cleanup.
+
+**Authorization:** resolve a presented player key to an explicit `player` principal. A malformed,
+unknown or revoked typed player credential fails authentication even when localhost host auth is
+disabled; it never falls through to implicit host. Authorize the library by the owner FK, not by
+client identity fields. A player can inspect/select their own versions and make their own wording
+or replacement decisions, subject to existing active-link and destructive-confirmation rules.
+They gain no host/admin authority from library ownership. Enrollment/claim administration does
+not let the shared table-host credential reset a player's key or approve choices on their behalf.
+
+Private-player activation requires configured host authentication: the existing no-`ACCESS_SECRET`
+fallback also permits anonymous host/MCP reads, so it cannot coexist with private player libraries.
+Refuse enrollment/activation without a host secret and refuse startup in anonymous-host mode once
+private player ownership exists. Keep no-secret localhost only as the existing non-private
+single-operator mode with no private player state. Enrollment and claim administration require
+an explicit configured administrator secret, even on localhost. This is a proposed deployment
+prerequisite for the key implementation, not a change to current runtime configuration.
+
+Campaign admission remains host-controlled. For a player-key play request, derive eligible active
+members from the player's owned version links and the current campaign head, then validate the
+selected actor against that set and a live host-issued seat/admission record for that member. Mere
+profile ownership or an active member row without admission is insufficient. Seat revocation blocks
+play through that admission for both the seat token and player key; it does not revoke library
+ownership. The library key never reveals or depends on retaining the raw seat token. A player
+cannot enter or act in a campaign merely by naming its ID. A seat credential retains its existing
+one-member scope and cannot access the player's library
+or recover/rotate a private player key. Player-key authorization and seat admission are separate
+checks; neither substitutes for the other.
+
+Convert campaign GET, turn-response, journal and browser routing branches that currently treat
+every non-seat as host. Full campaign/GM data is available only to an explicitly authorized host;
+all player-key play projections use the same member privacy boundary as seats. Reuse the explicit
+host check already present in `server-errors.js`. Keep unrelated library versions, private canon,
+other players' state and credentials absent from player/seat campaign payloads and diagnostics.
+Existing host library routes must not expose all private versions through their old unfiltered
+profile list; limit private-library access to the owning principal, while retaining separately
+authorized host views of current campaign members and explicitly unclaimed legacy profiles.
+
+**Rotation/revocation:** authenticated rotation atomically replaces the key hash while preserving
+the principal and all lineage/version IDs. Return the successor raw key once, invalidate old-key
+sessions and queued requests, and keep active campaign state unchanged. If delivery fails, the
+new key cannot be redisplayed from its hash; the chosen recovery path is required. Explicit key
+revocation blocks library/player-key access without deleting characters or campaigns. Seat
+credentials are independent grants: ordinary player-key rotation preserves them. Any operation
+offered as compromise recovery must explicitly revoke the player's linked seats and invalidate
+queued seat authorization as part of the same credential action; ordinary key rotation must not
+pretend it accomplished that broader action.
+
+**Recovery decision, still open:**
+
+- Recommended: the server administrator can manually approve recovery after identifying the
+  player outside the app, issue a short-lived one-use recovery grant, and atomically replace the
+  credential when the player redeems it. Use explicit `ADMIN_SECRET` authority, never the shared
+  table-host secret; recovery cannot rely on the current implicit-admin localhost fallback. Record
+  actor, affected player and outcome without raw credentials. This makes the administrator trusted
+  to restore, and potentially take over, library access; that power needs the owner's ruling.
+- Alternative: issue a separate player-held recovery secret with rotate-only authority, stored
+  hashed and rotated when used. No administrator reset through the product. Losing both the play
+  key and recovery proof means no product recovery. This reduces administrator recovery authority
+  but puts backup responsibility on the player and adds a second secret to retain.
+
+Under either answer, no name-only reset, guessed identity, host impersonation, or silent ownership
+reassignment exists. Routine rotation and recovery preserve the same principal and all compatible
+versions. Exact endpoint/schema changes, key format/limits, grant expiry, rate limits, enrollment
+delivery and the selected recovery protocol must be pinned in the authentication implementation
+slice before code; no raw key or recovery grant is generated by this planning work.
 
 ## 4. Catalog compatibility and creation
 
@@ -365,7 +474,7 @@ guard proof before code begins. Shared changes are split further if they cannot 
 | Independent evidence branch | Separately approved non-shipping single-composer pilot, then observed paired evidence before relevant catalog membership/release rulings | New bounded runner plan/artifact and evidence records; retained IBP-1 fixtures | Only the tested mechanic changes; rejected IBP-2 remains untouched; owner verdict required; no reorder of production S1.5-S1.8 |
 | Identity repairs | PT-R1, then PT-R2, one finding per commit | rpg-prompts.js, rpg-state.js, rpg-engine.js, ability-trigger-state.js, test.js | Exact production identity/Referee proof; consistent source limits; preserved replay/legacy text |
 | Inert version storage | Lineages, physical versions, pins, constraints, structural migration, read-only guards | db.js, rpg-engine.js, rpg-state.js, test.js | Restart/idempotence, rollback, detached-member preservation, zero sibling mutation |
-| Player authorization | Approved ownership/claim/recovery contract and scoped library | server.js, seat-auth.js, db.js, public/app.js, public/index.html, tests | Own-library access only; seats remain limited; no imported ownership escalation |
+| Player authorization | Owner-selected reusable key; approved claim/recovery contract and scoped library | server.js, seat-auth.js, db.js, public/app.js, public/index.html, tests | Explicit host-only full projections; own-library access only; key rotation preserves ownership; seats remain limited; no imported ownership escalation |
 | Draft/upgrade services | Durable candidate state, authored migration registry, approval digest, safe-boundary checks; routes remain unavailable without real catalog/runtime prerequisites | New focused version service/catalog modules, existing DB/engine/queue, tests | Whole-party atomicity, no nested transaction or model calls inside commit, stale/concurrent rejection |
 | Catalog and S1.5 | Real released definitions/families, deterministic legal choices, exact approved wording and complete starting state | Approved catalog modules, prompts, engine, server, creator UI, tests | Creator cannot mint mechanics; no partial or unexecutable activation; description gate closed |
 | S1.6 | Compatible version selection, missing-wording approval and membership change | Engine, server, public/app.js, test.js, test-browser.mjs | Exact return wording, restart/cancel/stale safety, independent versions |
@@ -412,6 +521,17 @@ New acceptance matrix:
   ownership or synthesize a playable definition, and all included invocation references remap.
 - Throwaway-store host/seat smoke and desktop/narrow browser runs exercise create, join, move,
   upgrade, stale retry, archive, export/import and the selected ownership flow without data leaks.
+- Player-key tests cover enrollment/claim single-use races, cross-player library denial, unknown
+  typed credentials under no-host-secret localhost mode, explicit host/player/seat projection,
+  zero URL/log/clipboard-fallback credential exposure, and queued-request invalidation on rotation.
+  Prove unchanged lineage/version ownership after rotation and recovery, the selected reset
+  authority boundary, and the distinct seat consequences of routine rotation and compromise recovery.
+  Revoking host-issued admission must block player-key play as well as its seat token while keeping
+  owner-library access intact; an owned but unadmitted member must never become an eligible actor.
+- Include anonymous/host/admin/player/seat HTTP authorization over library, campaign, journal,
+  audio and MCP surfaces; private-player startup/enrollment must reject missing host authentication.
+  Browser checks cover session reload, stale bootstrap after identity switch, expired-key polling,
+  cross-tab forget/rotation and non-disclosure of the previous player's cached library or draft.
 
 Final real-data session: two catalog-backed characters, same-word ownership isolation, unavailable
 and multiple declarations under the approved action economy, table-talk no-op, upgrade refresh
@@ -421,15 +541,16 @@ two-human feel gates remain independently pending.
 
 ## 10. Owner decisions and stopping point
 
-This list is agent-facing sequencing, not a batch owner ask. Product rulings below remain open.
+This list is agent-facing sequencing, not a batch owner ask. The reusable-private-key direction
+is settled in the 2026-09-05 decision; the remaining product rulings below are open.
 
-1. **Persistent player ownership.** Existing seat credentials identify one campaign/member and
-   the shared host controls the character library. Choose how a player proves library ownership
-   across campaigns: reusable private player credential or account sign-in. Proposed first option
-   extends the existing hashed-token pattern without an account provider; its recovery, revocation,
-   browser session handling, initial claims and trusted-host powers need a concrete follow-on
-   authorization contract. Account sign-in adds account/session/provider lifecycle work. A seat
-   must never automatically claim every version, and shared host access is not individual ownership.
+1. **Lost-key recovery authority.** Section 3.3 specifies the proposed stable ownership, claims,
+   credential separation and rotation contract. Choose administrator-assisted recovery or a
+   separate player-held recovery secret with no product administrator reset. Recommendation:
+   administrator-assisted recovery, with explicit administrator authentication and recorded manual
+   authorization. It avoids permanent lockout but entrusts that administrator with recovery power.
+   A shared table host or seat cannot recover a library key under either choice. This question
+   does not reopen private key versus account sign-in or authorize implementation.
 2. **Compatibility and legacy boundary.** Rule on section 4's exact-manifest/allowed-options
    proposal, then the remaining D13 legacy/freeform treatment. These are separate asks. No guessed
    legacy conversion, automatic downgrade, or automatic deletion under either answer.

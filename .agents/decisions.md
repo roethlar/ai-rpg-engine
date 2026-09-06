@@ -1593,3 +1593,19 @@ This grant approves drafting and maintaining the affected records. It does not a
 authentication model, class taxonomy, catalog membership, rules economy, schemas, phase reorder,
 runtime implementation, external review, or data disposal. The active 2026-08-02 versioning and
 interaction-evidence decisions remain unchanged; further owner decisions come one at a time.
+
+### 2026-09-05 - Reusable private player key for cross-campaign character ownership
+
+**Status: Active credential-direction decision; implementation remains unapproved.**
+
+The owner chose a reusable private player key over account sign-in for access to a player's
+character library across campaigns. The key authenticates persistent player ownership; it is
+distinct from the existing campaign/member seat credential and shared host or administrator secret.
+The selected direction includes explicit key revocation and recovery design, without an account
+sign-in system in this phase.
+
+This choice does not itself settle who may recover lost access, grant a campaign seat, disclose
+GM-only data, transfer a character to another owner, or approve an authentication implementation.
+`.agents/review/campaign-character-version-plan.md` section 3.3 owns the proposed ownership,
+claim, rotation and recovery contract. Administrator-assisted recovery versus player-held recovery
+proof is the next separate owner decision.

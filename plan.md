@@ -2905,9 +2905,9 @@ valid CSS). Its project branch refs were deleted after CT landed; the postmortem
 2026-09-05 draft revision authorized for planning only. It proposes physical version identities,
 player ownership, catalog compatibility, atomic campaign upgrades, independent character versions,
 binding and invocation integration, lifecycle/bundle behavior, staged playtests, delivery order,
-and verification. Its first unresolved owner decision is persistent player ownership across
-campaigns. No implementation, taxonomy, catalog release, rules economy, or phase reorder is
-approved by this revision.
+and verification. The owner selected reusable private player keys on 2026-09-05; the current
+question is lost-key recovery authority. No implementation, taxonomy, catalog release, rules
+economy, or phase reorder is approved by this revision.
 
 **Landed:** S1.1-S1.4 and the generic composer/invocation infrastructure AKP-1 through AKP-3.
 AKP-4 still requires the real versioned catalog/creator and executable mechanics. The new plan
