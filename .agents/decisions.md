@@ -1607,5 +1607,24 @@ sign-in system in this phase.
 This choice does not itself settle who may recover lost access, grant a campaign seat, disclose
 GM-only data, transfer a character to another owner, or approve an authentication implementation.
 `.agents/review/campaign-character-version-plan.md` section 3.3 owns the proposed ownership,
-claim, rotation and recovery contract. Administrator-assisted recovery versus player-held recovery
-proof is the next separate owner decision.
+claim, rotation and recovery contract. The 2026-09-06 recovery/simplicity decision below settles
+recovery authority and supersedes the earlier elaborate credential proposal.
+
+### 2026-09-06 - Simple administrator-assisted player-key recovery
+
+**Status: Active product and scope decision; implementation remains unapproved.**
+
+The owner selected administrator-assisted recovery, then clarified: "this is a game. it's not
+necessary to build in enterprise-grade security for a character."
+
+Keep one reusable key per player and a straightforward administrator Reset Key action. Replacing
+the key preserves the stable player ID, all character versions and progress; the previous key
+stops working. Use the existing token settings and administrator interface patterns. Basic
+ownership and existing host/seat boundaries remain sufficient for this feature.
+
+The earlier draft's enrollment/claim grants, player-held backup secret, recovery-grant protocol,
+separate session framework, credential audit subsystem and new deployment gates are removed from
+scope. Do not turn key management into an authentication subproject or continue asking security
+policy questions before returning to gameplay planning. Section 3.3 of
+`.agents/review/campaign-character-version-plan.md` owns the simplified contract. This ruling
+does not approve product code or change the remaining rules/catalog decisions.
