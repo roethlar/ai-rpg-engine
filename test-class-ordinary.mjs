@@ -84,6 +84,18 @@ export function runClassOrdinaryTests() {
   const aided = finish(state, { kind: 'aid', target: 'character:2' }, 'success', { consentingActors: ['character:2'] });
   assert.equal(aided.state.actors['character:2'].conditions.inspired.class, 'boon');
   assert.throws(() => prepare(aided.state, { kind: 'aid', target: 'character:2' }, { consentingActors: ['character:2'] }), /already inspired/);
+  const npcConsent = { consentingActors: ['npc:5'] };
+  const aidedNpc = finish(state, { kind: 'aid', target: 'npc:5' }, 'success', npcConsent);
+  assert.equal(aidedNpc.state.actors['npc:5'].conditions.inspired.class, 'boon');
+  assert.equal(state.actors['npc:5'].willingTravel, undefined, 'Action consent cannot become persistent travel consent.');
+  const consentedConsequence = npc(state, 'npc:3', 'strike', 'character:1', npcConsent);
+  assert.equal(finalizeNpcConsequence({ state, plan: consentedConsequence }).state.actors['character:1'].health,
+    state.actors['character:1'].health - 5, 'Valid NPC consent survives the entire NPC consequence context.');
+  for (const consentingActors of [['npc:3'], ['npc:999'], ['npc:5', 'npc:5']]) {
+    assert.throws(() => prepare(state, { kind: 'aid', target: 'npc:5' }, { consentingActors }));
+  }
+  const absentConsent = structuredClone(state); absentConsent.actors['npc:5'].present = false;
+  assert.throws(() => prepare(absentConsent, { kind: 'move', area: 'yard' }, npcConsent), /outside the current scene/);
 
   const loose = 'item:scene:4:loose';
   const picked = finish(state, { kind: 'pickup', item: loose });

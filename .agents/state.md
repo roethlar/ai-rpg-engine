@@ -21,10 +21,12 @@ to `docs/history/state-archive.md`.
   ordinary movement/table talk, and an authored-setup live Magic Missile cast with real RNG.
   The successful cast took 23.3 seconds; Fireball's live follow-up was skipped at the call budget.
   No current-system willing-player enjoyment verdict or Base/Advanced promotion is established.
-  The final audit found required Rider gaps hidden by component fixtures: no live hull-damage
-  path, no authored vehicle-scale impact target and no replacement after loss. Next: implement
-  those actual-play paths, verify them through creation/Council/storage, then rerun combined tests
-  and finish the disposable preview/commit. No owner class-by-class review is required.
+  The final audit found required gaps hidden by component fixtures: Rider hull damage, targets
+  and replacement; Catalyst NPC cue triggers; Partner Scout destination discovery; and an
+  unreachable installation-repair promise. Ordinary actions now accept the same strict current
+  party-NPC consent as Council/effects; its guard proof and full suite pass. Next: close the
+  remaining paths through creation/Council/storage, rerun combined tests and refresh the disposable
+  preview. No owner class-by-class review is required.
 - **JOURNEY TEST DATABASE INCIDENT IS RECORDED.** The first standalone journey test
   loaded the configured database before assigning its temporary path. Test-owned rows were
   cleaned up, but normal schema/migration-marker/sequence changes remain. The owner was

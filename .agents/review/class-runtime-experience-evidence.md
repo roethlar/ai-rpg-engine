@@ -40,6 +40,15 @@ continuation are not hidden from the Referee or exposed as free permissions.
 
 ## Persistence
 
+The completion audit found that the ordinary-action context still accepted only
+PC consent references even though Council grounding and effects already allowed
+present party NPCs. That rejected valid ally actions when the same consent
+context reached an NPC consequence. The ordinary boundary now accepts exact
+party character/NPC references and still rejects opposition, unknown, absent or
+duplicate actors. Actual NPC kit and ordinary aid component regressions pass;
+restoring the PC-only guard fails the new assertion. Restored focused and full
+repository suites pass. No persistent consent flag is written.
+
 The exceptional export test found that copied equipment's original owner and
 previous item identity can belong to an earlier campaign. Item provenance is
 historical, unlike the live holder. `class-portability.js` now preserves that
@@ -181,7 +190,10 @@ The non-temporary resume refusal checks passed; removing the spell path guard
 failed its expected refusal before any database import, and restoration passed.
 
 The final completion audit found remaining Rider reachability work: actual hull
-damage, vehicle-scale foes and replacement after genuine vehicle loss. Earlier
+damage, vehicle-scale foes and replacement after genuine vehicle loss. It also
+found missing NPC action-completion events for Catalyst cues and a misbound
+destination discovery for Partner Scout. Mobile Bastion's movement works, but
+its advertised installation repair has no live damage producer. Earlier
 component fixtures do not establish those actual-play paths. The active plan
 owns that required follow-through; this verified integration slice does not
 close the goal early.

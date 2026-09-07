@@ -44,13 +44,14 @@ function contextFor(state, actor, raw, npc = false) {
   if (typeof raw.operationId !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$/u.test(raw.operationId)) fail('SHAPE', 'A stable action operation ID is required.');
   if (npc || raw.round !== undefined) positive(raw.round, 'round');
   if (raw.round !== undefined && raw.round !== state.turnOrder.round) fail('STALE', 'The action round is not the current recorded round.');
-  for (const [field, prefix] of [['affirmedOpposed', 'npc'], ['consentingActors', 'character']]) {
+  for (const [field, pattern] of [['affirmedOpposed', /^npc:[1-9]\d*$/u], ['consentingActors', /^(character|npc):[1-9]\d*$/u]]) {
     const refs = raw[field] ?? [];
     if (!Array.isArray(refs) || refs.length > 64 || new Set(refs).size !== refs.length
-      || refs.some(ref => !new RegExp(`^${prefix}:[1-9]\\d*$`, 'u').test(ref))) fail('SHAPE', `Invalid ${field} references.`);
+      || refs.some(ref => !pattern.test(ref))) fail('SHAPE', `Invalid ${field} references.`);
     for (const ref of refs) {
       const selected = actorRecord(state, ref, false);
       if (field === 'affirmedOpposed' && selected.party) fail('ALLEGIANCE', 'A party actor cannot be affirmed as opposition.');
+      if (field === 'consentingActors' && !selected.party) fail('ALLEGIANCE', 'Current-action consent requires a present party member.');
     }
   }
   const affirmedOpposed = [...new Set([...Object.entries(state.actors).filter(([ref, value]) => ref.startsWith('npc:') && value.present
