@@ -18,11 +18,13 @@ to `docs/history/state-archive.md`.
   connected to Council turns. The strict effect evaluator and versioned class extensions pass
   focused operation/rollback tests. Signed-rules execution, real creation/play integration and
   end-to-end verification remain in progress.
-  Creation/scene/world adapter and the creator UI are being integrated in the working tree;
+  Creation/scene/world adapter and the creator/seat UI are integrated;
   real HTTP/provider-stubbed creation, all-branch joining, reload and stale-write checks pass.
   Target turns currently refuse legacy d20 execution while Council integration is pending.
-  Parallel agents own class actions/progression, portability and seat projection; the active plan
-  records their contracts and evidence, and remains the completion audit.
+  Exact-world portability helpers pass component checks; legacy lifecycle paths still refuse target
+  worlds until their integration lands. Parallel work now covers ordinary actions and real creator
+  browser verification; root owns Council and lifecycle integration. The active plan records the
+  contracts and evidence and remains the completion audit.
   Class action/progression components now pass the full active-ability/mode matrix and real-adapter
   protection/transfer tests. Combined `node test.js` also passes creation and seat integration.
   These facts do not remove the pending Council/portability activation work.

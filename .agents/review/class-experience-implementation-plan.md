@@ -164,6 +164,23 @@ mutation logic. This temporary integration guard is not the delivered end state.
   dereferencing old scene targets. Required equipment and vehicle effect metadata are authored,
   not inferred from labels. All component, creation and seat runners now pass together in
   `node test.js`. The Council has not yet activated these components for live actions.
+- Creation/interface integration: actual HTTP catalog/create/join routes now instantiate the
+  pinned authored sheet, immutable bindings and a concrete scene in a single activation transaction.
+  All 24 branch joins, saved copies, independent vehicle identities and reload pass against real
+  SQLite; only setup prompts are stubbed. The HTTP fixture owns its app/limiter history rather than
+  weakening rate limits. `class-portability.js` validates/remaps exact worlds, historical cursors,
+  per-profile retained ability IDs and immutable check provenance in component tests. Legacy
+  export/import/fork paths explicitly refuse target worlds until those helpers are integrated.
+- Creator/seat interface: the shared create/join modal, complete authored card previews, optional
+  concept, failure/draft states, sticky submit controls and mobile same-list ability drawer pass
+  `npm run test:browser`. These creator API fixtures are mocked; `test-class-seats.mjs` separately
+  proves actual seat API/browser behavior with real target characters and 12 recorded d100 checks.
+  Privacy and count-cap guards were removed one at a time, failed, and were restored. Unsafe
+  imported annotation detail has an explicitly partial display projection and text sidecar, never
+  a fabricated authoritative ledger record. Local pinned FontAwesome 6.4.0 CSS matches the prior
+  SRI and all referenced fonts/license are bundled; rendered glyphs are verified offline. Root
+  inspected desktop creator and real mobile-seat screenshots. Full unit and browser suites pass.
+  A real creator-to-cast browser session and live Council execution remain pending.
 
 ## Completion Audit
 

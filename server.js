@@ -6,6 +6,7 @@ import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import * as db from './db.js';
 import * as rpg from './rpg-engine.js';
+import { getCatalogSummary } from './class-catalog.js';
 import {
   getServerAiConfig,
   loadAdminAiConfig,
@@ -418,6 +419,7 @@ function authenticateAdmin(req, res, next) {
 // Apply authentication to game and MCP APIs
 app.use('/api/campaigns', authenticate);
 app.use('/api/characters', authenticate);
+app.use('/api/class-catalog', authenticate);
 app.use('/api/audio', authenticate);
 app.use('/api/seat', authenticate);
 app.use('/api/admin', rateLimit(20, 60000), authenticateAdmin);
@@ -517,13 +519,28 @@ app.get('/api/characters', requireHost, async (req, res) => {
   }
 });
 
+app.get('/api/class-catalog', requireHost, (req, res) => {
+  try {
+    const genre = optionalBoundedString(req.query.genre, 'genre', MAX_GENRE_LENGTH, '');
+    const modules = req.query.modules === undefined || req.query.modules === '' ? []
+      : req.query.modules === 'rider' ? ['rider'] : null;
+    if (modules === null || ![undefined, 'true', 'false'].includes(req.query.alliedActors)) {
+      return res.status(400).json({ error: 'Invalid campaign support selection.' });
+    }
+    const capabilities = { rider: modules.includes('rider'), alliedActors: req.query.alliedActors === 'true' };
+    res.json(getCatalogSummary({ genre, capabilities, optionSet: 'expert' }));
+  } catch (error) {
+    res.status(400).json(errorPayloadFor(req, error, 'Could not load the class catalog.'));
+  }
+});
+
 // Create a new campaign (Rate limited: 5 campaigns per minute per IP)
 app.post('/api/campaigns', rateLimit(5, 60000), requireHost, async (req, res) => {
   try {
     // Server-owned AI config (decision 2026-06-11): client-supplied apiConfig is
     // ignored; the operator's /admin + env configuration is authoritative.
-    const { genre, characterName, characterClass, characterProfileId, characterMode, rulesMode, ruleset, tableStyle } = req.body;
-    const cleanRuleset = ['house', 'none'].includes(ruleset) ? ruleset : 'house';
+    const { genre, characterName, characterClass, characterProfileId, characterMode, rulesMode, ruleset, tableStyle, classSelection } = req.body;
+    const cleanRuleset = ['house', 'none', 'aetheria'].includes(ruleset) ? ruleset : 'house';
     const apiConfig = await getServerAiConfig();
     const cleanGenre = boundedString(genre, 'genre', MAX_GENRE_LENGTH);
     const mode = ['new', 'existing', 'copy'].includes(characterMode) ? characterMode : 'new';
@@ -532,7 +549,9 @@ app.post('/api/campaigns', rateLimit(5, 60000), requireHost, async (req, res) =>
       return res.status(400).json({ error: 'characterProfileId is required for existing or copied characters.' });
     }
     const cleanCharacterName = cleanCharacterProfileId ? '' : boundedString(characterName, 'characterName', MAX_CHARACTER_FIELD_LENGTH);
-    const cleanCharacterClass = cleanCharacterProfileId ? '' : boundedString(characterClass, 'characterConcept', MAX_CHARACTER_FIELD_LENGTH);
+    const cleanCharacterClass = cleanCharacterProfileId ? '' : cleanRuleset === 'aetheria'
+      ? optionalBoundedString(characterClass, 'characterConcept', MAX_CHARACTER_FIELD_LENGTH, '')
+      : boundedString(characterClass, 'characterConcept', MAX_CHARACTER_FIELD_LENGTH);
     const state = await rpg.createCampaign({
       genre: cleanGenre,
       characterName: cleanCharacterName,
@@ -542,6 +561,7 @@ app.post('/api/campaigns', rateLimit(5, 60000), requireHost, async (req, res) =>
       apiConfig,
       rulesMode,
       ruleset: cleanRuleset,
+      classSelection,
       // Validated engine-side against the option whitelist (Phase D)
       tableStyle: tableStyle && typeof tableStyle === 'object' ? tableStyle : null
     });
@@ -551,7 +571,7 @@ app.post('/api/campaigns', rateLimit(5, 60000), requireHost, async (req, res) =>
     // host-only route regains the model output that used to ride in the
     // message (parseJsonSafe now carries it out-of-band).
     console.error('Error creating campaign:', error, error.rawText ? `\nRaw model output: ${error.rawText}` : '');
-    const status = error.message.includes('checked out') || error.message.includes('no longer available')
+    const status = error.code === 'CLASS_STATE_INVALID' ? 400 : error.message.includes('checked out') || error.message.includes('no longer available')
       ? 409
       : error.message.includes('not found')
         ? 404
@@ -689,16 +709,17 @@ app.post('/api/campaigns/:id/join', rateLimit(10, 60000), requireHost, async (re
     if (isNaN(campaignId)) {
       return res.status(400).json({ error: 'Invalid campaign ID.' });
     }
-    const { characterName, characterClass, characterProfileId, characterMode } = req.body;
+    const { characterName, characterClass, characterProfileId, characterMode, classSelection } = req.body;
     const state = await queueCampaignTask(campaignId, () => rpg.joinCampaign(campaignId, {
       characterName: optionalBoundedString(characterName, 'characterName', 80, ''),
       characterClass: optionalBoundedString(characterClass, 'characterClass', 120, ''),
       characterProfileId: characterProfileId ? parsePositiveInteger(characterProfileId, 'characterProfileId') : null,
-      characterMode: characterMode === 'existing' ? 'existing' : 'new'
+      characterMode: ['existing', 'copy'].includes(characterMode) ? characterMode : 'new',
+      classSelection
     }));
     res.json(state);
   } catch (error) {
-    const status = error.message.includes('required') || error.message.includes('checked out') ? 400
+    const status = error.code === 'CLASS_STATE_INVALID' || error.message.includes('required') || error.message.includes('checked out') ? 400
       : error.message.includes('not found') ? 404
       : 500;
     res.status(status).json({ error: error.message });

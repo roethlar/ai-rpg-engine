@@ -13,7 +13,7 @@
   <!-- Localized DOMPurify Sanitization Parser (Secures script trust boundary) -->
   <script src="lib/purify.min.js"></script>
   <!-- FontAwesome Icons -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw==" crossorigin="anonymous" referrerpolicy="no-referrer">
+  <link rel="stylesheet" href="lib/fontawesome/css/all.min.css">
   <!-- Stylesheets -->
   <link rel="stylesheet" href="styles.css">
 </head>
@@ -79,6 +79,7 @@
           <!-- Dynamic choice buttons -->
         </div>
         <form id="action-form" class="action-form">
+          <button type="button" class="btn btn-secondary ability-access-btn" id="btn-open-abilities" title="Abilities" aria-label="Abilities" aria-controls="ability-drawer" aria-expanded="false"><i class="fa-solid fa-book-open"></i></button>
           <div class="action-composer-column">
             <label class="sr-only" for="action-input">Your action</label>
             <div class="action-composer" id="action-composer">
@@ -189,7 +190,9 @@
           </div>
         </div>
 
-        <div class="abilities-block">
+        <div id="class-runtime-details" class="class-runtime-details"></div>
+
+        <div class="abilities-block" id="ability-list-home">
           <div class="section-mini-title">
             <i class="fa-solid fa-sparkles"></i> Abilities
           </div>
@@ -279,19 +282,33 @@
   </div>
 
   <!-- DIALOG: CAMPAIGN CREATION WIZARD -->
-  <div class="modal" id="campaign-wizard-modal" style="display: none;">
-    <div class="modal-content glass-card">
+  <div class="modal" id="campaign-wizard-modal" style="display: none;" role="dialog" aria-modal="true" aria-labelledby="campaign-wizard-title">
+    <div class="modal-content glass-card class-creator-modal">
       <div class="modal-header">
-        <h2>Initiate New Campaign</h2>
-        <button class="btn-close" id="btn-close-wizard"><i class="fa-solid fa-xmark"></i></button>
+        <h2 id="campaign-wizard-title">New campaign</h2>
+        <button type="button" class="btn-close" id="btn-close-wizard" aria-label="Close creator"><i class="fa-solid fa-xmark"></i></button>
       </div>
       <div class="modal-body">
         <form id="campaign-create-form">
-          <div class="form-group">
-            <label for="input-genre">Campaign Genre / Setting</label>
+          <div class="form-group" id="campaign-genre-group">
+            <label for="input-genre">Genre / setting</label>
             <input type="text" id="input-genre" placeholder="e.g. Noir Cyberpunk Detective, Gothic Vampire Fantasy, Hard Sci-Fi Space Survival" required>
-            <span class="form-tip">Describe any setting you want. The AI Game Master will dynamically construct the entire storyline, atmosphere, acts outline, and custom visual themes.</span>
           </div>
+
+          <div class="form-group" id="ruleset-group">
+            <label for="select-ruleset">Rules</label>
+            <select id="select-ruleset">
+              <option value="aetheria">Aetheria</option>
+              <option value="house">Legacy / generated house rules</option>
+              <option value="none">Legacy / freeform</option>
+            </select>
+          </div>
+
+          <fieldset class="class-campaign-support" id="class-campaign-support">
+            <legend>Campaign support</legend>
+            <label><input type="checkbox" id="input-class-rider"> Mounts or vehicles</label>
+            <label><input type="checkbox" id="input-class-allies"> Companion or allied group</label>
+          </fieldset>
 
           <div class="form-group">
             <label for="select-character-mode">Player Character</label>
@@ -314,12 +331,14 @@
               <input type="text" id="input-char-name" placeholder="e.g. Jax Sterling, Alistair Thorne, Seraphina" required>
             </div>
             <div class="form-group flex-1">
-              <label for="input-char-concept">Character Concept / Archetype</label>
-              <input type="text" id="input-char-concept" placeholder="e.g. Exiled station medic, noir detective, desert courier" required>
+              <label for="input-char-concept">Concept / background <span class="optional-label">(optional)</span></label>
+              <input type="text" id="input-char-concept" placeholder="e.g. Exiled station medic, noir detective, desert courier">
             </div>
           </div>
 
-          <div class="form-group" style="margin-top: 12px;">
+          <div id="class-creator" class="class-creator"></div>
+
+          <div class="form-group" id="legacy-rules-fields" hidden>
             <label class="checkbox-container" style="display: flex; align-items: center; gap: 10px; cursor: pointer; text-transform: none; font-size: 13px; font-weight: 600;">
               <input type="checkbox" id="input-rules-mode" style="width: auto; cursor: pointer;">
               <span>Enable Rules Mode (Stat Dice Checks)</span>
@@ -327,17 +346,8 @@
             <span class="form-tip">Performs stat checks (d20 + mod vs DC) on active actions. Fails can result in HP damage. Conversation turns do not require rolls.</span>
           </div>
 
-          <div class="form-group" style="margin-top: 12px;">
-            <label for="select-ruleset">Ruleset</label>
-            <select id="select-ruleset">
-              <option value="house">House Rules (generated for this campaign)</option>
-              <option value="none">Freeform (no rule sheet)</option>
-            </select>
-            <span class="form-tip">House Rules generates a canon rule sheet — your abilities, costs, and limits — viewable in the Rules tab and applied identically every turn.</span>
-          </div>
-
           <!-- Table-style dials (Phase D) -->
-          <div class="form-row" style="margin-top: 12px;">
+          <div class="form-row" id="campaign-table-style-fields" style="margin-top: 12px;">
             <div class="form-group flex-1">
               <label for="select-helpfulness">GM Style</label>
               <select id="select-helpfulness">
@@ -356,7 +366,8 @@
               </select>
             </div>
           </div>
-          <span class="form-tip">Both are adjustable mid-campaign from the Rules tab. Pacing limits what the GM initiates, never what you may do.</span>
+
+          <div id="class-creation-error" class="class-creation-error" role="alert" hidden></div>
 
           <div class="form-actions">
             <button type="button" class="btn btn-secondary" id="btn-cancel-wizard">Cancel</button>
@@ -366,6 +377,16 @@
           </div>
         </form>
       </div>
+    </div>
+  </div>
+
+  <div class="modal ability-drawer" id="ability-drawer" role="dialog" aria-modal="true" aria-labelledby="ability-drawer-title" hidden>
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 id="ability-drawer-title">Abilities</h2>
+        <button type="button" class="btn-close" id="btn-close-abilities" aria-label="Close abilities"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div id="ability-drawer-slot"></div>
     </div>
   </div>
 

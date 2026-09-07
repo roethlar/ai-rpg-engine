@@ -777,5 +777,20 @@ export async function initDb() {
     console.log(`Assigned voice profiles to ${voicelessNpcs.length} existing NPC(s).`);
   }
 
+  // Target-rule campaigns own one atomic mechanical world; legacy rows remain unconverted.
+  const classColumns = {
+    campaigns: { rules_state_json: 'TEXT', rules_revision: 'INTEGER NOT NULL DEFAULT 0', rules_history_json: 'TEXT' },
+    characters: { class_build_json: 'TEXT' },
+    player_characters: { class_build_json: 'TEXT', class_state_json: 'TEXT' },
+    character_ability_bindings: { aliases_json: "TEXT NOT NULL DEFAULT '[]'" },
+    turns: { rules_snapshot_json: 'TEXT' }
+  };
+  for (const [table, columns] of Object.entries(classColumns)) {
+    const existing = new Set((await all(`PRAGMA table_info(${table})`)).map(column => column.name));
+    for (const [name, definition] of Object.entries(columns)) {
+      if (!existing.has(name)) await run(`ALTER TABLE ${table} ADD COLUMN ${name} ${definition}`);
+    }
+  }
+
   console.log('Database initialized successfully at:', dbPath);
 }

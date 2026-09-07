@@ -2215,3 +2215,306 @@ body.holodeck-idle .stars-bg { display: none; }
     transition-duration: 0.01ms !important;
   }
 }
+
+.class-creator-modal {
+  width: min(760px, calc(100% - 32px));
+  max-width: 760px;
+  max-height: calc(100dvh - 32px);
+  border-radius: 8px;
+  scroll-padding-block: 76px;
+}
+
+.class-creator-modal .modal-header {
+  position: sticky;
+  top: -24px;
+  z-index: 2;
+  background: var(--theme-panel);
+  padding-bottom: 12px;
+}
+
+.class-creator-modal .form-actions {
+  position: sticky;
+  bottom: -24px;
+  z-index: 1;
+  padding: 12px 0;
+  background: var(--theme-panel);
+}
+
+.class-creator-modal [hidden],
+.ability-drawer[hidden] {
+  display: none !important;
+}
+
+.class-creator-modal label,
+.class-creator-modal h3,
+.class-creator-modal h4,
+.class-campaign-support legend {
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.class-campaign-support {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  border: 0;
+  border-bottom: 1px solid var(--theme-border);
+  margin: 0 0 16px;
+  padding: 0 0 16px;
+}
+
+.class-campaign-support legend {
+  font-size: 12px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.class-campaign-support label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  min-height: 32px;
+}
+
+.class-campaign-support input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--theme-primary);
+}
+
+.optional-label,
+.class-catalog-status,
+.class-family-description,
+.class-description,
+.class-complexity,
+.class-grant-cost,
+.class-starting-abilities p,
+.class-unavailable,
+.class-progression {
+  color: var(--theme-text-dim);
+  font-size: 12px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.class-catalog-status {
+  margin: 0 0 12px;
+}
+
+.class-catalog-retry {
+  margin-bottom: 16px;
+}
+
+.class-choice-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.class-choice-fields select {
+  min-width: 0;
+}
+
+.class-family-description,
+.class-description {
+  margin: 0 0 12px;
+}
+
+.class-preview {
+  border-top: 1px solid var(--theme-border);
+  padding: 16px 0 8px;
+}
+
+.class-preview-heading,
+.class-grant-heading {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 4px 12px;
+}
+
+.class-preview h3 {
+  color: var(--theme-text);
+  font-family: var(--font-title);
+  font-size: 20px;
+  margin: 0 0 8px;
+}
+
+.class-preview h4 {
+  font-size: 12px;
+  margin: 16px 0 0;
+  color: var(--theme-text);
+}
+
+.class-starting-abilities {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.class-starting-abilities li {
+  border-bottom: 1px solid var(--theme-border);
+  padding: 10px 0;
+}
+
+.class-grant-heading strong {
+  font-size: 13px;
+  color: var(--theme-text);
+  overflow-wrap: anywhere;
+}
+
+.class-starting-abilities p {
+  margin: 4px 0 0;
+}
+
+.class-unavailable {
+  margin: 12px 0;
+  padding-left: 18px;
+}
+
+.class-progression {
+  margin-top: 12px;
+}
+
+.class-progression summary {
+  cursor: pointer;
+  color: var(--theme-text);
+  padding: 4px 0;
+}
+
+.class-creation-error {
+  border-left: 3px solid #ef4444;
+  color: var(--theme-text);
+  padding: 10px 12px;
+  font-size: 13px;
+  line-height: 1.5;
+  margin-top: 12px;
+}
+
+.class-creator-modal :focus-visible,
+.ability-drawer :focus-visible {
+  outline: 2px solid var(--theme-primary);
+  outline-offset: 2px;
+}
+
+.class-creator-modal .btn-close,
+.ability-drawer .btn-close {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  flex: 0 0 36px;
+}
+
+.ability-access-btn {
+  display: none;
+}
+
+.class-runtime-details {
+  font-size: 12px;
+  line-height: 1.5;
+  margin: 12px 0;
+}
+
+.class-runtime-details:empty {
+  display: none;
+}
+
+.class-runtime-details dl {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 6px 12px;
+  margin: 8px 0;
+}
+
+.class-runtime-details dt {
+  color: var(--theme-text-dim);
+}
+
+.class-runtime-details dd {
+  margin: 0;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.class-skills summary {
+  cursor: pointer;
+  color: var(--theme-text);
+}
+
+.ability-drawer .modal-content {
+  border: 1px solid var(--theme-border);
+  border-radius: 8px;
+}
+
+.ability-drawer .abilities-list {
+  max-height: min(60dvh, 480px);
+}
+
+.percentile-die {
+  color: var(--theme-primary);
+  font-size: 120px;
+  opacity: 0.3;
+}
+
+@media (max-width: 1024px) {
+  .ability-access-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    flex: 0 0 44px;
+    padding: 0;
+  }
+}
+
+@media (max-width: 640px) {
+  .class-creator-modal {
+    width: calc(100% - 16px);
+    max-height: calc(100dvh - 16px);
+    padding: 16px;
+  }
+
+  .class-choice-fields {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
+
+  .class-creator-modal .form-actions {
+    bottom: -16px;
+  }
+
+  .class-creator-modal .modal-header {
+    top: -16px;
+  }
+
+  .action-form {
+    display: grid;
+    grid-template-columns: 44px minmax(0, 1fr);
+    gap: 8px;
+    align-items: start;
+  }
+
+  .action-form .send-btn {
+    grid-column: 1 / -1;
+  }
+
+  .action-composer-column {
+    min-width: 0;
+  }
+
+  .ability-drawer {
+    align-items: flex-end;
+  }
+
+  .ability-drawer .modal-content {
+    width: 100%;
+    max-width: none;
+    max-height: 75dvh;
+    border-radius: 8px 8px 0 0;
+    padding: 16px;
+  }
+}

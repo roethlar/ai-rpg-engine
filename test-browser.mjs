@@ -6,6 +6,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
+import { verifyLocalIcon } from './test-browser-icons.mjs';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const THEME_CONTEXTS = [
@@ -1042,6 +1043,7 @@ async function runAbilityComposerGuard(browser, origin) {
     const send = page.locator('#btn-send-action');
     const backstabButton = page.locator('.ability-button[data-ability-id="ability-backstab"]');
     await backstabButton.waitFor();
+    await verifyLocalIcon(page, '.logo-icon');
 
     browserAssert(await input.evaluate(node => node.tagName) === 'TEXTAREA',
       'the action source is a native textarea');
@@ -2560,6 +2562,9 @@ async function runJoinDuplicateGuard(browser, origin) {
     if (url.pathname === '/api/campaigns/9/journal' && request.method() === 'GET') {
       return route.fulfill({ contentType: 'application/json', body: JSON.stringify(journal) });
     }
+    if (url.pathname === '/api/characters' && request.method() === 'GET') {
+      return route.fulfill({ contentType: 'application/json', body: '[]' });
+    }
     if (url.pathname === '/api/campaigns/9/join' && request.method() === 'POST') {
       joinPosts.push(request.postDataJSON());
       // What the server really returns (rpg-engine joinCampaign): the current
@@ -2582,15 +2587,6 @@ async function runJoinDuplicateGuard(browser, origin) {
     Array.from(document.querySelectorAll('#narrative-container ' + sel))
       .filter(entry => entry.textContent.includes(text)).length,
     { sel: selector, text: needle });
-  // Both join prompts use the same dialog shell; waiting on the message text
-  // keeps the second answer from racing the first dialog's teardown.
-  const answerPrompt = async (messageNeedle, value) => {
-    const dialog = page.locator('.modal', { has: page.locator('h2', { hasText: 'Input Needed' }) });
-    await dialog.locator('p', { hasText: messageNeedle }).waitFor();
-    await dialog.locator('input[type="text"]').fill(value);
-    await dialog.locator('button.btn-primary').click();
-  };
-
   try {
     await page.goto(origin + '/');
     await page.locator('.campaign-card').first().waitFor();
@@ -2611,8 +2607,10 @@ async function runJoinDuplicateGuard(browser, origin) {
 
     // --- Join the table. ---
     await page.locator('#party-join-btn').click();
-    await answerPrompt('Character name', 'Newcomer Scout');
-    await answerPrompt('Character concept', 'Deck scout');
+    await page.locator('#campaign-wizard-modal').waitFor({ state: 'visible' });
+    await page.locator('#input-char-name').fill('Newcomer Scout');
+    await page.locator('#input-char-concept').fill('Deck scout');
+    await page.locator('#btn-submit-wizard').click();
     await waitForCount(joinPosts, 1, 'the join reaches the fixture');
     // appendSystemNotice runs immediately after renderGame returns, so the
     // notice landing means every append the join could make has happened.
@@ -2821,6 +2819,7 @@ async function main() {
     if (!runError) runError = new Error('Browser harness cleanup failed.');
   }
   if (runError) throw runError;
+  await import('./test-class-creator-browser.mjs');
 }
 
 main().catch(error => {

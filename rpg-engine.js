@@ -1,4 +1,10 @@
 import * as db from './db.js';
+import {
+  isClassRuleset, resolveClassSelection, createClassRuleset, createClassSheet, restoreClassSheet,
+  classTriggerOptions, createRulesWorld, projectClassCharacter
+} from './class-state.js';
+import { readClassWorld, installClassActorInTransaction, writeClassWorldInTransaction } from './class-store.js';
+import { CLASS_SCENE_CONTRACT, validateClassSceneFrame, buildClassScenario } from './class-scenario.js';
 import { AIClient, resolveAgentConfig } from './api-client.js';
 import fs from 'fs';
 import path from 'path';
@@ -936,7 +942,8 @@ function hydrateCharacterRow(row) {
     attributes: parseJsonObject(row.attributes_json),
     abilities: ensureAbilityIds(parseJsonArray(row.abilities_json)),
     progression_notes: row.progression_notes || '',
-    player_character_id: row.player_character_id
+    player_character_id: row.player_character_id,
+    ...(row.class_build_json ? { classBuild: JSON.parse(row.class_build_json) } : {})
   };
 }
 
@@ -989,9 +996,14 @@ async function loadParty(campaignId) {
     `SELECT * FROM characters WHERE campaign_id = ? AND COALESCE(status, 'active') = 'active' ORDER BY id ASC`,
     [campaignId]
   );
-  const party = rows.map(hydrateCharacterRow);
+  const campaign = await db.get(`SELECT * FROM campaigns WHERE id = ?`, [campaignId]);
+  const world = isClassRuleset(parseJsonObject(campaign?.ruleset_json, null)) ? readClassWorld(campaign) : null;
+  const party = rows.map(row => {
+    const character = hydrateCharacterRow(row);
+    return world ? projectClassCharacter(character, world) : character;
+  });
   const bindingRows = await db.all(
-    `SELECT player_character_id, ability_id, term, prose
+    `SELECT player_character_id, ability_id, term, prose, aliases_json
        FROM character_ability_bindings
       WHERE campaign_id = ?
       ORDER BY player_character_id ASC, ability_id ASC`,
@@ -1003,9 +1015,7 @@ async function loadParty(campaignId) {
     bindings.push({
       abilityId: row.ability_id,
       term: row.term,
-      // AKP-1 keeps the runtime inert until the catalog/binding schema owns
-      // curated aliases. Never infer aliases from prose or spacing.
-      aliases: [],
+      aliases: world ? JSON.parse(row.aliases_json) : [],
       prose: row.prose
     });
     bindingsByProfile.set(row.player_character_id, bindings);
@@ -1016,7 +1026,8 @@ async function loadParty(campaignId) {
     ...buildCharacterAbilityTriggerState({
       campaignId,
       character,
-      bindings: bindingsByProfile.get(character.player_character_id) || []
+      bindings: bindingsByProfile.get(character.player_character_id) || [],
+      ...classTriggerOptions(character)
     })
   }));
 }
@@ -1031,7 +1042,9 @@ function characterBaselineJson(seed) {
     level: seed.level,
     inventory: seed.inventory,
     abilities: seed.abilities,
-    progression_notes: seed.progression_notes || ''
+    progression_notes: seed.progression_notes || '',
+    ...(seed.classBuild ? { classBuild: seed.classBuild, classState: seed.classState,
+      skills: seed.skills, resources: seed.resources, bindings: seed.bindings } : {})
   });
 }
 
@@ -1954,7 +1967,8 @@ export async function createCampaign({
   apiConfig,
   rulesMode = false,
   ruleset = 'house',
-  tableStyle = null
+  tableStyle = null,
+  classSelection = null
 }) {
   // Table-style dials (Phase D): chosen in the wizard, defaults classic +
   // standard (decision 2026-07-04), adjustable later via setTableStyle.
@@ -1973,8 +1987,17 @@ export async function createCampaign({
     }
   }
 
+  const selection = ruleset === 'aetheria'
+    ? resolveClassSelection(classSelection, { genre, profile: sourceProfile }) : null;
+  const targetRuleset = selection ? createClassRuleset(selection) : null;
+  if (!selection && sourceProfile?.class_build_json) {
+    throw new Error('A class character requires a compatible Aetheria campaign. No conversion was applied.');
+  }
+  const classSheet = selection ? (sourceProfile ? restoreClassSheet(sourceProfile, targetRuleset)
+    : createClassSheet(selection, { genre, name: characterName, concept: characterClass || '' })) : null;
+
   const resolvedCharacterName = sourceProfile ? sourceProfile.name : characterName;
-  const resolvedCharacterArchetype = sourceProfile ? sourceProfile.archetype : (characterClass || 'Unformed protagonist');
+  const resolvedCharacterArchetype = classSheet?.class ?? (sourceProfile ? sourceProfile.archetype : (characterClass || 'Unformed protagonist'));
 
   const outlineSystem = getOutlineSystemInstruction(genre);
 
@@ -1992,7 +2015,7 @@ export async function createCampaign({
 
   // Ruleset as canon campaign state (decision 2026-07-03): generated once at
   // creation by the Setup role, stored, and injected into every turn.
-  let rulesetData = null;
+  let rulesetData = targetRuleset;
   if (ruleset === 'house') {
     const rulesetSystem = `You design a compact, self-consistent rule sheet for a tabletop RPG campaign.
 The engine already resolves risky actions with a d20 + attribute modifier (strength/agility/intellect/willpower; modifier = floor((score - 10) / 2)) against a difficulty class from 5 (easy) to 25 (near-impossible), and failed checks have referee-adjudicated consequences. Advancement: level = floor(XP / 100) + 1; leveling fully restores and raises maximums.
@@ -2021,13 +2044,13 @@ Give the player character 4 to 8 starting abilities fitting their concept and th
     }
   }
   
-  const attributes = sourceProfile
+  const attributes = classSheet?.attributes ?? (sourceProfile
     ? parseJsonObject(sourceProfile.attributes_json, defaultAttributesForConcept(resolvedCharacterArchetype))
-    : defaultAttributesForConcept(resolvedCharacterArchetype);
+    : defaultAttributesForConcept(resolvedCharacterArchetype));
 
-  const inventory = sourceProfile ? parseJsonArray(sourceProfile.inventory_json) : createStarterInventory();
+  const inventory = classSheet?.inventory ?? (sourceProfile ? parseJsonArray(sourceProfile.inventory_json) : createStarterInventory());
   // Branch and copy carry the source's ability records verbatim, ids included.
-  const abilities = ensureAbilityIds(sourceProfile ? parseJsonArray(sourceProfile.abilities_json) : []);
+  const abilities = classSheet?.abilities ?? ensureAbilityIds(sourceProfile ? parseJsonArray(sourceProfile.abilities_json) : []);
   const progressionNotes = sourceProfile?.progression_notes || '';
 
   // Construct initial NPC list in-memory to build system instruction
@@ -2043,7 +2066,7 @@ Give the player character 4 to 8 starting abilities fitting their concept and th
   }));
 
   // Generate Turn 1 (Opening Narrative and Scene SVG)
-  const gmSystem = getGMSystemInstruction(outline, {
+  const gmSystem = getGMSystemInstruction(outline, classSheet || {
     name: resolvedCharacterName,
     class: resolvedCharacterArchetype,
     health: sourceProfile?.health ?? 100,
@@ -2062,7 +2085,8 @@ Give the player character 4 to 8 starting abilities fitting their concept and th
 Start the story at the beginning of Act I. Introduce the starting quest: "${outline.starting_quest.title}".
 Describe the starting location, atmosphere, and initial situation in rich detail. Provide a clear "scene_grounding" describing positions, distances, lighting, and what the character can immediately perceive.
 If you introduce any of the NPCs now, write them fully in character with their described personality and quirks.
-Output the JSON object containing the opening narrative, scene_grounding, suggested choices, state updates, and an SVG illustration of the scene.`;
+Output the JSON object containing the opening narrative, scene_grounding, suggested choices, state updates, and an SVG illustration of the scene.
+${classSheet ? 'The supplied class sheet is authoritative. Introduce it as-is. Do not grant, remove or change abilities, inventory, health, resources, XP or levels. Class mechanics are authored by the engine, never invented by narration.' : ''}`;
 
   console.log(`Generating opening turn for campaign...`);
   const turn1Response = await client.sendPrompt({
@@ -2087,7 +2111,7 @@ Output the JSON object containing the opening narrative, scene_grounding, sugges
   // the next turn's prompt both read back as truth.
   const turnData = validateTurnData(parsedRaw, 1, tableStyleData, outline.starting_quest);
 
-  const character = {
+  const character = classSheet || {
     name: resolvedCharacterName,
     class: resolvedCharacterArchetype,
     health: sourceProfile?.health ?? 100,
@@ -2105,11 +2129,15 @@ Output the JSON object containing the opening narrative, scene_grounding, sugges
   const characterBaseline = characterBaselineJson(character);
 
   // Apply Turn 1 character updates so state matches the turn data
-  const turn1Level = applyCharacterUpdate(character, turnData.character_update);
+  const turn1Level = classSheet ? { leveledUp: false } : applyCharacterUpdate(character, turnData.character_update);
   if (turn1Level.leveledUp) {
     turnData.narrative += `\n\n🎉 **LEVEL UP! You have reached Level ${character.level}! Your maximum Health and Mana have increased!**`;
   }
-  applyAbilityUpdates(character, turnData, 1);
+  if (classSheet) {
+    turnData.character_update = { health_change: 0, mana_change: 0, xp_gain: 0, inventory_changes: [] };
+    turnData.ability_updates = [];
+    turnData.dice_rolls = [];
+  } else applyAbilityUpdates(character, turnData, 1);
 
   const svg = turnData.svg_illustration && turnData.svg_illustration.includes('<svg')
     ? turnData.svg_illustration
@@ -2123,11 +2151,35 @@ Output the JSON object containing the opening narrative, scene_grounding, sugges
     campaign: { title: outline.title, genre },
     recent_turns: [{ narrative_excerpt: turnData.narrative.substring(0, 700) }]
   }, startingLocationName);
+  if (classSheet && !startingLayout) throw new Error('Aetheria requires a valid starting location. Campaign creation did not commit.');
+  const sceneActorKeys = classSheet ? ['player', ...npcList.map((_, index) => `npc${index}`),
+    ...(classSheet.classState.companion ? ['companion'] : [])] : [];
+  let classSceneFrame = null;
+  if (classSheet) {
+    const response = await client.sendPrompt({
+      systemInstruction: `Author the initial Aetheria scene as structured world facts. Return JSON only matching this contract:
+${JSON.stringify(CLASS_SCENE_CONTRACT)}
+Use the supplied actor keys, never names as identities. Preserve the supplied player's and companion's authored mechanics.
+World support: ${JSON.stringify(selection.capabilities)}. If alliedActors is true, include a present party-aligned NPC who can cooperate with the player.
+Do not add combat simply to exercise a class. The opening fiction determines the situation; assign opposition only when genuinely hostile.`,
+      prompt: JSON.stringify({ narrative: turnData.narrative, layout: startingLayout,
+        actors: Object.fromEntries(sceneActorKeys.map(key => [key,
+          key === 'player' ? { name: character.name, class: character.class, controlled: true }
+            : key === 'companion' ? { name: `${character.name}'s companion`, controlled: true }
+              : npcList[Number(key.slice(3))]])) }),
+      jsonMode: true
+    });
+    classSceneFrame = validateClassSceneFrame(parseJsonSafe(response), { layout: startingLayout, actorKeys: sceneActorKeys });
+    if (selection.capabilities.alliedActors && !classSceneFrame.actors.some(actor => actor.actor.startsWith('npc')
+      && actor.allegiance === 'party' && actor.area !== null)) {
+      throw new Error('The opening scene did not provide the allied actor support selected for this campaign. Creation did not commit.');
+    }
+  }
 
   let campaignId;
   let newCharacterRowId;
   let playerCharacterId = sourceProfile && characterMode === 'existing' ? sourceProfile.id : null;
-  const rulesModeInt = rulesMode ? 1 : 0;
+  const rulesModeInt = classSheet || rulesMode ? 1 : 0;
   await db.withWriteTransaction(async () => {
     if (sourceProfile && characterMode === 'existing') {
       const latestProfile = await getPlayerCharacter(playerCharacterId);
@@ -2216,7 +2268,8 @@ Output the JSON object containing the opening narrative, scene_grounding, sugges
         id: newCharacterRowId,
         player_character_id: playerCharacterId
       },
-      bindings: []
+      bindings: classSheet?.bindings || [],
+      ...classTriggerOptions({ ...character, player_character_id: playerCharacterId })
     });
     const openingAbilityInvocations = emptyAbilityInvocationRecord(
       openingTriggerState.abilityTriggerRevision
@@ -2276,6 +2329,20 @@ Output the JSON object containing the opening narrative, scene_grounding, sugges
          JSON.stringify(startingLayout), JSON.stringify(occupancy)]
       );
       await db.run(`UPDATE campaigns SET current_location_id = ? WHERE id = ?`, [locationInsert.id, campaignId]);
+      if (classSheet) {
+        const recordedNpcs = await db.all(`SELECT * FROM npcs WHERE campaign_id = ? ORDER BY id`, [campaignId]);
+        let world = createRulesWorld({ location: { id: locationInsert.id, layout: startingLayout }, npcs: recordedNpcs });
+        await installClassActorInTransaction(campaignId,
+          { ...character, id: newCharacterRowId, player_character_id: playerCharacterId }, world);
+        const actorBindings = { player: `character:${newCharacterRowId}`,
+          ...Object.fromEntries(recordedNpcs.map((npc, index) => [`npc${index}`, `npc:${npc.id}`])) };
+        if (classSheet.classState.companion) actorBindings.companion = world.actors[actorBindings.player].classState.companion.actorRef;
+        world = buildClassScenario({ world, location: { id: locationInsert.id, layout: startingLayout },
+          frame: classSceneFrame, actorBindings, turn: 1 }).world;
+        await writeClassWorldInTransaction(campaignId, world, 0);
+        await db.run(`UPDATE turns SET rules_snapshot_json = ? WHERE campaign_id = ? AND turn_number = 1`,
+          [JSON.stringify(world), campaignId]);
+      }
     }
   });
 
@@ -2314,7 +2381,7 @@ Output the JSON object containing the opening narrative, scene_grounding, sugges
     }
   }
 
-  const openingCharacter = {
+  const openingCharacter = classSheet ? (await loadParty(campaignId))[0] : {
     id: newCharacterRowId,
     name: resolvedCharacterName,
     class: resolvedCharacterArchetype,
@@ -2333,7 +2400,8 @@ Output the JSON object containing the opening narrative, scene_grounding, sugges
   Object.assign(openingCharacter, buildCharacterAbilityTriggerState({
     campaignId,
     character: openingCharacter,
-    bindings: []
+    bindings: classSheet?.bindings || [],
+    ...classTriggerOptions(openingCharacter)
   }));
 
   return {
@@ -2347,6 +2415,7 @@ Output the JSON object containing the opening narrative, scene_grounding, sugges
     ruleset: rulesetData,
     tableStyle: tableStyleData,
     character: openingCharacter,
+    ...(classSheet ? { party: [openingCharacter] } : {}),
     npcs: finalNpcList,
     outline,
     turnOrder: {
@@ -2391,6 +2460,12 @@ export async function takeTurn(
   // 1. Fetch current campaign details
   const campaign = await db.get(`SELECT * FROM campaigns WHERE id = ?`, [campaignId]);
   if (!campaign) throw new Error(`Campaign ${campaignId} not found.`);
+  if (isClassRuleset(parseJsonObject(campaign.ruleset_json, null))) {
+    const error = new Error('Aetheria turn integration is still in progress. No action or character state was changed.');
+    error.code = 'CLASS_RUNTIME_PENDING';
+    error.publicMessage = error.message;
+    throw error;
+  }
 
   const outline = await readCampaignOutline(campaignId);
   if (!outline) throw new Error(`Campaign outline not found for campaign ${campaignId}.`);
@@ -2990,6 +3065,7 @@ export async function listPlayerCharacters() {
     attributes: parseJsonObject(row.attributes_json),
     abilities: parseJsonArray(row.abilities_json),
     progression_notes: row.progression_notes || '',
+    ...(row.class_build_json ? { classBuild: JSON.parse(row.class_build_json) } : {}),
     created_at: row.created_at,
     updated_at: row.updated_at
   }));
@@ -3013,7 +3089,7 @@ export async function setTableStyle(campaignId, rawStyle) {
  * round-robin at the end of the order. Mirrors createCampaign's character
  * sourcing; no AI calls (the GM meets them in fiction on their first turn).
  */
-export async function joinCampaign(campaignId, { characterName, characterClass, characterProfileId, characterMode = 'new' } = {}) {
+export async function joinCampaign(campaignId, { characterName, characterClass, characterProfileId, characterMode = 'new', classSelection = null } = {}) {
   const campaign = await db.get(`SELECT * FROM campaigns WHERE id = ?`, [campaignId]);
   if (!campaign) throw new Error(`Campaign ${campaignId} not found.`);
 
@@ -3028,11 +3104,19 @@ export async function joinCampaign(campaignId, { characterName, characterClass, 
 
   const name = sourceProfile ? sourceProfile.name : (typeof characterName === 'string' ? characterName.trim() : '');
   if (!name) throw new Error('characterName is required to join.');
+  const targetRuleset = parseJsonObject(campaign.ruleset_json, null);
+  const selection = isClassRuleset(targetRuleset)
+    ? resolveClassSelection(classSelection, { genre: campaign.genre, campaignRuleset: targetRuleset, profile: sourceProfile }) : null;
+  if (!selection && sourceProfile?.class_build_json) {
+    throw new Error('A class character requires a compatible Aetheria campaign. No conversion was applied.');
+  }
+  const classSheet = selection ? (sourceProfile ? restoreClassSheet(sourceProfile, targetRuleset)
+    : createClassSheet(selection, { genre: campaign.genre, name, concept: characterClass || '' })) : null;
   const archetype = sourceProfile ? sourceProfile.archetype : ((characterClass || '').trim() || 'Unformed protagonist');
   const attributes = sourceProfile
     ? parseJsonObject(sourceProfile.attributes_json, defaultAttributesForConcept(archetype))
     : defaultAttributesForConcept(archetype);
-  const character = {
+  const character = classSheet || {
     name,
     class: archetype,
     health: sourceProfile?.health ?? 100,
@@ -3049,6 +3133,12 @@ export async function joinCampaign(campaignId, { characterName, characterClass, 
 
   let newCharacterId;
   await db.withWriteTransaction(async () => {
+    const liveCampaign = classSheet ? await db.get(`SELECT * FROM campaigns WHERE id = ?`, [campaignId]) : campaign;
+    const world = classSheet ? readClassWorld(liveCampaign) : null;
+    if (world && (world.encounter.active || await db.get(
+      `SELECT id FROM rules_turn_operations WHERE campaign_id = ? AND status = 'active'`, [campaignId]))) {
+      throw new Error('Characters can join after the current encounter or unresolved action ends.');
+    }
     let profileId = sourceProfile && characterMode === 'existing' ? sourceProfile.id : null;
     if (profileId) {
       const latest = await getPlayerCharacter(profileId);
@@ -3086,6 +3176,11 @@ export async function joinCampaign(campaignId, { characterName, characterClass, 
       ]
     );
     newCharacterId = characterResult.id;
+    if (classSheet) {
+      await installClassActorInTransaction(campaignId,
+        { ...character, id: newCharacterId, player_character_id: profileId }, world);
+      await writeClassWorldInTransaction(campaignId, world, liveCampaign.rules_revision);
+    }
 
     // Enter the round-robin at the end of the order (active members only)
     const partyRows = await db.all(
@@ -3161,6 +3256,9 @@ export async function releaseCampaignCharacters(campaignId, options = {}) {
 async function buildCampaignExport(campaignId) {
   const campaign = await db.get(`SELECT * FROM campaigns WHERE id = ?`, [campaignId]);
   if (!campaign) throw new Error(`Campaign ${campaignId} not found.`);
+  if (isClassRuleset(parseJsonObject(campaign.ruleset_json, null))) {
+    throw new Error('Class campaign portability integration is pending. A legacy bundle would omit its mechanical state.');
+  }
   const outlineRow = await db.get(`SELECT outline_json FROM campaign_outlines WHERE campaign_id = ?`, [campaignId]);
   const characterRows = await db.all(`SELECT * FROM characters WHERE campaign_id = ? ORDER BY id ASC`, [campaignId]);
   const npcRows = await db.all(`SELECT * FROM npcs WHERE campaign_id = ? ORDER BY id ASC`, [campaignId]);
@@ -3541,6 +3639,9 @@ export async function forkCampaign(campaignId, turnNumber, newTitle) {
   // A. Get campaign info
   const campaign = await db.get(`SELECT * FROM campaigns WHERE id = ?`, [campaignId]);
   if (!campaign) throw new Error(`Campaign ${campaignId} not found.`);
+  if (isClassRuleset(parseJsonObject(campaign.ruleset_json, null))) {
+    throw new Error('Class campaign fork integration is pending. Legacy replay cannot reconstruct its mechanical state.');
+  }
 
   const outlineRow = await db.get(`SELECT * FROM campaign_outlines WHERE campaign_id = ?`, [campaignId]);
   if (!outlineRow) throw new Error(`Campaign outline not found for campaign ${campaignId}.`);

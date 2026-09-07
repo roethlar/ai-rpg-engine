@@ -4,6 +4,7 @@
 
 import { baseThemeVars, fullThemeVars } from './theme-vars.js';
 import { normalizeVoiceLines, runVoiceNarration } from './voice-narration.js';
+import { createClassCreator } from './class-creator.js';
 import {
   applyAbilitySuggestion,
   computeAbilityInsertion,
@@ -20,6 +21,7 @@ let currentCampaignId = null;
 let sessionEpoch = 0;
 function bumpSessionEpoch() {
   sessionEpoch += 1;
+  closeAbilityDrawer(false);
   // A table transition also invalidates any dice theater still playing or
   // queued for the old table (dt-1); hoisted, defined with the theater code.
   dismissRollTheater();
@@ -83,6 +85,20 @@ const savedCharacterSummary = document.getElementById('saved-character-summary')
 const newCharacterFields = document.getElementById('new-character-fields');
 const inputCharName = document.getElementById('input-char-name');
 const inputCharConcept = document.getElementById('input-char-concept');
+const selectRuleset = document.getElementById('select-ruleset');
+const classCreationError = document.getElementById('class-creation-error');
+const riderSupport = document.getElementById('input-class-rider');
+const alliedSupport = document.getElementById('input-class-allies');
+let classCreator = null;
+let wizardCampaign = null;
+let wizardBusy = false;
+let wizardSerial = 0;
+let catalogReloadTimer;
+let wizardPreviousFocus = null;
+const wizardDrafts = new Map();
+const WIZARD_FIELDS = ['input-genre', 'input-char-name', 'input-char-concept',
+  'select-character-mode', 'select-saved-character', 'select-ruleset', 'input-rules-mode',
+  'input-class-rider', 'input-class-allies', 'select-helpfulness', 'select-pacing'];
 
 // Settings Inputs
 const inputAccessToken = document.getElementById('input-access-token');
@@ -335,6 +351,7 @@ function insertInvocableAbility(ability) {
   actionInput.focus();
   actionInput.setRangeText(insertion.insertedText, start, end, 'end');
   actionInput.setSelectionRange(insertion.selectionStart, insertion.selectionEnd);
+  closeAbilityDrawer(false);
   rememberComposerSelection();
   scanAndRenderComposer();
 }
@@ -440,7 +457,8 @@ window.addEventListener('DOMContentLoaded', () => {
   window.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
       settingsModal.style.display = 'none';
-      campaignWizardModal.style.display = 'none';
+      if (!document.getElementById('ability-drawer').hidden) closeAbilityDrawer();
+      else if (campaignWizardModal.style.display !== 'none') closeCampaignWizard();
     }
   });
 });
@@ -620,6 +638,42 @@ function setActiveTab(tab) {
 // Bind UI triggers
 function setupEventListeners() {
   setupAbilityComposer();
+  classCreator = createClassCreator(document.getElementById('class-creator'), {
+    fetchCatalog: async genre => {
+      const query = new URLSearchParams({ genre });
+      if (riderSupport.checked) query.set('modules', 'rider');
+      if (alliedSupport.checked) query.set('alliedActors', 'true');
+      const response = await fetchWithTimeout(`/api/class-catalog?${query}`, {}, 15000);
+      if (!response.ok) throw new Error(await getResponseErrorMessage(response, 'Could not load classes.'));
+      return response.json();
+    },
+    onChange: updateWizardSubmit
+  });
+  const reloadClasses = () => {
+    if (selectRuleset.value !== 'aetheria') return;
+    clearTimeout(catalogReloadTimer);
+    const selection = classCreator.getSelection();
+    classCreator.invalidate();
+    catalogReloadTimer = setTimeout(() => classCreator.load(document.getElementById('input-genre').value, selection), 200);
+  };
+  document.getElementById('input-genre').addEventListener('input', reloadClasses);
+  riderSupport.addEventListener('change', reloadClasses);
+  alliedSupport.addEventListener('change', reloadClasses);
+  selectRuleset.addEventListener('change', () => {
+    updateWizardRules();
+    if (selectRuleset.value === 'aetheria') classCreator.load(document.getElementById('input-genre').value);
+  });
+  document.getElementById('btn-open-abilities').addEventListener('click', openAbilityDrawer);
+  document.getElementById('btn-close-abilities').addEventListener('click', () => closeAbilityDrawer());
+  document.getElementById('ability-drawer').addEventListener('click', event => {
+    if (event.target.id === 'ability-drawer') closeAbilityDrawer();
+  });
+  for (const dialog of [campaignWizardModal, document.getElementById('ability-drawer')]) {
+    dialog.addEventListener('keydown', trapDialogFocus);
+  }
+  window.addEventListener('resize', () => {
+    if (window.innerWidth > 1024) closeAbilityDrawer(false);
+  });
 
   // Settings buttons
   document.getElementById('btn-show-settings').addEventListener('click', openSettingsModal);
@@ -692,12 +746,13 @@ function setupEventListeners() {
     const genre = document.getElementById('input-genre').value.trim();
     const characterMode = selectCharacterMode.value;
     const selectedProfileId = Number(selectSavedCharacter.value || 0);
-    const rulesMode = document.getElementById('input-rules-mode').checked;
+    const isTarget = selectRuleset.value === 'aetheria';
+    const rulesMode = isTarget || document.getElementById('input-rules-mode').checked;
     const body = {
       genre,
       characterMode,
       rulesMode,
-      ruleset: document.getElementById('select-ruleset').value,
+      ruleset: selectRuleset.value,
       tableStyle: {
         helpfulness: document.getElementById('select-helpfulness').value,
         pacing: document.getElementById('select-pacing').value
@@ -707,9 +762,23 @@ function setupEventListeners() {
     if (characterMode === 'new') {
       body.characterName = inputCharName.value.trim();
       body.characterClass = inputCharConcept.value.trim();
-      if (!body.characterName || !body.characterClass) {
+      if (!body.characterName || (!isTarget && !body.characterClass)) {
         showToast('Enter a character name and concept.', 'error');
         return;
+      }
+      if (isTarget) {
+        const selection = classCreator.getSelection();
+        if (!selection) {
+          classCreationError.textContent = 'Choose an available archetype and class.';
+          classCreationError.hidden = false;
+          classCreator.focus();
+          return;
+        }
+        body.classSelection = {
+          ...selection,
+          modules: riderSupport.checked ? ['rider'] : [],
+          capabilities: { alliedActors: alliedSupport.checked }
+        };
       }
     } else {
       if (!selectedProfileId) {
@@ -719,11 +788,18 @@ function setupEventListeners() {
       body.characterProfileId = selectedProfileId;
     }
 
-    closeCampaignWizard();
-    showLoadingOverlay(`Game Master is crafting your campaign...\nCreating outline, character state, acts, NPCs, and initial scene.`);
+    if (wizardBusy) return;
+    const submissionSerial = wizardSerial;
+    const joiningCampaignId = wizardCampaign?.campaignId ?? null;
+    const submissionEpoch = sessionEpoch;
+    saveWizardDraft();
+    wizardBusy = true;
+    updateWizardSubmit();
+    classCreationError.hidden = true;
+    campaignCreateForm.setAttribute('aria-busy', 'true');
 
     try {
-      const response = await fetchWithTimeout('/api/campaigns', {
+      const response = await fetchWithTimeout(joiningCampaignId ? `/api/campaigns/${joiningCampaignId}/join` : '/api/campaigns', {
         method: 'POST',
         body: JSON.stringify(body)
       }, CAMPAIGN_CREATE_TIMEOUT_MS);
@@ -734,18 +810,28 @@ function setupEventListeners() {
       }
 
       const gameState = await response.json();
+      if (submissionSerial !== wizardSerial || submissionEpoch !== sessionEpoch) return;
+      wizardDrafts.delete(wizardDraftKey());
+      if (joiningCampaignId) {
+        myCharacterId = gameState.joinedCharacterId;
+        localStorage.setItem(myCharacterKey(joiningCampaignId), String(myCharacterId));
+      }
       currentCampaignId = gameState.campaignId;
-      renderGame(gameState, true, { narrate: true });
+      campaignWizardModal.style.display = 'none';
+      renderGame(gameState, !joiningCampaignId, { narrate: !joiningCampaignId });
+      if (joiningCampaignId) appendSystemNotice(`${body.characterName || displayedCharacter(gameState)?.name || 'A character'} joins the table.`);
       campaignMenuScreen.style.display = 'none';
     } catch (error) {
+      if (submissionSerial !== wizardSerial || submissionEpoch !== sessionEpoch) return;
       console.error(error);
-      showToast(`Initialization Error: ${error.message}`, 'error');
-      if (shouldOpenSettingsForError(error.message)) {
-        openSettingsModal();
-      }
-      loadCampaignsMenu();
+      classCreationError.textContent = error.message;
+      classCreationError.hidden = false;
     } finally {
-      hideLoadingOverlay();
+      if (submissionSerial === wizardSerial) {
+        wizardBusy = false;
+        campaignCreateForm.setAttribute('aria-busy', 'false');
+        updateWizardSubmit();
+      }
     }
   });
 
@@ -996,15 +1082,118 @@ function appendSystemNotice(message) {
   scrollToBottom();
 }
 
-function openCampaignWizard() {
-  selectCharacterMode.value = 'new';
+function wizardDraftKey() {
+  return wizardCampaign ? `join:${wizardCampaign.campaignId}` : 'create';
+}
+
+function saveWizardDraft() {
+  wizardDrafts.set(wizardDraftKey(), {
+    values: Object.fromEntries(WIZARD_FIELDS.map(id => {
+      const input = document.getElementById(id);
+      return [id, input.type === 'checkbox' ? input.checked : input.value];
+    })),
+    selection: classCreator?.getSelection()
+  });
+}
+
+function updateWizardSubmit() {
+  const needsSelection = selectRuleset.value === 'aetheria' && selectCharacterMode.value === 'new';
+  const submit = document.getElementById('btn-submit-wizard');
+  submit.disabled = wizardBusy || (needsSelection && !classCreator?.getSelection());
+  document.getElementById('btn-close-wizard').disabled = wizardBusy;
+  document.getElementById('btn-cancel-wizard').disabled = wizardBusy;
+  submit.querySelector('span').textContent = wizardBusy
+    ? wizardCampaign ? 'Joining...' : 'Creating...'
+    : wizardCampaign ? 'Join campaign' : 'Start story';
+}
+
+function updateWizardRules() {
+  const target = selectRuleset.value === 'aetheria';
+  classCreator?.setEnabled(target && selectCharacterMode.value === 'new');
+  document.getElementById('legacy-rules-fields').hidden = target;
+  document.getElementById('class-campaign-support').hidden = !target;
+  inputCharConcept.required = selectCharacterMode.value === 'new' && !target;
+  riderSupport.disabled = !!wizardCampaign;
+  alliedSupport.disabled = !!wizardCampaign;
+  updateWizardSubmit();
+}
+
+function openCampaignWizard(campaign = null) {
+  if (campaignWizardModal.style.display !== 'none') saveWizardDraft();
+  wizardPreviousFocus = document.activeElement;
+  wizardCampaign = campaign;
+  wizardSerial += 1;
+  wizardBusy = false;
+  campaignCreateForm.setAttribute('aria-busy', 'false');
+  const draft = wizardDrafts.get(wizardDraftKey());
+  campaignCreateForm.reset();
+  if (draft) {
+    for (const [id, value] of Object.entries(draft.values)) {
+      const input = document.getElementById(id);
+      if (input.type === 'checkbox') input.checked = value;
+      else input.value = value;
+    }
+  }
+  if (campaign) {
+    document.getElementById('input-genre').value = campaign.genre || '';
+    selectRuleset.value = campaign.ruleset?.id === 'aetheria' ? 'aetheria' : campaign.ruleset ? 'house' : 'none';
+    riderSupport.checked = Array.isArray(campaign.ruleset?.modules) && campaign.ruleset.modules.includes('rider');
+    alliedSupport.checked = campaign.ruleset?.capabilities?.alliedActors === true;
+  }
+  document.getElementById('input-genre').required = !campaign;
+  document.getElementById('campaign-wizard-title').textContent = campaign ? 'Join campaign' : 'New campaign';
+  for (const id of ['campaign-genre-group', 'ruleset-group', 'campaign-table-style-fields']) {
+    document.getElementById(id).hidden = !!campaign;
+  }
+  classCreationError.hidden = true;
+  clearTimeout(catalogReloadTimer);
+  if (selectRuleset.value === 'aetheria') classCreator.load(document.getElementById('input-genre').value, draft?.selection);
   updateCharacterModeUi();
   loadCharactersForWizard();
   campaignWizardModal.style.display = 'flex';
+  (campaign ? inputCharName : document.getElementById('input-genre')).focus();
 }
 
 function closeCampaignWizard() {
+  if (wizardBusy) return;
+  saveWizardDraft();
+  wizardSerial += 1;
   campaignWizardModal.style.display = 'none';
+  if (wizardPreviousFocus?.isConnected) wizardPreviousFocus.focus();
+}
+
+function trapDialogFocus(event) {
+  if (event.key !== 'Tab') return;
+  const items = [...event.currentTarget.querySelectorAll('button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), summary, [tabindex="0"]')]
+    .filter(node => node.getClientRects().length > 0);
+  if (!items.length) return;
+  const first = items[0];
+  const last = items[items.length - 1];
+  if (event.shiftKey && document.activeElement === first) {
+    event.preventDefault();
+    last.focus();
+  } else if (!event.shiftKey && document.activeElement === last) {
+    event.preventDefault();
+    first.focus();
+  }
+}
+
+function openAbilityDrawer() {
+  rememberComposerSelection();
+  const drawer = document.getElementById('ability-drawer');
+  document.getElementById('ability-drawer-slot').appendChild(charAbilities);
+  drawer.hidden = false;
+  document.getElementById('btn-open-abilities').setAttribute('aria-expanded', 'true');
+  (charAbilities.querySelector('button:not(:disabled)') || document.getElementById('btn-close-abilities')).focus();
+}
+
+function closeAbilityDrawer(focus = true) {
+  const drawer = document.getElementById('ability-drawer');
+  if (!drawer || drawer.hidden) return;
+  document.getElementById('ability-list-home').appendChild(charAbilities);
+  drawer.hidden = true;
+  document.getElementById('btn-open-abilities').setAttribute('aria-expanded', 'false');
+  if (focus) actionInput.focus();
 }
 
 // === In-app confirm/prompt dialogs =========================================
@@ -1275,7 +1464,7 @@ function updateCharacterModeUi() {
   inputCharName.disabled = !isNew;
   inputCharConcept.disabled = !isNew;
   inputCharName.required = isNew;
-  inputCharConcept.required = isNew;
+  updateWizardRules();
 
   if (!isNew) {
     populateSavedCharacterSelect(mode);
@@ -1283,6 +1472,7 @@ function updateCharacterModeUi() {
 }
 
 function populateSavedCharacterSelect(mode) {
+  const previous = selectSavedCharacter.value || wizardDrafts.get(wizardDraftKey())?.values['select-saved-character'];
   selectSavedCharacter.innerHTML = '';
 
   if (savedCharacters.length === 0) {
@@ -1310,7 +1500,8 @@ function populateSavedCharacterSelect(mode) {
     }
   });
 
-  selectSavedCharacter.value = firstUsableValue;
+  selectSavedCharacter.value = [...selectSavedCharacter.options].some(item => item.value === previous && !item.disabled)
+    ? previous : firstUsableValue;
   renderSavedCharacterSummary();
 }
 
@@ -1670,7 +1861,7 @@ function renderGame(gameState, resetNarrative = false, options = {}) {
     const turnRolls = Array.isArray(gameState.turn.rollResults)
       ? gameState.turn.rollResults
       : (gameState.turn.rollResult ? [gameState.turn.rollResult] : []);
-    turnRolls.forEach(r => appendRollResultBubble(r, gameState.turn?.number));
+    turnRolls.forEach(r => appendRollResultBubble(r, gameState.turn?.number, gameState.turn.rollAnnotationDetails));
     // Theater only on turns that just happened (own submit, poll pickup) —
     // never on campaign load, join, or backfill, where the rolls are history.
     if (options.rollTheater) queueRollTheater(turnRolls);
@@ -1821,6 +2012,7 @@ function appendJournalTurns(turns) {
       if (t.player_action) {
         appendPlayerAction(t.player_action, t.turn_number, { characterId: t.character_id ?? null });
       }
+      if (Array.isArray(t.dice_rolls)) t.dice_rolls.forEach(roll => appendRollResultBubble(roll, t.turn_number, t.rollAnnotationDetails));
       appendGMDialogue(t.narrative, t.turn_number);
       appendedTurnNumbers.add(t.turn_number);
       highestAppendedTurn = Math.max(highestAppendedTurn ?? t.turn_number, t.turn_number);
@@ -1953,31 +2145,7 @@ async function mintSeatFlow(characterId, characterName) {
 }
 
 async function joinTableFlow() {
-  const name = await uiPrompt('Character name for this table:');
-  if (!name || !name.trim()) return;
-  const concept = (await uiPrompt('Character concept (e.g. "Wry salvage pilot", "Disgraced court mage"):')) || '';
-  try {
-    showLoadingOverlay('Joining the table...');
-    const response = await fetchWithTimeout(`/api/campaigns/${currentCampaignId}/join`, {
-      method: 'POST',
-      body: JSON.stringify({ characterName: name.trim(), characterClass: concept.trim() })
-    });
-    if (!response.ok) throw new Error(await getResponseErrorMessage(response, 'Failed to join'));
-    const state = await response.json();
-    localStorage.setItem(myCharacterKey(currentCampaignId), String(state.joinedCharacterId));
-    myCharacterId = state.joinedCharacterId;
-    // The join response is the CURRENT HEAD state, not a new turn: nothing new
-    // happened in the fiction, only the party changed. renderGame refreshes
-    // every panel and re-appends nothing, because the head turn is already in
-    // the log (jd-1's append-once rule); the notice below is the only new
-    // entry the join adds.
-    renderGame(state, false);
-    appendSystemNotice(`${name.trim()} joins the table. The GM will meet them in the fiction on their first turn.`);
-  } catch (error) {
-    showToast(`Join failed: ${error.message}`, 'error');
-  } finally {
-    hideLoadingOverlay();
-  }
+  if (lastGameState && lastGameState.campaignId === currentCampaignId) openCampaignWizard(lastGameState);
 }
 
 // Off-turn state: the input stays enabled — table talk is always open — but
@@ -2434,6 +2602,7 @@ function renderCharacterSheet(char) {
   if (!char) {
     updateAbilityComposerForCharacter(null);
     renderAbilities([], []);
+    renderClassDetails(null);
     return;
   }
   updateAbilityComposerForCharacter(char);
@@ -2448,18 +2617,78 @@ function renderCharacterSheet(char) {
   manaText.textContent = `${char.mana}/${char.max_mana}`;
   const manaPercent = char.max_mana > 0 ? Math.max(0, Math.min(100, (char.mana / char.max_mana) * 100)) : 0;
   manaFill.style.width = `${manaPercent}%`;
+  const targetCharacter = !!char.skills && typeof char.skills === 'object' && !Array.isArray(char.skills);
+  manaText.closest('.stat-bar-group').style.display = targetCharacter && char.max_mana === 0 ? 'none' : '';
+  document.getElementById('char-attributes').style.display = targetCharacter ? 'none' : '';
 
   const relativeXp = char.xp % 100;
   xpText.textContent = `${relativeXp}/100`;
   xpFill.style.width = `${relativeXp}%`;
 
-  attrStr.textContent = char.attributes.strength || 10;
-  attrAgi.textContent = char.attributes.agility || 10;
-  attrInt.textContent = char.attributes.intellect || 10;
-  attrWil.textContent = char.attributes.willpower || 10;
+  attrStr.textContent = char.attributes?.strength || 10;
+  attrAgi.textContent = char.attributes?.agility || 10;
+  attrInt.textContent = char.attributes?.intellect || 10;
+  attrWil.textContent = char.attributes?.willpower || 10;
 
+  renderClassDetails(char);
   renderInventory(char.inventory);
   renderAbilities(char.abilities || [], activeInvocableAbilities);
+}
+
+function renderClassDetails(character) {
+  const root = document.getElementById('class-runtime-details');
+  root.replaceChildren();
+  if (!character?.skills || typeof character.skills !== 'object' || Array.isArray(character.skills)) return;
+  const label = value => String(value).replaceAll('_', ' ').replaceAll('-', ' ').replace(/^./u, letter => letter.toUpperCase());
+  const statistics = document.createElement('dl');
+  statistics.className = 'class-live-state';
+  const add = (name, value) => {
+    const term = document.createElement('dt');
+    term.textContent = name;
+    const description = document.createElement('dd');
+    description.textContent = value;
+    statistics.append(term, description);
+  };
+  for (const key of ['exposure', 'strain']) {
+    const resource = character.resources?.[key];
+    if (Number.isFinite(resource?.current) && Number.isFinite(resource?.maximum)) {
+      add(label(key), `${resource.current}/${resource.maximum}`);
+    }
+  }
+  const state = character.classState || {};
+  for (const key of ['stance', 'profile']) {
+    if (typeof state[key] === 'string') add(label(key), label(state[key]));
+  }
+  if (state.companion && Number.isFinite(state.companion.health)) {
+    add('Companion', `${label(state.companion.profile)} / ${state.companion.health}/${state.companion.maxHealth} HP`);
+  }
+  if (state.vehicle && Number.isFinite(state.vehicle.hull)) {
+    add('Vehicle', `${label(state.vehicle.profile)} / ${state.vehicle.hull}/${state.vehicle.maxHull} hull`);
+  }
+  if (Array.isArray(state.prepared)) {
+    const names = new Map((character.abilities || []).map(ability => [ability.definition_id, ability.name]));
+    const prepared = state.prepared.map(id => names.get(id)).filter(Boolean);
+    add('Prepared', prepared.length ? prepared.join(', ') : 'None');
+  }
+  if (Array.isArray(state.installations) && Number.isFinite(state.installationCapacity)) {
+    add('Installations', `${state.installations.length}/${state.installationCapacity}`);
+  }
+  if (statistics.childElementCount) root.append(statistics);
+  const details = document.createElement('details');
+  details.className = 'class-skills';
+  const summary = document.createElement('summary');
+  summary.textContent = 'Skills';
+  const skills = document.createElement('dl');
+  for (const [key, value] of Object.entries(character.skills)) {
+    if (!Number.isFinite(value)) continue;
+    const name = document.createElement('dt');
+    name.textContent = label(key);
+    const bonus = document.createElement('dd');
+    bonus.textContent = `${value >= 0 ? '+' : ''}${value}`;
+    skills.append(name, bonus);
+  }
+  details.append(summary, skills);
+  root.append(details);
 }
 
 // Render campaign outline in the sidebar
@@ -2899,21 +3128,23 @@ window.queueRollTheater = queueRollTheater;
 
 function playOneRollTheater(roll, batch) {
   if (batch.epoch !== sessionEpoch) return Promise.resolve(); // queued for a table we left
-  if (batch.skipped || !roll || typeof roll.roll !== 'number') return Promise.resolve();
+  if (batch.skipped || !roll || typeof (roll.sides === 100 ? roll.raw : roll.roll) !== 'number') return Promise.resolve();
+  const percentile = roll.sides === 100;
+  const success = percentile ? ['crit_success', 'marginal_success', 'clean_success'].includes(roll.band) : roll.success;
   return new Promise(resolve => {
     const costs = [];
-    if (!roll.success && typeof roll.applied_health_change === 'number' && roll.applied_health_change < 0) {
+    if (!success && typeof roll.applied_health_change === 'number' && roll.applied_health_change < 0) {
       costs.push(`${roll.applied_health_change} HP`);
     }
-    if (!roll.success && typeof roll.applied_mana_change === 'number' && roll.applied_mana_change < 0) {
+    if (!success && typeof roll.applied_mana_change === 'number' && roll.applied_mana_change < 0) {
       costs.push(`${roll.applied_mana_change} MP`);
     }
     diceOverlayEl.innerHTML = `
       <div class="dice-caption">
-        <div class="dice-check-label">${escapeHtml(roll.attribute || 'stat')} check &mdash; DC ${Number(roll.dc) || '?'}</div>
+        <div class="dice-check-label">${percentile ? `d100 check / Target ${escapeHtml(roll.T)}` : `${escapeHtml(roll.attribute || 'stat')} check &mdash; DC ${Number(roll.dc) || '?'}`}</div>
         ${roll.reason ? `<div class="dice-reason">${escapeHtml(roll.reason)}</div>` : ''}
       </div>
-      <div class="dice-stage tumbling">${DICE_D20_SVG}<div class="dice-number"></div></div>
+      <div class="dice-stage tumbling">${percentile ? '<i class="fa-solid fa-dice percentile-die" aria-hidden="true"></i>' : DICE_D20_SVG}<div class="dice-number"></div></div>
       <div class="dice-result">
         <div class="dice-math"></div>
         <div class="dice-verdict"></div>
@@ -2926,9 +3157,9 @@ function playOneRollTheater(roll, batch) {
     const resultEl = diceOverlayEl.querySelector('.dice-result');
     // The cycling digits are pure animation; only the landing value matters,
     // and it is the engine's recorded roll.
-    numberEl.textContent = String(1 + Math.floor(Math.random() * 20));
+    numberEl.textContent = String(1 + Math.floor(Math.random() * (percentile ? 100 : 20)));
     const tick = setInterval(() => {
-      numberEl.textContent = String(1 + Math.floor(Math.random() * 20));
+      numberEl.textContent = String(1 + Math.floor(Math.random() * (percentile ? 100 : 20)));
     }, 80);
     const timers = [];
     let finished = false;
@@ -2948,15 +3179,15 @@ function playOneRollTheater(roll, batch) {
     diceOverlayEl.onclick = () => { batch.skipped = true; finish(); };
     timers.push(setTimeout(() => {
       clearInterval(tick);
-      numberEl.textContent = String(roll.roll);
+      numberEl.textContent = String(percentile ? roll.raw : roll.roll);
       stage.classList.remove('tumbling');
       stage.classList.add('landed');
       const mod = Number(roll.modifier) || 0;
       resultEl.querySelector('.dice-math').textContent =
-        `${roll.roll} ${mod >= 0 ? '+' : '-'} ${Math.abs(mod)} = ${roll.total} vs DC ${roll.dc}`;
+        percentile ? `Roll ${roll.raw} vs target ${roll.T}` : `${roll.roll} ${mod >= 0 ? '+' : '-'} ${Math.abs(mod)} = ${roll.total} vs DC ${roll.dc}`;
       const verdictEl = resultEl.querySelector('.dice-verdict');
-      verdictEl.textContent = roll.success ? 'Success' : 'Failure';
-      verdictEl.classList.add(roll.success ? 'success' : 'failure');
+      verdictEl.textContent = percentile ? percentileOutcome(roll.band) : success ? 'Success' : 'Failure';
+      verdictEl.classList.add(success ? 'success' : 'failure');
       resultEl.classList.add('shown');
     }, 1400));
     timers.push(setTimeout(finish, 3200));
@@ -2964,9 +3195,38 @@ function playOneRollTheater(roll, batch) {
 }
 
 // Append a dice roll card in the narrative log (Rules Mode check results)
-function appendRollResultBubble(roll, turnNumber) {
+function percentileOutcome(band) {
+  const labels = { crit_success: 'Critical success', marginal_success: 'Marginal success',
+    clean_success: 'Clean success', crit_failure: 'Critical failure', marginal_failure: 'Marginal failure', clean_failure: 'Clean failure' };
+  return labels[band] || 'Recorded outcome';
+}
+
+function rollAnnotationText(roll, details) {
+  if (typeof roll.annotation?.text === 'string') return roll.annotation.text;
+  const omitted = Array.isArray(details) ? details.find(entry => entry?.checkId === roll.checkId && entry.detailsOmitted === true) : null;
+  return typeof omitted?.text === 'string' ? omitted.text : '';
+}
+
+function appendRollResultBubble(roll, turnNumber, annotationDetails) {
   const el = document.createElement('div');
   el.className = 'log-entry log-roll';
+  if (roll.sides === 100) {
+    const success = ['crit_success', 'marginal_success', 'clean_success'].includes(roll.band);
+    const annotationText = rollAnnotationText(roll, annotationDetails);
+    el.innerHTML = DOMPurify.sanitize(`
+      <div class="roll-badge-container">
+        <span class="roll-d20-icon"><i class="fa-solid fa-dice"></i></span>
+        <div class="roll-details">
+          <div class="roll-calculation"><strong>D100 CHECK:</strong> Roll ${escapeHtml(roll.raw)} vs target <strong>${escapeHtml(roll.T)}</strong></div>
+          ${typeof roll.intent === 'string' ? `<div class="roll-reason">${escapeHtml(roll.intent)}</div>` : ''}
+          <div class="roll-outcome ${success ? 'roll-success' : 'roll-failure'}">${percentileOutcome(roll.band)}</div>
+        </div>
+      </div>
+      ${annotationText ? `<div class="roll-reason roll-annotation" style="margin-top:8px;overflow-wrap:anywhere">${escapeHtml(annotationText)}</div>` : ''}`);
+    placeLogEntry(el, turnNumber);
+    scrollToBottom();
+    return;
+  }
   const costs = [];
   if (!roll.success && typeof roll.applied_health_change === 'number' && roll.applied_health_change < 0) {
     costs.push(`${roll.applied_health_change} HP`);
@@ -3078,12 +3338,13 @@ function renderChronologyTimeline(items) {
       let stateChanges = {};
       try { stateChanges = JSON.parse(turn.state_changes_json || '{}'); } catch(e) {}
       
-      const timelineRolls = Array.isArray(stateChanges.dice_rolls) && stateChanges.dice_rolls.length > 0
-        ? stateChanges.dice_rolls
+      const timelineRolls = Array.isArray(turn.dice_rolls) ? turn.dice_rolls
+        : Array.isArray(stateChanges.dice_rolls) && stateChanges.dice_rolls.length > 0 ? stateChanges.dice_rolls
         : (stateChanges.roll_result ? [stateChanges.roll_result] : []);
       const rollBadgeHtml = timelineRolls.map(roll =>
-        `<div class="timeline-roll-badge ${roll.success ? 'success' : 'fail'}">
-           <i class="fa-solid fa-dice-d20"></i> ${(roll.attribute || 'stat').toUpperCase()} check: ${roll.total} vs DC ${roll.dc}
+        `<div class="timeline-roll-badge ${(roll.sides === 100 ? ['crit_success', 'marginal_success', 'clean_success'].includes(roll.band) : roll.success) ? 'success' : 'fail'}">
+           <i class="fa-solid ${roll.sides === 100 ? 'fa-dice' : 'fa-dice-d20'}"></i> ${roll.sides === 100 ? `d100: ${escapeHtml(roll.raw)} vs target ${escapeHtml(roll.T)} / ${percentileOutcome(roll.band)}` : `${(roll.attribute || 'stat').toUpperCase()} check: ${roll.total} vs DC ${roll.dc}`}
+           ${roll.sides === 100 && rollAnnotationText(roll, turn.rollAnnotationDetails) ? `<span class="roll-annotation">${escapeHtml(rollAnnotationText(roll, turn.rollAnnotationDetails))}</span>` : ''}
          </div>`
       ).join('');
 

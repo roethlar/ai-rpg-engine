@@ -3,6 +3,11 @@
  */
 import { validateVoiceDelivery } from './tts-providers.js';
 import { normalizeCheckRecord } from './rules-resolution.js';
+import { isClassRuleset, validateClassRuleset, validateClassBuild } from './class-state.js';
+import { CATALOG_SKILLS, CLASS_PROFILES, COMPANION_PROFILES, VEHICLE_PROFILES, getAbilityDefinition } from './class-catalog.js';
+import { isDeepStrictEqual } from 'node:util';
+import { EFFECT_CATALOG_VERSION, HINDRANCES, BOONS } from './rules-effects.js';
+import { STAKES_BUDGETS } from './rules-resolution.js';
 import {
   emptyAbilityInvocationRecord,
   validateAbilityInvocationRecord
@@ -1058,6 +1063,7 @@ export function resolveHeroicSubject({ current, focal, locationChanged, location
  * as "no ruleset" (freeform play).
  */
 export function validateRulesetData(raw) {
+  if (isClassRuleset(raw)) return validateClassRuleset(raw);
   const data = raw && typeof raw === 'object' ? raw : {};
   const clean = (value, max) => typeof value === 'string' ? value.trim().slice(0, max) : '';
 
@@ -1294,13 +1300,280 @@ function scopeInvocableAbilitiesForSeat(value) {
   });
 }
 
+const seatExactText = (maximum = 128) => value => typeof value === 'string' && value.length > 0
+  && [...value].length <= maximum && value.trim() === value && !/[\u0000-\u001f\u007f]/u.test(value) ? value : undefined;
+const seatNumber = (minimum = 0, maximum = Number.MAX_SAFE_INTEGER) => value => Number.isSafeInteger(value) && value >= minimum && value <= maximum ? value : undefined;
+const seatBoolean = value => typeof value === 'boolean' ? value : undefined;
+const seatEnum = values => value => values.includes(value) ? value : undefined;
+const seatNullable = parser => value => value === null ? null : parser(value);
+const seatPattern = pattern => value => typeof value === 'string' && value.length <= 256 && pattern.test(value) ? value : undefined;
+const seatActorRef = seatPattern(/^(character|npc):[1-9]\d*$/u);
+const seatAreaId = seatPattern(/^[A-Za-z0-9_-]{1,40}$/u);
+const seatTypedRef = seatPattern(/^(?:(?:character|npc):[1-9]\d*|area:[1-9]\d*:[A-Za-z0-9_-]+|(?:item|feature|object|vehicle|installation):[A-Za-z0-9][A-Za-z0-9_.:-]*)$/u);
+const seatSourceId = seatPattern(/^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$/u);
+const seatConditionToken = seatEnum([...HINDRANCES, ...BOONS]);
+const seatDuration = seatEnum(['scene', 'persistent']);
+
+function seatArray(parser, maximum = 128) {
+  return value => {
+    if (!Array.isArray(value) || value.length > maximum) return undefined;
+    const result = Array.from(value, parser);
+    return result.some(item => item === undefined) ? undefined : result;
+  };
+}
+
+function seatObject(fields) {
+  return value => {
+    if (!value || typeof value !== 'object' || Array.isArray(value)
+      || ![Object.prototype, null].includes(Object.getPrototypeOf(value))) return undefined;
+    const result = {};
+    for (const [key, parser] of Object.entries(fields)) {
+      if (!Object.hasOwn(value, key)) continue;
+      const projected = parser(value[key]);
+      if (projected !== undefined) result[key] = projected;
+    }
+    return result;
+  };
+}
+
+function seatMap(keyParser, valueParser) {
+  return value => {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined;
+    const result = {};
+    for (const [key, entry] of Object.entries(value).slice(0, 128)) {
+      if (keyParser(key) === undefined || ['__proto__', 'constructor', 'prototype'].includes(key)) continue;
+      const projected = valueParser(entry);
+      if (projected !== undefined) result[key] = projected;
+    }
+    return result;
+  };
+}
+
+const seatSkills = seatObject(Object.fromEntries(CATALOG_SKILLS.map(skill => [skill, seatNumber(0, 75)])));
+const seatResource = value => {
+  const result = seatObject({ current: seatNumber(), maximum: seatNumber(),
+    recovery: seatEnum(['safe_recovery', 'regain_control_or_scene_end']), isRisk: seatBoolean })(value);
+  return result?.current !== undefined && result.maximum !== undefined && result.current <= result.maximum ? result : undefined;
+};
+
+function scopeClassBuildForSeat(value) {
+  const result = seatObject({
+    schemaVersion: seatEnum([1]), familyId: seatExactText(40), branchId: seatExactText(80),
+    catalogVersion: seatExactText(), rulesVersion: seatExactText(), resolutionVersion: seatExactText(),
+    effectCatalogVersion: seatExactText(), optionSet: seatEnum(['expert']),
+    modules: seatArray(seatEnum(['rider']), 1),
+    capabilities: seatObject({ rider: seatBoolean, alliedActors: seatBoolean }),
+    concept: value => value === '' ? '' : seatExactText(500)(value)
+  })(value);
+  try { validateClassBuild(result); return result; } catch { return undefined; }
+}
+
+function scopeConditionsForSeat(value, owner = null) {
+  const condition = seatObject({ actor: seatActorRef, condition: seatConditionToken,
+    class: seatEnum(['hindrance', 'boon']), duration: seatDuration,
+    detail: seatExactText(80), source: seatSourceId, appliedTurn: seatNumber(1) });
+  const result = {};
+  for (const token of [...HINDRANCES, ...BOONS]) {
+    const entry = condition(value?.[token]);
+    if (!entry || entry.condition !== token || (owner !== null && entry.actor !== owner)
+      || entry.class !== (HINDRANCES.includes(token) ? 'hindrance' : 'boon')
+      || !entry.actor || !entry.duration || !entry.detail || !entry.source || !entry.appliedTurn) continue;
+    result[token] = entry;
+  }
+  return result;
+}
+
+function seatEffectShape(op, template = false) {
+  const reference = value => seatTypedRef(value) ?? (template ? seatPattern(/^\$(self|target|ally|ward|companion|vehicle|area|travelers|passengers)$/u)(value) : undefined);
+  const actor = template ? reference : seatActorRef;
+  const location = template ? reference : seatTypedRef;
+  const condition = value => seatConditionToken(value) ?? (template && value === '$condition' ? value : undefined);
+  const fields = {
+    harm: { who: actor, grade: seatEnum(['graze', 'wound', 'grievous']) },
+    heal: { who: actor, grade: seatEnum(['patch', 'mend', 'restore']) },
+    pool_drain: { who: actor, pool: seatEnum(['mana', 'strain']), depth: seatEnum(['shallow', 'deep']) },
+    pool_restore: { who: actor, pool: seatEnum(['mana', 'strain']), depth: seatEnum(['shallow', 'deep']) },
+    item_gain: { owner: actor, name: seatExactText(48) },
+    item_lose: { item: value => seatTypedRef(value) ?? seatExactText(48)(value), owner: actor },
+    item_transfer: { item: reference, from: actor, to: actor },
+    item_drop: { item: reference, area: location }, item_pickup: { owner: actor, item: reference },
+    item_condition_shift: { item: reference, direction: seatEnum(['degrade', 'improve']), to: seatEnum(['pristine', 'worn', 'damaged', 'broken']) },
+    wealth_shift: { who: actor, direction: seatEnum(['up', 'down']), to: seatEnum(['destitute', 'struggling', 'comfortable', 'wealthy', 'opulent']) },
+    disposition_improve: { npc: actor, step: seatEnum(['slight', 'marked']) },
+    disposition_worsen: { npc: actor, step: seatEnum(['slight', 'marked']) },
+    reposition: { who: actor, area: location, quality: seatEnum(['favorable', 'unfavorable', 'neutral']) },
+    scene_exit: { who: actor, quality: seatEnum(['favorable', 'unfavorable', 'neutral']) },
+    hindrance_apply: { who: actor, condition, duration: seatDuration, detail: seatExactText(80) },
+    boon_apply: { who: actor, condition, duration: seatDuration, detail: seatExactText(80) },
+    condition_clear: { who: actor, condition },
+    scene_feature_place: { area: location, kind: seatEnum(['obstruction', 'hazard', 'smoke', 'darkness', 'alarm', 'cover', 'passage']),
+      name: seatExactText(48), duration: seatDuration, works_against: seatEnum(['party', 'opposition', 'both']) },
+    scene_feature_clear: { feature: reference },
+    encounter_start: { posture: seatEnum(['hostile', 'social_standoff']), outcome: seatEnum(['party_favored', 'party_costing']), participants: seatArray(seatActorRef, 6) },
+    encounter_end: { outcome: seatEnum(['party_favored', 'party_costing']) }, fact_learn: { fact: seatExactText(120) }
+  }[op];
+  return fields ? { op: seatEnum([op]), ...fields, ...(template ? { optional: seatBoolean } : {}) } : null;
+}
+
+function scopeTemplateEffectsForSeat(value) {
+  return seatArray(effect => {
+    const fields = seatEffectShape(effect?.op, true);
+    if (!fields) return undefined;
+    const result = seatObject(fields)(effect);
+    return isDeepStrictEqual(result, effect) ? result : undefined;
+  }, 8)(value);
+}
+
+function seatEffectCost(effect) {
+  const prior = effect.pricingPrestate;
+  switch (effect.op) {
+    case 'harm': case 'heal': return ['graze', 'patch'].includes(effect.grade) ? 1 : 2;
+    case 'pool_drain': case 'pool_restore': return effect.depth === 'deep' ? 2 : 1;
+    case 'item_lose': case 'item_transfer': case 'item_drop': case 'item_pickup': return prior.class === 'significant' ? 2 : 1;
+    case 'item_condition_shift': return effect.to === 'broken' || (!effect.to && effect.direction === 'degrade' && prior.condition === 'damaged') ? 2 : 1;
+    case 'wealth_shift': {
+      const ladder = ['destitute', 'struggling', 'comfortable', 'wealthy', 'opulent'];
+      const next = effect.to ?? ladder[ladder.indexOf(prior.wealth) + (effect.direction === 'up' ? 1 : -1)];
+      return next === undefined ? undefined : ['destitute', 'opulent'].includes(next) ? 2 : 1;
+    }
+    case 'disposition_improve': case 'disposition_worsen': return effect.step === 'marked' ? 2 : 1;
+    case 'hindrance_apply': case 'boon_apply': case 'scene_feature_place': return effect.duration === 'persistent' ? 2 : 1;
+    case 'condition_clear': return prior.condition?.duration === 'persistent' ? 2 : 1;
+    case 'scene_feature_clear': return prior.duration === 'persistent' ? 2 : 1;
+    case 'encounter_start': return 2;
+    default: return 1;
+  }
+}
+
+function scopeResolvedEffectForSeat(effect, seatCharacterId) {
+  const fields = seatEffectShape(effect?.op);
+  if (!fields) return undefined;
+  // A public effect receipt must not expose another player's private pool.
+  if (['pool_drain', 'pool_restore'].includes(effect.op) && effect.who !== `character:${seatCharacterId}`) return undefined;
+  const conditionRecord = seatObject({ actor: seatActorRef, condition: seatConditionToken, class: seatEnum(['hindrance', 'boon']),
+    duration: seatDuration, detail: seatExactText(80), source: seatSourceId, appliedTurn: seatNumber(1) });
+  const result = seatObject({ ...fields,
+    catalogVersion: seatEnum([EFFECT_CATALOG_VERSION]), weightClass: seatEnum(['minor', 'significant']),
+    pointCost: seatEnum([1, 2]), effectiveValence: seatEnum(['beneficial', 'adverse']),
+    resolvedTargets: seatObject({ who: seatActorRef, npc: seatActorRef, owner: seatActorRef, from: seatActorRef, to: seatActorRef,
+      item: seatTypedRef, holder: seatTypedRef, area: seatTypedRef, feature: seatTypedRef, participants: seatArray(seatActorRef, 6) }),
+    pricingPrestate: seatObject({ health: seatNumber(), maxHealth: seatNumber(1), amount: seatNumber(), appliedAmount: seatNumber(),
+      current: seatNumber(), max: seatNumber(), quantity: seatNumber(), holder: seatTypedRef, class: seatEnum(['mundane', 'significant']),
+      condition: value => seatEnum(['pristine', 'worn', 'damaged', 'broken'])(value) ?? conditionRecord(value),
+      wealth: seatEnum(['destitute', 'struggling', 'comfortable', 'wealthy', 'opulent']), relationshipValue: seatNumber(-100, 100),
+      area: seatTypedRef, duration: seatDuration, works_against: seatEnum(['party', 'opposition', 'both']),
+      encounter: seatObject({ active: seatBoolean, participants: seatArray(seatActorRef, 64), posture: seatEnum(['hostile', 'social_standoff']),
+        startedTurn: seatNumber(1), endedTurn: seatNumber(1), source: seatSourceId }) })
+  })(effect);
+  const required = Object.keys(fields).filter(key => !(key === 'to' && ['item_condition_shift', 'wealth_shift'].includes(effect.op))
+    && !(key === 'owner' && effect.op === 'item_lose' && effect.item?.startsWith('item:')));
+  if (!isDeepStrictEqual(result, effect) || result.catalogVersion !== EFFECT_CATALOG_VERSION
+    || required.some(key => result[key] === undefined) || !['minor', 'significant'].includes(result.weightClass)
+    || result.pointCost !== (result.weightClass === 'significant' ? 2 : 1)
+    || !result.resolvedTargets || !result.pricingPrestate || result.pointCost !== seatEffectCost(result)) return undefined;
+  return result;
+}
+
+function scopeRollsForSeat(value, seatCharacterId) {
+  const rolls = [];
+  const annotationDetails = [];
+  let legacyOrdinal = 0;
+  for (const roll of Array.isArray(value) ? value : []) {
+    if (!roll || typeof roll !== 'object' || Array.isArray(roll)) continue;
+    legacyOrdinal += 1;
+    if (roll.sides !== 100) {
+      if (legacyOrdinal <= 8) rolls.push(roll);
+      continue;
+    }
+    let record;
+    try { record = normalizeCheckRecord(roll); } catch { continue; }
+    if (record.annotation) {
+      const effects = record.annotation.effects.map(effect => scopeResolvedEffectForSeat(effect, seatCharacterId));
+      const safe = effects.every(Boolean)
+        && effects.reduce((sum, effect) => sum + effect.pointCost, 0) <= STAKES_BUDGETS[record.stakesLicense]
+        && effects.every(effect => effect.effectiveValence === (record.band === 'crit_success' ? 'beneficial' : 'adverse'));
+      if (!safe) {
+        annotationDetails.push({ checkId: record.checkId, text: record.annotation.text, detailsOmitted: true });
+        // This is an explicitly partial display view, never a new signed record.
+        delete record.annotation;
+      }
+    }
+    rolls.push(record);
+  }
+  return { rolls, annotationDetails };
+}
+
+function scopeClassStateForSeat(value, member) {
+  const owned = new Map((Array.isArray(member.abilities) ? member.abilities : [])
+    .filter(ability => typeof ability?.id === 'string' && getAbilityDefinition(ability.definition_id, ability.definition_version))
+    .map(ability => [ability.id, ability]));
+  const abilityId = seatEnum([...owned.keys()]);
+  const definitionId = seatEnum([...owned.values()].map(ability => ability.definition_id));
+  const profiles = seatEnum([...Object.keys(CLASS_PROFILES), ...Object.keys(COMPANION_PROFILES)]);
+  const guard = seatObject({ remaining: seatNumber(0, 1), area: seatAreaId,
+    sourceAbilityId: abilityId, armedTurn: seatNumber(1), refuseDefeat: seatBoolean });
+  const bindings = seatObject({ targets: seatArray(seatTypedRef), travelers: seatArray(seatActorRef),
+    area: value => seatAreaId(value) ?? seatTypedRef(value), ally: seatActorRef,
+    item: seatTypedRef, catalyst: seatTypedRef, object: seatTypedRef, feature: seatTypedRef,
+    installation: seatTypedRef, retireInstallation: value => seatTypedRef(value) ?? seatArray(seatTypedRef)(value),
+    profile: profiles, condition: seatConditionToken, conditions: seatMap(seatActorRef, seatConditionToken),
+    areas: seatMap(seatActorRef, seatAreaId) });
+  const companion = seatObject({ id: seatExactText(), actorRef: seatActorRef,
+    profile: seatEnum(Object.keys(COMPANION_PROFILES)), health: seatNumber(), maxHealth: seatNumber(1),
+    area: seatNullable(seatAreaId), status: seatEnum(['active', 'downed', 'dead', 'defeated', 'incapacitated']),
+    sharedMain: seatBoolean, lastMainOperationId: seatSourceId,
+    conditions: value => Array.isArray(value) && value.length === 0 ? [] : scopeConditionsForSeat(value) });
+  const vehicle = seatObject({ id: seatExactText(), vehicleRef: seatTypedRef, profile: seatEnum(Object.keys(VEHICLE_PROFILES)),
+    hull: seatNumber(), maxHull: seatNumber(1), area: seatNullable(seatAreaId), occupants: seatArray(seatActorRef, 16),
+    passengerCapacity: seatNumber(0, 16), scale: seatEnum(['vehicle']), status: seatEnum(['active', 'disabled', 'destroyed']),
+    sharedMain: seatBoolean, lastMainOperationId: seatSourceId,
+    hold: seatNullable(seatObject({ source: seatSourceId, area: seatAreaId })) });
+  const fields = {
+    schemaVersion: seatEnum([1]), familyId: seatEnum([member.classBuild.familyId]), branchId: seatEnum([member.classBuild.branchId]),
+    sceneUses: seatMap(definitionId, seatNumber()), recoveryUses: seatMap(definitionId, seatNumber()),
+    commitments: seatObject({}), sceneId: seatNullable(seatSourceId), lastMainOperationId: seatSourceId,
+    quarry: seatNullable(seatObject({ target: seatActorRef, trail: seatArray(seatAreaId), lastKnownArea: seatAreaId, sourceAbilityId: abilityId })),
+    brace: seatNullable(guard), endure: seatNullable(guard),
+    exposure: seatNumber(0, 3), exposureMaximum: seatEnum([3]), reprisal: seatNumber(0, 1), reprisalMaximum: seatEnum([1]),
+    stance: seatEnum(['ready', 'flow', 'turn', 'still']),
+    opening: seatNullable(seatObject({ target: seatTypedRef, sourceAbilityId: abilityId, appliedTurn: seatNumber(1) })),
+    learned: seatArray(definitionId), prepared: seatArray(definitionId), preparationCapacity: seatNumber(0, 20),
+    ritual: seatNullable(seatObject({ identity: seatPattern(/^[a-f0-9]{64}$/u), definitionId, abilityId,
+      completed: seatNumber(1, 3), required: seatNumber(2, 3), area: seatAreaId,
+      targets: seatArray(seatTypedRef), bindings, startedTurn: seatNumber(1) })),
+    strain: seatNumber(0, 3), strainMaximum: seatEnum([3]), strainConditionSource: seatSourceId,
+    declaration: seatNullable(seatObject({ binding: seatEnum(['ward', 'foe', 'area']), target: seatTypedRef,
+      area: seatAreaId, sourceAbilityId: abilityId, appliedTurn: seatNumber(1), guard })),
+    profile: profiles, learnedProfiles: seatArray(profiles), baseSkills: seatSkills,
+    installations: seatArray(seatObject({ id: seatTypedRef, kind: seatEnum(['relay', 'snare', 'bulwark', 'citadel']),
+      slots: seatNumber(1, 4), area: seatAreaId, locationId: seatNumber(1), status: seatEnum(['active', 'retired', 'destroyed']),
+      health: seatNumber(), maxHealth: seatNumber(1), source: seatSourceId, retiredBy: seatSourceId,
+      features: seatArray(seatTypedRef), trigger: seatNullable(seatExactText(80)),
+      payload: scopeTemplateEffectsForSeat, maximumTriggers: seatNumber(0, 16), triggerCount: seatNumber(0, 16) })),
+    installationCapacity: seatNumber(0, 20), companion, vehicle,
+    cue: seatNullable(seatObject({ ally: seatActorRef, target: seatNullable(seatTypedRef), trigger: seatExactText(80),
+      payload: scopeTemplateEffectsForSeat, area: seatNullable(seatAreaId), requiresCover: seatBoolean,
+      sourceAbilityId: abilityId, source: seatSourceId, appliedTurn: seatNumber(1) }))
+  };
+  const familyFields = {
+    armsmaster: ['quarry'], berserker: ['exposure', 'exposureMaximum', 'reprisal', 'reprisalMaximum'],
+    adept: ['stance'], opportunist: ['opening'], arcanist: ['learned', 'prepared', 'preparationCapacity', 'ritual'],
+    channeler: ['strain', 'strainMaximum', 'strainConditionSource'], oathbound: ['declaration'],
+    shifter: ['profile', 'learnedProfiles', 'baseSkills'], maker: ['prepared', 'preparationCapacity', 'installations', 'installationCapacity'],
+    bonded: ['companion', 'learnedProfiles'], catalyst: ['cue'], rider: ['vehicle']
+  };
+  const allowed = new Set(['schemaVersion', 'familyId', 'branchId', 'sceneUses', 'recoveryUses', 'commitments', 'sceneId', 'lastMainOperationId', 'brace', 'endure',
+    ...(familyFields[member.classBuild.familyId] || [])]);
+  return seatObject(Object.fromEntries(Object.entries(fields).filter(([key]) => allowed.has(key))))(value);
+}
+
 function scopeOwnCharacterForSeat(member) {
   if (!member || typeof member !== 'object' || Array.isArray(member)) return null;
   const revision = typeof member.abilityTriggerRevision === 'string'
     && /^ak\d+:[a-f0-9]{64}$/u.test(member.abilityTriggerRevision)
     ? member.abilityTriggerRevision
     : '';
-  return {
+  const scoped = {
     id: member.id,
     name: member.name,
     class: member.class,
@@ -1319,6 +1592,22 @@ function scopeOwnCharacterForSeat(member) {
     abilityTriggerRevision: revision,
     invocableAbilities: scopeInvocableAbilitiesForSeat(member.invocableAbilities)
   };
+  const classBuild = scopeClassBuildForSeat(member.classBuild);
+  if (classBuild) {
+    scoped.classBuild = classBuild;
+    scoped.classState = scopeClassStateForSeat(member.classState, member);
+    scoped.skills = seatSkills(member.skills) || {};
+    scoped.resources = seatObject({ health: seatResource, exposure: seatResource, strain: seatResource })(member.resources) || {};
+    scoped.conditions = scopeConditionsForSeat(member.conditions, `character:${member.id}`);
+    scoped.area = seatNullable(seatAreaId)(member.area) ?? null;
+    scoped.abilities = seatArray(seatObject({ id: seatExactText(), definition_id: seatExactText(), definition_version: seatNumber(1),
+      name: seatExactText(80), description: seatExactText(500), tier: seatEnum(['expert']), source: seatExactText(80),
+      invocation: seatObject({ schema_version: seatEnum([1]), family_key: seatExactText() }) }))(member.abilities) || [];
+    scoped.inventory = seatArray(seatObject({ id: seatTypedRef, name: seatExactText(80), description: seatExactText(500),
+      type: seatExactText(40), quantity: seatNumber(1), condition: seatEnum(['pristine', 'worn', 'damaged', 'broken']), equipped: seatBoolean }))(member.inventory) || [];
+    scoped.attributes = seatObject({ strength: seatNumber(0, 30), agility: seatNumber(0, 30), intellect: seatNumber(0, 30), willpower: seatNumber(0, 30) })(member.attributes) || {};
+  }
+  return scoped;
 }
 
 export function scopeStateForSeat(state, seatCharacterId) {
@@ -1327,7 +1616,8 @@ export function scopeStateForSeat(state, seatCharacterId) {
   const own = party.find(member => member && member.id === seatCharacterId) || null;
   const scopedOwn = scopeOwnCharacterForSeat(own);
   const turn = state.turn && typeof state.turn === 'object' ? state.turn : null;
-  return {
+  const dice = scopeRollsForSeat(turn?.rollResults, seatCharacterId);
+  const scoped = {
     campaignId: state.campaignId,
     title: state.title,
     genre: state.genre,
@@ -1355,12 +1645,14 @@ export function scopeStateForSeat(state, seatCharacterId) {
       sceneGrounding: seatScalarStringOrNull(turn.sceneGrounding, 4000),
       svg: seatScalarStringOrNull(turn.svg, 500000),
       suggestedChoices: seatStringArray(turn.suggestedChoices),
-      rollResults: seatPlainObjectArray(turn.rollResults),
+      rollResults: dice.rolls,
       voiceLines: scopeVoiceLinesForSeat(turn.voiceLines),
       location: turn.location,
       heroic: turn.heroic
     }
   };
+  if (scoped.turn && dice.annotationDetails.length) scoped.turn.rollAnnotationDetails = dice.annotationDetails;
+  return scoped;
 }
 
 /**
@@ -1376,13 +1668,21 @@ export function scopeStateForSeat(state, seatCharacterId) {
  */
 export function scopeJournalForSeat(turns) {
   const list = Array.isArray(turns) ? turns : [];
-  return list.map(turn => ({
-    turn_number: turn.turn_number,
-    character_id: seatIntegerOrNull(turn.character_id),
-    player_action: turn.player_action,
-    narrative: turn.narrative,
-    created_at: turn.created_at
-  }));
+  return list.map(turn => {
+    const row = {
+      turn_number: turn.turn_number,
+      character_id: seatIntegerOrNull(turn.character_id),
+      player_action: turn.player_action,
+      narrative: turn.narrative,
+      created_at: turn.created_at
+    };
+    let changes;
+    try { changes = JSON.parse(turn.state_changes_json || '{}'); } catch { changes = null; }
+    const dice = scopeRollsForSeat(Array.isArray(changes?.dice_rolls) ? changes.dice_rolls.filter(roll => roll?.sides === 100) : [], null);
+    if (dice.rolls.length) row.dice_rolls = dice.rolls;
+    if (dice.annotationDetails.length) row.rollAnnotationDetails = dice.annotationDetails;
+    return row;
+  });
 }
 
 /**
@@ -1723,6 +2023,7 @@ export function validateCampaignBundle(raw) {
 
   const outline = validateOutlineData(bundleJsonObject(bundle.outline ?? bundle.outline_json, {}));
   const ruleset = validateRulesetData(bundleJsonObject(rawCampaign.ruleset_json ?? bundle.ruleset));
+  if (isClassRuleset(ruleset)) throw new Error('Class campaign import requires the complete versioned runtime bundle integration.');
   const tableStyle = validateTableStyle(bundleJsonObject(rawCampaign.table_style_json ?? bundle.table_style));
 
   const characters = bundleJsonArray(bundle.characters).map(row => {

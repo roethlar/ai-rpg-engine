@@ -21,6 +21,12 @@ import {
   validateAbilityInvocationRecord
 } from './ability-trigger-state.js';
 import { runRulesResolutionTests } from './test-rules-resolution.mjs';
+import { runClassCatalogTests } from './test-class-catalog.mjs';
+import { runClassStateTests } from './test-class-state.mjs';
+import { runClassScenarioTests } from './test-class-scenario.mjs';
+import { runRulesEffectsTests } from './test-rules-effects.mjs';
+import { runClassActionTests } from './test-class-actions.mjs';
+import { runClassPortabilityTests } from './test-class-portability.mjs';
 import { createCheckRecord } from './rules-resolution.js';
 
 // Hermetic store: db.js opens its file at module load, and several tests
@@ -6090,7 +6096,7 @@ async function testStageOneAbilityBindingPersistence() {
   ]);
   assert.deepStrictEqual(await columns('character_ability_bindings'), [
     'player_character_id', 'campaign_id', 'ability_id', 'term', 'prose', 'provenance',
-    'vocabulary_version', 'binding_set_revision', 'created_at'
+    'vocabulary_version', 'binding_set_revision', 'created_at', 'aliases_json'
   ]);
 
   const ready = (abilityId, term, prose) => ({
@@ -7228,6 +7234,12 @@ async function runAll() {
   try {
     testParseJsonSafe();
     runRulesResolutionTests();
+    runClassCatalogTests();
+    runClassStateTests();
+    runRulesEffectsTests();
+    runClassScenarioTests();
+    runClassActionTests();
+    runClassPortabilityTests();
     const signedRecord = createCheckRecord({
       call: { actor: 1, callSeq: 1, intent: 'Cast at the raider', tier: 'standard', tierBasis: 'An armed opponent', deltas: [] },
       actor: 1, turn: 1, skillBonus: 13, activeEncounter: true
@@ -7282,6 +7294,10 @@ async function runAll() {
     await testTaskQueueSerialization();
     const { runRulesStoreTests } = await import('./test-rules-store.mjs');
     await runRulesStoreTests();
+    const { runClassCreationTests } = await import('./test-class-creation.mjs');
+    await runClassCreationTests();
+    const { runClassSeatTests } = await import('./test-class-seats.mjs');
+    await runClassSeatTests();
     console.log('✅ All unit tests completed successfully!');
     await cleanupTestDb();
   } catch (error) {
