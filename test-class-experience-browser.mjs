@@ -29,6 +29,7 @@ export async function runClassExperienceBrowserTests({ afterCreation } = {}) {
   const db = await import('./db.js');
   const { AIClient } = await import('./api-client.js');
   const { getCampaignState } = await import('./rpg-engine.js');
+  const { readRulesCheck } = await import('./rules-store.js');
   const artifacts = await mkdtemp(join(tmpdir(), 'aetheria-class-experience-'));
   const previous = { sendPrompt: AIClient.prototype.sendPrompt, access: process.env.ACCESS_SECRET,
     imageProvider: process.env.IMAGE_PROVIDER, config: await db.get("SELECT value FROM server_settings WHERE key = 'ai_config'") };
@@ -277,14 +278,27 @@ export async function runClassExperienceBrowserTests({ afterCreation } = {}) {
       assert.equal(operation.stage, 'resolved');
       const checkRow = await db.get('SELECT * FROM rules_checks WHERE operation_id = ?', [operation.id]);
       const signed = normalizeCheckRecord(JSON.parse(checkRow.record_json));
+      const publicCheck = normalizeCheckRecord(await readRulesCheck({ operationId: operation.id, actor: operation.actor, callSeq: 1 }));
       assert.ok(signed.raw >= 1 && signed.raw <= 100, 'The live engine owns the real random roll');
       assert.equal((await db.get('SELECT rules_state_json FROM campaigns WHERE id = ?', [state.campaignId])).rules_state_json, before.rules_state_json,
         'A narration failure does not partially apply the prepared action');
+      const pendingState = await getCampaignState(state.campaignId);
+      assert.deepEqual(pendingState.pendingRollResults, [publicCheck]);
+      assert.equal(pendingState.pendingRollResults[0].operationId, undefined);
+      assert.equal(pendingState.pendingRollResults[0].annotationFinalized, undefined);
+      await page.locator('.pending-action-rolls .log-roll').waitFor({ state: 'visible' });
+      assert.equal(await page.locator('.pending-action-rolls .log-roll').count(), 1, 'The signed check is visible immediately after the outage');
       await page.reload();
       await page.locator('.campaign-card').filter({ hasText: characterName }).click();
       await page.locator('#main-game-screen').waitFor({ state: 'visible' });
       assert.equal(await input.inputValue(), exactRequest.playerAction, 'Real pending action reload restores its exact submitted prose');
       assert.equal(await input.getAttribute('readonly'), '');
+      assert.equal(await page.locator('.pending-action-rolls .log-roll').count(), 1, 'Reload preserves the same single signed pending check');
+      assert.equal(await page.locator('.pending-action-rolls [data-turn]').count(), 0);
+      assert.equal(await page.locator('.pending-action-rolls').getAttribute('data-turn'), null);
+      assert.equal(await page.locator('.pending-action-rolls .roll-calculation').textContent(), `D100 CHECK: Roll ${signed.raw} vs target ${signed.T}`);
+      if (publicCheck.annotation) assert.equal(await page.locator('.pending-action-rolls .roll-annotation').textContent(), publicCheck.annotation.text);
+      await page.waitForTimeout(450);
       await page.screenshot({ path: join(artifacts, `pending-${label}.png`) });
       const callsBeforeRetry = councilCalls.length;
       const resumed = responseForTurn();
@@ -298,6 +312,7 @@ export async function runClassExperienceBrowserTests({ afterCreation } = {}) {
       assert.equal(settled.settledRequestId, exactRequest.requestId);
       assert.equal(settled.turn.requestId, exactRequest.requestId);
       assert.equal(settled.pendingAction, null);
+      assert.deepEqual(settled.pendingRollResults, []);
       assert.equal(settled.turn.rollResults[0].checkId, signed.checkId);
       assert.equal(settled.turn.rollResults[0].raw, signed.raw);
       const after = await db.get('SELECT rules_state_json, rules_revision FROM campaigns WHERE id = ?', [state.campaignId]);
@@ -311,6 +326,7 @@ export async function runClassExperienceBrowserTests({ afterCreation } = {}) {
       assert.equal(await input.inputValue(), '');
       assert.equal(await input.getAttribute('readonly'), null);
       await page.locator('.log-roll').waitFor({ state: 'visible' });
+      assert.equal(await page.locator('.pending-action-rolls').count(), 0);
       assert.equal(await page.locator('.log-roll').count(), 1);
       assert.equal(await page.locator('.roll-calculation').textContent(), `D100 CHECK: Roll ${signed.raw} vs target ${signed.T}`);
       await verifyLocalIcon(page, '.log-roll .fa-dice');

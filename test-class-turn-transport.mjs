@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { scopeStateForSeat } from './rpg-state.js';
 import { errorPayloadFor } from './server-errors.js';
+import { createCheckRecord } from './rules-resolution.js';
 
 const UUID = '87e19d25-a165-4dd8-8cbd-bdb76cb2ed0b';
 const OTHER_UUID = '2a9d7e46-58ea-495a-bc40-9a45d590ccae';
@@ -58,9 +59,23 @@ export async function runClassTurnTransportTests({ verifyBrowser = false } = {})
   for (const stage of ['accepted', 'prepared', 'resolved', 'narrated']) {
     assert.equal(scopeStateForSeat({ ...state, pendingAction: pending({ stage }) }, 1).pendingAction.stage, stage);
   }
+  const pendingChecks = Array.from({ length: 12 }, (_, index) => createCheckRecord({ actor: 1, turn: 2, skillBonus: 13, activeEncounter: true,
+    call: { actor: 1, callSeq: index + 1, intent: 'Strike the keeper.', tier: 'standard', tierBasis: 'The keeper resists.', deltas: [] } },
+  { roll: () => 100, newId: () => `87e19d25-a165-4dd8-8cbd-${String(index).padStart(12, '0')}`, now: () => '2026-09-07T12:00:00Z' }));
+  const annotated = { ...pendingChecks[0], annotation: { text: 'The air crackles.', effects: [], affirmedOpposed: [] } };
+  state.pendingRollResults = [annotated, ...pendingChecks.slice(1)];
+  assert.deepEqual(scopeStateForSeat(state, 2).pendingRollResults, state.pendingRollResults, 'Signed pending checks are table-public, not limited to the acting seat');
+  const poisonedCheck = { ...pendingChecks[1], privateWorld: PRIVATE, operationId: PRIVATE,
+    annotation: { text: 'A visible consequence.', effects: [{ op: 'harm', privateWorld: PRIVATE }], affirmedOpposed: [] } };
+  const protectedView = scopeStateForSeat({ ...state, pendingRollResults: [annotated, poisonedCheck, ...pendingChecks.slice(2)] }, 2);
+  assert.equal(protectedView.pendingRollResults.length, 12, 'Pending d100 records do not inherit the legacy eight-roll cap');
+  assert.equal(protectedView.pendingRollResults[1].checkId, pendingChecks[1].checkId);
+  assert.deepEqual(protectedView.pendingRollAnnotationDetails, [{ checkId: pendingChecks[1].checkId, text: 'A visible consequence.', detailsOmitted: true }]);
+  assert.equal(JSON.stringify(protectedView).includes(PRIVATE), false, 'Pending checks cannot leak operation metadata or arbitrary annotation internals');
   const legacyView = scopeStateForSeat({ ...state, ruleset: null }, 1);
   assert.equal(Object.hasOwn(legacyView, 'pendingAction'), false);
   assert.equal(Object.hasOwn(legacyView.turn, 'requestId'), false);
+  assert.equal(Object.hasOwn(legacyView, 'pendingRollResults'), false);
   for (const code of ['CLASS_ACTION_PENDING', 'CLASS_COUNCIL_REJECTED', 'CLASS_COUNCIL_GROUNDING', 'CLASS_COUNCIL_JSON', 'CLASS_COUNCIL_SHAPE']) {
     assert.deepEqual(errorPayloadFor({ auth: { kind: 'seat' } }, { code, message: PRIVATE, publicMessage: 'Retry the submitted action.' }, 'Unavailable'),
       { code, error: 'Retry the submitted action.' });
@@ -116,6 +131,7 @@ export async function runClassTurnTransportTests({ verifyBrowser = false } = {})
             return send({ error: 'The action could not be resolved against the recorded scene.', code: 'CLASS_COUNCIL_SHAPE' }, 500);
           }
           current.pendingAction = null;
+          current.pendingRollResults = [];
           current.turn = { ...current.turn, number: current.turn.number + 1, characterId: 1, playerAction: body.playerAction,
             narrative: `Completed ${posts.length}.`, ...(current.ruleset?.id === 'aetheria' ? { requestId: reply === 'settled' ? UUID : body.requestId } : {}) };
           return send({ ...current, ...(reply === 'settled' ? { settledRequestId: body.requestId } : {}) });
@@ -147,15 +163,20 @@ export async function runClassTurnTransportTests({ verifyBrowser = false } = {})
       await submit();
       assert.deepEqual(posts[1], posts[0], 'Failure and reload retry the exact UUID, text, actor and revision');
       current.pendingAction = pending({ requestId: posts[0].requestId });
+      current.pendingRollResults = [annotated];
       current.character.abilityTriggerRevision = NEW_REVISION;
       await page.setViewportSize({ width: 390, height: 844 });
       await page.reload();
       await page.locator('#main-game-screen').waitFor({ state: 'visible' });
+      assert.equal(await page.locator('.pending-action-rolls .log-roll').count(), 1);
+      assert.equal(await page.locator('.pending-action-rolls [data-turn]').count(), 0, 'A pending check cannot be attributed to a completed turn');
+      assert.match(await page.locator('.pending-action-rolls').textContent(), /The air crackles/);
       reply = 'success';
       await submit();
       assert.deepEqual(posts[2], posts[0], 'Accepted retries preserve their older revision despite a refreshed sheet');
       assert.equal(await input.inputValue(), '');
       assert.equal(await input.getAttribute('readonly'), null);
+      assert.equal(await page.locator('.pending-action-rolls').count(), 0, 'Completion removes the temporary pending group');
       assert.equal(await page.evaluate(() => Object.keys(localStorage).filter(key => key.startsWith('aetheria_pending_action_v1_')).length), 0);
       await input.fill('Look into the yard');
       current.pendingAction = pending({ requestId: OTHER_UUID, playerAction: 'Wait by the gate', abilityTriggerRevision: NEW_REVISION });

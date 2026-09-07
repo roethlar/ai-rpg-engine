@@ -673,6 +673,13 @@ export async function initDb() {
     CREATE UNIQUE INDEX IF NOT EXISTS idx_locations_campaign_key ON locations (campaign_id, key)
   `);
 
+  for (const table of ['locations', 'npcs']) {
+    const columns = await all(`PRAGMA table_info(${table})`);
+    if (!columns.some(column => column.name === 'pending_rules_operation_id')) {
+      await run(`ALTER TABLE ${table} ADD COLUMN pending_rules_operation_id TEXT REFERENCES rules_turn_operations(id)`);
+    }
+  }
+
   // Engine-owned pointer to where the player currently is (the model never
   // "remembers" position; the engine holds it).
   try {

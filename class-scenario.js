@@ -1,6 +1,7 @@
 import { CATALOG_SKILLS } from './class-catalog.js';
+import { isDeepStrictEqual } from 'node:util';
 import { validateRulesWorld } from './class-state.js';
-import { BOONS, HINDRANCES, effectComparisonKey } from './rules-effects.js';
+import { BOONS, HINDRANCES, EFFECT_VALUES, effectComparisonKey } from './rules-effects.js';
 
 export const CLASS_SCENE_VERSION = 1;
 export const NPC_PROFILE_VERSION = 'npc-kits-1';
@@ -56,10 +57,14 @@ export const CLASS_SCENE_CONTRACT = freeze({
   tokens: { npcProfiles: Object.keys(NPC_PROFILES), allegiance: ['party', 'neutral', 'opposition'], terrain: ['dry_ground', 'underwater'], areaTraits: AREA_TRAITS,
     surfaces: SURFACES, itemKinds: ITEM_KINDS, itemConditions: ['pristine', 'worn', 'damaged', 'broken'], objectKinds: ['lock', 'mechanism', 'scenery'],
     security: ['ordinary', 'protected'], featureKinds: FEATURE_KINDS, worksAgainst: ['party', 'opposition', 'both'], durations: DURATIONS,
-    conditions: CONDITIONS, revealScopes: REVEAL_SCOPES, featureOrigins: ['mundane', 'magical', 'unknown'], weaponCategories: SCENE_WEAPON_CATEGORIES },
+    conditions: CONDITIONS, revealScopes: REVEAL_SCOPES, featureOrigins: ['mundane', 'magical', 'unknown'], weaponCategories: SCENE_WEAPON_CATEGORIES,
+    injury: Object.keys(EFFECT_VALUES.harm),
+    fallen: { age: ['recent', 'unknown'], body: ['intact', 'unknown', 'destroyed'], returnChoice: ['willing', 'unwilling', 'unknown'] } },
   rules: [
     'Return every required top-level field, even empty arrays. No additional fields, numbers for combat power, effect operations, or invented actor/area references.',
     'Include each provided area and actor exactly once. Actor area may be null for an absent NPC; player actors and engine-controlled companions use profile:null and allegiance:party.',
+    'Only a newly introduced independent NPC may have optional fallen:{age:recent|unknown,body:intact|unknown|destroyed,returnChoice:willing|unwilling|unknown}. All three fields are required when present. Recent means the NPC falls in this authored scene; the engine owns health, status and death turn. Unknown age never invents a recent death. Return choice belongs to that NPC, never follows from party allegiance. Never supply fallen for a PC, controlled companion or already initialized NPC. Existing NPCs must retain their authored profile and mechanical state.',
+    'A newly introduced present independent NPC with a visible existing injury may use injury:graze|wound|grievous. The engine subtracts that single existing harm grade from its authored health; never give numeric vitals. Injury cannot accompany fallen, apply to an absent NPC, or change a PC, controlled companion or already initialized NPC. Use it when the scene describes a wound that healing should actually mend.',
     'Each recorded map feature index must appear exactly once as mapFeature on an object or feature, with its recorded name and area unchanged. New non-map records omit mapFeature.',
     'A condition has exactly kind, duration, and detail (1-80 characters). Absent actors have no conditions. Do not imply consent through allegiance.',
     'A discovery has exact stored fact text (1-120 characters), one listed scope, and a recorded actor, area, or object subject. Fact text never grants permission or changes state.',
@@ -153,16 +158,29 @@ export function validateClassSceneFrame(raw, { layout, actorKeys } = {}) {
   unique(areas.map(entry => entry.area), 'area descriptor');
   if (areas.length !== areaIds.length) invalid('Every recorded area requires one descriptor.');
   const actors = list(raw.actors, 'actors').map(entry => {
-    shape(entry, ['actor', 'area', 'allegiance', 'profile', 'conditions']);
+    shape(entry, ['actor', 'area', 'allegiance', 'profile', 'conditions'], ['fallen', 'injury']);
     const conditions = list(entry.conditions, 'conditions', CONDITIONS.length).map(condition => {
       shape(condition, ['kind', 'duration', 'detail']);
       return { kind: oneOf(condition.kind, CONDITIONS, 'condition'), duration: oneOf(condition.duration, DURATIONS, 'condition duration'), detail: text(condition.detail, 80, 'condition detail') };
     });
     unique(conditions.map(condition => condition.kind), 'actor condition');
     if (entry.area === null && conditions.length) invalid('Absent actors cannot acquire scene conditions.');
+    let injury;
+    if (Object.hasOwn(entry, 'injury')) {
+      injury = oneOf(entry.injury, Object.keys(EFFECT_VALUES.harm), 'NPC injury grade');
+      if (entry.area === null || Object.hasOwn(entry, 'fallen') || entry.profile === null) invalid('An injury requires a present living independent NPC.');
+    }
+    let fallen;
+    if (Object.hasOwn(entry, 'fallen')) {
+      shape(entry.fallen, ['age', 'body', 'returnChoice']);
+      fallen = { age: oneOf(entry.fallen.age, ['recent', 'unknown'], 'fallen NPC age'),
+        body: oneOf(entry.fallen.body, ['intact', 'unknown', 'destroyed'], 'fallen NPC body'),
+        returnChoice: oneOf(entry.fallen.returnChoice, ['willing', 'unwilling', 'unknown'], 'fallen NPC return choice') };
+    }
     return { actor: actor(entry.actor), area: entry.area === null ? null : area(entry.area),
       allegiance: oneOf(entry.allegiance, ['party', 'neutral', 'opposition'], 'allegiance'),
-      profile: entry.profile === null ? null : oneOf(entry.profile, Object.keys(NPC_PROFILES), 'NPC profile'), conditions };
+      profile: entry.profile === null ? null : oneOf(entry.profile, Object.keys(NPC_PROFILES), 'NPC profile'), conditions,
+      ...(fallen ? { fallen } : {}), ...(injury ? { injury } : {}) };
   });
   unique(actors.map(entry => entry.actor), 'actor descriptor');
   if (actors.length !== knownActors.length) invalid('Every provided actor requires one descriptor.');
@@ -227,7 +245,7 @@ export function validateClassSceneFrame(raw, { layout, actorKeys } = {}) {
   shape(raw.encounter, ['active', 'opposition']);
   const encounter = { active: boolean(raw.encounter.active, 'encounter activity'), opposition: unique(list(raw.encounter.opposition, 'opposition').map(actor), 'opposition actor') };
   if (encounter.active !== (encounter.opposition.length > 0)) invalid('Encounter activity contradicts its opposition.');
-  if (encounter.opposition.some(value => !actors.some(entry => entry.actor === value && entry.area !== null && entry.allegiance === 'opposition'))) invalid('An encounter requires present opposition actors.');
+  if (encounter.opposition.some(value => !actors.some(entry => entry.actor === value && entry.area !== null && !entry.fallen && entry.allegiance === 'opposition'))) invalid('An encounter requires present active opposition actors.');
   return { schemaVersion: CLASS_SCENE_VERSION, areas, actors, items, objects, features, discoveries, encounter };
 }
 
@@ -271,19 +289,35 @@ export function buildClassScenario({ world, location, frame, actorBindings, turn
     const ref = refs.actors[entry.actor];
     const target = result.actors[ref];
     const engineControlled = ref.startsWith('character:') || !!target.controller;
-    if (engineControlled && (entry.profile !== null || entry.allegiance !== 'party' || entry.area === null)) invalid('Player and controlled actors retain their existing class authority and party identity.');
+    if (engineControlled && (entry.profile !== null || entry.allegiance !== 'party' || entry.area === null || entry.fallen || entry.injury)) invalid('Player and controlled actors retain their existing class authority, vitals and return choice.');
     if (!engineControlled) {
-      if (!entry.profile || target.npcKit) invalid('An uninitialized NPC requires one authored profile.');
+      if (!entry.profile) invalid('An independent NPC requires one authored profile.');
       const profile = NPC_PROFILES[entry.profile];
-      target.health = profile.health;
-      target.maxHealth = profile.health;
-      target.skills = Object.fromEntries(CATALOG_SKILLS.map(skill => [skill, profile.skills[skill] || 0]));
-      target.npcProfile = entry.profile;
-      target.npcKit = { id: entry.profile, version: NPC_PROFILE_VERSION, mainActions: 1, actions: structuredClone(profile.actions), tells: profile.actions.map(action => action.tell) };
-      target.status = 'active';
-      target.relationshipValue = target.relationshipValue ?? target.disposition ?? 0;
-      target.wealth = 'comfortable';
-      target.scale = 'person';
+      const kit = { id: entry.profile, version: NPC_PROFILE_VERSION, mainActions: 1, actions: structuredClone(profile.actions), tells: profile.actions.map(action => action.tell) };
+      if (target.npcKit) {
+        if (entry.fallen || entry.injury || target.npcProfile !== entry.profile || !isDeepStrictEqual(target.npcKit, kit)) invalid('Existing NPCs retain their authored profile, vitals and return choice.');
+      } else {
+        target.health = entry.fallen ? 0 : profile.health - (entry.injury ? EFFECT_VALUES.harm[entry.injury] : 0);
+        target.maxHealth = profile.health;
+        target.skills = Object.fromEntries(CATALOG_SKILLS.map(skill => [skill, profile.skills[skill] || 0]));
+        target.npcProfile = entry.profile;
+        target.npcKit = kit;
+        target.status = entry.fallen ? 'dead' : 'active';
+        target.relationshipValue = target.relationshipValue ?? target.disposition ?? 0;
+        target.wealth = 'comfortable';
+        target.scale = 'person';
+        if (entry.fallen) {
+          target.deathAge = entry.fallen.age;
+          target.bodyState = entry.fallen.body;
+          target.returnChoice = entry.fallen.returnChoice;
+          if (entry.fallen.age === 'recent') target.deathTurn = turn;
+          else delete target.deathTurn;
+          if (entry.fallen.body !== 'unknown') target.intactBody = entry.fallen.body === 'intact';
+          else delete target.intactBody;
+          if (entry.fallen.returnChoice !== 'unknown') target.willingReturn = entry.fallen.returnChoice === 'willing';
+          else delete target.willingReturn;
+        }
+      }
     }
     target.party = entry.allegiance === 'party';
     target.allegiance = entry.allegiance;
@@ -291,6 +325,7 @@ export function buildClassScenario({ world, location, frame, actorBindings, turn
     target.present = entry.area !== null;
     target.locationId = location.id;
     target.area = entry.area;
+    if (normalized.encounter.opposition.includes(entry.actor) && (target.health <= 0 || target.status !== 'active')) invalid('An encounter requires living active opposition actors.');
     target.knowledge ??= [];
     target.conditions ??= {};
     for (const condition of entry.conditions) {

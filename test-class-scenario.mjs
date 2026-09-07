@@ -112,6 +112,59 @@ export function runClassScenarioTests() {
   assert.equal(world.items[refs.items.saber].natural, false);
   assert.equal(world.items[refs.items.saber].fixed, false);
   assert.equal(world.items[refs.items.catalyst].kind, 'revival-catalyst');
+  const fallenFixture = fixture();
+  fallenFixture.turn = 5;
+  fallenFixture.frame.actors[3].fallen = { age: 'recent', body: 'intact', returnChoice: 'willing' };
+  const fallenWorld = buildClassScenario(fallenFixture).world;
+  const fallen = fallenWorld.actors['npc:22'];
+  assert.equal(fallen.health, 0);
+  assert.equal(fallen.status, 'dead');
+  assert.equal(fallen.deathTurn, 5, 'Only the engine scene turn establishes a recent death.');
+  assert.equal(fallen.intactBody, true);
+  assert.equal(fallen.willingReturn, true);
+  const revive = { op: 'revive', who: 'npc:22', health: 1, maximumElapsedTurns: 2, condition: 'winded', duration: 'scene' };
+  const reviveIn = (state, turn = 6) => evaluateEffects({ state, effects: [revive], consumer: 'ability', actor: 10, turn, transactionId: 'scene-revival' });
+  assert.equal(reviveIn(fallenWorld).state.actors['npc:22'].health, 1, 'An actually materialized fallen NPC satisfies the core revival boundary.');
+  assert.throws(() => reviveIn(fallenWorld, 8), /recent recorded death/);
+  for (const [field, token] of [['age', 'unknown'], ['body', 'unknown'], ['body', 'destroyed'], ['returnChoice', 'unknown'], ['returnChoice', 'unwilling']]) {
+    const sample = fixture();
+    sample.frame.actors[3].fallen = { age: 'recent', body: 'intact', returnChoice: 'willing', [field]: token };
+    const uncertain = buildClassScenario({ ...sample, turn: 5 }).world;
+    assert.throws(() => reviveIn(uncertain), undefined, `${field}:${token} cannot invent revival permission.`);
+    if (field === 'age') assert.equal(Object.hasOwn(uncertain.actors['npc:22'], 'deathTurn'), false);
+  }
+  assert.equal(Object.hasOwn(world.actors['npc:22'], 'willingReturn'), false, 'An allied NPC is not implicitly willing to return.');
+
+  const revisitInput = fixture();
+  const laterLocation = { ...revisitInput.location, id: 9 };
+  const revisitWorld = evaluateEffects({ state: fallenWorld, effects: [{ op: 'encounter_end', outcome: 'party_favored' }],
+    consumer: 'ordinary', actor: 10, turn: 6, transactionId: 'leave-old-scene', affirmedOpposed: ['npc:20', 'npc:21'] }).state;
+  revisitWorld.currentLocationId = laterLocation.id;
+  for (const area of Object.values(fallenWorld.areas)) revisitWorld.areas[`area:9:${area.id}`] = { ...structuredClone(area), locationId: 9 };
+  revisitInput.frame.actors.forEach(actor => { actor.conditions = []; });
+  revisitInput.frame.items = [];
+  const rememberedVitals = structuredClone(revisitWorld.actors['npc:22']);
+  const revisited = buildClassScenario({ ...revisitInput, world: revisitWorld, location: laterLocation, turn: 9 }).world;
+  for (const field of ['health', 'maxHealth', 'status', 'deathTurn', 'intactBody', 'willingReturn', 'npcKit', 'skills']) {
+    assert.deepEqual(revisited.actors['npc:22'][field], rememberedVitals[field], `A new location cannot reset existing NPC ${field}.`);
+  }
+  assert.equal(revisited.actors['npc:22'].locationId, 9);
+  const changedProfile = structuredClone(revisitInput.frame);
+  changedProfile.actors[3].profile = 'boss';
+  assert.throws(() => buildClassScenario({ ...revisitInput, frame: changedProfile, world: revisitWorld, location: laterLocation, turn: 9 }), /retain their authored profile/);
+  const changedDeath = structuredClone(revisitInput.frame);
+  changedDeath.actors[3].fallen = { age: 'recent', body: 'intact', returnChoice: 'willing' };
+  assert.throws(() => buildClassScenario({ ...revisitInput, frame: changedDeath, world: revisitWorld, location: laterLocation, turn: 9 }), /retain their authored profile/);
+  const deadOpposition = structuredClone(revisitInput.frame);
+  deadOpposition.actors[3].allegiance = 'opposition';
+  deadOpposition.encounter.opposition.push(deadOpposition.actors[3].actor);
+  assert.throws(() => buildClassScenario({ ...revisitInput, frame: deadOpposition, world: revisitWorld, location: laterLocation, turn: 9 }), /living active opposition/);
+  assert.deepEqual(revisitWorld.actors['npc:22'], rememberedVitals);
+  const controlled = fixture();
+  controlled.world.actors['npc:22'].controller = 'character:10';
+  controlled.frame.actors[3].profile = null;
+  controlled.frame.actors[3].fallen = { age: 'recent', body: 'intact', returnChoice: 'willing' };
+  assert.throws(() => buildClassScenario(controlled), /controlled actors retain/);
 
   for (const [id, profile] of Object.entries(NPC_PROFILES)) {
     const sample = fixture();
@@ -124,6 +177,24 @@ export function runClassScenarioTests() {
     assert.ok(npc.npcKit.actions.some(action => action.kind !== 'attack'), 'NPC profiles retain nonattack choices.');
   }
   assert.throws(() => { NPC_PROFILES.boss.health = 999; }, TypeError);
+  for (const [injury, amount] of Object.entries({ graze: 2, wound: 5, grievous: 9 })) {
+    const sample = fixture();
+    sample.frame.actors[3].injury = injury;
+    const injured = buildClassScenario(sample).world;
+    assert.equal(injured.actors['npc:22'].health, NPC_PROFILES.support.health - amount);
+    assert.equal(injured.actors['npc:22'].status, 'active');
+    const healed = evaluateEffects({ state: injured, effects: [{ op: 'heal', who: 'npc:22', grade: 'mend' }],
+      consumer: 'ability', actor: 10, turn: 2, transactionId: `heal-${injury}` });
+    assert.equal(healed.state.actors['npc:22'].health, Math.min(NPC_PROFILES.support.health, injured.actors['npc:22'].health + 6),
+      'Ordinary authored healing can mend a scene injury without an artificial later world patch.');
+    const again = { ...fixture(), world: structuredClone(injured) };
+    again.location.id = 5;
+    again.world.currentLocationId = 5;
+    Object.assign(again.world.areas, createRulesWorld({ location: again.location }).areas);
+    for (const actor of again.frame.actors) actor.conditions = [];
+    again.frame.actors[3].injury = injury;
+    assert.throws(() => buildClassScenario(again), /Existing NPCs retain/, 'Scene authoring cannot reapply injury to an initialized NPC.');
+  }
   const peaceful = fixture();
   peaceful.frame.encounter = { active: false, opposition: [] };
   peaceful.frame.actors[1].allegiance = 'neutral';
@@ -176,6 +247,18 @@ export function runClassScenarioTests() {
   const cases = [
     [frame => { frame.effects = [{ op: 'harm', amount: 999 }]; }, 'arbitrary effects'],
     [frame => { frame.actors[1].health = 999; }, 'model combat numbers'],
+    [frame => { frame.actors[3].injury = 5; }, 'numeric NPC injury'],
+    [frame => { frame.actors[3].injury = 'fatal'; }, 'invented NPC injury'],
+    [frame => { frame.actors[0].injury = 'wound'; }, 'PC injury override'],
+    [frame => { frame.actors[3].injury = 'wound'; frame.actors[3].area = null; }, 'injury on absent actor'],
+    [frame => { frame.actors[3].injury = 'wound'; frame.actors[3].fallen = { age: 'recent', body: 'intact', returnChoice: 'willing' }; }, 'injury combined with fallen'],
+    [frame => { frame.actors[0].fallen = { age: 'recent', body: 'intact', returnChoice: 'willing' }; }, 'PC death and return override'],
+    [frame => { frame.actors[3].fallen = { age: 2, body: 'intact', returnChoice: 'willing' }; }, 'numeric fallen age'],
+    [frame => { frame.actors[3].fallen = { body: 'intact', returnChoice: 'willing' }; }, 'missing fallen age'],
+    [frame => { frame.actors[3].fallen = { age: 'recent', body: 'intact', returnChoice: 'willing', deathTurn: 1 }; }, 'model death turn'],
+    [frame => { frame.actors[3].fallen = { age: 'recent', body: 'invulnerable', returnChoice: 'willing' }; }, 'invented body condition'],
+    [frame => { frame.actors[3].fallen = { age: 'recent', body: 'intact', returnChoice: 'party' }; }, 'allegiance as consent'],
+    [frame => { frame.actors[1].fallen = { age: 'recent', body: 'intact', returnChoice: 'willing' }; }, 'dead encounter opposition'],
     [frame => { frame.actors[1].profile = 'unstoppable'; }, 'invented NPC profile'],
     [frame => { frame.actors[1].actor = 'unknown'; }, 'unrecorded actor'],
     [frame => { frame.actors[1].area = 'nowhere'; }, 'unrecorded area'],

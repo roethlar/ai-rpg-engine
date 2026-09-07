@@ -244,6 +244,27 @@ function reconcilePendingAction(gameState) {
   updatePendingActionControls();
 }
 
+function renderPendingRolls(gameState) {
+  const current = narrativeContainer.querySelector('.pending-action-rolls');
+  const rolls = gameState.ruleset?.id === 'aetheria' && Array.isArray(gameState.pendingRollResults)
+    ? gameState.pendingRollResults.filter(roll => roll?.sides === 100 && typeof roll.checkId === 'string') : [];
+  if (!rolls.length) { current?.remove(); return; }
+  const signature = JSON.stringify([rolls, gameState.pendingRollAnnotationDetails || []]);
+  if (current?.dataset.signature === signature) return;
+  const group = document.createElement('section');
+  group.className = 'pending-action-rolls';
+  group.setAttribute('aria-label', 'Pending action checks');
+  group.dataset.signature = signature;
+  const status = document.createElement('p');
+  status.className = 'text-warning';
+  status.textContent = 'Action pending';
+  group.append(status);
+  for (const roll of rolls) appendRollResultBubble(roll, undefined, gameState.pendingRollAnnotationDetails, group);
+  if (current) current.replaceWith(group);
+  else narrativeContainer.append(group);
+  scrollToBottom();
+}
+
 function createActionRequestId() {
   if (typeof crypto.randomUUID === 'function') return crypto.randomUUID();
   const bytes = crypto.getRandomValues(new Uint8Array(16));
@@ -1073,6 +1094,15 @@ function setupEventListeners() {
       if (isComposerScopeCurrent(scope)) {
         appendSystemNotice(`Your action could not be sent (${error.message}). It remains below. Press send to retry.`);
         restoreComposerDraft(draft.text, draft.selectionStart, draft.selectionEnd);
+        if (targetAction) {
+          try {
+            const response = await fetchWithTimeout(`/api/campaigns/${scope.campaignId}`, {}, 15000);
+            if (response.ok && isComposerScopeCurrent(scope)) {
+              const state = await response.json();
+              if (isComposerScopeCurrent(scope)) { lastGameState = state; renderPartyState(state); }
+            }
+          } catch { /* The saved request remains retryable if the state refresh also fails. */ }
+        }
         if (shouldOpenSettingsForError(error.message)) {
           openSettingsModal();
         }
@@ -1653,7 +1683,9 @@ function renderSavedCharacterSummary() {
   const statusText = selected.status === 'available'
     ? 'Available'
     : `Checked out to ${selected.active_campaign_title || 'an active campaign'}`;
-  savedCharacterSummary.textContent = `${statusText}. HP ${selected.health}/${selected.max_health}, Energy ${selected.mana}/${selected.max_mana}, XP ${selected.xp}. Abilities: ${abilityText}.`;
+  const classText = selected.classBuild ? `${selected.archetype}. ` : '';
+  const energyText = selected.classBuild ? '' : `, Energy ${selected.mana}/${selected.max_mana}`;
+  savedCharacterSummary.textContent = `${classText}${statusText}. HP ${selected.health}/${selected.max_health}${energyText}, XP ${selected.xp}. Abilities: ${abilityText}.`;
 }
 
 // Fetch list from DB and show in overlay menu
@@ -2010,6 +2042,7 @@ function renderGame(gameState, resetNarrative = false, options = {}) {
 
   // Suggested choices
   renderChoices(gameState.turn.suggestedChoices || []);
+  renderPendingRolls(gameState);
 }
 
 // Heroic image loader: the image route is authenticated, so the bytes are
@@ -2297,6 +2330,7 @@ function renderPartyState(gameState) {
   updateTurnBanner(gameState);
   renderCharacterSheet(displayedCharacter(gameState));
   reconcilePendingAction(gameState);
+  renderPendingRolls(gameState);
 }
 
 function displayedCharacter(gameState) {
@@ -2765,7 +2799,7 @@ function renderCharacterSheet(char) {
 
   renderClassDetails(char);
   renderInventory(char.inventory);
-  renderAbilities(char.abilities || [], activeInvocableAbilities, !!char.classBuild);
+  renderAbilities(char.abilities || [], activeInvocableAbilities, !!char.classBuild, char.abilityStatus);
   setActionInputState(!turnSubmitInFlight, false);
 }
 
@@ -2790,6 +2824,26 @@ function renderClassDetails(character) {
     }
   }
   const state = character.classState || {};
+  const names = new Map((character.abilities || []).flatMap(ability => [[ability.id, ability.name], [ability.definition_id, ability.name]]));
+  const targets = character.classTargets || {};
+  const conditionNames = ['hindered', 'exposed', 'dazed', 'pinned', 'winded', 'steadied', 'inspired', 'concealed']
+    .filter(token => character.conditions?.[token]?.condition === token)
+    .map(token => `${label(token)}${character.conditions[token].duration === 'persistent' ? ' (persistent)' : ''}`);
+  if (conditionNames.length) add('Conditions', conditionNames.join(', '));
+  if (Number.isFinite(state.reprisal)) add('Reprisal', `${state.reprisal}/${state.reprisalMaximum}`);
+  if (state.brace?.remaining > 0) add('Brace', 'Active');
+  if (state.endure?.remaining > 0) add('Endure', state.endure.refuseDefeat ? 'Active / Refuse Defeat armed' : 'Active');
+  if (state.quarry) add('Quarry', targets.quarry || 'Marked');
+  if (state.opening) add('Opening', targets.opening || 'Established');
+  if (state.declaration) {
+    const binding = { ward: 'Ward', foe: 'Judged foe', area: 'Bound area' }[state.declaration.binding];
+    if (binding) add(binding, `${targets.declaration || 'Bound'}${state.declaration.guard?.remaining > 0 ? ' / Guard active' : ''}`);
+  }
+  if (state.cue) add('Cue', `${names.get(state.cue.sourceAbilityId) || 'Active'}: ${targets.cueAlly || 'Ally'}${targets.cueTarget ? ` against ${targets.cueTarget}` : ''}`);
+  if (state.ritual && names.has(state.ritual.abilityId)
+    && Number.isFinite(state.ritual.completed) && Number.isFinite(state.ritual.required)) {
+    add('Working', `${names.get(state.ritual.abilityId)} / ${state.ritual.completed}/${state.ritual.required}`);
+  }
   for (const key of ['stance', 'profile']) {
     if (typeof state[key] === 'string') add(label(key), label(state[key]));
   }
@@ -2800,12 +2854,14 @@ function renderClassDetails(character) {
     add('Vehicle', `${label(state.vehicle.profile)} / ${state.vehicle.hull}/${state.vehicle.maxHull} hull`);
   }
   if (Array.isArray(state.prepared)) {
-    const names = new Map((character.abilities || []).map(ability => [ability.definition_id, ability.name]));
     const prepared = state.prepared.map(id => names.get(id)).filter(Boolean);
     add('Prepared', prepared.length ? prepared.join(', ') : 'None');
   }
   if (Array.isArray(state.installations) && Number.isFinite(state.installationCapacity)) {
-    add('Installations', `${state.installations.length}/${state.installationCapacity}`);
+    const occupiedSlots = state.installations
+      .filter(installation => installation.status === 'active')
+      .reduce((total, installation) => total + installation.slots, 0);
+    add('Installation slots', `${occupiedSlots}/${state.installationCapacity}`);
   }
   if (statistics.childElementCount) root.append(statistics);
   const details = document.createElement('details');
@@ -2897,7 +2953,7 @@ function renderInventory(items) {
   });
 }
 
-function renderAbilities(abilities, invocableAbilities, authoredClass = false) {
+function renderAbilities(abilities, invocableAbilities, authoredClass = false, abilityStatus = []) {
   charAbilities.innerHTML = '';
   const canonicalAbilities = Array.isArray(abilities) ? abilities : [];
   const projectedAbilities = Array.isArray(invocableAbilities) ? invocableAbilities : [];
@@ -2907,6 +2963,7 @@ function renderAbilities(abilities, invocableAbilities, authoredClass = false) {
   }
 
   const projectedById = new Map(projectedAbilities.map(ability => [ability.abilityId, ability]));
+  const statusById = new Map((Array.isArray(abilityStatus) ? abilityStatus : []).map(status => [status.abilityId, status]));
   const renderedProjectionIds = new Set();
 
   function appendInvocableAbility(ability) {
@@ -2935,6 +2992,17 @@ function renderAbilities(abilities, invocableAbilities, authoredClass = false) {
     help.className = 'ability-desc';
     help.textContent = ability.help;
     button.append(head, help);
+    const status = statusById.get(ability.abilityId);
+    if (authoredClass && status) {
+      const usage = document.createElement('span');
+      usage.className = 'ability-usage ability-desc';
+      const parts = [status.costLabel];
+      if (Number.isSafeInteger(status.cadence?.remaining)) parts.push(`${status.cadence.remaining}/${status.cadence.maximum} remaining`);
+      if (status.prepared === false) parts.push('Not prepared');
+      usage.textContent = parts.filter(Boolean).join(' / ');
+      if (status.cadence?.remaining === 0 || status.prepared === false) usage.classList.add('text-warning');
+      button.append(usage);
+    }
     button.addEventListener('click', () => insertInvocableAbility(ability));
     charAbilities.appendChild(button);
   }
@@ -3345,7 +3413,7 @@ function rollAnnotationText(roll, details) {
   return typeof omitted?.text === 'string' ? omitted.text : '';
 }
 
-function appendRollResultBubble(roll, turnNumber, annotationDetails) {
+function appendRollResultBubble(roll, turnNumber, annotationDetails, pendingContainer = null) {
   const el = document.createElement('div');
   el.className = 'log-entry log-roll';
   if (roll.sides === 100) {
@@ -3361,8 +3429,8 @@ function appendRollResultBubble(roll, turnNumber, annotationDetails) {
         </div>
       </div>
       ${annotationText ? `<div class="roll-reason roll-annotation" style="margin-top:8px;overflow-wrap:anywhere">${escapeHtml(annotationText)}</div>` : ''}`);
-    placeLogEntry(el, turnNumber);
-    scrollToBottom();
+    if (pendingContainer) pendingContainer.append(el);
+    else { placeLogEntry(el, turnNumber); scrollToBottom(); }
     return;
   }
   const costs = [];

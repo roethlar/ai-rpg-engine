@@ -910,6 +910,11 @@ body {
   font-style: italic;
 }
 
+.ability-usage {
+  display: block;
+  margin-top: 6px;
+}
+
 /* Six restrained, code-owned family tones. The server has already validated
    each family key against its closed catalog registry; the browser hashes only
    to one of these fixed presentation choices and never interpolates CSS. */

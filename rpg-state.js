@@ -3,7 +3,7 @@
  */
 import { validateVoiceDelivery } from './tts-providers.js';
 import { normalizeCheckRecord } from './rules-resolution.js';
-import { isClassRuleset, validateClassRuleset, validateClassBuild } from './class-state.js';
+import { isClassRuleset, validateClassRuleset, validateClassBuild, projectClassAbilityStatus } from './class-state.js';
 import { CATALOG_SKILLS, CLASS_PROFILES, COMPANION_PROFILES, VEHICLE_PROFILES, getAbilityDefinition } from './class-catalog.js';
 import { isDeepStrictEqual } from 'node:util';
 import { EFFECT_CATALOG_VERSION, HINDRANCES, BOONS } from './rules-effects.js';
@@ -1603,6 +1603,13 @@ function scopeOwnCharacterForSeat(member) {
     scoped.abilities = seatArray(seatObject({ id: seatExactText(), definition_id: seatExactText(), definition_version: seatNumber(1),
       name: seatExactText(80), description: seatExactText(500), tier: seatEnum(['expert']), source: seatExactText(80),
       invocation: seatObject({ schema_version: seatEnum([1]), family_key: seatExactText() }) }))(member.abilities) || [];
+    scoped.abilityStatus = projectClassAbilityStatus(scoped);
+    const targetFields = {};
+    if (scoped.classState?.quarry) targetFields.quarry = seatExactText(80);
+    if (scoped.classState?.opening) targetFields.opening = seatExactText(80);
+    if (scoped.classState?.declaration) targetFields.declaration = seatExactText(80);
+    if (scoped.classState?.cue) Object.assign(targetFields, { cueAlly: seatExactText(80), cueTarget: seatExactText(80) });
+    scoped.classTargets = seatObject(targetFields)(member.classTargets) || {};
     scoped.inventory = seatArray(seatObject({ id: seatTypedRef, name: seatExactText(80), description: seatExactText(500),
       type: seatExactText(40), quantity: seatNumber(1), condition: seatEnum(['pristine', 'worn', 'damaged', 'broken']), equipped: seatBoolean }))(member.inventory) || [];
     scoped.attributes = seatObject({ strength: seatNumber(0, 30), agility: seatNumber(0, 30), intellect: seatNumber(0, 30), willpower: seatNumber(0, 30) })(member.attributes) || {};
@@ -1668,6 +1675,10 @@ export function scopeStateForSeat(state, seatCharacterId, { allowSettledRequestI
   if (scoped.turn && dice.annotationDetails.length) scoped.turn.rollAnnotationDetails = dice.annotationDetails;
   if (state.ruleset?.id === 'aetheria') {
     scoped.pendingAction = scopePendingActionForSeat(state.pendingAction, seatCharacterId, state.turnOrder?.actingCharacterId);
+    const pendingDice = scopeRollsForSeat(Array.isArray(state.pendingRollResults)
+      ? state.pendingRollResults.filter(roll => roll?.sides === 100) : [], seatCharacterId);
+    scoped.pendingRollResults = pendingDice.rolls;
+    if (pendingDice.annotationDetails.length) scoped.pendingRollAnnotationDetails = pendingDice.annotationDetails;
     if (scoped.turn && turn?.characterId === seatCharacterId
       && typeof turn.requestId === 'string' && SEAT_REQUEST_ID_PATTERN.test(turn.requestId)) scoped.turn.requestId = turn.requestId;
     if (allowSettledRequestId && typeof state.settledRequestId === 'string'

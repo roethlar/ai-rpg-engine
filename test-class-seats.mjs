@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import http from 'node:http';
 import { pathToFileURL } from 'node:url';
-import { CLASS_FAMILIES } from './class-catalog.js';
+import { CLASS_FAMILIES, getAbilityDefinition } from './class-catalog.js';
 import { createClassRuleset, createClassSheet, createRulesWorld, addClassActor, projectClassCharacter } from './class-state.js';
 import { scopeStateForSeat, scopeJournalForSeat } from './rpg-state.js';
 import { createCheckRecord } from './rules-resolution.js';
@@ -35,15 +35,33 @@ export function runClassSeatProjectionTests() {
       ruleset: createClassRuleset(selection), outline: { secret: PRIVATE }, npcs: [{ secret: PRIVATE }],
       rulesWorld: { secret: PRIVATE }, turn: { number: 1, narrative: 'A shared scene.', rollResults: [] } };
     const scoped = scopeStateForSeat(state, 10);
-    for (const field of ['classBuild', 'classState', 'skills', 'resources', 'conditions', 'area']) {
+    for (const field of ['classBuild', 'classState', 'skills', 'resources', 'conditions', 'area', 'abilityStatus', 'classTargets']) {
       assert.deepEqual(scoped.character[field], own[field], `Exact own ${field} projection for ${branch.id}`);
     }
     assert.deepEqual(Object.keys(scoped.party[1]), ['id', 'name', 'class', 'level', 'health', 'max_health']);
     const malicious = structuredClone(state);
-    for (const field of ['classBuild', 'classState', 'skills', 'resources', 'conditions', 'abilities', 'inventory', 'attributes']) poison(malicious.party[0][field]);
+    for (const field of ['classBuild', 'classState', 'skills', 'resources', 'conditions', 'abilities', 'inventory', 'attributes', 'abilityStatus', 'classTargets']) poison(malicious.party[0][field]);
+    malicious.party[0].abilityStatus = [{ abilityId: PRIVATE, cadence: { kind: 'recovery_use', remaining: 999 }, secret: PRIVATE }];
     const sanitized = scopeStateForSeat(malicious, 10);
     assert.equal(JSON.stringify(sanitized).includes(PRIVATE), false, 'Unknown nested metadata and other class sheets cannot cross the seat boundary.');
     assert.deepEqual(sanitized.character.classState, scoped.character.classState);
+    assert.deepEqual(sanitized.character.abilityStatus, scoped.character.abilityStatus, 'Availability is authored, not copied from imported display metadata.');
+    const actor = world.actors['character:10'];
+    for (const ability of actor.abilities) {
+      const definition = getAbilityDefinition(ability.definition_id, ability.definition_version);
+      const key = definition.cadence.kind === 'scene_use' ? 'sceneUses' : definition.cadence.kind === 'recovery_use' ? 'recoveryUses' : null;
+      const initial = own.abilityStatus.find(status => status.abilityId === ability.id);
+      assert.equal(initial.costLabel, definition.costLabel);
+      if (!key) continue;
+      assert.equal(initial.cadence.remaining, definition.cadence.uses);
+      actor.classState[key][definition.id] = definition.cadence.uses;
+    }
+    const spent = projectClassCharacter(sheet, world);
+    const spentSeat = scopeStateForSeat({ ...state, party: [spent] }, 10).character;
+    assert.deepEqual(spentSeat.abilityStatus, spent.abilityStatus);
+    for (const status of spent.abilityStatus.filter(status => status.cadence.maximum !== undefined)) {
+      assert.equal(status.cadence.remaining, 0, 'Both authored cadence counters report exhausted uses.');
+    }
     count++;
   }
 
@@ -90,6 +108,18 @@ export function runClassSeatProjectionTests() {
   assert.equal(safeMalformed.classState.profile, undefined, 'Another class family state is not admitted by the shared projection.');
   assert.deepEqual(safeMalformed.resources, {});
   assert.deepEqual(safeMalformed.conditions, {});
+  const quarrySelection = testSelection('armsmaster', 'armsmaster.pursuit');
+  const quarrySheet = { ...createClassSheet(quarrySelection, { name: 'Scout' }), id: 12 };
+  const quarryWorld = createRulesWorld({ location: { id: 4, layout: testClassLayout }, characters: [quarrySheet], npcs: [{ id: 90, name: 'Keeper' }] });
+  const quarryActor = quarryWorld.actors['character:12'];
+  quarryActor.classState.quarry = { target: 'npc:90', sourceAbilityId: quarrySheet.abilities[0].id };
+  const quarry = projectClassCharacter(quarrySheet, quarryWorld);
+  assert.deepEqual(quarry.classTargets, { quarry: 'Keeper' }, 'Only already selected class targets contribute display names.');
+  quarry.classTargets.privateMetadata = { secret: PRIVATE };
+  const quarrySeat = scopeStateForSeat({ party: [quarry] }, 12).character;
+  assert.deepEqual(quarrySeat.classTargets, { quarry: 'Keeper' });
+  quarry.classTargets.quarry = { secret: PRIVATE };
+  assert.deepEqual(scopeStateForSeat({ party: [quarry] }, 12).character.classTargets, {});
   console.log(`Class seat projection tests passed: ${count} branches, full d100 history, private-state and annotation guards.`);
 }
 
@@ -153,9 +183,11 @@ export async function runClassSeatTests({ verifyBrowser = false } = {}) {
     const current = await getCampaignState(campaignId);
     assert.deepEqual(response.body.character.classState, current.party.find(member => member.id === ownId).classState);
     assert.deepEqual(response.body.character.skills, current.character.skills);
+    assert.deepEqual(response.body.character.abilityStatus, current.character.abilityStatus);
     assert.equal(response.body.turn.rollResults.length, 12);
     assert.equal(JSON.stringify(response.body).includes(PRIVATE), false, 'Real API seat response contains no GM-private fixture or unsafe annotation object.');
     assert.equal(response.body.party.find(member => member.id === joined.joinedCharacterId).classState, undefined);
+    assert.equal(response.body.party.find(member => member.id === joined.joinedCharacterId).abilityStatus, undefined);
     const journal = await request(origin, `/api/campaigns/${campaignId}/journal`, token);
     assert.equal(journal.status, 200);
     assert.equal(journal.body.turns[0].dice_rolls.length, 12);
@@ -176,6 +208,8 @@ export async function runClassSeatTests({ verifyBrowser = false } = {}) {
       await page.goto(origin);
       await page.locator('#main-game-screen').waitFor({ state: 'visible' });
       assert.equal(await page.locator('#char-name').textContent(), 'Mira');
+      const fireball = response.body.character.abilities.find(ability => ability.name === 'Fireball');
+      assert.match(await page.locator(`.ability-button[data-ability-id="${fireball.id}"] .ability-usage`).textContent(), /2\/2 remaining/);
       assert.equal(await page.locator('.log-roll').count(), 12);
       assert.equal(await page.locator('.roll-annotation').first().textContent(), annotationText);
       assert.equal(await page.locator('.roll-annotation script').count(), 0);

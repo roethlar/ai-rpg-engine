@@ -232,7 +232,7 @@ function clearSceneState(state, envelope, events) {
  * gates and ability/ordinary entitlement authorizer. Mechanical failures throw
  * with RULES_EFFECT_* codes; neither input nor partial state is ever mutated.
  */
-export function evaluateEffects({ state, effects, consumer, actor, turn, transactionId, band = null, stakesLicense = null, affirmedOpposed = [], harmFloors = [] }) {
+export function evaluateEffects({ state, effects, consumer, actor, turn, transactionId, band = null, stakesLicense = null, affirmedOpposed = [], consentingActors = [], harmFloors = [] }) {
   oneOf(consumer, ['ordinary', 'ability', 'annotation'], 'Consumer');
   integer(actor, 'Acting character', 1);
   integer(turn, 'Ledger turn', 1);
@@ -253,6 +253,10 @@ export function evaluateEffects({ state, effects, consumer, actor, turn, transac
   for (const ref of opposed) {
     if (typeof ref !== 'string' || !/^npc:[1-9]\d*$/u.test(ref) || actorRecord(next, ref).party) fail('ALLEGIANCE', 'Opposition must reference present non-party NPCs.');
   }
+  if (!Array.isArray(consentingActors) || consentingActors.length > 64
+    || new Set(consentingActors).size !== consentingActors.length) fail('SHAPE', 'Consent must be a unique bounded actor-ref array.');
+  const consented = new Set(consentingActors);
+  for (const ref of consented) if (!actorRecord(next, ref).party) fail('ALLEGIANCE', 'Consent must reference a present party actor.');
   if (consumer === 'annotation') {
     oneOf(band, ['crit_success', 'crit_failure', 'marginal_success', 'marginal_failure'], 'Annotation band');
     oneOf(stakesLicense, Object.keys(STAKES_BUDGETS), 'Stakes license');
@@ -278,7 +282,7 @@ export function evaluateEffects({ state, effects, consumer, actor, turn, transac
     if (integer(target.classState.recoveryUses[definition.id] ?? 0, 'Recorded recovery use') !== 0) fail('PRECONDITION', 'Refuse Defeat has already been spent this recovery.');
     floors.set(floor.effectIndex, { ...floor, definitionId: definition.id, definitionVersion: definition.version });
   }
-  const context = { state: next, consumer, actor, turn, transactionId, opposed, floors, events: [] };
+  const context = { state: next, consumer, actor, turn, transactionId, opposed, consented, floors, events: [] };
   const used = new Set();
   const resolved = [];
   let cost = 0;
@@ -776,7 +780,7 @@ function executeEffect(effect, context) {
         const origin = areaRecord(state, target.area);
         if (origin.ref === destination.ref) fail('NO_OP', 'Traveler is already in the destination area.');
         if (circle) {
-          if (destination.area.visited !== true || (who !== `character:${context.actor}` && (target.willingTravel !== true
+          if (destination.area.visited !== true || (who !== `character:${context.actor}` && (!context.consented.has(who)
             || (target.area !== caster.area && !casterArea.adjacent?.includes(target.area))))) fail('PRECONDITION', 'Circle requires a visited destination and willing nearby travelers.');
         } else {
           if (!Array.isArray(origin.area.adjacent) || !origin.area.adjacent.includes(destination.area.id) || destination.area.visible !== true) fail('PRECONDITION', 'Movement requires a visible adjacent recorded destination.');

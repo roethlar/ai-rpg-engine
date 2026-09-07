@@ -6,39 +6,31 @@ to `docs/history/state-archive.md`.
 
 ## Now
 
-- **CLASS EXPERIENCE IMPLEMENTATION IS AUTHORIZED AND ACTIVE.** The owner's 2026-09-07 "all gos
-  are given" delegates remaining design and implementation within the complete scope recorded in
-  `.agents/review/class-experience-implementation-plan.md`. Its later decision supersedes the
-  planning-only/code-unapproved wording retained below for this work, not substantive rules,
-  portability, evidence or player-agency contracts. Baseline and signed d100 evaluator tests
-  passed, including the new boundary guard's failure proof; the implementation plan owns details.
-  Immutable d100 history projection and the durable operation/check/annotation store also pass
-  focused and full-suite checks. The authored catalog foundation covers all 24 branch packages,
-  168 definitions and levels 1-10; its component checks pass. These foundations now back
-  target Council turns. The strict effect evaluator and versioned class extensions pass
-  focused operation/rollback tests. Signed-rules execution, real creation/play integration and
-  end-to-end verification remain in progress.
-  Creation/scene/world adapter and the creator/seat UI are integrated;
-  real HTTP/provider-stubbed creation, all-branch joining, reload and stale-write checks pass.
-  Target turns now use the dedicated signed Council path. Real creator-to-turn DB tests pass
-  direct Magic Missile, Fireball narration-failure recovery with the same committed check and
-  one use charged, table-talk no-ops, rejected-action preservation, mixed-party ownership and
-  authored advancement. Exact v4 export/import/fork/release now passes real lifecycle tests,
-  including archived empty tables and imported checks. Copied equipment now preserves its
-  historical origins without requiring its former owner in the new campaign; current custody
-  remains strictly bound. The lifecycle record owns its passing tests and guard proof.
-  Ordinary actions and asymmetric NPC
-  turns have canonical handlers, including readying a recovered weapon without a free attack.
-  Combined unit/browser verification passes, including actual desktop/mobile HTTP/catalog/DB/
-  Council/RNG cast, narration failure, reload, exact retry and history. Guard mutations were
-  restored before verification. The active plan remains the completion audit. Next work closes
-  live reachability gaps: complete qualitative class selectors for the Referee, materialized fallen
-  NPC prerequisites for revival, and real cross-location scene travel. These are not permission to
-  invent PC dying rules or claim a live-model/human enjoyment verdict from stubbed-provider tests.
-  Class action/progression components now pass the full active-ability/mode matrix and real-adapter
-  protection/transfer tests. Combined `node test.js` also passes creation and seat integration.
-  These facts do not remove the pending full experience verification and completion audit.
-  Do not stop at another paper recommendation or ask for routine per-class approvals.
+- **THE AUTHORIZED CLASS EXPERIENCE IS INTEGRATED; FINAL CLOSEOUT IS IN PROGRESS.** The owner's
+  2026-09-07 "all gos are given" supersedes planning-only/code-unapproved wording retained below
+  within `.agents/review/class-experience-implementation-plan.md`, not unrelated security work,
+  destructive actions or external review. Its eight-item completion audit owns current evidence.
+  All 24 packages and levels 1-10 now connect authored creation, the single composer, signed d100
+  Council turns, versioned effects, NPC consequences, progression and exact v4 lifecycle storage.
+  Routine Magic Missile/Fireball casts stand alone. Exceptional rituals, actual fallen-NPC revival,
+  teleport consent, external-route journeys, revisits and Rider passengers have integrated tests.
+  Sheets expose real uses, preparations, conditions and ritual progress without another picker.
+  Final repository tests pass; combined desktop/mobile browser verification also passes. Guard
+  mutations were restored. `.agents/review/class-runtime-experience-evidence.md` distinguishes
+  provider-stubbed integration from bounded original-provider probes: live creation/export,
+  ordinary movement/table talk, and an authored-setup live Magic Missile cast with real RNG.
+  The successful cast took 23.3 seconds; Fireball's live follow-up was skipped at the call budget.
+  No current-system willing-player enjoyment verdict or Base/Advanced promotion is established.
+  The final audit found required Rider gaps hidden by component fixtures: no live hull-damage
+  path, no authored vehicle-scale impact target and no replacement after loss. Next: implement
+  those actual-play paths, verify them through creation/Council/storage, then rerun combined tests
+  and finish the disposable preview/commit. No owner class-by-class review is required.
+- **JOURNEY TEST DATABASE INCIDENT IS RECORDED.** The first standalone journey test
+  loaded the configured database before assigning its temporary path. Test-owned rows were
+  cleaned up, but normal schema/migration-marker/sequence changes remain. The owner was
+  informed. `.agents/review/class-runtime-test-incident.md` owns the exact observations and
+  uncertainty; do not claim that database was unchanged or count that run as disposable evidence.
+  The runner now gates its path before application imports. No schema reversal is authorized.
 - **THE OWNER IS NOT THE ABILITY-REVIEW COMMITTEE.** The 2026-09-07 agent-owned design decision
   in `.agents/decisions.md` rejects serial ability verdicts and per-step go requests. Agents own
   internal comparisons and routine design choices within scope, then present one coherent

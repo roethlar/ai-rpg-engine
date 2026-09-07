@@ -90,6 +90,10 @@ export async function runClassCouncilTests() {
     assert.equal(narrated.data.result.state.actors[sample.enemy].health, sample.world.actors[sample.enemy].health - 2);
     assert.equal(rolls, 1);
     assert.deepEqual(calls.map(call => call.stage), ['interaction', 'grounding', 'referee', 'pre_roll', 'narration'], 'The five-role Council workflow stays in order.');
+    const responseExample = calls.find(call => call.stage === 'referee').data.responseExample;
+    assert.equal(responseExample.check.actor, sample.actorId, 'The wire example binds the numeric acting PC rather than a typed scene ref.');
+    assert.deepEqual(responseExample.deltaSources, []);
+    assert.equal(Object.hasOwn(responseExample.check, 'deltaSources'), false, 'Delta evidence is a top-level response field.');
     const forbidden = new Set(['health', 'maxHealth', 'skillBonus', 'skills', 'T', 'raw', 'tierTarget', 'netDelta', 'amount', 'pointCost']);
     function noArithmetic(value) {
       if (!value || typeof value !== 'object') return;
@@ -124,10 +128,33 @@ export async function runClassCouncilTests() {
     const talk = await prepare(utility, { abilities: [] }, { playerAction: 'What would Magic Missile do?', allowCommitted: false });
     assert.equal(talk.kind, 'table_talk');
     assert.deepEqual(calls.map(call => call.stage), ['interaction', 'table_talk']);
+    assert.equal(calls[1].data.actor, utility.actor, 'The GM answer must identify which recorded actor is the player addressed as you.');
+
+    const beforeTalkRepair = structuredClone(utility.world);
+    let talkAttempts = 0;
+    responses(utility, null, {
+      interaction: () => ({ inputKind: 'clarification', intent: 'Ask about the gate.', answer: 'The guard stands at the gate.' }),
+      table_talk: data => {
+        talkAttempts++;
+        if (talkAttempts === 1) return 'The guard stands at the gate.';
+        assert.equal(data.formatCorrection.response, 'The guard stands at the gate.');
+        return { narrative: 'The guard stands at the gate.' };
+      }
+    });
+    assert.equal((await prepare(utility)).narrative, 'The guard stands at the gate.');
+    assert.equal(talkAttempts, 2, 'A live-provider prose-only response gets one formatting correction.');
+    assert.deepEqual(utility.world, beforeTalkRepair);
+    assert.ok(calls.find(call => call.stage === 'table_talk').instruction.includes('{"narrative":"Your text here."}'));
+    responses(utility, null, { interaction: () => 'Not JSON.' });
+    await assert.rejects(prepare(utility), { code: 'CLASS_COUNCIL_JSON' });
+    assert.equal(calls.length, 2, 'Invalid JSON repairs are bounded.');
+    responses(utility, null, { interaction: () => { throw new Error('Provider disconnected.'); } });
+    await assert.rejects(prepare(utility), /Provider disconnected/);
+    assert.equal(calls.length, 1, 'A transport failure is not a formatting correction.');
 
     const wizard = await fixture('arcanist', 'formula');
     const missile = wizard.sheet.abilities.find(ability => getAbilityDefinition(ability.definition_id).name === 'Magic Missile');
-    const declaration = { abilities: [{ ability_id: missile.id, definition_id: missile.definition_id, canonical_name: missile.name, canonical_description: missile.description }] };
+    const declaration = { abilities: [{ ability_id: missile.id, definition_id: missile.definition_id, definition_version: missile.definition_version, canonical_name: missile.name, canonical_description: missile.description }] };
     const cast = rulingFor(wizard, { action: { kind: 'ability', abilityId: missile.id, bindings: { targets: [wizard.enemy] }, options: {} } });
     responses(wizard, cast);
     const spell = await prepare(wizard, declaration, { playerAction: 'I cast Magic Missile at the guard.' });
@@ -257,7 +284,7 @@ export async function runClassCouncilTests() {
 
     const ritual = await fixture('arcanist', 'ritual', { level: 5 });
     const transit = ritual.sheet.abilities.find(ability => getAbilityDefinition(ability.definition_id).name === 'Transit Circle');
-    const ritualDeclaration = { abilities: [{ ability_id: transit.id, definition_id: transit.definition_id, canonical_name: transit.name, canonical_description: transit.description }] };
+    const ritualDeclaration = { abilities: [{ ability_id: transit.id, definition_id: transit.definition_id, definition_version: transit.definition_version, canonical_name: transit.name, canonical_description: transit.description }] };
     const ritualRuling = rulingFor(ritual, { action: { kind: 'ability', abilityId: transit.id, bindings: { travelers: [ritual.actor], area: 'yard' }, options: {} }, check: null, noCheckReason: 'This is the initial recorded working.' });
     responses(ritual, ritualRuling);
     const ritualStart = await prepare(ritual, ritualDeclaration, { playerAction: 'I begin Transit Circle to the yard.' });

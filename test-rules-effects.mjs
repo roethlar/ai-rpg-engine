@@ -240,7 +240,8 @@ export function runRulesEffectsTests() {
   reject([blink], 'PRECONDITION', state, ability);
   reject([{ ...blink, area: 'area:2:d' }], 'REFERENCE', undefined, ability);
   const circle = { ...blink, who: ['character:1', 'character:2'], area: 'area:2:d', mode: 'circle' };
-  const transited = evaluate([circle], undefined, ability);
+  reject([circle], 'PRECONDITION', undefined, ability);
+  const transited = evaluate([circle], undefined, { ...ability, consentingActors: ['character:2'] });
   assert.equal(transited.state.actors['character:2'].locationId, 2);
   assert.equal(transited.state.actors['npc:3'].locationId, 1, 'Unselected allies must never be silently teleported.');
   const traverse = { op: 'traverse', who: 'character:1', area: 'b', mode: 'grapple', maximumDistance: 1 };

@@ -8,6 +8,10 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
 import { verifyLocalIcon } from './test-browser-icons.mjs';
+import { CLASS_FAMILIES, getAbilityDefinition } from './class-catalog.js';
+import { createClassSheet, createRulesWorld, addClassActor, projectClassCharacter, classTriggerOptions } from './class-state.js';
+import { buildCharacterAbilityTriggerState } from './ability-trigger-state.js';
+import { testSelection, testClassLayout } from './test-class-state.mjs';
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 const artifacts = await fs.mkdtemp(path.join(os.tmpdir(), 'aetheria-class-creator-'));
@@ -118,7 +122,11 @@ try {
       result.families[2].available = url.searchParams.get('modules') === 'rider';
       return send(result);
     }
-    if (url.pathname === '/api/characters') return send([{ id: 91, name: 'Legacy Ada', archetype: 'Scout', status: 'available', level: 2, health: 10, max_health: 10, mana: 0, max_mana: 0, xp: 100, abilities: [] }]);
+    if (url.pathname === '/api/characters') return send([
+      { id: 91, name: 'Legacy Ada', archetype: 'Scout', status: 'available', level: 2, health: 10, max_health: 10, mana: 0, max_mana: 0, xp: 100, abilities: [] },
+      { id: 92, name: 'Saved Mira', archetype: 'Wizard', status: 'available', level: 2, health: 24, max_health: 24, mana: 0, max_mana: 0, xp: 100,
+        classBuild: createClassSheet(testSelection(), { name: 'Saved Mira' }).classBuild, abilities: [{ name: 'Magic Missile' }, { name: 'Fireball' }] }
+    ]);
     if (url.pathname === '/api/campaigns' && request.method() === 'GET') return send(hasCampaign ? [{ id: 7, title: state.title, genre: state.genre, summary: 'The crossing waits.' }] : []);
     if (url.pathname === '/api/campaigns' && request.method() === 'POST') {
       posts.push(request.postDataJSON());
@@ -230,6 +238,30 @@ try {
   assert.equal(await page.locator('#char-attributes').evaluate(node => getComputedStyle(node).display), 'none');
   assert.match(await page.locator('#class-runtime-details').textContent(), /Strain1\/3PreparedMagic MissileSkillsMelee\+0Magic\+13/);
   assert.doesNotMatch(await page.locator('#class-runtime-details').textContent(), /undefined|arcanist\./);
+  const maker = { skills: { craft: 13 }, classState: {
+    installationCapacity: 4, installations: [
+      { id: 'citadel-active', kind: 'citadel', status: 'active', slots: 2 },
+      { id: 'relay-active', kind: 'relay', status: 'active', slots: 1 },
+      { id: 'snare-retired', kind: 'snare', status: 'retired', slots: 1 },
+      { id: 'bulwark-destroyed', kind: 'bulwark', status: 'destroyed', slots: 1 }
+    ]
+  } };
+  const originalClassState = state.character.classState;
+  const refreshSheet = async (classState, expectedText) => {
+    state.character.classState = classState;
+    await page.locator('#btn-show-campaigns').click();
+    await page.locator('.campaign-card').first().click();
+    await page.locator('#main-game-screen').waitFor({ state: 'visible' });
+    await page.waitForFunction(text => document.querySelector('#class-runtime-details').textContent.includes(text), expectedText);
+  };
+  await refreshSheet(maker.classState, 'Installation slots3/4');
+  assert.match(await page.locator('#class-runtime-details').textContent(), /Installation slots3\/4/,
+    'Only active installations occupy capacity, using authored slot weights');
+  maker.classState.installations.forEach(installation => { installation.status = 'retired'; });
+  await refreshSheet(maker.classState, 'Installation slots0/4');
+  assert.match(await page.locator('#class-runtime-details').textContent(), /Installation slots0\/4/,
+    'Retired installation history does not consume capacity');
+  await refreshSheet(originalClassState, 'PreparedMagic Missile');
   const input = page.locator('#action-input');
   await input.fill(' at the obstruction');
   await input.evaluate(node => { node.focus(); node.setSelectionRange(0, 0); node.dispatchEvent(new Event('select')); });
@@ -277,6 +309,66 @@ try {
   await page.locator('.timeline-roll-badge').first().waitFor();
   assert.match(await page.locator('.timeline-roll-badge.success').first().textContent(), /d100: 62 vs target 45 \/ Clean success/);
   assert.match(await page.locator('.timeline-roll-badge').last().textContent(), /16 vs DC 12/);
+  for (const family of CLASS_FAMILIES) for (const branch of family.branches) {
+    const sheet = { ...createClassSheet(testSelection(family.id, branch.id), { name: 'Runtime class fixture', level: 10 }), id: 1, player_character_id: 101 };
+    const world = createRulesWorld({ location: { id: 4, layout: testClassLayout }, npcs: [{ id: 90, name: 'Keeper' }] });
+    addClassActor(world, sheet, { companionActorRef: 'npc:91' });
+    const actor = world.actors['character:1'];
+    const cs = actor.classState;
+    const active = sheet.abilities.filter(ability => getAbilityDefinition(ability.definition_id).activation !== 'passive');
+    const ritual = active.find(ability => getAbilityDefinition(ability.definition_id).activation === 'ritual');
+    actor.conditions.pinned = { actor: 'character:1', condition: 'pinned', class: 'hindrance', duration: 'persistent', detail: 'Pinned at the gate.', source: 'fixture', appliedTurn: 1 };
+    for (const ability of active) {
+      const definition = getAbilityDefinition(ability.definition_id);
+      const key = definition.cadence.kind === 'scene_use' ? 'sceneUses' : definition.cadence.kind === 'recovery_use' ? 'recoveryUses' : null;
+      if (key) cs[key][definition.id] = definition.cadence.uses;
+    }
+    if (family.id === 'arcanist' && ritual) cs.ritual = { abilityId: ritual.id, definitionId: ritual.definition_id,
+      completed: 1, required: getAbilityDefinition(ritual.definition_id).mechanic.steps, identity: 'a'.repeat(64), bindings: { private: 'HIDDEN_WORKING' } };
+    if (family.id === 'armsmaster') cs.quarry = { target: 'npc:90' };
+    if (family.id === 'berserker') { cs.reprisal = 1; cs.endure = { remaining: 1, refuseDefeat: true }; }
+    if (family.id === 'opportunist') cs.opening = { target: 'npc:90' };
+    if (family.id === 'oathbound') cs.declaration = { binding: 'ward', target: 'npc:90', guard: { remaining: 1 } };
+    if (family.id === 'catalyst') cs.cue = { ally: 'npc:90', sourceAbilityId: active[0].id };
+    if (family.id === 'maker') cs.installations = [{ id: 'installation:old', status: 'retired', slots: 1 }, { id: 'installation:current', status: 'active', slots: 2 }];
+    const own = projectClassCharacter(sheet, world);
+    Object.assign(own, buildCharacterAbilityTriggerState({ campaignId: 7, character: own, bindings: sheet.bindings, ...classTriggerOptions(own) }));
+    state.character = own;
+    state.party = [own];
+    state.joinedCharacterId = own.id;
+    await page.locator('#btn-show-campaigns').click();
+    await page.locator('.campaign-card').first().click();
+    await page.waitForFunction(name => document.querySelector('#char-class').textContent === name, own.class);
+    assert.match(await page.locator('#class-runtime-details').textContent(), /Pinned \(persistent\)/);
+    assert.doesNotMatch(await page.locator('#class-runtime-details').textContent(), /HIDDEN_WORKING|a{64}|npc:|installation:|\.formula/);
+    if (ritual) assert.match(await page.locator('#class-runtime-details').textContent(), new RegExp(`Working${ritual.name} / 1/`));
+    if (family.id === 'berserker') assert.match(await page.locator('#class-runtime-details').textContent(), /Reprisal1\/1EndureActive \/ Refuse Defeat armed/);
+    if (['armsmaster', 'opportunist', 'oathbound', 'catalyst'].includes(family.id)) assert.match(await page.locator('#class-runtime-details').textContent(), /Keeper/);
+    for (const ability of active) {
+      const card = page.locator(`.ability-button[data-ability-id="${ability.id}"]`);
+      assert.equal(await card.locator('.ability-desc').first().textContent(), ability.description);
+      const status = own.abilityStatus.find(value => value.abilityId === ability.id);
+      if (status.cadence.maximum) assert.match(await card.locator('.ability-usage').textContent(), /0\/\d+ remaining/);
+      if (status.prepared === false) assert.match(await card.locator('.ability-usage').textContent(), /Not prepared/);
+      assert.ok(await card.evaluate(node => {
+        const help = node.querySelector('.ability-desc').getBoundingClientRect();
+        const usage = node.querySelector('.ability-usage').getBoundingClientRect();
+        return usage.top >= help.bottom;
+      }), 'Authored timing and remaining uses occupy a separate line from the description.');
+      assert.equal(await card.isDisabled(), false, 'Spent ability names remain insertable for prose and table talk.');
+    }
+    for (const ability of sheet.abilities.filter(value => getAbilityDefinition(value.definition_id).activation === 'passive')) {
+      const passive = page.locator('.ability-passive').filter({ has: page.locator('.ability-name', { hasText: ability.name }) });
+      assert.equal(await passive.locator('.ability-desc').textContent(), ability.description);
+    }
+    for (const viewport of [{ width: 1280, height: 900 }, { width: 390, height: 844 }]) {
+      await page.setViewportSize(viewport);
+      await page.locator('#class-runtime-details').scrollIntoViewIfNeeded();
+      assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), `${branch.id} sheet stays within viewport`);
+      assert.ok(await page.locator('#class-runtime-details').evaluate(node => node.scrollWidth <= node.clientWidth + 1), `${branch.id} state does not overflow`);
+      if (family.id === 'arcanist' && ritual) await page.screenshot({ path: path.join(artifacts, `working-${viewport.width}.png`) });
+    }
+  }
   await page.locator('#btn-show-campaigns').click();
   await page.locator('#btn-new-campaign-trigger').click();
   await page.locator('#select-ruleset').selectOption('house');
@@ -284,6 +376,11 @@ try {
   await page.locator('#select-saved-character').selectOption('91');
   assert.match(await page.locator('#saved-character-summary').innerText(), /HP 10\/10/);
   assert.equal(await page.locator('#class-creator').isVisible(), false, 'Legacy saved-character flow does not choose new entitlements');
+  await page.locator('#select-ruleset').selectOption('aetheria');
+  await page.locator('#select-saved-character').selectOption('92');
+  assert.match(await page.locator('#saved-character-summary').innerText(), /Wizard\. Available\. HP 24\/24.*Magic Missile, Fireball/);
+  assert.doesNotMatch(await page.locator('#saved-character-summary').innerText(), /Energy|arcanist\./);
+  assert.equal(await page.locator('#class-creator').isVisible(), false, 'A saved class preview cannot replace its pinned build.');
   assert.deepEqual(errors, [], 'Browser errors');
   assert.deepEqual(unexpected, [], 'Unexpected API requests');
   console.log(`Class creator browser checks passed (mocked API responses; no provider playtest). Screenshots: ${artifacts}`);

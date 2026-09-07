@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { clearClassSceneState } from './class-progression.js';
 import {
   ABILITY_FAMILIES, CATALOG_VERSION, CATALOG_RULES_VERSION, CATALOG_RESOLUTION_VERSION,
-  CATALOG_EFFECT_VERSION, CATALOG_OPTION_SET, CLASS_EQUIPMENT, buildClassLoadout, getClassBranch
+  CATALOG_EFFECT_VERSION, CATALOG_OPTION_SET, CLASS_EQUIPMENT, buildClassLoadout, getClassBranch, getAbilityDefinition
 } from './class-catalog.js';
 
 export const CLASS_WORLD_VERSION = 1;
@@ -299,6 +299,24 @@ export function validateRulesWorld(world, ruleset = null) {
   return world;
 }
 
+export function projectClassAbilityStatus(character) {
+  const state = character.classState || {};
+  return (character.abilities || []).flatMap(ability => {
+    const definition = getAbilityDefinition(ability.definition_id, ability.definition_version);
+    if (!definition || typeof ability.id !== 'string') return [];
+    const cadence = { kind: definition.cadence.kind };
+    const useKey = cadence.kind === 'scene_use' ? 'sceneUses' : cadence.kind === 'recovery_use' ? 'recoveryUses' : null;
+    if (useKey) {
+      const spent = state[useKey]?.[definition.id] ?? 0;
+      if (!Number.isSafeInteger(spent) || spent < 0) return [];
+      cadence.maximum = definition.cadence.uses;
+      cadence.remaining = Math.max(0, cadence.maximum - spent);
+    }
+    return [{ abilityId: ability.id, activation: definition.activation, costLabel: definition.costLabel, cadence,
+      ...(definition.mechanic?.requiresPrepared ? { prepared: state.prepared?.includes(definition.id) === true } : {}) }];
+  });
+}
+
 export function projectClassCharacter(character, world) {
   validateRulesWorld(world);
   const actor = world.actors[`character:${character.id}`];
@@ -315,11 +333,22 @@ export function projectClassCharacter(character, world) {
     health: { current: actor.health, maximum: actor.maxHealth },
     ...Object.fromEntries(Object.entries(actor.resources).map(([key, value]) => [key, { current: value.current, maximum: value.max }]))
   };
+  const targetName = ref => {
+    const target = world.actors[ref] || world.objects[ref] || world.areas[ref];
+    return typeof target?.name === 'string' ? target.name.slice(0, 80) : undefined;
+  };
+  const cs = actor.classState;
+  const classTargets = Object.fromEntries(Object.entries({
+    quarry: targetName(cs.quarry?.target), opening: targetName(cs.opening?.target),
+    declaration: targetName(cs.declaration?.target || (cs.declaration?.area ? `area:${actor.locationId}:${cs.declaration.area}` : null)),
+    cueAlly: targetName(cs.cue?.ally), cueTarget: targetName(cs.cue?.target)
+  }).filter(([, name]) => name));
   return {
     ...character, health: actor.health, max_health: actor.maxHealth, mana: 0, max_mana: 0,
     level: actor.level, xp: actor.xp, inventory, abilities: structuredClone(actor.abilities),
     classBuild: structuredClone(actor.classBuild), classState: structuredClone(actor.classState),
     skills: structuredClone(actor.skills), resources, conditions: structuredClone(actor.conditions),
+    abilityStatus: projectClassAbilityStatus(actor), classTargets,
     area: actor.area, equipmentPermissions: structuredClone(actor.equipmentPermissions || {}), carriedItems
   };
 }

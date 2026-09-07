@@ -576,8 +576,15 @@ export function prepareClassAction({ state, actor, ability, bindings = {}, conte
           if (!item || item.holder !== actor || item.kind !== 'revival-catalyst' || item.lost) fail('PRECONDITION', 'An exact held revival catalyst is required.');
         }
       }
+      // Validate the eventual revival before recording progress; discard the pure preview state.
+      const revival = bindTemplates(definition.onSuccess.filter(effect => effect.op === 'revive'), state, actor, targets, bindings, context);
+      if (revival.length) evaluateEffects({ state, effects: revival, consumer: 'ability', actor: Number(actor.split(':')[1]),
+        turn: context.turn, transactionId: context.operationId, affirmedOpposed: context.affirmedOpposed || [] });
       const identity = hash({ definitionId: definition.id, targets, bindings, area: source.area });
-      if (before.ritual && before.ritual.identity !== identity) fail('RITUAL', 'Finish or explicitly abandon the active working before changing its bindings.');
+      if (before.ritual && !isDeepStrictEqual(
+        { definitionId: before.ritual.definitionId, targets: before.ritual.targets, bindings: before.ritual.bindings, area: before.ritual.area },
+        { definitionId: definition.id, targets, bindings, area: source.area }
+      )) fail('RITUAL', 'Finish or explicitly abandon the active working before changing its bindings.');
       const completed = (before.ritual?.completed || 0) + 1;
       if (completed < mechanic.steps) {
         phase = 'ritual_progress'; check = null; successTemplates = []; failureTemplates = [];
@@ -658,7 +665,7 @@ function synchronizeClassState(state) {
     }
     if (cs.vehicle?.vehicleRef && state.vehicles?.[cs.vehicle.vehicleRef]) {
       const vehicle = state.vehicles[cs.vehicle.vehicleRef];
-      Object.assign(cs.vehicle, { hull: vehicle.hull, maxHull: vehicle.maxHull, area: vehicle.area, status: vehicle.status });
+      Object.assign(cs.vehicle, { hull: vehicle.hull, maxHull: vehicle.maxHull, area: vehicle.area, status: vehicle.status, occupants: clone(vehicle.occupants || []) });
     }
   }
 }
@@ -833,7 +840,7 @@ export function finalizeIncomingClassEffects({ state, plan, effectResult } = {})
   if (hash(state) !== plan?.sourceHash) fail('STALE', 'Incoming effects were prepared against another state.');
   if (!plan.adjustedEffects || !isDeepStrictEqual(prepareClassEvent({ state, event: plan.event, context: plan.context }), plan)) fail('PLAN', 'Incoming-effect receipt is not canonical.');
   const actor = plan.context.actor || Object.keys(state.actors).find(ref => ref.startsWith('character:'));
-  const evaluated = evaluateEffects({ state: plan.state, effects: plan.adjustedEffects, consumer: plan.context.consumer || 'ordinary', actor: Number(actor.split(':')[1]), turn: plan.context.turn, transactionId: plan.operationId, affirmedOpposed: plan.context.affirmedOpposed || [], harmFloors: plan.harmFloors });
+  const evaluated = evaluateEffects({ state: plan.state, effects: plan.adjustedEffects, consumer: plan.context.consumer || 'ordinary', actor: Number(actor.split(':')[1]), turn: plan.context.turn, transactionId: plan.operationId, affirmedOpposed: plan.context.affirmedOpposed || [], consentingActors: plan.context.consentingActors || [], harmFloors: plan.harmFloors });
   if (effectResult && !isDeepStrictEqual(effectResult, evaluated)) fail('RECEIPT', 'Incoming effect receipt disagrees with its canonical adjustments.');
   for (const event of evaluated.events.filter(entry => entry.type === 'health_changed')) {
     const value = evaluated.state.actors[event.who];

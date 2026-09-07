@@ -174,10 +174,56 @@ Reveal scope tokens are `quarry_route`, `combat_trait`, `defense_trait`, `levera
 `area_features` on a visited recorded area. It cannot invent a map, enemy or trait.
 
 Circle moves only the selected traveler refs. It never transports unselected PCs or companions.
+Other travelers require exact current-action `consentingActors` supplied by the authorizer;
+neither party membership nor a persistent `willingTravel` flag grants that permission. Consent
+is validated without writing a lasting flag to the actor. Ritual continuity compares its actual
+structured bindings, preserving array order but ignoring JSON object-key serialization order.
 The single-scene runtime must reject a remote party split before charging costs until it supports
 scene-local turns. That integration guard is not permission for the evaluator to expand a party.
 
 ## Remaining Boundaries
+
+Scene schema 1 can introduce a present living independent NPC with optional
+`injury:'graze'|'wound'|'grievous'`. The engine subtracts the corresponding existing 2/5/9
+harm grade from its authored kit health, making an actual wound available to healing.
+It is not a model-chosen HP value or recurring effect. Injury cannot accompany `fallen`,
+apply to an absent NPC, alter a player/controlled companion, or reapply to an initialized
+NPC. The scene, authoring and actual HTTP creation tests cover those boundaries and real
+healing; removing injury materialization failed the expected-health assertion before restoration.
+
+Scene schema 1 can introduce an independent NPC with optional
+`fallen:{age:'recent'|'unknown',body:'intact'|'unknown'|'destroyed',returnChoice:'willing'|'unwilling'|'unknown'}`.
+All three fields are required. The materializer owns zero health and dead status; only `recent`
+stamps `deathTurn` from the engine's scene turn. Unknown age has no numerical death turn, so a
+revival time window cannot be assumed. Explicit intact body and willing NPC return set the
+corresponding permission flags; unknown values omit those permissions, and negative choices
+remain false. Party allegiance never grants willingness.
+
+This is initial NPC scene authoring, not a new PC dying or consent rule. PCs and controlled
+companions cannot receive the descriptor. A previously initialized NPC cannot receive it again:
+subsequent location frames require the same pinned NPC kit and retain health, maximum health,
+death status/turn, body and willingness. Re-entering a scene cannot refresh a revival window or
+reset an unwilling choice. Fallen NPCs cannot be listed as active encounter opposition. The
+ordinary live-PC death/return lifecycle remains separate integration work.
+
+`test-class-scenario.mjs` covers the strict descriptor, absence of inferred consent, recent-age
+window, and preservation/rejection behavior on subsequent location frames.
+`test-class-revival.mjs` creates campaigns through `createCampaign` with only the provider
+boundary stubbed, verifies the persisted opening snapshot, then uses real pure progression and
+action handlers for both Recall the Departed and Breath of Return. It does not claim live
+turn-by-turn leveling or PC death/return coverage. The unknown-age test was verified to fail
+when the recent-only timestamp guard was temporarily removed, then passed after restoration.
+
+Ritual preparation preflights its authored `revive` effect through the same pure evaluator on
+every working, discarding that preview. Unknown, future, invalid or expired recorded death ages
+therefore fail before a new working, cadence use or catalyst consumption. No separate model
+arithmetic or guessed age is introduced. The final effect still validates the current window.
+Class vehicle projections synchronize occupants from the authoritative vehicle record after
+incoming effects and action patches; Passenger Rescue passengers consequently remain aboard
+for a subsequent Mounted Charge. Focused `test-class-actions.mjs` regressions cover both paths:
+each failed when its corresponding fix was temporarily removed and passed after restoration.
+The focused action suite, creation/revival suite, and full `node test.js` entry passed with both
+fixes restored; `git diff --check` was clean.
 
 - `value_reduce` and `value_enhance` explicitly fail `GATED:derived-value-channel`. A derived
   checked-action value channel is not implemented, and no current catalog ability requires it.

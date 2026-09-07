@@ -199,7 +199,7 @@ export async function narrateVoiceRequest({ auth, body, requester = 'unknown' })
     if (!campaign) throw new VoiceRequestError(404, 'Campaign not found.');
 
     const npcs = await db.all(
-      `SELECT id, name, voice_json FROM npcs WHERE campaign_id = ? ORDER BY id ASC`,
+      `SELECT id, name, voice_json FROM npcs WHERE campaign_id = ? AND pending_rules_operation_id IS NULL ORDER BY id ASC`,
       [campaignId]
     );
     const npcIndex = npcs.findIndex(npc => npc.name.toLowerCase() === speaker.toLowerCase());

@@ -7,7 +7,9 @@ its necessary rules/catalog/creation integration. It supersedes prior planning-o
 this scope. It does not authorize unrelated product work, destructive cleanup, history rewriting,
 or an external reviewer. No further class-by-class or ability-by-ability owner approvals are needed.
 
-**Status:** implementation active. No completed runtime or enjoyment claim.
+**Status:** integrated implementation is active. The completion audit found required Rider
+reachability gaps described below; prior green integration runs do not close them. Human enjoyment
+remains unverified; no class is promoted out of the development Expert catalog by this work.
 
 ## Required End State
 
@@ -109,6 +111,9 @@ one transaction. Pending actions reject other inputs until the exact original re
 Table-talk history retains its unchanged world snapshot without spending a Main or rules operation.
 
 ### Results
+
+These are chronological slice records. Their then-pending integration statements are historical;
+the Completion Audit below owns current completion status.
 
 - Baseline 2026-09-07: `node test.js` passed against its disposable database.
 - Signed evaluator foundation: `rules-resolution.js` implements exact call shape/actor binding,
@@ -215,10 +220,63 @@ Table-talk history retains its unchanged world snapshot without spending a Main 
   and trigger revision survive reload; confirmed pre-reservation rejection restores an editable
   draft. Pending seat data has a closed own-character projection. Old-completion, privacy,
   pending-reload and rejection-unlock mutations all failed their assertions and were restored.
-- Remaining reachability audit: the initial scene currently has no materialized remote-location
-  route; revival needs a genuinely recorded fallen NPC rather than a synthetic world patch;
-  the Referee needs all qualitative owned selector IDs for profiles/devices/vehicles. These are
-  required follow-through work, not grounds to declare the full class experience complete.
+- The reachability gaps are closed. `class-council-options.js` supplies the exact qualitative
+  selector and resolution contracts for all 144 active definitions. `class-scene-author.js`
+  validates real setup and arrival frames, including new narrative-backed NPCs, fallen-NPC
+  prerequisites and engine-valued injuries. `class-journey.js` materializes exact recorded
+  external routes with current-action consent, durable generation checkpoints, hidden pending
+  identities, atomic arrival, revisits and Rider occupants. Their focused and integrated runners
+  pass. `class-journey-integration.md` and `class-runtime-experience-evidence.md` own details.
+
+### Required End-State Evidence
+
+The audit subsequently found a required Rider follow-through: actual play must be able to damage
+vehicle hull, produce vehicle-scale foes for impact/targeted attacks, and replace a genuinely lost
+assigned vehicle under the catalog's support promise. Component fixtures that manually damage
+the vehicle or alter an actor's scale do not satisfy those requirements. This work remains active.
+
+1. **Catalog and creation:** all 24 packages, 240 level sheets and 936 declaration projections
+   pass catalog tests. Actual HTTP creation and all-branch joining persist authored grants,
+   equipment, class state and complete bindings. Progression tests cover 216 transitions and
+   retain old owned IDs. Creator/browser tests cover all packages without a replacement menu.
+2. **Distinctive executable actions:** real adapters exercise 144 active definitions, 56 modes
+   and 15 handlers. Direct Magic Missile and Fireball creator-to-turn tests need one submitted
+   action and no preparatory sequence. Exceptional-turn tests cover two actual fallen-NPC
+   revivals, seven ritual workings and three teleports through persisted Council turns. Ordinary
+   actions, asymmetric NPC consequences and incoming class protections have separate tests.
+3. **One composer:** the existing insertion and exact declaration contract remains authoritative.
+   The player has no second action/target picker. The sheet reports uses, preparations, conditions
+   and active commitments, including ritual progress. Spent powers remain available in prose;
+   no automated tactical selection is introduced. Desktop/mobile browser checks pass.
+4. **Signed rules:** target campaigns use the signed d100 evaluator, strict versioned effects,
+   class action/lifecycle handlers and NPC kits. Thirty-seven effect operations, all d100 boundary
+   outcomes and actual persisted casts pass. Narration receives committed outcomes. The live
+   Magic Missile run agrees with its real failed check, NPC strike and saved state.
+5. **Durability:** the actual DB/HTTP/browser tests exercise failure after a committed roll,
+   reload and exact retry with one check, one use and one history result. Exceptional ritual and
+   journey retries retain accepted progress and identities. No-op, rejection, immutable core,
+   append-once annotations, reservation revision and seat-isolation guards pass with failure proofs.
+6. **Identity and lifecycle:** actual create/join/progression/save/reload/fork/export/import/release
+   tests preserve abilities, bindings, independent profiles, snapshots, checks and world state.
+   Historical equipment origins remain historical while current holders are validated/remapped.
+   Journey integration adds known/new NPC identity and vehicle-passenger portability coverage.
+   Legacy v3 worlds are not silently converted to target v4 worlds.
+7. **Version boundaries:** only the explicitly development Expert catalog is offered for the
+   new runtime. Campaign/catalog/definition pins and compatibility guards reject unknown versions
+   before writes. No invented Base/Advanced evidence or unsafe in-place migration is introduced.
+   A future released-catalog migration still requires the settled validated atomic-upgrade contract.
+8. **Integrated verification:** final `node test.js` passes after the live prompt fixes; the combined
+   browser suite passes desktop/mobile creation, real persisted cast/retry, seats and existing theme
+   and interaction regressions. Mutation guards were restored before the green runs. Bounded live
+   probes include original creation, ordinary movement and table talk, plus an authored-setup,
+   original-Council Magic Missile cast with real RNG and export. Fireball's live probe was skipped
+   at its call budget; its actual engine/HTTP/browser integration is provider-stubbed evidence.
+   No willing-player playtest or enjoyment verdict is claimed. The live evidence record owns
+   failures, successful outcomes and measured waiting time.
+
+The first standalone journey test violated database isolation; the owner was informed.
+`class-runtime-test-incident.md` owns its known changes and uncertainty. That run is excluded
+from disposable verification evidence, and a proven pre-import path guard protects the runner.
 
 For each numbered requirement, record concrete current code and test/runtime evidence, not intent.
 Foundation tests alone do not prove creator/runtime integration. Mocked UI responses do not prove

@@ -85,7 +85,7 @@ function matrixRequest(definition) {
   if (['area', 'known_area', 'willing_allies_and_area'].includes(kind)) bindings.targets = [];
   if (kind === 'area_all_actors') { bindings.targets = []; bindings.area = 'a'; }
   if (kind === 'known_area') bindings.area = 'area:2:d';
-  if (kind === 'willing_allies_and_area') { bindings.area = 'area:2:d'; bindings.travelers = [ACTOR, ALLY, COMPANION]; }
+  if (kind === 'willing_allies_and_area') { bindings.area = 'area:2:d'; bindings.travelers = [ACTOR, ALLY, COMPANION]; ctx.consentingActors = [ALLY, COMPANION]; }
   if (kind === 'fallen_ally') {
     bindings.targets = [ALLY];
     Object.assign(state.actors[ALLY], { health: 0, status: 'dead', intactBody: true, willingReturn: true, deathTurn: 8 });
@@ -292,6 +292,44 @@ export function runClassActionTests() {
   result = finalizeClassEvent({ state: result.state, plan: eventPlan });
   assert.equal(result.state.actors[ACTOR].classState.ritual, null);
   assert.equal(result.state.actors[ACTOR].classState.recoveryUses[request.definition.id], undefined);
+
+  for (const deathTurn of [undefined, null, 1.5, 11, -1]) {
+    request = matrixRequest(definitionNamed('Recall the Departed'));
+    if (deathTurn === undefined) delete request.state.actors[ALLY].deathTurn;
+    else request.state.actors[ALLY].deathTurn = deathTurn;
+    const before = structuredClone(request.state);
+    assert.throws(() => prepareClassAction(request), /death turn/i, 'Unknown, future or invalid age cannot start a revival working.');
+    assert.deepEqual(request.state, before, 'Rejected revival cannot advance a working, spend its use or consume the catalyst.');
+  }
+  request = matrixRequest(definitionNamed('Recall the Departed'));
+  request.context.turn = 19;
+  const expiredRevival = structuredClone(request.state);
+  assert.throws(() => prepareClassAction(request), /recent recorded death/i, 'An expired revival window must reject before the first working.');
+  assert.deepEqual(request.state, expiredRevival);
+  request.context.turn = 18;
+  result = runAction(request);
+  assert.equal(result.phase, 'ritual_progress', 'The exact authored ten-turn boundary is eligible, without rounding or invented age.');
+  const startedWorking = structuredClone(result.state);
+  request = { ...request, state: result.state, context: { ...request.context, turn: 19, operationId: 'expired-continuation' } };
+  assert.throws(() => prepareClassAction(request), /recent recorded death/i, 'Each continuation still needs an eligible recorded death.');
+  assert.deepEqual(request.state, startedWorking);
+
+  request = requestNamed('Passenger Rescue', { bindings: { targets: [ALLY], area: 'b' } });
+  request.state.actors[ALLY].conditions.pinned = condition(ALLY, 'pinned');
+  const vehicleRef = request.state.actors[ACTOR].classState.vehicle.vehicleRef;
+  result = runAction(request);
+  assert.deepEqual(result.state.vehicles[vehicleRef].occupants, [ACTOR, ALLY]);
+  assert.deepEqual(result.state.actors[ACTOR].classState.vehicle.occupants, [ACTOR, ALLY], 'The class projection retains rescued passengers after incoming-state reconciliation.');
+  assert.equal(result.state.actors[ALLY].conditions.pinned, undefined);
+  assert.equal(result.state.actors[ALLY].area, 'b');
+  const boarded = structuredClone(result.state);
+  request = requestNamed('Mounted Charge', { state: result.state, bindings: { targets: [FOE], area: 'a' },
+    context: { operationId: 'charge-after-rescue', turn: 11 } });
+  result = runAction(request);
+  assert.equal(result.state.actors[ALLY].area, 'a', 'A later vehicle trip carries its actual rescued passenger.');
+  assert.deepEqual(result.state.vehicles[vehicleRef].occupants, [ACTOR, ALLY]);
+  assert.deepEqual(result.state.actors[ACTOR].classState.vehicle.occupants, [ACTOR, ALLY]);
+  assert.deepEqual(request.state, boarded);
 
   let state = classActionTestState('arcanist', 'arcanist.formula', 1);
   state.actors[ACTOR].health = state.actors[ACTOR].maxHealth - 7;

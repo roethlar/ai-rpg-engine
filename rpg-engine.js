@@ -5,9 +5,11 @@ import {
 } from './class-state.js';
 import { readClassWorld, installClassActorInTransaction, writeClassWorldInTransaction } from './class-store.js';
 import { validateClassBundle, createClassReferenceMaps, remapClassBundle, forkClassBundle } from './class-portability.js';
-import { CLASS_SCENE_CONTRACT, validateClassSceneFrame, buildClassScenario } from './class-scenario.js';
-import { prepareClassCouncilTurn, resumeClassCouncilTurn } from './class-council.js';
-import { beginRulesOperation, readRulesOperationByRequest, completeRulesOperation } from './rules-store.js';
+import { buildClassScenario } from './class-scenario.js';
+import { authorClassScene } from './class-scene-author.js';
+import { prepareClassCouncilTurn, resumeClassCouncilTurn, finishClassCouncilJourney } from './class-council.js';
+import { resumeClassJourney, publishClassJourneyInTransaction } from './class-journey.js';
+import { beginRulesOperation, readRulesOperationByRequest, readRulesCheck, completeRulesOperation } from './rules-store.js';
 import { normalizeCheckRecord } from './rules-resolution.js';
 import { AIClient, resolveAgentConfig } from './api-client.js';
 import fs from 'fs';
@@ -2156,27 +2158,21 @@ ${classSheet ? 'The supplied class sheet is authoritative. Introduce it as-is. D
     recent_turns: [{ narrative_excerpt: turnData.narrative.substring(0, 700) }]
   }, startingLocationName);
   if (classSheet && !startingLayout) throw new Error('Aetheria requires a valid starting location. Campaign creation did not commit.');
-  const sceneActorKeys = classSheet ? ['player', ...npcList.map((_, index) => `npc${index}`),
+  const sceneNpcKeys = npcList.map((_, index) => `npc${index}`);
+  const sceneActorKeys = classSheet ? ['player', ...sceneNpcKeys,
     ...(classSheet.classState.companion ? ['companion'] : [])] : [];
   let classSceneFrame = null;
   if (classSheet) {
-    const response = await client.sendPrompt({
-      systemInstruction: `Author the initial Aetheria scene as structured world facts. Return JSON only matching this contract:
-${JSON.stringify(CLASS_SCENE_CONTRACT)}
-Use the supplied actor keys, never names as identities. Preserve the supplied player's and companion's authored mechanics.
-World support: ${JSON.stringify(selection.capabilities)}. If alliedActors is true, include a present party-aligned NPC who can cooperate with the player.
-Do not add combat simply to exercise a class. The opening fiction determines the situation; assign opposition only when genuinely hostile.`,
-      prompt: JSON.stringify({ narrative: turnData.narrative, layout: startingLayout,
-        actors: Object.fromEntries(sceneActorKeys.map(key => [key,
-          key === 'player' ? { name: character.name, class: character.class, controlled: true }
-            : key === 'companion' ? { name: `${character.name}'s companion`, controlled: true }
-              : npcList[Number(key.slice(3))]])) }),
-      jsonMode: true
-    });
-    classSceneFrame = validateClassSceneFrame(parseJsonSafe(response), { layout: startingLayout, actorKeys: sceneActorKeys });
-    if (selection.capabilities.alliedActors && !classSceneFrame.actors.some(actor => actor.actor.startsWith('npc')
-      && actor.allegiance === 'party' && actor.area !== null)) {
-      throw new Error('The opening scene did not provide the allied actor support selected for this campaign. Creation did not commit.');
+    const authored = await authorClassScene(client, { narrative: turnData.narrative, layout: startingLayout,
+      capabilities: selection.capabilities, actors: Object.fromEntries(sceneActorKeys.map(key => [key,
+        key === 'player' ? { name: character.name, class: character.class, controlled: true }
+          : key === 'companion' ? { name: `${character.name}'s companion`, controlled: true }
+            : npcList[Number(key.slice(3))]])) });
+    classSceneFrame = authored.frame;
+    for (const npc of authored.introducedActors) {
+      sceneNpcKeys.push(npc.key);
+      npcList.push({ name: npc.name, role: npc.role, personality: npc.personality || '', quirks: npc.quirks || '',
+        voice_mood: npc.voice_mood || '', relationship_value: 0, notes: `Introduced in the opening scene. Role: ${npc.role}.`, status: 'alive' });
     }
   }
 
@@ -2339,7 +2335,7 @@ Do not add combat simply to exercise a class. The opening fiction determines the
         await installClassActorInTransaction(campaignId,
           { ...character, id: newCharacterRowId, player_character_id: playerCharacterId }, world);
         const actorBindings = { player: `character:${newCharacterRowId}`,
-          ...Object.fromEntries(recordedNpcs.map((npc, index) => [`npc${index}`, `npc:${npc.id}`])) };
+          ...Object.fromEntries(recordedNpcs.map((npc, index) => [sceneNpcKeys[index], `npc:${npc.id}`])) };
         if (classSheet.classState.companion) actorBindings.companion = world.actors[actorBindings.player].classState.companion.actorRef;
         world = buildClassScenario({ world, location: { id: locationInsert.id, layout: startingLayout },
           frame: classSceneFrame, actorBindings, turn: 1 }).world;
@@ -2514,8 +2510,13 @@ async function executeClassTurn(campaignId, playerAction, apiConfig, submittingC
     const history = (await readCampaignHistory(campaignId, { window: 'latest', limit: STAGE_ONE_HISTORY_LIMIT }))
       .map(value => ({ playerInput: value.player_action, narrative: value.gm_narrative }));
     const outline = await readCampaignOutline(campaignId);
+    const journeyLocation = await getCurrentLocation(campaign);
+    if (journeyLocation) journeyLocation.knownDestinations = (await db.all(
+      'SELECT id,name,layout_json FROM locations WHERE campaign_id = ? AND pending_rules_operation_id IS NULL ORDER BY id', [campaignId]))
+      .map(location => ({ id: location.id, name: location.name, arrival: JSON.parse(location.layout_json).areas[0].id }));
     const prepared = await prepareClassCouncilTurn({ apiConfig, state: world, actorId: character.id, playerAction, declarations,
-      history, outline, turn, requestId, allowCommitted: world.turnOrder.order[world.turnOrder.currentIndex] === `character:${character.id}` });
+      history, outline, turn, requestId, journeyLocation,
+      allowCommitted: world.turnOrder.order[world.turnOrder.currentIndex] === `character:${character.id}` });
     if (prepared.kind === 'table_talk') {
       await db.withWriteTransaction(async () => {
         const current = await db.get('SELECT rules_revision FROM campaigns WHERE id = ?', [campaignId]);
@@ -2536,11 +2537,17 @@ async function executeClassTurn(campaignId, playerAction, apiConfig, submittingC
       requestId, expectedWorldRevision: campaign.rules_revision,
       input: { playerAction, abilityTriggerRevision, invocations, expectedWorldRevision: campaign.rules_revision, prepared } });
   }
+  if (operation.input.prepared.kind === 'journey') {
+    const client = new AIClient(resolveAgentConfig(apiConfig, 'continuity'));
+    operation = await resumeClassJourney({ operation, client, finish: finishClassCouncilJourney, voiceProvider: apiConfig?.voiceProvider,
+      generateLayout: name => generateLocationLayout(client, { campaign, recent_turns: [{ narrative_excerpt: operation.input.playerAction }] }, name) });
+  }
   operation = await resumeClassCouncilTurn({ apiConfig, operation });
   if (operation.stage !== 'narrated') throw new Error('The class action did not reach a final narrated checkpoint.');
   const { result, check, narrative } = operation.data;
   const rolls = check ? [normalizeCheckRecord(check)] : [];
   await completeRulesOperation(operation.operationId, { campaignId, turnNumber: operation.turn, requestId }, async () => {
+    await publishClassJourneyInTransaction(operation);
     if (result.newBindings.length) {
       const owner = await db.get('SELECT player_character_id FROM characters WHERE id = ? AND campaign_id = ?', [operation.actor, campaignId]);
       const revision = await db.get(`SELECT COALESCE(MAX(binding_set_revision), 0) AS value FROM character_ability_bindings
@@ -3069,13 +3076,21 @@ export async function getCampaignState(campaignId) {
   const campaign = await db.get(`SELECT * FROM campaigns WHERE id = ?`, [campaignId]);
   if (!campaign) return null;
   const classWorld = isClassRuleset(parseJsonObject(campaign.ruleset_json, null)) ? readClassWorld(campaign) : null;
-  const pendingRow = classWorld ? await db.get(`SELECT request_id, actor, stage, input_json FROM rules_turn_operations
+  const pendingRow = classWorld ? await db.get(`SELECT id, request_id, actor, stage, input_json FROM rules_turn_operations
     WHERE campaign_id = ? AND status = 'active'`, [campaignId]) : null;
   const pendingInput = pendingRow ? JSON.parse(pendingRow.input_json) : null;
   const pendingAction = pendingRow ? {
     requestId: pendingRow.request_id, actor: `character:${pendingRow.actor}`, characterId: pendingRow.actor,
     playerAction: pendingInput.playerAction, abilityTriggerRevision: pendingInput.abilityTriggerRevision, stage: pendingRow.stage
   } : null;
+  const pendingRollResults = [];
+  if (pendingRow) {
+    const keys = await db.all('SELECT actor, call_seq FROM rules_checks WHERE operation_id = ? ORDER BY call_seq', [pendingRow.id]);
+    for (const key of keys) {
+      const record = await readRulesCheck({ operationId: pendingRow.id, actor: key.actor, callSeq: key.call_seq });
+      if (record) pendingRollResults.push(normalizeCheckRecord(record));
+    }
+  }
 
   const outlineRow = await db.get(`SELECT * FROM campaign_outlines WHERE campaign_id = ?`, [campaignId]);
   if (!outlineRow) throw new Error(`Campaign outline not found for campaign ${campaignId}.`);
@@ -3088,7 +3103,7 @@ export async function getCampaignState(campaignId) {
   const turnState = validateTurnState(parseJsonObject(campaign.turn_state_json, null), party.map(c => c.id));
   const character = party.find(c => c.id === actingCharacterId(turnState)) || party[0] || null;
 
-  const npcs = await db.all(`SELECT * FROM npcs WHERE campaign_id = ?`, [campaignId]);
+  const npcs = await db.all(`SELECT * FROM npcs WHERE campaign_id = ? AND pending_rules_operation_id IS NULL`, [campaignId]);
 
   const lastTurn = await db.get(
     `SELECT * FROM turns WHERE campaign_id = ? ORDER BY turn_number DESC LIMIT 1`,
@@ -3133,7 +3148,7 @@ export async function getCampaignState(campaignId) {
     themeFonts: outline.theme_fonts,
     rulesMode: !!campaign.rules_mode,
     ruleset: validateRulesetData(parseJsonObject(campaign.ruleset_json, null)),
-    ...(classWorld ? { pendingAction } : {}),
+    ...(classWorld ? { pendingAction, pendingRollResults } : {}),
     tableStyle: validateTableStyle(parseJsonObject(campaign.table_style_json, null)),
     character,
     party,

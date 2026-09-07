@@ -22,8 +22,10 @@ export async function runClassCreationTests() {
       areas: testClassLayout.areas.map(area => ({ area: area.id, terrain: 'dry_ground', traits: ['visible', 'safe', 'visited', 'anchor'], surfaces: ['ground'] })),
       actors: [
         { actor: 'player', area: 'gate', allegiance: 'party', profile: null, conditions: [] },
-        { actor: 'npc0', area: 'gate', allegiance: 'party', profile: 'combatant', conditions: [] }
+        { actor: 'npc0', area: 'gate', allegiance: 'party', profile: 'combatant', conditions: [] },
+        { actor: 'new1', area: 'gate', allegiance: 'neutral', profile: 'support', injury: 'wound', conditions: [] }
       ],
+      newActors: [{ key: 'new1', name: 'Courier', role: 'Messenger', evidence: 'A courier waits beside him.' }],
       items: [], objects: [], features: [], discoveries: [], encounter: { active: false, opposition: [] }
     });
     if (calls === 1) return JSON.stringify({
@@ -32,7 +34,7 @@ export async function runClassCreationTests() {
       key_npcs: [{ name: 'Keeper', role: 'Guard', personality: 'Watchful' }],
       starting_quest: { title: 'Cross the Gate', description: 'Reach the yard.' }
     });
-    return JSON.stringify({ narrative: 'The keeper watches the gate.',
+    return JSON.stringify({ narrative: 'The keeper watches the gate. A courier waits beside him. A wound marks the courier\'s arm.',
       character_update: { health_change: -99, xp_gain: 300, inventory_changes: [] },
       ability_updates: [{ type: 'add', name: 'Invented Power', description: 'Not a real grant.' }]
     });
@@ -70,6 +72,12 @@ export async function runClassCreationTests() {
     assert.ok(state.character.invocableAbilities.some(ability => ability.name === 'Magic Missile'));
     assert.ok(!state.character.abilities.some(ability => ability.name === 'Invented Power'));
     const reloaded = await getCampaignState(state.campaignId);
+    const courier = await db.get('SELECT * FROM npcs WHERE campaign_id = ? AND name = ?', [state.campaignId, 'Courier']);
+    assert.ok(courier, 'An opening participant outside the outline must be a real persisted NPC.');
+    const openingWorld = readClassWorld(await db.get('SELECT * FROM campaigns WHERE id = ?', [state.campaignId]));
+    assert.equal(openingWorld.actors[`npc:${courier.id}`].present, true);
+    assert.equal(openingWorld.actors[`npc:${courier.id}`].npcProfile, 'support');
+    assert.equal(openingWorld.actors[`npc:${courier.id}`].health, 9, 'An authored wound must be real missing health, not unhealable flavor.');
     assert.deepEqual(reloaded.character.abilities, state.character.abilities);
     assert.deepEqual(reloaded.character.skills, state.character.skills);
     assert.equal(reloaded.character.abilityTriggerRevision, state.character.abilityTriggerRevision);
