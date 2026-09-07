@@ -20,6 +20,7 @@ import {
   safeAbilityInvocationRecord,
   validateAbilityInvocationRecord
 } from './ability-trigger-state.js';
+import { runRulesResolutionTests } from './test-rules-resolution.mjs';
 
 // Hermetic store: db.js opens its file at module load, and several tests
 // dynamically import rpg-engine.js (which pulls db.js in). Redirect BEFORE
@@ -7225,6 +7226,7 @@ async function testCampaignContext() {
 async function runAll() {
   try {
     testParseJsonSafe();
+    runRulesResolutionTests();
     testLevelUpMath();
     testProductionSsrfBlock();
     testJsonSchemaValidation();

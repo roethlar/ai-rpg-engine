@@ -10,7 +10,9 @@ to `docs/history/state-archive.md`.
   are given" delegates remaining design and implementation within the complete scope recorded in
   `.agents/review/class-experience-implementation-plan.md`. Its later decision supersedes the
   planning-only/code-unapproved wording retained below for this work, not substantive rules,
-  portability, evidence or player-agency contracts. Baseline `node test.js` passed. Full catalog,
+  portability, evidence or player-agency contracts. Baseline and signed d100 evaluator tests
+  passed, including the new boundary guard's failure proof; the implementation plan owns details.
+  The evaluator is not yet connected to persisted Council turns. Full catalog,
   signed-rules execution, real creation/play integration and end-to-end verification are pending.
   Do not stop at another paper recommendation or ask for routine per-class approvals.
 - **THE OWNER IS NOT THE ABILITY-REVIEW COMMITTEE.** The 2026-09-07 agent-owned design decision

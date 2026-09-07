@@ -82,7 +82,14 @@ separate unless an actual class-path dependency is established. No real user dat
 ## Verification Record
 
 - Baseline 2026-09-07: `node test.js` passed against its disposable database.
-- Foundation implementation and all end-to-end requirements remain pending.
+- Signed evaluator foundation: `rules-resolution.js` implements exact call shape/actor binding,
+  bounded enumerated deltas, target arithmetic, ordered d100 bands, stakes licenses and immutable
+  core record construction. It performs no semantic Continuity judgment or persistence itself.
+  `test-rules-resolution.mjs`, wired into `node test.js`, passed all 9,800 raw/target combinations,
+  arithmetic/clamp/license examples and invalid-input/immutability guards. Mutation proof:
+  widening the marginal-success comparison from `< 5` to `<= 5` failed with `6 !== 5`; restored,
+  the complete `node test.js` suite passed. Runtime activation remains pending.
+- Other foundation implementation and all end-to-end requirements remain pending.
 
 ## Completion Audit
 
