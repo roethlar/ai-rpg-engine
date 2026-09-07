@@ -222,3 +222,79 @@ Guarding 4 dealt / 4 taken / 11 HP, ordinary attack 5 / 5 / 10. Both outcomes ar
 This verifies source-backed arithmetic, not the live resolver, composer, or human experience.
 The rejected runner was untouched. No browser, runtime suite, provider session, or human playtest
 was run; none is represented as passing. Docs are checked with `git diff --check`.
+
+## Written alternative: one protective commitment
+
+**Authorization and status:** the owner authorized one concrete replacement exchange in chat:
+what the player types, what happens, and which rule changes, without owner participation. This
+section records that example. Its mechanics and outcomes are proposed/scripted, not implemented,
+approved class rules, or evidence of enjoyment. It is not another test program or a class roster.
+
+### Proposed rule change
+
+For this example, replace the turn-by-turn Form/Counter choices with ordinary weapon attacks and
+one sustained ability, **Bodyguard**. Do not add Bodyguard to the existing Form menu. This is an
+isolated comparison, not a decision that a whole starting character has only one ability.
+
+- Spend the normal Main action and explicitly invoke Bodyguard for one ally within arm's reach.
+  There is no attack included in that activation action.
+- While the commitment lasts, melee attacks aimed at that ally target the Fighter instead and
+  resolve normally against the Fighter. There is no free attack, damage reduction, or immunity.
+- Ordinary attacks on later turns do not cancel the commitment and need no repeated ability term,
+  stance selection, or reaction confirmation. This automatic maintenance follows the player's
+  explicit commitment; the model does not infer or select another ability from ordinary prose.
+- The commitment ends when either character moves out of arm's reach, the Fighter becomes unable
+  to act, or the encounter ends. Leaving deliberately ends it too; pursuing a different enemy does
+  not carry protection along for an ally left behind. It does not automatically reactivate on return.
+- Only one ally can be covered. Changing the ally requires another explicit activation/Main.
+  Ranged attacks and environmental hazards are unaffected.
+
+This is a candidate targeted-attack redirection rule with maintained, actor-relative conditions.
+It is NOT an already-supported generic effect operation, an ordinary obstruction reinterpreted as
+movement prohibition, or an entitlement granted by free prose. Implementation would require a
+separately approved exact catalog/rules extension and real invocation binding. The example neither
+reserves ordinary helping/blocking for Fighters nor decides which classes could learn this ability.
+
+### Player and game exchange
+
+**Situation:** Mira is beside the Fighter, working a gate winch. A raider closes on her while the
+raiders' captain heads for the stairs. Mira needs to keep working for the escape route to open.
+
+**Player types:** "Bodyguard Mira."
+
+**Proposed resolution:** this spends the Fighter's action on covering Mira, not attacking. The
+raider's melee attack aimed at Mira is redirected to the Fighter and is scripted to hit. Mira
+continues working. The captain continues toward the stairs; the ability does not restrain them.
+
+**Game replies:** "You step between Mira and the raider. His blade catches your arm, but she keeps
+turning the winch. The captain reaches the stairs."
+
+**Next ordinary input:** "I stab the raider."
+
+That later attack resolves normally while Bodyguard remains active if its conditions still hold.
+This line illustrates persistence, not a second simulated combat result. The Fighter could instead
+leave to chase the captain, but doing so ends Mira's protection; no follow-up choice is demanded
+unless the submitted action is genuinely ambiguous.
+
+### What is gained and lost
+
+The proposed payoff is continuity of the ally's task at the Fighter's personal risk. The choice is
+whom to cover and whether to stay, not which small attack adjustment to invoke for the next swing.
+Activation has an immediate effect on the approaching attack rather than merely unlocking a later
+move. Later attacks need ordinary intent only, with no renewed class declaration while covering.
+
+The cost is real: the activation gives up an attack, the Fighter becomes the target of melee
+attacks aimed at the ally, and leaving forfeits the benefit. The example gives up the original
+per-exchange offense/defense adjustment and pursuit Counter; it does not keep their benefits hidden
+behind a shorter input. One commitment/ally is still state the player must consider when moving.
+
+This illustrates a different decision frequency and consequence. It does not establish lower
+measured effort or greater enjoyment. The scene has also changed from a stationary duel to an
+ally objective, so its added stakes cannot be credited solely to the mechanic. Target redirection
+could be too strong or uninteresting in practice, and changing allies frequently could reintroduce
+selection burden. No balance result, role/class restriction, or evidence-tier verdict follows.
+
+**Next recommendation, not authorized:** compare this exact rescue situation under the original
+Forms and the proposed commitment, holding threats and the ally's task fixed, to separate the
+mechanic's contribution from the more consequential scene. Do not add more abilities, ask the owner
+to play, or implement the proposal on the strength of this illustration.

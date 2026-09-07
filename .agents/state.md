@@ -87,15 +87,15 @@ to `docs/history/state-archive.md`.
 
 ## Next
 
-**NEXT:** The owner-authorized Fighter effort/payoff assessment is complete in
-`.agents/review/fighter-encounter-walkthrough.md`. It compares one Guarding exchange with the
-already-legal ordinary attack under the same fixture and rolls. The real damage/protection tradeoff
-offers weak demonstrated payoff for recurring option comparison in this scene; player effort and
-enjoyment remain unmeasured. Ordinary attacks and assisted ability-name insertion already exist as
-design/infrastructure, so neither is a newly discovered solution to option overload. Recommend a
-paper alternative with a less frequent, more consequential choice before class/Creator decisions;
-that further design is not yet authorized. The owner need not participate. Do not resume the
-displaced movement/rescue suggestion or start a playtest program.
+**NEXT:** The owner-authorized written Fighter alternative is complete in
+`.agents/review/fighter-encounter-walkthrough.md`, following its earlier effort/payoff assessment.
+For one illustrative exchange, an explicit maintained Bodyguard commitment replaces the Form menu:
+cover an ally and accept incoming melee attacks while staying beside them. It is proposed, not
+adopted or implemented. The example changes the scene as well as the mechanic, so it establishes no
+causal enjoyment or effort result. Recommend comparing the original Forms and this commitment in
+that exact rescue situation before drawing a design conclusion; that additional work is not yet
+authorized. No further owner participation is required by the example, and no full playtest
+program or additional ability catalog is authorized.
 `.agents/review/gate-5-class-model-plan.md` section 7.1 owns the paused starting-set proposal.
 No replacement is selected, no Fighter package is authorized, and prior settled decisions remain
 intact. Carry the separate description-scope finding.
