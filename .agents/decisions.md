@@ -1654,6 +1654,34 @@ removal, evidence-tier ruling, or new approval gate. The existing deterministic 
 and staged human-playtest evidence policy remain active. An assistant-written encounter can expose
 costs and tradeoffs but cannot establish player enjoyment or selection effort.
 
+**Owner refinement, 2026-09-07: class complexity may vary; fun remains primary.** Different
+classes may earn different amounts of interaction complexity. Do not turn this principle into a
+uniform simplicity requirement or assume that the least complex class is the most enjoyable.
+Spells, in their various forms, should be interesting and provide distinctive capabilities the
+character could not exercise without them, rather than merely rename an ordinary action.
+
+Routine casting must not require knowing a keyword vocabulary or layering several preparatory
+combos just to obtain the spell's basic effect. The owner's examples distinguish the scope:
+
+- Magic missile and fireball should deliver their authored effects through a direct cast, without
+  a mandatory keyword puzzle or combo chain. Choosing a target or area can be meaningful play;
+  procedural setup is not justified merely because the action is magical.
+- Teleportation may justify more involved choices or preparation when those earn their effort;
+  complexity is not required for every teleport.
+- Resurrection can justify substantial preparation or ritual play for an exceptional result.
+  Its significance permits a richer experience, not tedious steps with no worthwhile payoff.
+
+These are design criteria, not adopted spell payloads, costs, prerequisites, or guaranteed outcomes.
+Direct casting need not be free or automatically successful. A spell may combine several engine
+effects internally without making the player assemble them, and distinctive capability does not
+require every spell to have an effect shared with no other spell or character.
+Preserve deliberate player selection and exact authored mechanics without making trigger-syntax
+knowledge the price of a routine cast. Ability-name insertion can support that selection but does
+not itself solve option-sorting burden or establish fun. This refinement authorizes no
+model-inferred special abilities or runtime composer change. Optional combinations may add depth,
+but a routine spell must be worthwhile without a required combo sequence. The criterion applies
+across the candidate class families and their mechanically distinct branches, not only Fighter.
+
 The class starting-set proposal remains paused. Its related worked illustration is recorded in
 `.agents/review/fighter-encounter-walkthrough.md`; no replacement class, composer redesign, or
 runtime change is authorized by this principle.

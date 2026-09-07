@@ -18,7 +18,10 @@ to `docs/history/state-archive.md`.
   decision in `.agents/decisions.md` owns this whole-game criterion. The owner's concern is the
   effort of sorting options and entering the intended action even when the rules are understood;
   do not recast it as a memory problem. More explanations or automated bookkeeping do not alone
-  address it. No replacement class, fixed ability count, or runtime change is approved.
+  address it. Its same-day refinement permits different complexity across classes while keeping
+  fun primary: spells need distinctive capabilities, routine casts need no keyword puzzle or
+  mandatory combo chain, and exceptional magic may earn richer preparation. Do not impose a
+  uniform simplicity target. No replacement class, fixed ability count, or runtime change is approved.
 - **PLAYER KEYS AND SIMPLE ADMINISTRATOR RECOVERY ARE SETTLED.** The 2026-09-05/06 decisions in `.agents/decisions.md` select one reusable player key and a simple admin Reset Key action preserving character ownership and progress. The owner explicitly rejected enterprise-grade character security. Section 3.3 of `.agents/review/campaign-character-version-plan.md` now uses the existing token/settings/admin patterns; enrollment grants, backup secrets, recovery protocols and a separate session/audit framework are out of scope. Return to game behavior; no additional security-policy queue is needed. No key code has been implemented.
 - **THE PORTABILITY VERSION REPLAN REMAINS DRAFTED AND UNAPPROVED FOR CODE.** The owner authorized planning on 2026-09-05. `.agents/review/campaign-character-version-plan.md` owns the proposed version identities, atomic upgrades, independent progression, catalog/creator and safe-encounter dependencies, lifecycle/bundle boundaries, staged testing, and remaining decisions. The player-key choice approves only that credential direction; implementation, taxonomy, catalog and phase order remain gated.
 - **THE PRODUCTION ABILITY-KEYWORD COMPOSER IS LANDED; ACTIVATION STILL NEEDS THE REAL CATALOG.** `.agents/review/ability-keyword-production-plan.md` owns the completed slices and their verification. AKP-4 remains gated on stable character-owned abilities, invocation families, and complete campaign bindings from the versioned class/catalog creator; prototype fixtures cannot satisfy that dependency.
@@ -95,13 +98,15 @@ to `docs/history/state-archive.md`.
 
 ## Next
 
-**NEXT:** The owner-requested multi-agent encounter-design evaluation is complete in
-`.agents/review/gate-5-class-model-plan.md` section 7.1. Three parallel analyses and primary-agent
-synthesis recommend ordinary intent plus optional immediate authored advantages over a default
-recurring Form/Counter layer for the Fighter. This is a proposal, not an adopted class or proof of
-fun. The central unresolved risk is the same low-payoff attack loop and waits with fewer class
-choices. The next useful deliverable is one bounded text-first encounter implementation plan with
-real end conditions, competing objectives, and state-backed effects; no code is approved yet.
+**NEXT:** The completed three-agent analysis in `.agents/review/gate-5-class-model-plan.md`
+section 7.1 covered Fighter only, not the owner's whole-class-system concern. Its recommendation
+is retained as a proposal, not an adopted class or proof of fun. The next useful deliverable is a
+roster-wide parallel design synthesis, dividing mechanically distinct families and branches among
+agents and consolidating shared-rule and cross-class findings. Apply the refined fun-per-action
+criterion in `.agents/decisions.md`; simpler is not automatically better, and routine magic must
+offer distinctive capabilities without prerequisite keyword/combo choreography. Do not generalize
+the Fighter recommendation to every class or schedule another Fighter-only iteration as the next
+whole-system step. Section 7.1 owns the scope correction and delivery boundary; no code is approved.
 Do not resume individual ability questions or require owner participation. Prior assessments remain
 reference evidence, not a baseline-completion gate. Bodyguard and rejected IBP-2 remain withdrawn;
 no production fixture activation, roster/tier verdict, or external reviewer invocation is authorized.

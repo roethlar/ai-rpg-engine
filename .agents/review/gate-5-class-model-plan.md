@@ -324,15 +324,26 @@ Merely describing the character correctly in prose does not pass.
 
 ### 7.1 Agent-owned experience-design work, 2026-09-07
 
-**Scope:** prepare one coherent recommendation for the Fighter's encounter experience, using the
-owner's fun-per-action and local ability-benefit criteria. This is authorized design/process work,
-not approval of a replacement class, catalog, prototype implementation, or product code. Do not
-ask for a new go to inspect the next ability or perform the next comparison within this batch.
+**Current scope:** address the candidate class system, not only Fighter. The owner's request to
+evaluate everything with multiple agents was answered too narrowly by the Fighter-only batch
+below. The next synthesis must divide mechanical families and their distinct branches among
+agents, reuse shared-rule analysis, and account for cross-class interactions. Identical mechanics
+can share evidence; genre names alone neither require duplicate evaluation nor prove identical
+grants, proficiencies, loadouts, or branch behavior. This remains design/process work, not approval
+of a replacement class, catalog, prototype implementation, or product code. Do not ask the owner
+to judge each class or ability, or for a new go on every internal comparison.
 
-**Batch complete, 2026-09-07:** at the owner's explicit request, three agents performed parallel
+The 2026-09-07 fun-per-action decision in `.agents/decisions.md`, including its class-complexity
+and spell-casting refinement, owns the evaluation criterion. No uniform complexity ceiling is
+implied. The settled resolution, effects, deliberate invocation, campaign sets, and evidence
+contracts constrain proposals; the unapproved resource economies and class fixtures do not become
+adopted rules merely because they supply examples. Paper analysis can propose changes, not prove
+enjoyment, remove candidates, or assign evidence tiers.
+
+**Fighter batch complete, 2026-09-07:** at the owner's explicit request, three agents performed parallel
 player-interaction, mechanical-consistency, and evidence/adversarial analyses. The primary agent
-checked the retained action payloads and synthesized the result below. This covers the authorized
-encounter-level scope, not every possible ability, the entire class catalog, or the whole engine.
+checked the retained action payloads and synthesized the result below. This completed only the
+encounter-level subset, not the requested whole-class-system evaluation or the whole engine.
 No external reviewer harness, code change, game session, or human playtest was used. Agreement
 among agents is analytical convergence, not independent evidence of enjoyment.
 
@@ -425,11 +436,19 @@ No decision-time, waiting-time, enjoyment, balance, or multiplayer result has be
 
 #### Next delivery boundary
 
-The internal design batch is complete. The next useful deliverable is one bounded implementation
-plan for a text-first encounter evaluation of this proposed direction, not another ability review.
-It should specify a real end condition, changed-position and competing-objective branches, explicit
-local action costs, adversary behavior, and state-backed results using the settled composer. It
-must not revive the rejected runner or install fixture abilities into production characters.
+The Fighter design batch is complete; roster-wide evaluation is not. The next useful deliverable
+is one consolidated parallel assessment of the candidate families and distinct branches, covering
+their characteristic play, unique capabilities, recurring effort, and shared-rule dependencies.
+The later interaction audit owns the current twelve-candidate inventory (eleven class families
+plus the Rider module); no final roster is approved. This is not twelve sequential owner reviews,
+an exhaustive ability catalog, or a presumption that all classes need Fighter's proposed pattern.
+Shared mechanics should be assessed once, with actual branch differences and cross-class effects
+covered rather than assumed away. Report structural findings separately from untested fun claims.
+
+A later bounded text-first encounter implementation plan should follow that synthesis, not
+substitute another Fighter-only iteration for it. Such a plan needs real end conditions,
+competing objectives, explicit local action costs, adversary behavior, and state-backed results.
+Do not revive the rejected runner or install fixture abilities into production characters.
 Any implementation remains separately gated by an approved plan and explicit go.
 
 A later short encounter with an available, willing non-owner tester could expose repeated-attack
