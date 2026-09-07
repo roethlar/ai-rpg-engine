@@ -1628,3 +1628,32 @@ scope. Do not turn key management into an authentication subproject or continue 
 policy questions before returning to gameplay planning. Section 3.3 of
 `.agents/review/campaign-character-version-plan.md` owns the simplified contract. This ruling
 does not approve product code or change the remaining rules/catalog decisions.
+
+### 2026-09-07 - Maximize fun per player action across the game
+
+**Status: Active player-experience principle; no implementation or class design approved.**
+
+The owner clarified: "overall player experience needs to maximize fun per action."
+This sharpens the existing fun/real-GM mission and applies to the whole experience, not just
+combat, character creation, or the Fighter example.
+
+Assess the worthwhile play a player gets from an interaction against the effort it demands:
+reading and sorting options, deciding, entering the intended action correctly, follow-up input,
+and waiting for a result. Meaningful choice, satisfying consequences, discovery, and story movement
+can earn that effort. Formal mechanical distinctness or a low prompt count alone does not.
+
+The immediate objection is NOT lack of rules knowledge or recall. Even a player who understands
+every option may find choosing among too many options and correctly invoking one tedious. Do not
+substitute memory aids, more explanations, autocomplete, or automated bookkeeping for addressing
+that decision and input cost. Such tools can help, but do not establish that the underlying
+interaction is worthwhile.
+
+This is not a demand to minimize all choices, remove depth, maximize damage per combat action, or
+automate the player's tactics. It introduces no numeric fun score, ability-count limit, class
+removal, evidence-tier ruling, or new approval gate. The existing deterministic invocation contract
+and staged human-playtest evidence policy remain active. An assistant-written encounter can expose
+costs and tradeoffs but cannot establish player enjoyment or selection effort.
+
+The class starting-set proposal remains paused. Its related worked illustration is recorded in
+`.agents/review/fighter-encounter-walkthrough.md`; no replacement class, composer redesign, or
+runtime change is authorized by this principle.

@@ -10,6 +10,10 @@
 - Core principle (evidence: plan.md): every change must improve *fun* and
   *feel* like a real GM. Avoid feature creep. Prioritize quality of
   interaction over new mechanics.
+- Maximize fun per player action across the experience. Judge the payoff against option-sorting,
+  decision, input, and waiting effort, even for a player who knows the rules. The 2026-09-07
+  decision in `.agents/decisions.md` owns this criterion and its scope; fewer prompts or better
+  recall alone do not establish good play.
 - The Council GM pipeline is the supported path for player turns
   (Interaction, Continuity, Referee, Continuity final check, Narration).
   Single-model paths are deprecated (decision 2026-06-05 in

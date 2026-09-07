@@ -333,6 +333,15 @@ are not automatically revoked. Previously recorded objections to renamed common 
 mechanically different classes flattened into tactical roles, and burdensome/model-selected play
 remain relevant; do not ask the owner to repeat them.
 
+The owner subsequently authorized one self-contained Fighter encounter without their participation.
+`fighter-encounter-walkthrough.md` records the completed scripted illustration and its limitations.
+It uses the retained free-Forms fixture, not this creator mockup's resource pool, and establishes no
+player-enjoyment result or class approval. The owner interrupted before delivery and clarified the
+actual concern; the 2026-09-07 fun-per-player-action decision in `../decisions.md` owns that criterion.
+Address option-sorting and correct-input effort, not merely knowledge or memory. A scripted player
+who arrives with the right Form and sentence already chosen does not answer that objection.
+The starting-set proposal remains paused.
+
 The proposal below is retained for reference, not renewed approval. Preserve the accepted
 creation hierarchy: mechanical archetype, campaign-specific class only when multiple mappings
 exist, then separate training, background, standing and identity. Automatically selecting a sole

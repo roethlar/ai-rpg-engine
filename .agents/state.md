@@ -6,6 +6,11 @@ to `docs/history/state-archive.md`.
 
 ## Now
 
+- **MAXIMIZE FUN PER PLAYER ACTION, NOT MERELY RULES CLARITY OR FEWER PROMPTS.** The 2026-09-07
+  decision in `.agents/decisions.md` owns this whole-game criterion. The owner's concern is the
+  effort of sorting options and entering the intended action even when the rules are understood;
+  do not recast it as a memory problem. More explanations or automated bookkeeping do not alone
+  address it. No replacement class, fixed ability count, or runtime change is approved.
 - **PLAYER KEYS AND SIMPLE ADMINISTRATOR RECOVERY ARE SETTLED.** The 2026-09-05/06 decisions in `.agents/decisions.md` select one reusable player key and a simple admin Reset Key action preserving character ownership and progress. The owner explicitly rejected enterprise-grade character security. Section 3.3 of `.agents/review/campaign-character-version-plan.md` now uses the existing token/settings/admin patterns; enrollment grants, backup secrets, recovery protocols and a separate session/audit framework are out of scope. Return to game behavior; no additional security-policy queue is needed. No key code has been implemented.
 - **THE PORTABILITY VERSION REPLAN REMAINS DRAFTED AND UNAPPROVED FOR CODE.** The owner authorized planning on 2026-09-05. `.agents/review/campaign-character-version-plan.md` owns the proposed version identities, atomic upgrades, independent progression, catalog/creator and safe-encounter dependencies, lifecycle/bundle boundaries, staged testing, and remaining decisions. The player-key choice approves only that credential direction; implementation, taxonomy, catalog and phase order remain gated.
 - **THE PRODUCTION ABILITY-KEYWORD COMPOSER IS LANDED; ACTIVATION STILL NEEDS THE REAL CATALOG.** `.agents/review/ability-keyword-production-plan.md` owns the completed slices and their verification. AKP-4 remains gated on stable character-owned abilities, invocation families, and complete campaign bindings from the versioned class/catalog creator; prototype fixtures cannot satisfy that dependency.
@@ -82,12 +87,16 @@ to `docs/history/state-archive.md`.
 
 ## Next
 
-**NEXT:** Address the owner's objection to the class system before resuming starting-set or Creator
-choices. `.agents/review/gate-5-class-model-plan.md` section 7.1 owns the 2026-09-07 feedback and
-paused starting-set proposal. Do not treat sarcastic assent as approval to author a Fighter package
-or implement the current design. No replacement is selected and prior settled decisions remain
-intact. Recommend discussing one concrete example of appealing Fighter play before proposing more
-mechanics; await direction. Carry the separate description-scope finding.
+**NEXT:** Apply the fun-per-player-action criterion before resuming class or Creator choices.
+The owner-authorized Fighter illustration is recorded in
+`.agents/review/fighter-encounter-walkthrough.md`; delivery was interrupted by the owner's
+clarification. Its scripted player bypasses option-sorting and invocation effort, so the arithmetic
+does not answer that concern. Recommend revising one exchange to expose effort and payoff and
+propose a lower-effort alternative; this further drafting is not yet authorized. The owner need
+not participate. Do not resume the displaced movement/rescue suggestion or start a playtest program.
+`.agents/review/gate-5-class-model-plan.md` section 7.1 owns the paused starting-set proposal.
+No replacement is selected, no Fighter package is authorized, and prior settled decisions remain
+intact. Carry the separate description-scope finding.
 Compatibility/upgrades, keys/reset, the single-composer direction and staged evidence policy are
 already settled. Optional archive controls stay deferred; no whole-plan or code approval is implied.
 AKP-4 still needs the real versioned catalog/creator; no provisional abilities or rejected IBP-2
