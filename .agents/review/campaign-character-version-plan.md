@@ -17,9 +17,9 @@ never silently downgrade or translate mechanics. The draft's additional compatib
 gate was an error and is removed. The starting-ability question is paused: the owner's 2026-09-07
 objection concerns the class system itself, not merely how starting abilities are selected.
 `gate-5-class-model-plan.md` section 7.1 owns that feedback and the held proposal. Address the class
-design's appeal before further Creator choices. Section 7.1 now assigns a bounded agent-owned
-encounter-level recommendation, not per-ability owner reviews; recheck existing rulings before
-later questions.
+design's appeal before further Creator choices. Section 7.1 records the completed multi-agent
+encounter-level recommendation, not per-ability owner reviews. It remains a design proposal,
+not class or implementation approval; recheck existing rulings before later questions.
 
 **Evidence baseline:** `e647c5a`. Function references identify current integration surfaces;
 re-read them at the implementation base. No runtime or browser tests were run for this draft.

@@ -95,15 +95,16 @@ to `docs/history/state-archive.md`.
 
 ## Next
 
-**NEXT:** Complete the agent-owned encounter-experience design batch in
-`.agents/review/gate-5-class-model-plan.md` section 7.1. Compare routine exchanges, changing
-positions, and competing objectives internally; deliver one coherent recommendation with concrete
-player interactions, tradeoffs, and evidence limits. Do not ask for another go to assess Driving or
-the next ability. The prior Fighter/Pursue assessments and ordinary-combat inventory are reference
-evidence, not an owner approval queue or a prerequisite to complete ordinary combat. Keep routine
-provisional choices agent-owned; escalate only genuine material decisions or scope conflicts.
-Owner participation is not required. Bodyguard remains withdrawn; no class adoption, new ability
-implementation, external review, or full playtest program is authorized.
+**NEXT:** The owner-requested multi-agent encounter-design evaluation is complete in
+`.agents/review/gate-5-class-model-plan.md` section 7.1. Three parallel analyses and primary-agent
+synthesis recommend ordinary intent plus optional immediate authored advantages over a default
+recurring Form/Counter layer for the Fighter. This is a proposal, not an adopted class or proof of
+fun. The central unresolved risk is the same low-payoff attack loop and waits with fewer class
+choices. The next useful deliverable is one bounded text-first encounter implementation plan with
+real end conditions, competing objectives, and state-backed effects; no code is approved yet.
+Do not resume individual ability questions or require owner participation. Prior assessments remain
+reference evidence, not a baseline-completion gate. Bodyguard and rejected IBP-2 remain withdrawn;
+no production fixture activation, roster/tier verdict, or external reviewer invocation is authorized.
 `.agents/review/gate-5-class-model-plan.md` section 7.1 owns the paused starting-set proposal.
 No replacement is selected, no Fighter package is authorized, and prior settled decisions remain
 intact. Carry the separate description-scope finding.

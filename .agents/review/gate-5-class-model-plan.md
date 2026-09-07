@@ -13,8 +13,9 @@ plan, and implementation are not approved. No product code is authorized by this
 in `campaign-character-version-plan.md`; compatibility is already settled. The starting-set question
 in section 7.1 is paused following the owner's 2026-09-07 objection to the class system itself.
 Do not continue that question as though the underlying class design were accepted. The exact catalog
-and observed tier evidence remain separate work. Section 7.1 now owns an agent-led encounter-level
-design batch; the owner rejected the per-ability approval loop.
+and observed tier evidence remain separate work. Section 7.1 owns the completed multi-agent
+encounter-level recommendation; the owner rejected the per-ability approval loop. The recommendation
+is not approval of a replacement class or implementation.
 
 **Purpose**: replace the failed one-of-22 archetype-roster question with a model that distinguishes
 restrictive classes from learnable skills, emergent party roles, backgrounds/status, assets, and
@@ -327,6 +328,117 @@ Merely describing the character correctly in prose does not pass.
 owner's fun-per-action and local ability-benefit criteria. This is authorized design/process work,
 not approval of a replacement class, catalog, prototype implementation, or product code. Do not
 ask for a new go to inspect the next ability or perform the next comparison within this batch.
+
+**Batch complete, 2026-09-07:** at the owner's explicit request, three agents performed parallel
+player-interaction, mechanical-consistency, and evidence/adversarial analyses. The primary agent
+checked the retained action payloads and synthesized the result below. This covers the authorized
+encounter-level scope, not every possible ability, the entire class catalog, or the whole engine.
+No external reviewer harness, code change, game session, or human playtest was used. Agreement
+among agents is analytical convergence, not independent evidence of enjoyment.
+
+#### Consolidated recommendation
+
+Recommend an ordinary-intent-led Fighter experience with optional, immediate, explicitly invoked
+martial actions when their authored added effect matters to the player's present objective. Do not
+make repeated Form/Counter management the defining ordinary-fighting loop. This is a proposed
+direction, not an adopted class, economy, roster change, or implementation approval.
+
+Ordinary attacks, movement attempts, and physical assistance remain available as ordinary intent.
+They are not upgraded to special abilities by prose interpretation. When a special action is chosen,
+its exact owned term/binding selects the authored advantage, and the existing one-composer contract
+continues to apply. Recognition alone is not legality or success. No second picker or mid-resolution
+reaction dialogue is proposed. No invented passive bonus or standing protective/pursuit order is
+silently attached to ordinary attacks.
+
+The existing fixture already permits ordinary attacks and the existing composer already supports
+ability-name insertion. The proposed change is the emphasis and structure of the Fighter design,
+not a claim to remove a compulsory UI step that currently exists. If maintaining Forms defines
+most of the class's value, those mechanics would need a separately specified replacement or
+reorganization; hiding their controls while retaining automatic tactical choices is not the proposal.
+
+#### Representative interactions
+
+The examples are intended inputs and bounded consequences, not executed turns or production
+bindings. Each special/scenario payload below comes from the retained fixture; its numerical
+economy and eligibility rules remain provisional. Mira is illustrative naming for the ally.
+
+| Situation | Concrete player input | Consequence and limitation | Next decision remains with the player |
+|---|---|---|---|
+| Routine exchange | "I thrust at the raider." | Ordinary attack; in the retained fixture, Standard harm on success. No extra protection, reposition, Counter, or disarm. | Attack again only if that is the player's chosen action; no automatic repetition. This may still be a low-payoff loop. |
+| Position becomes important | "Driving Form against the blocker. I force them clear of the passage." | Existing provisional example: Light harm plus one bounded reposition on success; its authored rescue situation opens the route. It trades attack harm for a positional result, not guaranteed capture or unlimited displacement. | Follow, stay, or change target in ordinary prose as circumstances warrant. The attack does not silently arm pursuit. |
+| Ally/objective competes with attacking | "I pull Mira clear of the hazard." | The retained ordinary-help action spends its Main/check on clearing that specific threat on success, with no attack damage. Attacking her attacker instead is an ordinary alternative, not automatic protection. | Decide whether to keep helping, attack, or pursue the other objective. No invisible coverage survives an unrelated attack. |
+
+Driving is an illustrative already-authored payload, not a newly adopted ability or the next owner
+question. Whether its attack-plus-reposition is worth choosing depends on the corresponding ordinary
+shove/movement permissions. If ordinary action already supplies the same package, a new label adds
+no demonstrated capability. The recommendation does not require choosing restrictive ordinary rules
+to make the example valuable, nor completing combat before discussing the direction.
+
+All three proposed inputs use one prose submission and require no additional modal confirmation.
+Only the explicitly special example requires an ability declaration; the two ordinary examples do
+not. Those are properties of these written examples, not measured reductions in player effort.
+Availability of optional abilities can still encourage inspecting them every turn. The same number
+of submitted turns still runs the existing multi-stage Council path; no reduced model latency is
+claimed. A shorter sentence is not inherently a more satisfying action.
+
+#### Alternatives and tradeoffs
+
+| Pattern considered | Benefit it could provide | Reason not to make it the default recommendation here |
+|---|---|---|
+| Recurring Forms and Counters | Frequent tactical adjustment and reaction commitments. | Invites renewed comparison to obtain class benefits even in an otherwise unchanged exchange. The existing one-point damage/protection example does not establish that the frequency earns its effort. Ordinary attacks were already available, so this is not an invented mandatory-selection claim. |
+| Persistent commitment | Fewer repeated declarations while a player-chosen state remains relevant. | Establishing, ending, retargeting, and responding to changed circumstances still carry decisions. It can automate an outdated intent or promise implausible coverage. Bodyguard remains withdrawn; other sustained mechanics are not ruled out globally. |
+| Ordinary intent plus immediate optional exceptions | Focuses class selection on a wanted added result, without a routine maintenance layer. | Loses frequent attrition/reaction optimization; special actions may become either irrelevant or always optimal. The class could feel generic if its actual capabilities do not matter. This remains a hypothesis requiring concrete encounter evidence. |
+
+The recommendation applies to this bounded Fighter direction. It does not assign classes to
+Base/Advanced/Expert, ban complex classes, collapse different mechanical identities, or redefine
+creation/advancement. Existing campaign-set and tier-evidence decisions remain authority.
+
+#### Consistency and evidence checks
+
+- One prose submission is not an unlimited world-action budget. A sentence requesting an attack,
+  chase, and rescue does not grant all three; local action costs and timing must remain explicit.
+- Ordinary intent is not a persistent ability. Repetition, changing targets, taking a dangerous
+  route, or abandoning an objective remains the player's decision unless an explicitly selected,
+  authored rule says otherwise. No model chooses the best tactic to make the flow appear smooth.
+- Every narrated mechanical consequence needs its authorized state change. Ordinary attack does
+  not gain displacement or protection because the sentence sounds forceful or protective.
+- Claims of mechanical improvement require the same starting state, player information, threats,
+  opponent policy, and ordinary options. Equivalent checks use the same authored outcomes; branches
+  with different actions/checks are disclosed, not forced to have artificially equal consequences.
+- Inspect a follow-on action as well as the first action in each situation. This exposes repeated
+  declarations, stale commitments, and whether the next choice is meaningfully different. It does
+  not mean resolving the next action for the player or manufacturing a second simulated result.
+- The old stationary fixture has no enemy defeat threshold or evolving objective and the movement
+  fixture omits standalone ordinary Move. Neither can establish complete encounter pacing or
+  superiority over ordinary following. These are limits of their use here, not failed original tests.
+
+The primary agent loaded the committed fixture data with an inline Node check, confirming the
+ordinary attack's harm-only payload, Driving's one-step on-success reposition with Light harm, and
+ordinary assistance's lack of attack damage. This was a structural assertion, not execution of the
+resolver or a new test of enjoyment. The rejected runner was not read or executed for this batch.
+
+**Strongest reason this may fail:** it can replace repeated Form choices with repeated "I attack"
+inputs that produce the same small progress and waits. Encounter objectives, opposition behavior,
+and bounded consequences need to make subsequent decisions matter; fluent narration must not fake
+that improvement. Even a player who perfectly understands the rules may still find this tedious.
+No decision-time, waiting-time, enjoyment, balance, or multiplayer result has been measured.
+
+#### Next delivery boundary
+
+The internal design batch is complete. The next useful deliverable is one bounded implementation
+plan for a text-first encounter evaluation of this proposed direction, not another ability review.
+It should specify a real end condition, changed-position and competing-objective branches, explicit
+local action costs, adversary behavior, and state-backed results using the settled composer. It
+must not revive the rejected runner or install fixture abilities into production characters.
+Any implementation remains separately gated by an approved plan and explicit go.
+
+A later short encounter with an available, willing non-owner tester could expose repeated-attack
+loops, unused or dominant special actions, lost intentions, corrections, and whether the player
+wants another turn. No such tester is assumed available, and no test was conducted here. One such
+session would still not establish general balance, superiority, or tier membership. Structural
+verification and human evidence must remain separately reported; owner participation is not required.
+
+#### Batch procedure and guardrails
 
 **Unit of work:** evaluate the interaction as a whole in three representative situations:
 
