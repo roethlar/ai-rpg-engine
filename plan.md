@@ -5,6 +5,15 @@ and natural table talk.
 
 **Core Principle**: Every change must improve *fun* and *feel* like a real GM. Avoid feature creep. Prioritize quality of interaction over new mechanics.
 
+## Active: Class Experience
+
+Promoted for implementation by the owner's 2026-09-07 delegated go ("all gos are given").
+`.agents/review/class-experience-implementation-plan.md` owns the full class/catalog/creator,
+necessary signed-rules execution, persistence and verification work. That plan supersedes prior
+planning-only stops within this scope; it does not adopt provisional prototype rules wholesale.
+Its numbered end-state requirements are the completion gate. Foundation code may land in slices
+while integration and actual-player enjoyment remain separately unverified.
+
 ## Phase 0: Clarification & Table-Talk (Highest Priority - Fix the core complaint)
 
 **Problem**: The GM is too "video-gamey". It rushes to resolve actions and struggles with pure questions like "Which goblin is closer? Can I throw my dagger at it?" The `input_kind: "clarification"` path exists in code but is not reliable in practice.

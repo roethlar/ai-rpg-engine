@@ -6,6 +6,13 @@ to `docs/history/state-archive.md`.
 
 ## Now
 
+- **CLASS EXPERIENCE IMPLEMENTATION IS AUTHORIZED AND ACTIVE.** The owner's 2026-09-07 "all gos
+  are given" delegates remaining design and implementation within the complete scope recorded in
+  `.agents/review/class-experience-implementation-plan.md`. Its later decision supersedes the
+  planning-only/code-unapproved wording retained below for this work, not substantive rules,
+  portability, evidence or player-agency contracts. Baseline `node test.js` passed. Full catalog,
+  signed-rules execution, real creation/play integration and end-to-end verification are pending.
+  Do not stop at another paper recommendation or ask for routine per-class approvals.
 - **THE OWNER IS NOT THE ABILITY-REVIEW COMMITTEE.** The 2026-09-07 agent-owned design decision
   in `.agents/decisions.md` rejects serial ability verdicts and per-step go requests. Agents own
   internal comparisons and routine design choices within scope, then present one coherent
@@ -98,7 +105,12 @@ to `docs/history/state-archive.md`.
 
 ## Next
 
-**NEXT:** The completed three-agent analysis in `.agents/review/gate-5-class-model-plan.md`
+**NEXT:** Execute `.agents/review/class-experience-implementation-plan.md` under the delegated go.
+Parallel foundation work covers authored catalog, durable d100 resolution and real creator controls;
+root owns cross-module integration and completion evidence. The numbered end state remains intact
+across slices and goal continuations. No actual-player enjoyment verdict is implied.
+
+**Prior design context (superseded as a stopping point):** The completed three-agent analysis in `.agents/review/gate-5-class-model-plan.md`
 section 7.1 covered Fighter only, not the owner's whole-class-system concern. Its recommendation
 is retained as a proposal, not an adopted class or proof of fun. The next useful deliverable is a
 roster-wide parallel design synthesis, dividing mechanically distinct families and branches among

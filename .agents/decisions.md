@@ -1759,3 +1759,22 @@ Real-player enjoyment is still unverified; scripted agents cannot supply that ev
 code-plan approval, opt-in external review, phased verification, tier-evidence policy, deterministic
 invocation, and the withdrawals of Bodyguard and the rejected runner remain unchanged. No game
 implementation or adoption of a proposed class is authorized by this process correction.
+
+### 2026-09-07 - Delegate class-experience design and implementation
+
+**Status: Active implementation authority.**
+
+The owner instructed: "you have enough info from me to understand what I want? if so, implement it.
+all gos are given. if not, ask questions." The agent has sufficient direction to proceed using the
+fun-per-action principle, its variable-complexity/spell-casting refinement, and the settled system
+contracts. `.agents/review/class-experience-implementation-plan.md` owns the complete delivery and
+verification scope. Agents may settle necessary remaining class/economy implementation details,
+record their choices, implement and test them without serial owner approval requests.
+
+This supersedes planning-only/code-approval stops for the class/catalog/creator and necessary
+rules-runtime integration covered by that plan, not the substantive contracts they protected.
+Prototype recommendations are not adopted wholesale. Preserve deliberate player choices,
+versioned mechanics, staged class evidence and the distinction between tests and demonstrated fun.
+No unrelated security framework, external reviewer, destructive cleanup, or history rewriting is
+authorized. The rejected runner stays untouched. The active goal remains incomplete until the
+integrated experience is verified against the plan, not merely until a design memo is complete.
