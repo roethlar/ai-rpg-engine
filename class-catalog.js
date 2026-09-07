@@ -352,7 +352,7 @@ const branchSpecs = [
     description: 'Use a guaranteed mount or vehicle with recorded scale, hull, occupants and a shared Main. The whole campaign must support vehicle scenes and replacement after loss.',
     grants: [
       action('Strafing Pass', 'Move your vehicle one connected vehicle-scale area and attack one reached near enemy for graze harm on success. Pilot and vehicle share this Main; passengers gain no bonus attack.', { targeting: enemy(), check: skill('pilot'), onSuccess: [harm('graze')], mechanic: { kind: 'vehicle', mode: 'move_attack', maximumDistance: 1, sharedMain: true } }),
-      action('Evasive Course', 'Once per scene, move the vehicle one connected area and make it steadied. The boon can ground a defensive delta but is not guaranteed avoidance of the next attack.', { targeting: own, cadence: scene(), check: skill('pilot'), onSuccess: [boon('steadied', '$vehicle')], mechanic: { kind: 'vehicle', mode: 'move', maximumDistance: 1, sharedMain: true } }),
+      action('Evasive Course', 'Once per scene, move the vehicle one connected area and make it steadied. The boon can ground a defensive delta but is not guaranteed avoidance of the next attack.', { targeting: own, cadence: scene(), check: skill('pilot'), onSuccess: [{ op: 'vehicle_condition_apply', who: '$vehicle', condition: 'steadied', duration: 'scene', detail: 'Evasive course.' }], mechanic: { kind: 'vehicle', mode: 'move', maximumDistance: 1, sharedMain: true } }),
       passive('Assigned Craft', 'Start with one assigned vehicle or mount with recorded hull and one shared Main. Gain +3 Pilot. Campaign support must provide a replacement after loss, not make the current craft invulnerable.', { skills: { pilot: 3 }, vehicle: 'ace' }),
       action('Break Pursuit', 'Once per scene, move your vehicle up to two connected areas away from one pursuing enemy on success. Hazards remain active, and the pursuer is not guaranteed unable to follow.', { targeting: own, cadence: scene(), check: skill('pilot'), mechanic: { kind: 'vehicle', mode: 'move', maximumDistance: 2, sharedMain: true, ignoresHazards: false } }),
       action('Targeted Run', 'Once per scene, attack one visible vehicle-scale enemy at far range for wound harm and hinder it on success. This consumes the pilot and vehicle shared Main.', { targeting: enemy('far'), cadence: scene(), check: skill('ranged'), onSuccess: [harm(), hinder('hindered')], mechanic: { kind: 'vehicle', mode: 'attack', sharedMain: true } }),
@@ -571,6 +571,46 @@ const starterEquipment = freeze({
   catalyst: ['light-weapon', 'signal-focus'], rider: ['sidearm', 'vehicle-tool-kit']
 });
 
+const equipmentData = [
+  ['versatile-weapon', 'Versatile Weapon', 'weapon', 'melee', 'martial'],
+  ['heavy-weapon', 'Heavy Weapon', 'weapon', 'melee', 'heavy'],
+  ['light-weapon', 'Light Weapon', 'weapon', 'melee', 'simple'],
+  ['ranged-weapon', 'Ranged Weapon', 'weapon', 'ranged', 'ranged'],
+  ['sidearm', 'Sidearm', 'weapon', 'ranged', 'ranged'],
+  ['light-armor', 'Light Armor', 'armor', null, 'light'],
+  ['heavy-armor', 'Heavy Armor', 'armor', null, 'heavy'],
+  ['travel-gear', 'Travel Gear', 'general', null, null],
+  ['tool-kit', 'Tool Kit', 'tool', null, null],
+  ['spellbook', 'Spellbook', 'focus', null, null],
+  ['ritual-focus', 'Ritual Focus', 'focus', null, null],
+  ['channel-focus', 'Channel Focus', 'focus', null, null],
+  ['field-projector', 'Field Projector', 'tool', null, null],
+  ['companion-kit', 'Companion Kit', 'tool', null, null],
+  ['signal-focus', 'Signal Focus', 'focus', null, null],
+  ['vehicle-tool-kit', 'Vehicle Tool Kit', 'tool', null, null]
+];
+export const CLASS_EQUIPMENT = freeze(Object.fromEntries(equipmentData.map(([key, name, type, weaponKind, category]) => [
+  `equipment.${key}`, { id: `equipment.${key}`, name, type, description: `An authored ${name.toLowerCase()}.`,
+    weapon: type === 'weapon', weaponKind: weaponKind ? `${weaponKind}_weapon` : null, weaponCategory: type === 'weapon' ? category : null,
+    wielded: type === 'weapon', natural: false, fixed: false,
+    armor: type === 'armor' ? category : null, tags: type === 'tool' ? ['tool', key] : type === 'focus' ? ['focus', key] : [],
+    ...(type === 'weapon' ? { harmGrade: 'wound' } : {}) }
+])));
+export const CLASS_EQUIPMENT_PERMISSIONS = freeze({
+  armsmaster: { weapons: ['unarmed', 'simple', 'martial', 'ranged'], armor: ['light'] },
+  berserker: { weapons: ['unarmed', 'simple', 'heavy'], armor: ['light'] },
+  adept: { weapons: ['unarmed', 'simple'], armor: [] },
+  opportunist: { weapons: ['unarmed', 'simple', 'ranged'], armor: ['light'] },
+  arcanist: { weapons: ['unarmed', 'simple'], armor: [] },
+  channeler: { weapons: ['unarmed', 'simple'], armor: ['light'] },
+  oathbound: { weapons: ['unarmed', 'simple', 'martial'], armor: ['light', 'heavy'] },
+  shifter: { weapons: ['unarmed', 'simple'], armor: [] },
+  maker: { weapons: ['unarmed', 'simple'], armor: ['light'] },
+  bonded: { weapons: ['unarmed', 'simple'], armor: ['light'] },
+  catalyst: { weapons: ['unarmed', 'simple'], armor: ['light'] },
+  rider: { weapons: ['unarmed', 'simple', 'ranged'], armor: ['light'] }
+});
+
 export function buildClassLoadout({ familyId, branchId, level = 1, genre = '', capabilities = {}, modules = [], optionSet = CATALOG_OPTION_SET, catalogVersion = CATALOG_VERSION, idFactory = randomUUID } = {}) {
   if (catalogVersion !== CATALOG_VERSION) throw new Error('Unsupported class catalog version.');
   if (optionSet !== CATALOG_OPTION_SET) throw new Error('This development catalog is available only in Expert; Base and Advanced have no earned entries.');
@@ -617,7 +657,8 @@ export function buildClassLoadout({ familyId, branchId, level = 1, genre = '', c
   return {
     archetype: family.name, archetypeId: familyId, familyId, branch: branch.name, branchId: branch.id,
     classLabel: classLabel(branch, genre), level, xp: progression.xpRequired, abilities, bindings,
-    inventory: [...equipment].map(key => ({ id: `equipment.${key}`, name: key.split('-').map(word => word[0].toUpperCase() + word.slice(1)).join(' '), description: 'Engine-authored starting equipment.', quantity: 1, type: 'equipment' })),
+    inventory: [...equipment].map(key => ({ id: `equipment.${key}`, name: CLASS_EQUIPMENT[`equipment.${key}`].name, description: CLASS_EQUIPMENT[`equipment.${key}`].description, quantity: 1, type: CLASS_EQUIPMENT[`equipment.${key}`].type })),
+    equipmentPermissions: clone(CLASS_EQUIPMENT_PERMISSIONS[familyId]),
     attributes: { strength: familyId === 'berserker' ? 14 : 10, agility: ['adept', 'opportunist'].includes(familyId) ? 14 : 10, intellect: ['arcanist', 'maker'].includes(familyId) ? 14 : 10, willpower: ['channeler', 'oathbound'].includes(familyId) ? 14 : 10 },
     skills, health: maxHealth, maxHealth, mana: 0, maxMana: 0, classState, resources,
     pins: { catalogVersion: CATALOG_VERSION, rulesVersion: CATALOG_RULES_VERSION, resolutionVersion: CATALOG_RESOLUTION_VERSION, effectCatalogVersion: CATALOG_EFFECT_VERSION, optionSet: CATALOG_OPTION_SET },

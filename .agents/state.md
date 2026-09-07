@@ -18,6 +18,14 @@ to `docs/history/state-archive.md`.
   connected to Council turns. The strict effect evaluator and versioned class extensions pass
   focused operation/rollback tests. Signed-rules execution, real creation/play integration and
   end-to-end verification remain in progress.
+  Creation/scene/world adapter and the creator UI are being integrated in the working tree;
+  real HTTP/provider-stubbed creation, all-branch joining, reload and stale-write checks pass.
+  Target turns currently refuse legacy d20 execution while Council integration is pending.
+  Parallel agents own class actions/progression, portability and seat projection; the active plan
+  records their contracts and evidence, and remains the completion audit.
+  Class action/progression components now pass the full active-ability/mode matrix and real-adapter
+  protection/transfer tests. Combined `node test.js` also passes creation and seat integration.
+  These facts do not remove the pending Council/portability activation work.
   Do not stop at another paper recommendation or ask for routine per-class approvals.
 - **THE OWNER IS NOT THE ABILITY-REVIEW COMMITTEE.** The 2026-09-07 agent-owned design decision
   in `.agents/decisions.md` rejects serial ability verdicts and per-step go requests. Agents own

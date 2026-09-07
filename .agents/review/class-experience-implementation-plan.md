@@ -81,6 +81,31 @@ separate unless an actual class-path dependency is established. No real user dat
 
 ## Verification Record
 
+### Runtime State Contract
+
+`campaigns.rules_state_json` owns a target campaign's mechanical world, with a compare-and-swap
+`rules_revision`. `class-state.js` validates authored selection/pins and projects world actors;
+`class-store.js` writes world and character/profile/NPC/location projections in one outer database
+transaction. Profile class snapshots are portable saved state, not competing live world authority.
+`characters.class_build_json` preserves selected identity; approved binding rows include aliases.
+Owned ability IDs persist across reload and saved class use. No generated opening grant can
+replace the authored sheet, and a legacy profile cannot silently become a class build.
+
+World actors use exact character/NPC references. Companions have real NPC identities and one
+shared Main; vehicles have typed records. Authored equipment metadata comes from exact catalog
+IDs. `world.turnOrder` and each PC's `tableStatus` preserve cursor and membership for exact history
+snapshots. `turns.rules_snapshot_json` owns each committed turn's world; imported check artifacts
+will use `campaigns.rules_history_json` rather than colliding with live globally unique check IDs.
+
+`class-scenario.js` binds a closed pre-DB actor-key roster to assigned IDs after scene validation.
+Setup describes presence, authored asymmetric NPC profiles, actual map objects/features and stored
+discoverable facts, never class grants or free numeric combat values. Every map feature must be
+materialized explicitly. Target creation fails before commit if the layout/frame/world support is
+invalid. Until the Council path is connected, target turns explicitly refuse to enter legacy d20
+mutation logic. This temporary integration guard is not the delivered end state.
+
+### Results
+
 - Baseline 2026-09-07: `node test.js` passed against its disposable database.
 - Signed evaluator foundation: `rules-resolution.js` implements exact call shape/actor binding,
   bounded enumerated deltas, target arithmetic, ordered d100 bands, stakes licenses and immutable
@@ -119,6 +144,26 @@ separate unless an actual class-path dependency is established. No real user dat
   case folding uses exact pinned `unicode-case-folding` 1.1.1, with its primary-source generator
   and license checked. `docs/rules/effects-runtime-v1.md` owns schema/calibration details. These
   component results do not claim Council, class lifecycle or narrated gameplay integration.
+- Creation integration working evidence: `test-class-creation.mjs` uses actual HTTP catalog,
+  create and join routes with a disposable SQLite store and only the provider prompt boundary
+  stubbed. One spellcaster is created and all 24 branch packages join through real persistence;
+  reload keeps abilities/trigger revisions, generated extra grants are ignored, and world writes
+  synchronize projections. Removing the world revision guard failed the stale-write rejection;
+  after restoration the focused checks passed. `test-class-state.mjs` covers all branches and
+  atomic missing-companion rejection. `test-class-scenario.mjs` covers 37 invalid frame cases,
+  all NPC kits and actual effect consumers; removing map completeness failed its guard. These
+  runners are wired into `test.js`; the combined suite passed before the newest HTTP additions,
+  and will be rerun with seat/UI integration before that slice lands. Actual Council play remains
+  pending, and no human enjoyment claim follows from provider-stubbed tests.
+- Class execution components: `class-actions.js` and `class-progression.js` execute 144 active
+  definitions across 56 modes/15 handlers, including class-vs-class brace/ward/floor interactions,
+  full rituals, explicit profile/preparation choices, scene transitions, recovery and advancement.
+  Tests use the real class/world adapters; 216 progression transitions retain old owned IDs and
+  missing health. Disabling the cadence guard failed the exhausted-use assertion; restored tests
+  passed. Transfer cleanup ends scene-owned state without refilling persistent resources or
+  dereferencing old scene targets. Required equipment and vehicle effect metadata are authored,
+  not inferred from labels. All component, creation and seat runners now pass together in
+  `node test.js`. The Council has not yet activated these components for live actions.
 
 ## Completion Audit
 

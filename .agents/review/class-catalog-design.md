@@ -135,6 +135,12 @@ The effects runtime manifest must additionally implement these explicit operatio
 | `traverse` | Authored flight or grapple route, real destination, one-area bound and anchor/surface requirements |
 | `revive` | Recorded death turn, intact body, willing return, elapsed-turn limit, exact restored health and condition |
 | `vehicle_repair` | Existing active vehicle ref, authored amount eight, capped at hull maximum |
+| `vehicle_condition_apply` | Explicit vehicle-targeted steadied record; does not widen the signed actor-ref grammar |
+
+Ordinary opposition may use the companion runtime extension `vehicle_harm` with the same authored
+harm grades. Vehicle damage and conditions are not silently written through actor-only operations.
+`CLASS_EQUIPMENT` supplies exact equipment IDs, weapon kinds, weapon categories, armor and tool
+tags. Weapon permissions remain separate from display names and from inert compatibility attributes.
 
 Class handlers own maneuver/brace, quarry, Exposure/Reprisal, optional sequence, Opening,
 preparation, channeling, declaration, complete profile replacement, devices, companions, cues,
@@ -162,3 +168,36 @@ Initial component result, 2026-09-07: standalone suite passed for 24 branches, 1
 disabled Expert-only build rejection, observed the expected failing assertion (Base did not throw),
 restored the guard, and reran successfully. This proves that gate test detects its removed guard;
 it is not proof of complete runtime or safe version migration.
+
+The subsequent `class-actions.js` and `class-progression.js` component suite executes all 144
+active definitions, all 56 active handler modes, and 216 live level transitions across every
+branch. Fixtures now use actual `createClassSheet`, `createRulesWorld` and `addClassActor`, with
+explicit recorded scenario facts added for each ability, rather than fabricated class records.
+Additional cases cover exact ownership/version/cadence rejection, late-effect rollback, area-spell
+friendly fire and overfull-area rejection, direct spells without equipment, optional overreach,
+ritual interruption, companion/vehicle identity preservation and class-vs-class brace, ward and
+last-stand damage receipts. These are deterministic component results, not human playtest evidence.
+Cadence-guard bite proof: disabling the exhausted-use rejection made the expected `/no uses/`
+assertion fail; the guard was restored and both focused suites passed again. `git diff --check`
+also passed. Full-suite and actual turn-orchestration evidence remain root-owned.
+
+`prepareClassAction` returns a frozen canonical plan without mutation; `finalizeClassAction`
+revalidates it and applies typed effects plus incoming class protection before class patches.
+`prepareClassEvent`/`finalizeClassEvent` handle explicit Main, movement, cue, harm and scene events;
+`finalizeIncomingClassEffects` owns the class-adjusted incoming batch. No model supplies damage
+amounts or class-state patches. Refuse Defeat arms an Endure commitment without spending its
+recovery use; the effect evaluator spends that use only when its one-health floor actually saves
+the owner and records winded. Existing winded does not invalidate that rescue.
+
+Advancement accepts engine award IDs and the fixed encounter/objective/milestone awards of
+25/50/100 XP, preserving prior IDs and missing health rather than restoring everyone to full.
+Dead or zero-health actors remain at zero. New canonical bindings are returned for atomic
+persistence with grants. Recovery and preparation require their explicit timing/safety checks;
+scene transfer uses `clearClassSceneState`, which clears transient target references without
+consulting missing old-world actors and without resetting persistent recovery uses, health,
+Strain, preparation, grants or companion identity. Persistent condition actor refs must be
+rebound by the arrival adapter; self-contained Shifter profiles persist until deliberately changed.
+
+Runtime orchestration still must call these hooks for the actual turn path, derive targets and
+choices from deliberate player input, own safe-recovery facts, and bind valid scenario entities.
+An exported function or registered handler alone is not proof that the application calls it.

@@ -197,6 +197,8 @@ export function runRulesEffectsTests() {
   assert.equal(revived.state.actors['character:2'].health, 1);
   assert.equal(revived.state.actors['character:2'].status, 'active');
   assert.equal(revived.state.actors['character:2'].conditions.winded.duration, 'scene');
+  state.actors['character:2'].conditions.winded = condition('character:2', 'winded', 'persistent');
+  assert.equal(evaluate([revive], state, ability).state.actors['character:2'].conditions.winded.duration, 'persistent', 'An existing winded condition cannot prevent actual revival.');
   reject([revive], 'PRECONDITION', state, { ...ability, turn: 6 });
   state.actors['character:2'].willingReturn = false;
   reject([revive], 'PRECONDITION', state, ability);

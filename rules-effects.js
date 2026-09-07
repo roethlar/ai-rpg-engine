@@ -690,11 +690,10 @@ function executeEffect(effect, context) {
       if (target.status !== 'dead' || target.health !== 0 || !target.party || target.intactBody !== true
         || target.willingReturn !== true || turn - target.deathTurn > effect.maximumElapsedTurns) fail('PRECONDITION', 'Revival requires a willing party member, intact body, and a recent recorded death.');
       const prestate = { health: target.health, status: target.status, deathTurn: target.deathTurn };
-      if (target.conditions.winded) fail('NO_OP', 'Revival cannot reapply an active winded record.');
       target.health = 1;
       target.status = 'active';
       delete target.deathTurn;
-      applyCondition(state, effect.who, 'winded', effect.duration, 'Returned from a recorded death.', context);
+      if (!target.conditions.winded) applyCondition(state, effect.who, 'winded', effect.duration, 'Returned from a recorded death.', context);
       events.push({ type: 'actor_revived', who: effect.who });
       return result([`${effect.who}:health`, `${effect.who}:status`, `${effect.who}:condition:winded`], 'beneficial', { significant: true, targets: { who: effect.who }, prestate });
     }
