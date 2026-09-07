@@ -304,3 +304,89 @@ The owner redirected work to the ordinary-combat baseline; see `ordinary-combat-
 the completed inventory. The subsequent ability-benefit decision in `../decisions.md` requires
 only a local ordinary-action comparison, not completing the baseline before discussing abilities.
 No replacement ability is approved.
+
+## Pursue: added benefit versus ordinary following
+
+**Status:** completed owner-authorized assessment, 2026-09-07. This applies the agreed local
+ability-benefit criterion, not a new prerequisite to finish combat. It neither adopts nor removes
+Pursue, assigns an evidence tier, or establishes enjoyment. There is no current-system game
+playtest behind this assessment.
+
+### Exact candidate, not a new rule
+
+The retained Pressing Form makes an ordinary-strength attack against its selected engaged target,
+then arms Pursue even if the attack misses. If that target leaves engagement before the next turn,
+Pursue follows it one bounded move using the normal Reaction. The Counter expires at the next
+turn's start. A bounded move is one step on the fixture's Engaged/Near/Far range line, not a
+teleport or arbitrary change of location. There is at most one armed Counter and one Reaction.
+
+Pursue adds movement only. It grants no extra attack, harm, pin, capture, prevented escape, or ally
+protection. Its arming is coupled to Pressing Form, not a separately selectable ability in this
+fixture. The relationship between its Reaction movement and the ordinary Move allowance is not
+explicit enough to claim free extra distance or a saved Move. Main and Move are already separate
+fixture allowances, so following must not be described as automatically saving a later attack.
+
+Sources: `archetype-collapse-prototypes.md` sections 6.3-6.4;
+`interaction-burden-playtest-plan.md` sections 5.1-5.2 and 5.6;
+`interaction-burden-playtest-harness/fixtures.js`, `form.pressing` and `rescue.3`.
+
+### One retreat, two ordinary-action assumptions
+
+The comparison concerns a foe who withdraws one short step after the Fighter's attack and before
+the Fighter's next turn. Hold that departure and the attack result fixed; do not invent a capture,
+new attack, or protected objective to make the reaction look valuable.
+
+| Ordinary following rule, expressly unsettled | What Pursue would add |
+|---|---|
+| Ordinary intent can already maintain contact through this retreat in the same exchange. | No distinct following benefit has been shown. An additional class invocation may duplicate the ordinary intent. |
+| Ordinary movement must wait until the Fighter's next turn. | Pursue can change position earlier, during this particular foe's departure, in exchange for the Reaction. That may matter before intervening actions, but the candidate does not guarantee that it will. |
+
+The only demonstrated candidate for added capability is therefore timing, not permission to chase
+someone at all. Do not choose a restrictive ordinary-following rule merely to manufacture a use
+for Pursue. If someone can retreat farther than its one bounded move, the card does not promise
+that the Fighter catches up. Neither assumption is adopted by this assessment.
+
+The retained rescue fixture follows a fleeing blocker by one step, while Hinder/reposition can
+defeat its authored escape attempt. Those are different effects. The fixture has no standalone
+ordinary Move action (`interaction-burden-playtest-plan.md` section 6.2), so its class comparison
+cannot establish superiority over ordinary following. This is a limit of using that fixture for
+this question, not a finding that its original Armsmaster/Adept comparison was dishonest or broken.
+
+### Effort, commitment, and limits
+
+Choosing Pressing entails choosing the attack's follow-if-the-target-leaves commitment in advance.
+The written Counter is then applied without another prompt; that is execution of the player's
+selected rule, not inherently a model choosing the tactic. But the choice recurs whenever another
+Pressing attack is used to arm a fresh Counter, and considering whether following is desirable is
+part of its cost. If the target stands still, the Counter adds nothing in that exchange.
+
+The ordinary intent "I attack him and stay on him if he backs away" is already intelligible prose.
+Its exact timing is unresolved, but it must not be treated as a special-ability declaration or
+rejected solely because it lacks the class term. The existing composer can insert a real owned
+ability's term; that addresses entry assistance, not the value of making this commitment.
+
+Automatic pursuit could move the Fighter away from an ally or into a newly dangerous position.
+The card does not specify a decline option, hazardous/blocked route handling, forced movement,
+longer departures, or loss of movement capability. Its single-opponent fixture also does not
+demonstrate general target binding across several enemies. These are limits on what can be
+promised, not permission to invent safe routing, a different target, immunity, or a model-selected
+best response. Adding a confirmation at every departure would add interaction cost and is not
+proposed here.
+
+### Judgment and next item
+
+Pursue has a plausible situational timing benefit, but this evidence does not establish enough
+benefit over ordinary following to justify presenting it as a routine Fighter choice. It is not
+the same defect as Bodyguard's universal redirection; neither its value nor its failure should be
+asserted universally. The unresolved local comparison is ordinary following's timing, with Move
+accounting also needed before claiming extra movement efficiency. No whole-combat gate follows.
+
+**Recommendation:** do not present the current Pursue card as an established answer to the owner's
+effort/payoff concern. Keep its status provisional, without adopting a new movement restriction to
+justify it. Next assess Driving Form's combined attack and reposition against the relevant ordinary
+attempt, applying the same local criterion; no roster ruling or replacement design is implied.
+
+**Verification:** source inspection only. No rejected runner, live resolver, provider session,
+browser test, runtime suite, or human playtest was run. No timing or enjoyment measurements were
+made. The illustration is conditional reasoning, not an executed scenario. Docs-only checks are
+`git diff --check`.

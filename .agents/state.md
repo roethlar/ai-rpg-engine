@@ -91,14 +91,16 @@ to `docs/history/state-archive.md`.
 
 ## Next
 
-**NEXT:** Apply the settled 2026-09-07 ability-benefit criterion in `.agents/decisions.md`: what
-worthwhile benefit does a proposed ability add over the relevant ordinary action for the extra
-player effort? Recommend examining Pressing Form's pursuit reaction on its own, since its attack
-matches the ordinary attack in the retained fixture. Clarify only the ordinary comparison needed
-for that benefit, not the entire combat system. The completed inventory in
-`.agents/review/ordinary-combat-baseline.md` is reference evidence, not a prerequisite queue.
-Bodyguard remains withdrawn; do not resume that comparison, require owner participation, or expand
-this into a full rules rewrite or playtest program. No new ability or implementation is approved.
+**NEXT:** The owner-authorized Pursue assessment is complete in
+`.agents/review/fighter-encounter-walkthrough.md`. Its potential benefit is earlier following, not
+another attack or prevented escape. Ordinary following's timing and the Move allowance comparison
+are not settled; the retained fixture omits standalone ordinary movement. No worthwhile added
+benefit, enjoyment, adoption, or rejection is established as a result. Recommend assessing Driving
+Form's combined attack/reposition next, using the agreed local ability-benefit criterion in
+`.agents/decisions.md`; do not restrict ordinary actions merely to manufacture a class benefit.
+The ordinary-combat inventory is reference evidence, not a prerequisite queue. Bodyguard remains
+withdrawn. Do not require owner participation or expand into a full rules rewrite or playtest
+program. No new ability or implementation is approved.
 `.agents/review/gate-5-class-model-plan.md` section 7.1 owns the paused starting-set proposal.
 No replacement is selected, no Fighter package is authorized, and prior settled decisions remain
 intact. Carry the separate description-scope finding.

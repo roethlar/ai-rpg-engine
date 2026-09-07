@@ -354,6 +354,10 @@ The later 2026-09-07 ability-benefit decision supplies the current criterion: es
 worthwhile benefit over the relevant ordinary action for the extra selection/input effort. Only
 the local comparison needs clarification; completing ordinary combat is not a new prerequisite
 to ability or class discussion. This is design judgment, not a substitute for enjoyment evidence.
+The owner-authorized Pursue assessment is complete in `fighter-encounter-walkthrough.md`: its
+potential added benefit is earlier following, not an extra attack or prevention of escape. The
+ordinary timing comparison and Move accounting remain unsettled; the retained fixture omits
+standalone ordinary movement. This establishes no ability adoption, rejection, or enjoyment verdict.
 The starting-set proposal remains paused.
 
 The proposal below is retained for reference, not renewed approval. Preserve the accepted
