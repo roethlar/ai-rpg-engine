@@ -7,9 +7,10 @@ its necessary rules/catalog/creation integration. It supersedes prior planning-o
 this scope. It does not authorize unrelated product work, destructive cleanup, history rewriting,
 or an external reviewer. No further class-by-class or ability-by-ability owner approvals are needed.
 
-**Status:** integrated implementation is active. The completion audit found required Rider
-reachability gaps described below; prior green integration runs do not close them. Human enjoyment
-remains unverified; no class is promoted out of the development Expert catalog by this work.
+**Status:** implementation complete, 2026-09-07. All eight required end states and the completion
+audit's Rider, NPC-cue, scouting, installation and copied-baseline follow-through are verified.
+Final combined unit and desktop/mobile browser suites pass. Human enjoyment remains unverified;
+no class is promoted out of the development Expert catalog.
 
 ## Required End State
 
@@ -79,7 +80,8 @@ the goal as a smaller task. Independent modules can proceed in parallel; root ow
 
 The rejected interaction runner is untouched. Prototype fixtures are evidence, never production
 catalog seeds. Player-key recovery, unrelated voice work and campaign-outline redesign remain
-separate unless an actual class-path dependency is established. No real user data is used for tests.
+separate unless an actual class-path dependency is established. Tests must use disposable stores;
+the initial journey-runner violation and its uncertainty are recorded in `class-runtime-test-incident.md`.
 
 ## Verification Record
 
@@ -230,10 +232,14 @@ the Completion Audit below owns current completion status.
 
 ### Required End-State Evidence
 
-The audit subsequently found a required Rider follow-through: actual play must be able to damage
-vehicle hull, produce vehicle-scale foes for impact/targeted attacks, and replace a genuinely lost
-assigned vehicle under the catalog's support promise. Component fixtures that manually damage
-the vehicle or alter an actor's scale do not satisfy those requirements. This work remains active.
+The audit's required follow-through is implemented and committed. Actual creation, earned
+progression, Council turns and storage now cover vehicle damage/targets/loss/replacement,
+NPC-triggered cues, destination scouting, installation relocation and copied-character baselines.
+`class-rider-integration.md`, `class-catalyst-npc-integration.md`, `class-scout-integration.md`,
+`class-maker-integration.md` and `class-baseline-binding.md` own the focused evidence and guard
+proofs. Ordinary party-NPC consent is also consistent across Council, actions and effects.
+The final combined unit/browser run includes every new runner; component fixtures alone were not
+accepted as evidence of these paths.
 
 1. **Catalog and creation:** all 24 packages, 240 level sheets and 936 declaration projections
    pass catalog tests. Actual HTTP creation and all-branch joining persist authored grants,
@@ -265,7 +271,7 @@ the vehicle or alter an actor's scale do not satisfy those requirements. This wo
    new runtime. Campaign/catalog/definition pins and compatibility guards reject unknown versions
    before writes. No invented Base/Advanced evidence or unsafe in-place migration is introduced.
    A future released-catalog migration still requires the settled validated atomic-upgrade contract.
-8. **Integrated verification:** final `node test.js` passes after the live prompt fixes; the combined
+8. **Integrated verification:** final `node test.js` passes after all audit follow-through; the combined
    browser suite passes desktop/mobile creation, real persisted cast/retry, seats and existing theme
    and interaction regressions. Mutation guards were restored before the green runs. Bounded live
    probes include original creation, ordinary movement and table talk, plus an authored-setup,
@@ -273,6 +279,11 @@ the vehicle or alter an actor's scale do not satisfy those requirements. This wo
    at its call budget; its actual engine/HTTP/browser integration is provider-stubbed evidence.
    No willing-player playtest or enjoyment verdict is claimed. The live evidence record owns
    failures, successful outcomes and measured waiting time.
+
+The final loopback preview was refreshed from a copy of the completed disposable live-spell
+campaign. Actual HTTP catalog/state and Playwright checks passed at 1280x900 and 390x844,
+including all 24 class previews, character state, local icon assets and overflow checks. This
+inspection made no provider calls or player turns. The running URL was supplied at closeout.
 
 The first standalone journey test violated database isolation; the owner was informed.
 `class-runtime-test-incident.md` owns its known changes and uncertainty. That run is excluded

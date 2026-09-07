@@ -1,24 +1,34 @@
 # Production ability-keyword integration plan
 
-**Status:** OWNER-APPROVED 2026-08-03. Implement AKP-1 through AKP-4 in order, one verified commit
-per slice. AKP-1 through AKP-3 may establish the inert generic infrastructure; AKP-4 remains gated
-until the real versioned class/catalog creation path supplies complete stable abilities and
-bindings. Approval does not authorize data deletion, external review, or push. The owner has
+**Status:** OWNER-APPROVED 2026-08-03; target Aetheria producer and activation implemented
+2026-09-07 under `.agents/review/class-experience-implementation-plan.md`. That plan owns the
+newer delegated implementation authority, runtime completion audit and verification evidence.
+AKP-1 through AKP-3 established the generic infrastructure; the real versioned class/catalog
+creator now supplies stable owned abilities, invocation families and complete campaign bindings.
+The absent-producer gate is satisfied. This does not complete the original blanket retirement of
+legacy generated rules cards or establish the manual multiplayer turn-length verdict below.
+Approval does not authorize data deletion, external review, or push. The owner has
 settled the clean-cut data boundary: there are no real campaigns whose generated rules-card
 abilities need preservation, so the product must not build a rules-card-to-character migration.
 Disposable local test campaigns may be wiped deliberately if later implementation needs a clean
 database; the application must never delete them automatically.
 
-**Implementation dependency:** the exact player-class roster and mechanics remain unsettled. This
-plan defines the production invocation contract without inventing a temporary roster. Its final
-cutover slice must not land until the versioned class catalog and character-creation path can
-instantiate real, stable, character-owned ability definitions and complete campaign presentation
-bindings. Test fixtures may prove the generic contract but must never ship as player options.
+**Implementation dependency: SATISFIED FOR TARGET AETHERIA.** The authored development Expert
+catalog, deterministic creation/join path, progression, engine effects and persisted bindings now
+activate the production composer. The class-experience plan's completion audit distinguishes
+actual HTTP/catalog/SQLite/Council integration from provider-stubbed tests and bounded live-provider
+probes. Prototype fixtures did not become player options. Current implementation is not evidence
+of willing-player enjoyment or Base/Advanced membership.
 
-**Version/producer replanning:** `campaign-character-version-plan.md` is the 2026-09-05 unapproved
-architecture draft. It identifies the missing live family registry, persisted aliases, explicit
-version inputs, source-text limit reconciliation and executable catalog prerequisites. It neither
-changes this plan's existing approval nor satisfies AKP-4's real-producer gate.
+**Version/producer replanning:** `campaign-character-version-plan.md` retains the broader version
+architecture draft. Its former absent-producer dependency is superseded for this target activation
+by the approved class-experience work. Physical version lineages, player keys, durable upgrades and
+destination-wording workflows are not made complete by catalog activation; that draft does not
+independently authorize their implementation.
+
+**Historical slice record:** the AKP-1 through AKP-3 paragraphs below describe what each slice
+changed and proved on 2026-08-03. Their statements about then-inert projections, unchanged catalog
+content and a then-pending AKP-4 dependency are historical, not current activation blockers.
 
 **Implementation:** AKP-1 COMPLETE 2026-08-03. The shared pure matcher/insertion helpers,
 server-owned catalog/binding projection, opaque revision digest, inert live party projection, and
@@ -51,9 +61,9 @@ desktop/narrow layout, keyboard/IME/multiline behavior, host and seat identity b
 accessibility cues, and duplicate suppression. Guard proof temporarily trimmed the outgoing prose;
 the exact-prose browser assertion failed, then the restored path returned green. A separate
 hands-on Chrome pass could not run because no controllable browser was available; the automated
-desktop and narrow browser runs are recorded instead. AKP-4 remains blocked on the real versioned
-class/catalog producer. No ability effects, costs, catalog content, generated-card migration, or
-prototype player option shipped.
+desktop and narrow browser runs are recorded instead. At that time AKP-4 remained blocked on the
+real versioned class/catalog producer. No ability effects, costs, catalog content, generated-card
+migration, or prototype player option shipped.
 
 **Prototype evidence:** `.agents/review/ability-keyword-composer-plan.md` and
 `.agents/review/ability-keyword-composer-prototype/` are the accepted interaction proof. Production
@@ -78,9 +88,12 @@ Integrate the accepted ability-word interaction into the existing browser and Co
 5. The engine stores the validated declaration record with the turn and preserves it through
    campaign export, import, and fork operations.
 
-Stop after the four slices below are committed, fully verified, and manually playtested with real
-catalog abilities. Do not infer approval of any class roster, ability effect, resource economy,
-action economy, prerequisite, or progression rule. Do not invoke Fable or another external reviewer
+The original completion criterion required all four slices to be committed, fully verified and
+manually playtested with real catalog abilities. Target activation now follows the newer approved
+class-experience plan; the manual multiplayer outcome remains unverified, not an absent-code gate.
+This invocation plan itself does not select the class roster, ability effects, resource economy,
+action economy, prerequisites or progression rules; their current authority and evidence live in
+that class-experience plan. Do not invoke Fable or another external reviewer
 unless the owner separately requests it. Do not touch the rejected uncommitted IBP-2 runner.
 
 ## 2. Locked interaction contract
@@ -184,11 +197,18 @@ campaign upgrade.
 
 ## 4. Clean cut from generated rules cards
 
-The existing Setup prompt asks a model to invent 4–8 `ruleset.abilities` entries such as `Grid
+**Current boundary:** target Aetheria creates and invokes only authored character-owned catalog
+abilities. Target Setup supplies scene/fiction data, not grants; creation/join persist complete
+bindings, and there is no generated-card-to-trigger conversion. Explicit legacy House campaigns
+still retain their generated rule-sheet Setup, validation, GM text and Rules-tab display. Thus the
+blanket retirement described below is not completed by this work and must not be recorded as such.
+The compatible legacy path does not become a second source of target invocation authority.
+
+The historical Setup prompt asks a model to invent 4–8 `ruleset.abilities` entries such as `Grid
 Dive`, while new characters' stable `abilities_json` is initialized separately. This is the dead
 generated-mechanics design already superseded by the fixed-house-chassis decision.
 
-At final cutover:
+The original blanket-cutover scope was:
 
 - Setup no longer requests or returns campaign-rule abilities or spells. Its rule-sheet output may
   retain player-facing flavor for the fixed resolution chassis and non-mechanical table notes.
@@ -268,7 +288,7 @@ controls.
 
 ## 7. Turn request and server recomputation
 
-Revise the turn request to this allowlisted shape:
+The original allowlisted shape remains the legacy request contract:
 
 ```json
 {
@@ -277,6 +297,12 @@ Revise the turn request to this allowlisted shape:
   "abilityTriggerRevision": "ak1:opaque-digest"
 }
 ```
+
+Target Aetheria additionally requires a bounded UUID `requestId`. It is non-authoritative
+transport identity for exact, durable retries, not an ability selector or permission. A pending
+retry retains the original prose and trigger revision with that identity; a settled request can
+return its completion without rerolling or consuming another use. Exact retry lookup precedes
+fresh-action revision checks. The class-experience plan owns the implemented transport evidence.
 
 `characterId` retains its existing host behavior and remains ignored in favor of the seat
 credential for seat requests. The request accepts no `abilityIds`, ranges, matched spellings,
@@ -466,10 +492,18 @@ theme/browser suite after restoration because this slice changes `public/styles.
 
 ### AKP-4 — catalog-backed clean cut and end-to-end playtest
 
-Prerequisite: the owner-approved versioned class/catalog and character-creation work supplies real
-stable ability instances, invocation family metadata, and complete campaign bindings. If it does
-not, stop; do not seed Backstab/Rally/Protect Ally or generate model mechanics to make the UI look
-populated.
+**Target producer and activation: IMPLEMENTED 2026-09-07.** The approved class-experience plan
+owns the integration and its completion audit. Real catalog-backed creation/join, complete
+bindings, exact declarations, executable actions, progression, seat isolation and v4 lifecycle
+storage now feed the production composer. Actual desktop/mobile HTTP/catalog/DB creator-to-cast
+tests and bounded live-provider probes are recorded there. Neither prototype option seeding nor
+generated-card migration supplied this path.
+
+The original prerequisite was an owner-approved versioned catalog/creator supplying stable ability
+instances, invocation family metadata and complete campaign bindings. That prerequisite is now
+satisfied for target Aetheria. The remaining original blanket legacy retirement and manual
+multiplayer evidence requirements are distinguished in sections 4 and 12; they are not missing
+catalog infrastructure.
 
 Files expected:
 
@@ -481,13 +515,17 @@ Files expected:
 - `README.md`
 - `test.js`
 
-Wire new/joined characters to that source, require complete binding coverage, remove generated
-`ruleset.abilities` from Setup/validation/prompt/UI, update documentation, and run the full real-data
-playtest. No old-card conversion or campaign data migration is added.
+Original full-slice scope: wire new/joined characters to that source, require complete binding
+coverage, remove generated `ruleset.abilities` from Setup/validation/prompt/UI, update documentation,
+and run the full real-data playtest. No old-card conversion or campaign data migration is added.
 
 Guard proof: temporarily restore a fallback that turns a `ruleset.abilities[].name` into an
 invocable trigger. The clean-cut assertion must fail before restoration; all verification must pass
 afterward.
+
+**Evidence limit:** this exact fallback-restoration mutation has not been recorded as run.
+Existing free-text non-invocation assertions, catalog authority checks and other restored guards
+do not substitute for that specific proof. Do not mark it passed by implication.
 
 ## 12. Required verification
 
@@ -529,8 +567,13 @@ acceptance, multiple highlights, session switching, host character switching, se
 off-turn entry, stale refresh, network retry, no duplicate optimistic bubble, reduced motion, focus
 order, screen-reader status, and non-color recognition cues.
 
-AKP-4 end-to-end manual playtest uses at least two real catalog-backed characters in one local
-multiplayer campaign:
+**Original manual outcome gate: UNVERIFIED.** Automated browser/seat/mixed-party tests and bounded
+live-provider probes cover implementation contracts, but do not establish a two-human session or
+show that recognition improves turn length. These results do not simulate human approval. Owner
+participation is not a prerequisite for the separately authorized implementation work.
+
+The AKP-4 end-to-end manual playtest calls for at least two real catalog-backed characters in one
+local multiplayer campaign:
 
 1. Each player sees only their own invocable terms and can insert/type them naturally.
 2. The same term on two characters resolves to the authenticated speaker's stable ID.
@@ -544,9 +587,10 @@ multiplayer campaign:
 9. Export/import preserves the declaration audit record and current owned triggers.
 10. No step adds a mechanic-choice prompt; ordinary actions without ability terms remain unchanged.
 
-The phase is not complete until this playtest shows that recognition is useful without lengthening
-multiplayer turns. Report any unresolved catalog/action-economy dependency rather than asking a
-model to improvise it.
+The original manual outcome criterion remains open until such evidence shows that recognition is
+useful without lengthening multiplayer turns. This is an unverified experience claim, not proof
+that the now-implemented catalog producer is absent. Report any concrete unresolved mechanics
+dependency rather than asking a model to improvise it.
 
 ## 13. Explicit non-goals
 

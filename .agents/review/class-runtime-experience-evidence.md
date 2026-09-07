@@ -177,7 +177,8 @@ integration passed, including the actual creator/cast browser flows.
 
 Root's focused Council, scene-author and portability suites passed after their
 guard mutations were restored. The final combined `node test.js` passed after
-the live Referee response-example fix. `npm run test:browser` subsequently
+all completion-audit fixes, with copied-baseline, Catalyst, Scout, Maker, Rider,
+exceptional-action and journey runners wired. `npm run test:browser` subsequently
 passed its 366 baseline assertions, existing interaction regressions, all
 24 class previews, actual persisted casts, failure/reload/exact retry and
 desktop/mobile history. Provider-stubbed integration remains distinct from the
@@ -189,14 +190,23 @@ The spell runner also defers its fixture import until its path is assigned.
 The non-temporary resume refusal checks passed; removing the spell path guard
 failed its expected refusal before any database import, and restoration passed.
 
-The final completion audit found remaining Rider reachability work: actual hull
-damage, vehicle-scale foes and replacement after genuine vehicle loss. It also
-found missing NPC action-completion events for Catalyst cues and a misbound
-destination discovery for Partner Scout. Mobile Bastion's movement works, but
-its advertised installation repair has no live damage producer. Earlier
-component fixtures do not establish those actual-play paths. The active plan
-owns that required follow-through; this verified integration slice does not
-close the goal early.
+The completion audit's required follow-through is complete. Dedicated actual
+creation/progression/Council/storage tests now establish Rider hull damage,
+vehicle-scale foes, loss and replacement; Catalyst NPC action-completion cues;
+Partner Scout destination discovery and retained Main accounting; and Mobile
+Bastion relocation without an unsupported durability promise. Copied arrivals
+bind baseline item and companion/vehicle identities after destination allocation.
+Focused guards failed when the fixes were removed and passed after restoration.
+`class-rider-integration.md`, `class-catalyst-npc-integration.md`,
+`class-scout-integration.md`, `class-maker-integration.md` and
+`class-baseline-binding.md` own their detailed evidence and compatibility limits.
+
+The refreshed loopback preview uses a copy of the completed disposable live-spell
+campaign, not the configured database. Actual HTTP state/catalog and Playwright
+inspection passed at 1280x900 and 390x844 with all 24 previews, readable character
+state, rendered local icons and no overflow. No provider calls or player turns
+were made during this final inspection. These checks verify the implementation,
+not enjoyment, balance or acceptable live-model waiting time.
 
 The first standalone journey runner violated the disposable-store rule through
 an early module import. `class-runtime-test-incident.md` owns the known writes,
