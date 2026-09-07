@@ -96,6 +96,14 @@ separate unless an actual class-path dependency is established. No real user dat
   projection branch made the new history assertion fail; after restoration, the full suite passed.
   Signed history retains all checks rather than applying the legacy three-check display cap.
 - Other foundation implementation and all end-to-end requirements remain pending.
+- Durable resolution foundation: `rules-store.js` and additive `db.js` tables persist operation
+  bindings/checkpoints, immutable checks and one-shot annotations. One pending world action per
+  campaign prevents overlapping unresolved operations even when table-talk history advances.
+  Focused tests cover concurrent retries, changed-input rejection, cross-process reload, immutable
+  SQL updates, annotation/completion rollback, queue isolation, null finalization and cascades.
+  Disabling the input-binding guard failed the expected-rejection assertion; restored tests passed.
+  `runRulesStoreTests` is wired into `node test.js`; the combined suite passed. Council orchestration
+  and actual class effects still need to use this store before the retry end state is achieved.
 
 ## Completion Audit
 

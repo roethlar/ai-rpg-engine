@@ -12,7 +12,8 @@ to `docs/history/state-archive.md`.
   planning-only/code-unapproved wording retained below for this work, not substantive rules,
   portability, evidence or player-agency contracts. Baseline and signed d100 evaluator tests
   passed, including the new boundary guard's failure proof; the implementation plan owns details.
-  The evaluator is not yet connected to persisted Council turns. Full catalog,
+  Immutable d100 history projection and the durable operation/check/annotation store also pass
+  focused and full-suite checks. These foundations are not yet connected to Council turns. Full catalog,
   signed-rules execution, real creation/play integration and end-to-end verification are pending.
   Do not stop at another paper recommendation or ask for routine per-class approvals.
 - **THE OWNER IS NOT THE ABILITY-REVIEW COMMITTEE.** The 2026-09-07 agent-owned design decision

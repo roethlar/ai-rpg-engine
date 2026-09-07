@@ -7280,6 +7280,8 @@ async function runAll() {
     await testFallbackTiering();
     await testProviderEndpointPin();
     await testTaskQueueSerialization();
+    const { runRulesStoreTests } = await import('./test-rules-store.mjs');
+    await runRulesStoreTests();
     console.log('✅ All unit tests completed successfully!');
     await cleanupTestDb();
   } catch (error) {

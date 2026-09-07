@@ -481,6 +481,85 @@ export async function initDb() {
     CREATE UNIQUE INDEX IF NOT EXISTS idx_turns_campaign_turn ON turns (campaign_id, turn_number)
   `);
 
+  // Target-rule turns reserve their identity before checks or narration. The
+  // separate ledger survives provider failures without regenerating outcomes.
+  await run(`
+    CREATE TABLE IF NOT EXISTS rules_turn_operations (
+      id TEXT PRIMARY KEY NOT NULL,
+      campaign_id INTEGER NOT NULL,
+      actor INTEGER NOT NULL,
+      turn_number INTEGER NOT NULL CHECK (turn_number >= 1),
+      request_id TEXT NOT NULL UNIQUE,
+      input_json TEXT NOT NULL,
+      catalog_version TEXT NOT NULL,
+      stage TEXT NOT NULL,
+      checkpoint_json TEXT NOT NULL,
+      revision INTEGER NOT NULL DEFAULT 0 CHECK (revision >= 0),
+      status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'complete')),
+      result_json TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      UNIQUE (campaign_id, turn_number),
+      UNIQUE (id, campaign_id, turn_number, actor),
+      CHECK ((status = 'active' AND result_json IS NULL)
+        OR (status = 'complete' AND result_json IS NOT NULL)),
+      FOREIGN KEY (campaign_id) REFERENCES campaigns(id) ON DELETE CASCADE
+    )
+  `);
+  await run(`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_rules_operation_active_campaign
+      ON rules_turn_operations (campaign_id) WHERE status = 'active'
+  `);
+  await run(`
+    CREATE TRIGGER IF NOT EXISTS rules_operation_binding_immutable
+    BEFORE UPDATE OF id, campaign_id, actor, turn_number, request_id,
+      input_json, catalog_version, created_at ON rules_turn_operations
+    BEGIN SELECT RAISE(ABORT, 'Rules operation binding is immutable'); END
+  `);
+  await run(`
+    CREATE TRIGGER IF NOT EXISTS rules_operation_complete_immutable
+    BEFORE UPDATE ON rules_turn_operations WHEN OLD.status = 'complete'
+    BEGIN SELECT RAISE(ABORT, 'Completed rules operation is immutable'); END
+  `);
+  await run(`
+    CREATE TABLE IF NOT EXISTS rules_checks (
+      check_id TEXT PRIMARY KEY NOT NULL,
+      operation_id TEXT NOT NULL,
+      campaign_id INTEGER NOT NULL,
+      turn_number INTEGER NOT NULL,
+      actor INTEGER NOT NULL,
+      call_seq INTEGER NOT NULL CHECK (call_seq >= 1),
+      request_json TEXT NOT NULL,
+      record_json TEXT NOT NULL,
+      UNIQUE (operation_id, actor, call_seq),
+      UNIQUE (campaign_id, turn_number, actor, call_seq),
+      FOREIGN KEY (operation_id, campaign_id, turn_number, actor)
+        REFERENCES rules_turn_operations(id, campaign_id, turn_number, actor)
+        ON DELETE CASCADE
+    )
+  `);
+  await run(`
+    CREATE TRIGGER IF NOT EXISTS rules_check_immutable
+    BEFORE UPDATE ON rules_checks
+    BEGIN SELECT RAISE(ABORT, 'Rules check is immutable'); END
+  `);
+  await run(`
+    CREATE TABLE IF NOT EXISTS rules_check_annotations (
+      check_id TEXT PRIMARY KEY NOT NULL,
+      annotation_json TEXT,
+      annotation_rejected TEXT,
+      finalized INTEGER NOT NULL CHECK (finalized = 1),
+      request_json TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      FOREIGN KEY (check_id) REFERENCES rules_checks(check_id) ON DELETE CASCADE
+    )
+  `);
+  await run(`
+    CREATE TRIGGER IF NOT EXISTS rules_annotation_immutable
+    BEFORE UPDATE ON rules_check_annotations
+    BEGIN SELECT RAISE(ABORT, 'Rules annotation is immutable'); END
+  `);
+
   // Phase 3 M1: which character acted this turn (null on legacy turns and
   // turns with no acting character, e.g. the opening scene).
   try {
