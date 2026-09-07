@@ -242,7 +242,10 @@ function bindTemplates(templates, state, actor, targets, bindings, context) {
         if (effect[key] === undefined) fail('BINDING', `The authored ${key} requires an explicit recorded binding.`);
       }
       if (effect.op === 'reposition' && bindings.areas?.[effect.who]) effect.area = bindings.areas[effect.who];
-      if (effect.op === 'reveal' && effect.scope === 'area_features') effect.subject = bindings.area;
+      if (effect.op === 'reveal' && ['area_features', 'companion_scout'].includes(effect.scope)) {
+        const destination = areaRecord(state, bindings.area);
+        effect.subject = `area:${destination.locationId}:${destination.id}`;
+      }
       const expand = Array.isArray(effect.who) && effect.op !== 'teleport' ? effect.who : [effect.who];
       for (const who of expand) {
         const concrete = { ...effect, ...(who === undefined ? {} : { who }) };
@@ -638,7 +641,15 @@ export function finalizeClassAction({ state, plan, outcome, effectResult } = {})
   mergePatches(next, outcome === 'success' ? plan.successPatches : plan.failurePatches);
   const ownClassState = clone(outcome === 'success' ? plan.afterSuccess : plan.afterUse);
   for (const [key, value] of Object.entries(result.state.actors[plan.actor].classState || {})) {
-    if (!isDeepStrictEqual(value, state.actors[plan.actor].classState[key])) ownClassState[key] = clone(value);
+    const prior = state.actors[plan.actor].classState[key];
+    if (['companion', 'vehicle'].includes(key) && value && prior && ownClassState[key]) {
+      // Effect projections may update position or vitals without erasing planned control fields.
+      for (const field of new Set([...Object.keys(prior), ...Object.keys(value)])) {
+        if (isDeepStrictEqual(value[field], prior[field])) continue;
+        if (Object.hasOwn(value, field)) ownClassState[key][field] = clone(value[field]);
+        else delete ownClassState[key][field];
+      }
+    } else if (!isDeepStrictEqual(value, prior)) ownClassState[key] = clone(value);
   }
   next.actors[plan.actor].classState = ownClassState;
   const cs = next.actors[plan.actor].classState;

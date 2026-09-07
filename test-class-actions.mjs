@@ -38,8 +38,9 @@ export function classActionTestState(familyId = 'armsmaster', branchId = `${fami
   for (const area of Object.values(state.areas)) Object.assign(area, { surfaces: ['wall'], supported: true, dry_ground: true, safeRecovery: true, immediateThreat: false, anchor: true });
   for (const [ref, value] of Object.entries(state.actors)) {
     value.visible = true;
-    value.knowledge = ['combat_trait', 'defense_trait', 'leverage', 'motive', 'route', 'profile_senses', 'companion_scout', 'quarry_route'].map(scope => ({ id: `${scope}-fact`, scope, fact: `Recorded ${scope} for ${ref}.`, discovered: false }));
+    value.knowledge = ['combat_trait', 'defense_trait', 'leverage', 'motive', 'route', 'profile_senses', 'quarry_route'].map(scope => ({ id: `${scope}-fact`, scope, fact: `Recorded ${scope} for ${ref}.`, discovered: false }));
   }
+  state.areas['area:1:b'].knowledge = [{ id: 'scouted-route', scope: 'companion_scout', fact: 'The passage opens onto a sheltered exit.', discovered: false }];
   if (actor.classState.companion) {
     const cs = actor.classState.companion;
     cs.actorRef = COMPANION;

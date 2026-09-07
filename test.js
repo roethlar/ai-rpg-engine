@@ -7315,6 +7315,8 @@ async function runAll() {
     await runClassRevivalTests();
     const { runClassExceptionalTurnTests } = await import('./test-class-exceptional-turns.mjs');
     await runClassExceptionalTurnTests();
+    const { runClassScoutTurnTests } = await import('./test-class-scout-turns.mjs');
+    await runClassScoutTurnTests();
     const { runClassJourneyTests } = await import('./test-class-journey.mjs');
     await runClassJourneyTests();
     const { runClassTurnTransportTests } = await import('./test-class-turn-transport.mjs');
