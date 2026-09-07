@@ -118,7 +118,7 @@ they are not claims about enemies reacting to tactics in a campaign.
 
 The written exchange needs four player submissions, each explicitly naming a Form and target, and
 zero follow-up or reaction answers. The rules specify automatic Counter handling; this is not a
-measurement of the shipped UI. Bookkeeping consists of HP, selected Form, Counter/trigger/expiry,
+measurement of the existing UI. Bookkeeping consists of HP, selected Form, Counter/trigger/expiry,
 and the shared Main/Reaction budget. No resource spending, recovery, combo stage, or Move choice
 occurs. Absence here does not establish absence in other class designs or encounters.
 

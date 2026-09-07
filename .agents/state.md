@@ -6,6 +6,10 @@ to `docs/history/state-archive.md`.
 
 ## Now
 
+- **THERE IS NO SHIPPED OR PLAYER-VALIDATED CURRENT GAME.** The owner's 2026-09-07
+  development-state clarification in `.agents/decisions.md` owns the playtest history and evidence
+  terminology. Early game playtests predate the current classes and system; existing code and
+  accepted specifications must not be presented as an established gameplay baseline.
 - **MAXIMIZE FUN PER PLAYER ACTION, NOT MERELY RULES CLARITY OR FEWER PROMPTS.** The 2026-09-07
   decision in `.agents/decisions.md` owns this whole-game criterion. The owner's concern is the
   effort of sorting options and entering the intended action even when the rules are understood;
@@ -41,9 +45,9 @@ to `docs/history/state-archive.md`.
   names while "breather," "safe rest," capacity growth, and spell rank/cost/upcasting lack operational
   rules; the hard-coded full recovery to six also conflicts with the sample progression to seven.
   All catalogs, values, and mechanics remain provisional; nothing is approved or shipped.
-- **THE SIGNED TARGET CHASSIS AND THE SHIPPED LEGACY RUNTIME ARE DIFFERENT SYSTEMS.** Canonical
+- **THE SIGNED TARGET CHASSIS AND THE EXISTING LEGACY CODE ARE DIFFERENT SYSTEMS.** Canonical
   `docs/rules/resolution.md` specifies d100 meet-or-beat checks and `docs/rules/effects.md` specifies
-  an engine-owned effect vocabulary, but neither is implemented as the complete game. The shipped
+  an engine-owned effect vocabulary, but neither is implemented as the complete game. The existing
   rules-mode path still uses optional d20 + four-attribute modifiers, generated per-campaign rule
   sheets, HP/mana, and XP-per-level behavior. Attributes, spend economy, tactical space, initiative,
   opposition curves, dying, recovery, class roster/mechanics, and version migration remain unsettled
@@ -108,7 +112,7 @@ work is tracked in the review index; retained branch deletion still needs a sepa
 ## Prior queue context
 
 The three-package comparison is complete in `.agents/review/rules-system-variants.md`, but Fable's
-admitted `rsv-1` leaves the compact shipped-legacy versus signed-target orientation open. The
+admitted `rsv-1` leaves the compact existing-legacy versus signed-target orientation open. The
 remaining bullets retain their independent priority.
 
 - Resolve and approve the version-plan draft before returning either admitted portability repair

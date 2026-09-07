@@ -325,7 +325,7 @@ Merely describing the character correctly in prose does not pass.
 **Status: Paused after owner feedback, 2026-09-07; no code or catalog content approved.**
 After seeing the prototype's Fighter, Wizard and Paladin resource/ability examples, the owner said,
 "I don't like anything about this class system." The accompanying sarcastic assent is not approval
-of a Fighter starting set, the default-set policy, or a replacement design. The live game has no
+of a Fighter starting set, the default-set policy, or a replacement design. Existing creation code has no
 fixed authored class starting sets; these prototype examples are incomplete, provisional outlines.
 Pause the packaging question and address the appeal of the underlying class design before asking
 for more implementation choices. No specific replacement is selected, and prior settled decisions
@@ -521,7 +521,7 @@ Before presenting G5-A:
    preference alone does not rewrite the plan.
 
 This is docs-only design work. Product verification (`node test.js`) becomes mandatory only when a
-later approved implementation changes shipped behavior.
+later approved implementation changes application behavior.
 
 ---
 

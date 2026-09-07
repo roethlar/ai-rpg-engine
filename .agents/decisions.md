@@ -1657,3 +1657,20 @@ costs and tradeoffs but cannot establish player enjoyment or selection effort.
 The class starting-set proposal remains paused. Its related worked illustration is recorded in
 `.agents/review/fighter-encounter-walkthrough.md`; no replacement class, composer redesign, or
 runtime change is authorized by this principle.
+
+### 2026-09-07 - Development state and evidence terminology
+
+**Status: Active owner clarification of project maturity and playtest history.**
+
+There is no shipped game. The owner reports only early playtests that predate the class changes
+and the current game-system design. Those sessions do not validate the current classes, rules,
+or overall player experience.
+
+Distinguish existing code, approved specifications, provisional proposals, automated checks,
+component/prototype evaluations, and actual game playtests. Committed or production-intended
+code is not a released game; signed rules are not proof of implementation or enjoyable play.
+Earlier references to a "shipped game" or "shipped legacy runtime" describe code present in
+the repository, not a release or player-validated baseline. Correct active summaries accordingly.
+
+This clarification does not erase recorded component tests or owner prototype evaluations, revoke
+approved specifications, or authorize a release, code changes, or a new playtest program.

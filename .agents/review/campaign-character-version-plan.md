@@ -34,7 +34,7 @@ Its one-record/no-versions model is historical. `ability-keyword-production-plan
 approved invocation contract and the catalog dependency of AKP-4.
 
 The signed resolution and effects chapters are design authority, not evidence of implemented
-d100 resolution or effect execution. The shipped rules-mode path still has optional d20 checks,
+d100 resolution or effect execution. Existing rules-mode code still has optional d20 checks,
 generated rule cards, HP/mana, and model-mediated progression. This revision does not authorize
 implementing the remaining rules chassis. Any catalog mechanic needing an absent executor stays
 unreleased until a separately promoted and approved rules slice implements and proves it.

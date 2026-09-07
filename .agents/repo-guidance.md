@@ -7,6 +7,9 @@
 - This repo is an AI RPG engine: an AI game master ("GM") running campaigns
   through a multi-agent Council pipeline, played in a browser UI served by a
   local Node server.
+- Describe maturity and evidence precisely: there is no shipped game or current-system game-playtest
+  validation. The 2026-09-07 development-state clarification in `.agents/decisions.md` owns the
+  history. Existing code, approved rules, and prototype checks are different kinds of evidence.
 - Core principle (evidence: plan.md): every change must improve *fun* and
   *feel* like a real GM. Avoid feature creep. Prioritize quality of
   interaction over new mechanics.
