@@ -301,4 +301,6 @@ selection burden. No balance result, role/class restriction, or evidence-tier ve
 
 **Former comparison recommendation withdrawn:** do not resume a Forms-versus-Bodyguard comparison.
 The owner redirected work to the ordinary-combat baseline; see `ordinary-combat-baseline.md` for
-the completed inventory and its next recommendation. No replacement ability is approved.
+the completed inventory. The subsequent ability-benefit decision in `../decisions.md` requires
+only a local ordinary-action comparison, not completing the baseline before discussing abilities.
+No replacement ability is approved.

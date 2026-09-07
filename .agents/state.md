@@ -91,14 +91,14 @@ to `docs/history/state-archive.md`.
 
 ## Next
 
-**NEXT:** Bodyguard is withdrawn by owner direction. The authorized ordinary-combat inventory is
-complete in `.agents/review/ordinary-combat-baseline.md`: ordinary attacks, positioning, and helping
-attempts need no invented class ability, but exact blocking/interception, targeting, and competing
-threat rules are not yet a complete contract. Existing code and provisional fixture outcomes are
-not a released or player-validated baseline. Recommend drafting the ordinary interaction between
-attacking, intervening, and competing threats in the same Mira situation before class additions;
-that further specification is not yet authorized. Do not resume Forms-versus-Bodyguard comparison,
-require owner participation, or expand this into a full rules rewrite or playtest program.
+**NEXT:** Apply the settled 2026-09-07 ability-benefit criterion in `.agents/decisions.md`: what
+worthwhile benefit does a proposed ability add over the relevant ordinary action for the extra
+player effort? Recommend examining Pressing Form's pursuit reaction on its own, since its attack
+matches the ordinary attack in the retained fixture. Clarify only the ordinary comparison needed
+for that benefit, not the entire combat system. The completed inventory in
+`.agents/review/ordinary-combat-baseline.md` is reference evidence, not a prerequisite queue.
+Bodyguard remains withdrawn; do not resume that comparison, require owner participation, or expand
+this into a full rules rewrite or playtest program. No new ability or implementation is approved.
 `.agents/review/gate-5-class-model-plan.md` section 7.1 owns the paused starting-set proposal.
 No replacement is selected, no Fighter package is authorized, and prior settled decisions remain
 intact. Carry the separate description-scope finding.

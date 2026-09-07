@@ -1688,3 +1688,22 @@ an implicit rule for ordinary protective prose.
 `.agents/review/ordinary-combat-baseline.md` owns the resulting inventory, its incomplete-rule
 findings, and the proposed next step. This direction approves no class roster, special protection
 mechanic, full combat rewrite, implementation, or owner-participation requirement.
+
+### 2026-09-07 - Ability benefit compared locally with ordinary action
+
+**Status: Active ability-design criterion, not a whole-system prerequisite.**
+
+The owner agreed to judge each proposed ability by: "what worthwhile capability does this add
+for the player's extra effort?" Compare the ability's actual benefit with the ordinary action
+available in the relevant situation, including the effort of choosing and invoking it. A renamed
+ordinary attempt or an unjustified guarantee does not establish that benefit.
+
+Only enough ordinary-action clarity to judge the particular benefit is needed. Completing the
+ordinary-combat rules or the whole game system is NOT a prerequisite to discussing or designing
+class abilities. The agent's earlier baseline-first recommendation was an overstatement and is
+displaced. Missing rules in the baseline inventory remain genuine gaps, not a new global gate.
+
+This applies the fun-per-player-action principle; it establishes no measured enjoyment verdict,
+automatic roster/tier decision, replacement ability, implementation approval, or owner playtest
+requirement. Bodyguard remains withdrawn. `.agents/review/ordinary-combat-baseline.md` is reference
+evidence for local comparisons, not a prerequisite work queue.

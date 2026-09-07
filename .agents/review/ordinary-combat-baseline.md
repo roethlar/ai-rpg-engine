@@ -85,12 +85,12 @@ could retain complete coverage. Once that guarantee was withdrawn, no worthwhile
 benefit had been established. The owner authorized dropping it; the old example is retained as
 withdrawn evidence in `fighter-encounter-walkthrough.md`, not a candidate awaiting comparison.
 
-**Recommended next bounded action, not authorized here:** draft the ordinary interaction between
-attacking, intervening/holding a position, and competing threats in the same Mira situation. State
-the intent, physical constraints, action cost, and possible consequences in plain language before
-considering class additions. Keep the d100/effect authority boundaries and explicit special-ability
-invocation decisions intact. Do not create a new class menu, automatic protection, roster filter,
-mandatory player experiment, or full rules-rewrite project from this inventory.
+**Later owner clarification:** the 2026-09-07 ability-benefit decision in `../decisions.md` displaces
+the earlier baseline-first recommendation. Compare each ability's worthwhile benefit with the
+ordinary action relevant to it; define only the missing detail needed for that comparison. Do not
+require completing ordinary combat, the three Mira interactions, or the entire game before class
+discussion. This inventory records real gaps but creates no new prerequisite queue. Existing
+resolution/effect authority and explicit special-ability invocation decisions remain intact.
 
 ## Verification
 
