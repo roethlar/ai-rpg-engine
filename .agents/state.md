@@ -13,8 +13,10 @@ to `docs/history/state-archive.md`.
   portability, evidence or player-agency contracts. Baseline and signed d100 evaluator tests
   passed, including the new boundary guard's failure proof; the implementation plan owns details.
   Immutable d100 history projection and the durable operation/check/annotation store also pass
-  focused and full-suite checks. These foundations are not yet connected to Council turns. Full catalog,
-  signed-rules execution, real creation/play integration and end-to-end verification are pending.
+  focused and full-suite checks. The authored catalog foundation covers all 24 branch packages,
+  168 definitions and levels 1-10; its component checks pass. These foundations are not yet
+  connected to Council turns. Signed-rules execution, real creation/play integration and
+  end-to-end verification remain in progress.
   Do not stop at another paper recommendation or ask for routine per-class approvals.
 - **THE OWNER IS NOT THE ABILITY-REVIEW COMMITTEE.** The 2026-09-07 agent-owned design decision
   in `.agents/decisions.md` rejects serial ability verdicts and per-step go requests. Agents own

@@ -104,6 +104,12 @@ separate unless an actual class-path dependency is established. No real user dat
   Disabling the input-binding guard failed the expected-rejection assertion; restored tests passed.
   `runRulesStoreTests` is wired into `node test.js`; the combined suite passed. Council orchestration
   and actual class effects still need to use this store before the retry end state is achieved.
+- Authored catalog foundation: `class-catalog.js` defines 24 branch packages, 168 explicitly
+  versioned abilities, levels 1-10, starting equipment/skills, profiles and closed handler contracts.
+  `test-class-catalog.mjs` passed 240 sheets and 936 real declaration projections, with a proven
+  Expert-only admission guard. `.agents/review/class-catalog-design.md` owns detailed design and
+  evidence limits. The combined repository suite passed with the catalog present. Creation,
+  effect and interface integration remains in progress; this is not complete gameplay evidence.
 
 ## Completion Audit
 
