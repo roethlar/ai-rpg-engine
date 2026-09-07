@@ -139,10 +139,17 @@ function visitReferences(value, visit, field = '') {
   if (value === null || typeof value !== 'object') return;
   if (Array.isArray(value)) { value.forEach(item => visitReferences(item, visit, field)); return; }
   for (const [key, child] of Object.entries(value)) {
+    if (isItemProvenance(value, key)) continue;
     const ref = refParts(key);
     if (ref) visit(key, ref);
     visitReferences(child, visit, key);
   }
+}
+
+// Item custody is live state; its provenance records origins in earlier worlds.
+// Those historical actor/item IDs must not require or acquire current bindings.
+function isItemProvenance(value, key) {
+  return key === 'provenance' && refParts(value.id)?.namespace === 'items' && Object.hasOwn(value, 'holder');
 }
 
 /** Validate complete world-owned class identities and every structured reference.
@@ -476,7 +483,7 @@ function remapper(maps) {
     for (const [key, child] of Object.entries(value)) {
       const mappedKey = refParts(key) ? ref(key) : key;
       if (Object.hasOwn(result, mappedKey)) fail('Reference remapping collided within an object.');
-      result[mappedKey] = walk(child, key);
+      result[mappedKey] = isItemProvenance(value, key) ? clone(child) : walk(child, key);
     }
     return result;
   }

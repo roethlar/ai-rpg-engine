@@ -31,6 +31,9 @@ focused automated verification complete. No current-system human playtest or fun
 - Within turn state-change records, only `dice_rolls`, `rules_effects`, `rules_events`
   and `rules_award` undergo structured mechanical reference remapping. Arbitrary quest
   and prose trees remain text, even when a value happens to equal a typed reference.
+- Durable item provenance preserves its historical owners and prior item identities,
+  including origins in another campaign. Only that registry field is exempt from
+  current-world reference binding; present custody must still resolve and remap exactly.
 
 ## Evidence
 
@@ -48,5 +51,10 @@ focused automated verification complete. No current-system human playtest or fun
   `node test.js` passed with these suites integrated on 2026-09-07, after preserving
   the legacy-export expectation as format v3 rather than the maximum supported v4.
 - `git diff --check` passed. No external reviewer or human playtest was invoked.
+- Copy-to-new-campaign exceptional-magic testing exposed an erroneous requirement that
+  an item's historical owner exist in its current world. The focused portability suite
+  now preserves origins across import/reimport while rejecting a dangling current holder.
+  Removing this distinction failed the original-owner assertion; restored focused tests
+  and the complete `node test.js` passed on 2026-09-07.
 
 The approved implementation plan and `.agents/state.md` own overall completion status.

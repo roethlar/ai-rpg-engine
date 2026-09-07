@@ -121,6 +121,9 @@ export function runClassPortabilityTests() {
   assert.equal(remapped.npcs[0].source_id, 120);
   assert.equal(remapped.locations[0].source_id, 130);
   for (const item of Object.values(mappedWorld.items)) assert.equal(item.holder, 'character:110');
+  for (const [oldId, item] of Object.entries(bundle.class_runtime.world.items)) {
+    assert.deepEqual(mappedWorld.items[maps.items[oldId]].provenance, item.provenance, 'Import preserves historical item origins without rebinding their recorded owners.');
+  }
   assert.ok(Object.keys(mappedWorld.features).every(key => key.startsWith('feature:fresh-')));
   assert.ok(Object.values(mappedWorld.features).every(feature => feature.status === 'cleared' && feature.location === 130));
   const importedCheck = remapped.class_runtime.checks[0];
@@ -146,6 +149,23 @@ export function runClassPortabilityTests() {
   assert.equal(twice.class_runtime.checks[0].actor, 210);
   assert.deepEqual(twice.class_runtime.checks[0].sourceContext, { campaignId: 1000, actor: 10, turn: 1 }, 'A subsequent import cannot rewrite original execution provenance.');
   assert.equal(twice.class_runtime.checks[0].checkId, runtime.checks[0].checkId);
+
+  const carried = structuredClone(bundle);
+  const itemId = Object.keys(carried.class_runtime.world.items)[0];
+  const priorOrigins = [{ kind: 'class_start', owner: 'character:999' },
+    { kind: 'character_arrival', owner: 'character:10', previousId: 'item:previous-world-id' }];
+  carried.class_runtime.world.items[itemId].provenance = structuredClone(priorOrigins);
+  for (const turn of carried.turns) {
+    const snapshot = JSON.parse(turn.rules_snapshot_json);
+    snapshot.items[itemId].provenance = structuredClone(priorOrigins);
+    turn.rules_snapshot_json = JSON.stringify(snapshot);
+  }
+  assert.ok(validateClassBundle(carried), 'Copied gear may originate with an actor absent from this campaign.');
+  const carriedImport = remapClassBundle(carried, maps);
+  assert.deepEqual(carriedImport.class_runtime.world.items[maps.items[itemId]].provenance, priorOrigins);
+  assert.equal(carriedImport.class_runtime.world.items[maps.items[itemId]].holder, 'character:110');
+  carried.class_runtime.world.items[itemId].holder = 'character:999';
+  assert.throws(() => validateClassBundle(carried), /Dangling structured reference/, 'Historical provenance never excuses dangling current custody.');
 
   const missing = { ...maps, npcs: {} };
   assert.throws(() => remapClassBundle(bundle, missing), /Missing npcs identity mapping/);

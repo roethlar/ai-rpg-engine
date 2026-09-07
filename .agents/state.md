@@ -24,7 +24,10 @@ to `docs/history/state-archive.md`.
   direct Magic Missile, Fireball narration-failure recovery with the same committed check and
   one use charged, table-talk no-ops, rejected-action preservation, mixed-party ownership and
   authored advancement. Exact v4 export/import/fork/release now passes real lifecycle tests,
-  including archived empty tables and imported checks. Ordinary actions and asymmetric NPC
+  including archived empty tables and imported checks. Copied equipment now preserves its
+  historical origins without requiring its former owner in the new campaign; current custody
+  remains strictly bound. The lifecycle record owns its passing tests and guard proof.
+  Ordinary actions and asymmetric NPC
   turns have canonical handlers, including readying a recovered weapon without a free attack.
   Combined unit/browser verification passes, including actual desktop/mobile HTTP/catalog/DB/
   Council/RNG cast, narration failure, reload, exact retry and history. Guard mutations were
