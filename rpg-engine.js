@@ -4,7 +4,11 @@ import {
   classTriggerOptions, createRulesWorld, projectClassCharacter
 } from './class-state.js';
 import { readClassWorld, installClassActorInTransaction, writeClassWorldInTransaction } from './class-store.js';
+import { validateClassBundle, createClassReferenceMaps, remapClassBundle, forkClassBundle } from './class-portability.js';
 import { CLASS_SCENE_CONTRACT, validateClassSceneFrame, buildClassScenario } from './class-scenario.js';
+import { prepareClassCouncilTurn, resumeClassCouncilTurn } from './class-council.js';
+import { beginRulesOperation, readRulesOperationByRequest, completeRulesOperation } from './rules-store.js';
+import { normalizeCheckRecord } from './rules-resolution.js';
 import { AIClient, resolveAgentConfig } from './api-client.js';
 import fs from 'fs';
 import path from 'path';
@@ -2450,21 +2454,129 @@ Do not add combat simply to exercise a class. The opening fiction determines the
   };
 }
 
+const classTurnInFlight = new Map();
+
+function classPendingError() {
+  const error = new Error('This action is awaiting completion. Retry the submitted action before starting another.');
+  error.code = 'CLASS_ACTION_PENDING';
+  error.publicMessage = error.message;
+  return error;
+}
+
+async function runClassTurn(campaignId, playerAction, apiConfig, submittingCharacterId, abilityTriggerRevision, requestId) {
+  if (typeof requestId !== 'string' || !/^[a-f\d]{8}-[a-f\d]{4}-4[a-f\d]{3}-[89ab][a-f\d]{3}-[a-f\d]{12}$/iu.test(requestId)) {
+    const error = new Error('A valid action request identity is required. Refresh the table and resend.');
+    error.code = 'TURN_REQUEST_INVALID'; error.publicMessage = error.message; throw error;
+  }
+  const fingerprint = JSON.stringify({ requestId, playerAction, submittingCharacterId, abilityTriggerRevision });
+  const inFlight = classTurnInFlight.get(campaignId);
+  if (inFlight) {
+    if (inFlight.fingerprint !== fingerprint) throw classPendingError();
+    return inFlight.promise;
+  }
+  const promise = executeClassTurn(campaignId, playerAction, apiConfig, submittingCharacterId, abilityTriggerRevision, requestId);
+  classTurnInFlight.set(campaignId, { fingerprint, promise });
+  try { return await promise; }
+  finally { if (classTurnInFlight.get(campaignId)?.promise === promise) classTurnInFlight.delete(campaignId); }
+}
+
+async function executeClassTurn(campaignId, playerAction, apiConfig, submittingCharacterId, abilityTriggerRevision, requestId) {
+  const campaign = await db.get('SELECT * FROM campaigns WHERE id = ?', [campaignId]);
+  const party = await loadParty(campaignId);
+  const character = selectSpeakingCharacter(party, submittingCharacterId);
+  let operation = await readRulesOperationByRequest(requestId);
+  if (operation) {
+    if (operation.campaignId !== campaignId || operation.actor !== character.id
+      || operation.input.playerAction !== playerAction || operation.input.abilityTriggerRevision !== abilityTriggerRevision) throw classPendingError();
+    if (operation.status === 'complete') return { ...await getCampaignState(campaignId), settledRequestId: requestId };
+  } else {
+    // A response can be lost after a no-op transcript commits, too. Its identity
+    // is retained in history without reserving a world-action operation.
+    const previousTalk = await db.get(`SELECT character_id, player_action, state_changes_json FROM turns
+      WHERE campaign_id = ? AND CASE WHEN json_valid(state_changes_json)
+        THEN json_extract(state_changes_json, '$.rules_request_id') END = ?`, [campaignId, requestId]);
+    if (previousTalk) {
+      const record = JSON.parse(previousTalk.state_changes_json);
+      if (previousTalk.character_id !== character.id || previousTalk.player_action !== playerAction
+        || record.rules_trigger_revision !== abilityTriggerRevision) throw classPendingError();
+      return { ...await getCampaignState(campaignId), settledRequestId: requestId };
+    }
+    if (await db.get("SELECT id FROM rules_turn_operations WHERE campaign_id = ? AND status = 'active'", [campaignId])) throw classPendingError();
+    if (abilityTriggerRevision !== character.abilityTriggerRevision) {
+      const error = new Error('Your ability list changed. Review the refreshed character sheet and resend your action.');
+      error.code = 'ABILITY_TRIGGERS_STALE'; error.publicMessage = error.message; throw error;
+    }
+    const world = readClassWorld(campaign);
+    const declarations = buildAbilityDeclarations({ character, playerAction });
+    const invocations = abilityInvocationRecordFromDeclarations(declarations, playerAction);
+    const latest = await db.get('SELECT MAX(turn_number) AS number FROM turns WHERE campaign_id = ?', [campaignId]);
+    const turn = (latest.number || 0) + 1;
+    const history = (await readCampaignHistory(campaignId, { window: 'latest', limit: STAGE_ONE_HISTORY_LIMIT }))
+      .map(value => ({ playerInput: value.player_action, narrative: value.gm_narrative }));
+    const outline = await readCampaignOutline(campaignId);
+    const prepared = await prepareClassCouncilTurn({ apiConfig, state: world, actorId: character.id, playerAction, declarations,
+      history, outline, turn, requestId, allowCommitted: world.turnOrder.order[world.turnOrder.currentIndex] === `character:${character.id}` });
+    if (prepared.kind === 'table_talk') {
+      await db.withWriteTransaction(async () => {
+        const current = await db.get('SELECT rules_revision FROM campaigns WHERE id = ?', [campaignId]);
+        const last = await db.get('SELECT MAX(turn_number) AS number FROM turns WHERE campaign_id = ?', [campaignId]);
+        if (current.rules_revision !== campaign.rules_revision || (last.number || 0) + 1 !== turn
+          || await db.get("SELECT id FROM rules_turn_operations WHERE campaign_id = ? AND status = 'active'", [campaignId])) throw classPendingError();
+        await db.run(`INSERT INTO turns (campaign_id, turn_number, character_id, player_action, narrative,
+          state_changes_json, ability_invocations_json, rules_snapshot_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [campaignId, turn, character.id, playerAction, prepared.narrative, JSON.stringify({ input_kind: prepared.inputKind,
+          action_resolved: false, rules_request_id: requestId, rules_trigger_revision: abilityTriggerRevision, dice_rolls: [] }),
+        JSON.stringify(invocations), JSON.stringify(world)]);
+      });
+      return { ...await getCampaignState(campaignId), settledRequestId: requestId };
+    }
+    // Preparation belongs in the initial immutable input, so a crash immediately
+    // after reservation cannot strand an operation without its authorized plan.
+    operation = await beginRulesOperation({ campaignId, actor: character.id, turn, catalogVersion: world.catalogVersion,
+      requestId, expectedWorldRevision: campaign.rules_revision,
+      input: { playerAction, abilityTriggerRevision, invocations, expectedWorldRevision: campaign.rules_revision, prepared } });
+  }
+  operation = await resumeClassCouncilTurn({ apiConfig, operation });
+  if (operation.stage !== 'narrated') throw new Error('The class action did not reach a final narrated checkpoint.');
+  const { result, check, narrative } = operation.data;
+  const rolls = check ? [normalizeCheckRecord(check)] : [];
+  await completeRulesOperation(operation.operationId, { campaignId, turnNumber: operation.turn, requestId }, async () => {
+    if (result.newBindings.length) {
+      const owner = await db.get('SELECT player_character_id FROM characters WHERE id = ? AND campaign_id = ?', [operation.actor, campaignId]);
+      const revision = await db.get(`SELECT COALESCE(MAX(binding_set_revision), 0) AS value FROM character_ability_bindings
+        WHERE campaign_id = ? AND player_character_id = ?`, [campaignId, owner.player_character_id]);
+      const vocabulary = await db.get('SELECT vocabulary_version FROM campaign_vocabulary_state WHERE campaign_id = ?', [campaignId]);
+      for (const binding of result.newBindings) await db.run(`INSERT INTO character_ability_bindings
+        (player_character_id, campaign_id, ability_id, term, prose, aliases_json, provenance, vocabulary_version, binding_set_revision)
+        VALUES (?, ?, ?, ?, ?, ?, 'player-choice', ?, ?)`, [owner.player_character_id, campaignId, binding.abilityId,
+        binding.term, binding.prose, JSON.stringify(binding.aliases), vocabulary?.vocabulary_version || 0, revision.value + 1]);
+    }
+    await writeClassWorldInTransaction(campaignId, result.state, operation.input.expectedWorldRevision);
+    await db.run(`INSERT INTO turns (campaign_id, turn_number, character_id, player_action, narrative,
+      state_changes_json, ability_invocations_json, rules_snapshot_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    [campaignId, operation.turn, operation.actor, operation.input.playerAction, narrative, JSON.stringify({
+      input_kind: 'committed_action', action_resolved: true, rules_request_id: requestId,
+      rules_trigger_revision: operation.input.abilityTriggerRevision, rules_effects: result.effects,
+      rules_events: result.events, rules_award: result.award, dice_rolls: rolls
+    }), JSON.stringify(operation.input.invocations), JSON.stringify(result.state)]);
+    await db.run('UPDATE campaigns SET last_positional = ? WHERE id = ?', [result.state.encounter.active ? 1 : 0, campaignId]);
+  });
+  return { ...await getCampaignState(campaignId), settledRequestId: requestId };
+}
+
 export async function takeTurn(
   campaignId,
   playerAction,
   apiConfig,
   submittingCharacterId = null,
-  abilityTriggerRevision = null
+  abilityTriggerRevision = null,
+  options = {}
 ) {
   // 1. Fetch current campaign details
   const campaign = await db.get(`SELECT * FROM campaigns WHERE id = ?`, [campaignId]);
   if (!campaign) throw new Error(`Campaign ${campaignId} not found.`);
   if (isClassRuleset(parseJsonObject(campaign.ruleset_json, null))) {
-    const error = new Error('Aetheria turn integration is still in progress. No action or character state was changed.');
-    error.code = 'CLASS_RUNTIME_PENDING';
-    error.publicMessage = error.message;
-    throw error;
+    return runClassTurn(campaignId, playerAction, apiConfig, submittingCharacterId, abilityTriggerRevision, options.requestId);
   }
 
   const outline = await readCampaignOutline(campaignId);
@@ -2956,15 +3068,25 @@ Output the JSON object containing the narrative response, scene_grounding, sugge
 export async function getCampaignState(campaignId) {
   const campaign = await db.get(`SELECT * FROM campaigns WHERE id = ?`, [campaignId]);
   if (!campaign) return null;
+  const classWorld = isClassRuleset(parseJsonObject(campaign.ruleset_json, null)) ? readClassWorld(campaign) : null;
+  const pendingRow = classWorld ? await db.get(`SELECT request_id, actor, stage, input_json FROM rules_turn_operations
+    WHERE campaign_id = ? AND status = 'active'`, [campaignId]) : null;
+  const pendingInput = pendingRow ? JSON.parse(pendingRow.input_json) : null;
+  const pendingAction = pendingRow ? {
+    requestId: pendingRow.request_id, actor: `character:${pendingRow.actor}`, characterId: pendingRow.actor,
+    playerAction: pendingInput.playerAction, abilityTriggerRevision: pendingInput.abilityTriggerRevision, stage: pendingRow.stage
+  } : null;
 
   const outlineRow = await db.get(`SELECT * FROM campaign_outlines WHERE campaign_id = ?`, [campaignId]);
   if (!outlineRow) throw new Error(`Campaign outline not found for campaign ${campaignId}.`);
   const outline = validateOutlineData(JSON.parse(outlineRow.outline_json));
 
   const party = await loadParty(campaignId);
-  if (party.length === 0) throw new Error(`Character not found for campaign ${campaignId}.`);
+  if (party.length === 0 && !isClassRuleset(parseJsonObject(campaign.ruleset_json, null))) {
+    throw new Error(`Character not found for campaign ${campaignId}.`);
+  }
   const turnState = validateTurnState(parseJsonObject(campaign.turn_state_json, null), party.map(c => c.id));
-  const character = party.find(c => c.id === actingCharacterId(turnState)) || party[0];
+  const character = party.find(c => c.id === actingCharacterId(turnState)) || party[0] || null;
 
   const npcs = await db.all(`SELECT * FROM npcs WHERE campaign_id = ?`, [campaignId]);
 
@@ -3011,6 +3133,7 @@ export async function getCampaignState(campaignId) {
     themeFonts: outline.theme_fonts,
     rulesMode: !!campaign.rules_mode,
     ruleset: validateRulesetData(parseJsonObject(campaign.ruleset_json, null)),
+    ...(classWorld ? { pendingAction } : {}),
     tableStyle: validateTableStyle(parseJsonObject(campaign.table_style_json, null)),
     character,
     party,
@@ -3026,6 +3149,7 @@ export async function getCampaignState(campaignId) {
       // keep the pre-attribution label.
       characterId: lastTurn ? (lastTurn.character_id ?? null) : null,
       playerAction: lastTurn ? lastTurn.player_action : null,
+      ...(classWorld ? { requestId: lastTurnData?.rules_request_id || null } : {}),
       inputKind,
       narrative: lastTurn ? lastTurn.narrative : 'Beginning campaign...',
       sceneGrounding: lastTurnData ? lastTurnData.scene_grounding || null : null,
@@ -3141,6 +3265,9 @@ export async function joinCampaign(campaignId, { characterName, characterClass, 
     }
     let profileId = sourceProfile && characterMode === 'existing' ? sourceProfile.id : null;
     if (profileId) {
+      if (world && await db.get(`SELECT id FROM characters WHERE campaign_id = ? AND player_character_id = ?`, [campaignId, profileId])) {
+        throw new Error('This character version already has history in this campaign. Copy it to return as a separate version.');
+      }
       const latest = await getPlayerCharacter(profileId);
       if (!latest || latest.status !== 'available') {
         throw new Error(`Character "${sourceProfile.name}" is no longer available.`);
@@ -3206,6 +3333,9 @@ export async function joinCampaign(campaignId, { characterName, characterClass, 
 export async function releaseCharacter(campaignId, characterId) {
   const campaign = await db.get(`SELECT * FROM campaigns WHERE id = ?`, [campaignId]);
   if (!campaign) throw new Error(`Campaign ${campaignId} not found.`);
+  if (isClassRuleset(parseJsonObject(campaign.ruleset_json, null))) {
+    return releaseCampaignCharacters(campaignId, { characterId: Number(characterId) });
+  }
   const party = await loadParty(campaignId);
   const character = party.find(c => c.id === Number(characterId));
   if (!character) throw new Error(`Character ${characterId} not found in campaign ${campaignId}.`);
@@ -3231,6 +3361,36 @@ export async function releaseCharacter(campaignId, characterId) {
 
 export async function releaseCampaignCharacters(campaignId, options = {}) {
   await db.withWriteTransaction(async () => {
+    const campaign = await db.get(`SELECT * FROM campaigns WHERE id = ?`, [campaignId]);
+    if (isClassRuleset(parseJsonObject(campaign?.ruleset_json, null))) {
+      const world = readClassWorld(campaign);
+      if (world.encounter.active || await db.get(
+        `SELECT id FROM rules_turn_operations WHERE campaign_id = ? AND status = 'active'`, [campaignId])) {
+        throw new Error('Characters can leave after the current encounter or unresolved action ends.');
+      }
+      const rows = await db.all(`SELECT * FROM characters WHERE campaign_id = ? AND COALESCE(status, 'active') = 'active'`, [campaignId]);
+      const released = options.characterId === undefined ? rows : rows.filter(row => row.id === options.characterId);
+      if (options.characterId !== undefined && !released.length) throw new Error(`Character ${options.characterId} not found in campaign ${campaignId}.`);
+      // Capture every active profile before changing table membership. Historical
+      // rows keep their profile key so their composer wording remains attributable.
+      await writeClassWorldInTransaction(campaignId, world, campaign.rules_revision);
+      for (const row of released) {
+        const ref = `character:${row.id}`;
+        world.actors[ref].tableStatus = 'released';
+        world.actors[ref].present = false;
+        for (const actor of Object.values(world.actors)) if (actor.controller === ref) actor.present = false;
+        const nextOrder = removeFromTurnOrder({ order: world.turnOrder.order.map(value => Number(value.slice(10))),
+          current_index: world.turnOrder.currentIndex, round: world.turnOrder.round }, row.id);
+        world.turnOrder = { order: nextOrder.order.map(id => `character:${id}`), currentIndex: nextOrder.current_index, round: nextOrder.round };
+        await db.run(`UPDATE characters SET status = 'released' WHERE id = ?`, [row.id]);
+        await db.run(`UPDATE player_characters SET status = 'available', active_campaign_id = NULL,
+          updated_at = CURRENT_TIMESTAMP WHERE id = ? AND active_campaign_id = ? AND status = 'checked_out'`,
+        [row.player_character_id, campaignId]);
+        await db.run(`UPDATE seats SET revoked_at = CURRENT_TIMESTAMP WHERE character_id = ? AND revoked_at IS NULL`, [row.id]);
+      }
+      await writeClassWorldInTransaction(campaignId, world, campaign.rules_revision + 1);
+      return;
+    }
     await db.run(
       `UPDATE player_characters
        SET status = 'available', active_campaign_id = NULL, updated_at = CURRENT_TIMESTAMP
@@ -3256,8 +3416,9 @@ export async function releaseCampaignCharacters(campaignId, options = {}) {
 async function buildCampaignExport(campaignId) {
   const campaign = await db.get(`SELECT * FROM campaigns WHERE id = ?`, [campaignId]);
   if (!campaign) throw new Error(`Campaign ${campaignId} not found.`);
-  if (isClassRuleset(parseJsonObject(campaign.ruleset_json, null))) {
-    throw new Error('Class campaign portability integration is pending. A legacy bundle would omit its mechanical state.');
+  const classWorld = isClassRuleset(parseJsonObject(campaign.ruleset_json, null)) ? readClassWorld(campaign) : null;
+  if (classWorld && await db.get(`SELECT id FROM rules_turn_operations WHERE campaign_id = ? AND status = 'active'`, [campaignId])) {
+    throw new Error('Finish the unresolved action before exporting or forking this campaign.');
   }
   const outlineRow = await db.get(`SELECT outline_json FROM campaign_outlines WHERE campaign_id = ?`, [campaignId]);
   const characterRows = await db.all(`SELECT * FROM characters WHERE campaign_id = ? ORDER BY id ASC`, [campaignId]);
@@ -3276,7 +3437,7 @@ async function buildCampaignExport(campaignId) {
     [campaignId]
   );
   const bindingRows = await db.all(
-    `SELECT b.player_character_id, b.ability_id, b.term, b.prose,
+    `SELECT b.player_character_id, b.ability_id, b.term, b.prose, b.aliases_json,
             b.provenance, b.vocabulary_version, b.binding_set_revision
      FROM character_ability_bindings b
      WHERE b.campaign_id = ?
@@ -3284,15 +3445,15 @@ async function buildCampaignExport(campaignId) {
          SELECT 1 FROM characters c
          WHERE c.campaign_id = b.campaign_id
            AND c.player_character_id = b.player_character_id
-           AND COALESCE(c.status, 'active') = 'active'
+           AND (? = 1 OR COALESCE(c.status, 'active') = 'active')
        )
      ORDER BY b.player_character_id ASC, b.ability_id ASC`,
-    [campaignId]
+    [campaignId, classWorld ? 1 : 0]
   );
   const activeAbilityIdsByProfile = new Map();
   for (const row of characterRows) {
     if (
-      (row.status || 'active') !== 'active'
+      (!classWorld && (row.status || 'active') !== 'active')
       || !isPositiveSafeInteger(row.player_character_id)
     ) {
       continue;
@@ -3318,9 +3479,20 @@ async function buildCampaignExport(campaignId) {
     characterRows.map(row => [row.id, parseJsonArray(row.abilities_json)])
   );
 
-  return {
+  const checks = classWorld ? (await db.all(`SELECT c.record_json, c.operation_id, c.campaign_id,
+    a.annotation_json, a.annotation_rejected, COALESCE(a.finalized, 0) AS annotation_finalized
+    FROM rules_checks c LEFT JOIN rules_check_annotations a ON a.check_id = c.check_id
+    WHERE c.campaign_id = ? ORDER BY c.turn_number, c.actor, c.call_seq`, [campaignId])).map(row => ({
+    ...JSON.parse(row.record_json), operationId: row.operation_id, campaignId: row.campaign_id,
+    annotation: row.annotation_json === null ? null : JSON.parse(row.annotation_json),
+    annotationRejected: row.annotation_rejected, annotationFinalized: row.annotation_finalized === 1
+  })) : [];
+  const bundle = {
     kind: 'aetheria-campaign',
-    format_version: CAMPAIGN_BUNDLE_VERSION,
+    format_version: classWorld ? CAMPAIGN_BUNDLE_VERSION : 3,
+    ...(classWorld ? { class_runtime: { schemaVersion: 1, sourceCampaignId: campaignId,
+      rulesRevision: campaign.rules_revision, world: classWorld,
+      checks: [...(campaign.rules_history_json ? JSON.parse(campaign.rules_history_json) : []), ...checks] } } : {}),
     exported_at: new Date().toISOString(),
     campaign: {
       title: campaign.title,
@@ -3351,7 +3523,8 @@ async function buildCampaignExport(campaignId) {
       attributes_json: row.attributes_json,
       abilities_json: row.abilities_json,
       progression_notes: row.progression_notes,
-      status: row.status || 'active'
+      status: row.status || 'active',
+      ...(classWorld ? { class_build_json: row.class_build_json, baseline_json: row.baseline_json } : {})
     })),
     portability: {
       vocabulary_version: vocabularyStateRow?.vocabulary_version ?? 0,
@@ -3368,10 +3541,12 @@ async function buildCampaignExport(campaignId) {
         prose: row.prose,
         provenance: row.provenance,
         vocabulary_version: row.vocabulary_version,
-        binding_set_revision: row.binding_set_revision
+        binding_set_revision: row.binding_set_revision,
+        ...(classWorld ? { aliases: JSON.parse(row.aliases_json) } : {})
       }))
     },
     npcs: npcRows.map(row => ({
+      ...(classWorld ? { source_id: row.id } : {}),
       name: row.name,
       role: row.role,
       personality: row.personality,
@@ -3383,6 +3558,7 @@ async function buildCampaignExport(campaignId) {
       anchor_json: row.anchor_json
     })),
     locations: locationRows.map(row => ({
+      ...(classWorld ? { source_id: row.id } : {}),
       name: row.name,
       key: row.key,
       description: row.description,
@@ -3411,6 +3587,7 @@ async function buildCampaignExport(campaignId) {
         { ownedAbilities: ownedAbilitiesByCharacterId.get(row.character_id) || [] }
       ),
       svg_illustration: row.svg_illustration,
+      ...(classWorld ? { rules_snapshot_json: row.rules_snapshot_json } : {}),
       created_at: row.created_at
     })),
     pointers: {
@@ -3418,6 +3595,8 @@ async function buildCampaignExport(campaignId) {
       turn_order: turnState
     }
   };
+  if (classWorld) bundle.class_runtime = validateClassBundle(bundle);
+  return bundle;
 }
 
 /** Export one internally consistent snapshot, serialized with approvals. */
@@ -3433,6 +3612,94 @@ export async function exportCampaign(campaignId) {
  */
 export async function importCampaign(rawBundle) {
   const bundle = validateCampaignBundle(rawBundle);
+
+  if (bundle.class_runtime) {
+    let campaignId;
+    await db.withWriteTransaction(async () => {
+      const created = await db.run(`INSERT INTO campaigns
+        (title, genre, summary, current_act, rules_mode, ruleset_json, table_style_json, narrator_voice_json, last_positional)
+        VALUES (?, ?, ?, ?, 1, ?, ?, ?, ?)`, [bundle.campaign.title, bundle.campaign.genre,
+        bundle.campaign.summary, bundle.campaign.current_act, JSON.stringify(bundle.ruleset), JSON.stringify(bundle.tableStyle),
+        bundle.campaign.narrator_voice ? JSON.stringify(bundle.campaign.narrator_voice) : null, bundle.campaign.last_positional]);
+      campaignId = created.id;
+      await db.run(`INSERT INTO campaign_outlines (campaign_id, outline_json) VALUES (?, ?)`, [campaignId, JSON.stringify(bundle.outline)]);
+      const characters = new Map();
+      const profiles = new Map();
+      const npcs = new Map();
+      const locations = new Map();
+      for (const row of bundle.characters) {
+        const profile = await db.run(`INSERT INTO player_characters
+          (name, archetype, status, active_campaign_id, origin_campaign_id, health, max_health, mana, max_mana,
+           xp, level, inventory_json, attributes_json, abilities_json, progression_notes)
+          VALUES (?, ?, ?, ?, ?, ?, ?, 0, 0, ?, ?, ?, ?, ?, ?)`,
+        [row.name, row.class, row.status === 'active' ? 'checked_out' : 'available', row.status === 'active' ? campaignId : null,
+          campaignId, row.health, row.max_health, row.xp, row.level, JSON.stringify(row.inventory), JSON.stringify(row.attributes),
+          JSON.stringify(row.abilities), row.progression_notes]);
+        profiles.set(row.source_profile_id, profile.id);
+        const character = await db.run(`INSERT INTO characters
+          (campaign_id, player_character_id, name, class, health, max_health, mana, max_mana, xp, level,
+           inventory_json, attributes_json, abilities_json, progression_notes, status)
+          VALUES (?, ?, ?, ?, ?, ?, 0, 0, ?, ?, ?, ?, ?, ?, ?)`,
+        [campaignId, profile.id, row.name, row.class, row.health, row.max_health, row.xp, row.level,
+          JSON.stringify(row.inventory), JSON.stringify(row.attributes), JSON.stringify(row.abilities), row.progression_notes, row.status]);
+        characters.set(row.source_id, character.id);
+      }
+      for (const row of bundle.npcs) {
+        const result = await db.run(`INSERT INTO npcs
+          (campaign_id, name, role, personality, quirks, relationship_value, notes, status, voice_json, anchor_json)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, [campaignId, row.name, row.role, row.personality, row.quirks,
+          row.relationship_value, row.notes, row.status, row.voice ? JSON.stringify(row.voice) : null, row.anchor ? JSON.stringify(row.anchor) : null]);
+        npcs.set(row.source_id, result.id);
+      }
+      for (const row of bundle.locations) {
+        const result = await db.run(`INSERT INTO locations
+          (campaign_id, name, key, description, layout_json, occupancy_json, anchor_json, first_seen_turn, last_seen_turn)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`, [campaignId, row.name, row.key, row.description, JSON.stringify(row.layout),
+          JSON.stringify(row.occupancy), row.anchor ? JSON.stringify(row.anchor) : null, row.first_seen_turn, row.last_seen_turn]);
+        locations.set(row.source_id, result.id);
+      }
+      // No loadout reconstruction: every identity-bearing snapshot is remapped
+      // together, while owned ability instances retain their separate profiles.
+      const mapped = remapClassBundle(bundle, createClassReferenceMaps(bundle, { campaignId, characters, profiles, npcs, locations }));
+      const world = mapped.class_runtime.world;
+      await db.run(`INSERT INTO campaign_vocabulary_state (campaign_id, vocabulary_version) VALUES (?, ?)`,
+        [campaignId, mapped.portability.vocabulary_version]);
+      for (const entry of mapped.portability.vocabulary_entries) await db.run(`INSERT INTO campaign_vocabulary_entries
+        (campaign_id, semantic_key, term, provenance, vocabulary_version) VALUES (?, ?, ?, ?, ?)`,
+      [campaignId, entry.semantic_key, entry.term, entry.provenance, entry.vocabulary_version]);
+      for (const binding of mapped.portability.character_ability_bindings) await db.run(`INSERT INTO character_ability_bindings
+        (player_character_id, campaign_id, ability_id, term, prose, aliases_json, provenance, vocabulary_version, binding_set_revision)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`, [binding.source_profile_id, campaignId, binding.ability_id, binding.term,
+        binding.prose, JSON.stringify(binding.aliases), binding.provenance, binding.vocabulary_version, binding.binding_set_revision]);
+      for (const row of mapped.characters) {
+        const character = projectClassCharacter({ id: row.source_id, name: row.name, class: row.class,
+          player_character_id: row.source_profile_id, attributes: row.attributes, progression_notes: row.progression_notes }, world);
+        const bindings = mapped.portability.character_ability_bindings.filter(binding => binding.source_profile_id === row.source_profile_id)
+          .map(binding => ({ abilityId: binding.ability_id, term: binding.term, prose: binding.prose, aliases: binding.aliases }));
+        const snapshot = { ...character, bindings };
+        delete snapshot.id;
+        delete snapshot.player_character_id;
+        await db.run(`UPDATE characters SET inventory_json = ?, class_build_json = ?, baseline_json = ? WHERE id = ?`,
+          [JSON.stringify(character.inventory), JSON.stringify(character.classBuild), row.baseline_json || characterBaselineJson(snapshot), row.source_id]);
+        await db.run(`UPDATE player_characters SET inventory_json = ?, class_build_json = ?, class_state_json = ? WHERE id = ?`,
+          [JSON.stringify(character.inventory), JSON.stringify(character.classBuild), JSON.stringify(snapshot), row.source_profile_id]);
+      }
+      for (const row of mapped.memories) await db.run(`INSERT INTO memories
+        (campaign_id, turn_number, importance, summary, keywords, created_at) VALUES (?, ?, ?, ?, ?, COALESCE(?, CURRENT_TIMESTAMP))`,
+      [campaignId, row.turn_number, row.importance, row.summary, row.keywords, row.created_at]);
+      for (const row of mapped.turns) await db.run(`INSERT INTO turns
+        (campaign_id, turn_number, character_id, player_action, narrative, state_changes_json, ability_invocations_json,
+         rules_snapshot_json, svg_illustration, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, COALESCE(?, CURRENT_TIMESTAMP))`,
+      [campaignId, row.turn_number, row.source_character_id, row.player_action, row.narrative, row.state_changes_json,
+        JSON.stringify(row.ability_invocations), row.rules_snapshot_json, row.svg_illustration, row.created_at]);
+      await db.run(`UPDATE campaigns SET rules_state_json = ?, rules_revision = ?, rules_history_json = ?,
+        current_location_id = ?, turn_state_json = ? WHERE id = ?`, [JSON.stringify(world), mapped.class_runtime.rulesRevision,
+        JSON.stringify(mapped.class_runtime.checks), world.currentLocationId, JSON.stringify({
+          order: world.turnOrder.order.map(ref => Number(ref.slice(10))), current_index: world.turnOrder.currentIndex, round: world.turnOrder.round
+        }), campaignId]);
+    });
+    return getCampaignState(campaignId);
+  }
 
   let newCampaignId;
   await db.withWriteTransaction(async () => {
@@ -3640,7 +3907,10 @@ export async function forkCampaign(campaignId, turnNumber, newTitle) {
   const campaign = await db.get(`SELECT * FROM campaigns WHERE id = ?`, [campaignId]);
   if (!campaign) throw new Error(`Campaign ${campaignId} not found.`);
   if (isClassRuleset(parseJsonObject(campaign.ruleset_json, null))) {
-    throw new Error('Class campaign fork integration is pending. Legacy replay cannot reconstruct its mechanical state.');
+    const source = await exportCampaign(campaignId);
+    const forked = forkClassBundle(source, turnNumber);
+    forked.campaign.title = newTitle;
+    return importCampaign(forked);
   }
 
   const outlineRow = await db.get(`SELECT * FROM campaign_outlines WHERE campaign_id = ?`, [campaignId]);

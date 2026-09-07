@@ -47,7 +47,7 @@ function fixture() {
       locations: [{ source_id: 30, name: 'Court', key: 'court', layout_json: JSON.stringify(location.layout) }],
       memories: [{ turn_number: 1, summary: 'npc:20 is text.' }, { turn_number: 2, summary: 'A later fact.' }],
       turns: [
-        { turn_number: 1, source_character_id: 10, player_action: 'A literal npc:20.', narrative: 'Never rewrite npc:20 or character:10 here.', state_changes_json: JSON.stringify({ dice_rolls: [check], scene_grounding: 'npc:20 is prose.' }), rules_snapshot_json: JSON.stringify(first), ability_invocations: { schema_version: 1, trigger_revision: 'original-revision', abilities: [] } },
+        { turn_number: 1, source_character_id: 10, player_action: 'A literal npc:20.', narrative: 'Never rewrite npc:20 or character:10 here.', state_changes_json: JSON.stringify({ dice_rolls: [check], scene_grounding: 'npc:20 is prose.', quest_update: { active_quest: 'npc:20', quest_description: 'character:10' }, arbitrary_prose: { actor: 10, detail: 'npc:20' }, rules_effects: evaluated.effects, rules_events: [{ who: 'npc:20', detail: 'npc:20' }], rules_award: { actor: 10, award: 'milestone' } }), rules_snapshot_json: JSON.stringify(first), ability_invocations: { schema_version: 1, trigger_revision: 'original-revision', abilities: [] } },
         { turn_number: 2, source_character_id: 10, player_action: 'Wait.', narrative: 'Later.', state_changes_json: '{}', rules_snapshot_json: JSON.stringify(current), ability_invocations: { schema_version: 1, trigger_revision: 'original-revision', abilities: [] } }
       ],
       portability: { vocabulary_version: 0, vocabulary_entries: [], character_ability_bindings: sheet.bindings.map(binding => ({ source_profile_id: 100, ability_id: binding.abilityId, term: binding.term, prose: binding.prose, aliases: binding.aliases })) },
@@ -64,6 +64,9 @@ export function runClassPortabilityTests() {
   assert.deepEqual(bundle, original, 'Validation must not mutate source artifacts.');
   assert.deepEqual(runtime.checks[0].sourceContext, { campaignId: 1000, actor: 10, turn: 1 });
   assert.equal(validateClassBundle({ kind: 'aetheria-campaign', format_version: 3, campaign: { ruleset_json: null } }), null);
+  const legacySanitizerInput = { kind: 'aetheria-campaign', format_version: 3, campaign: { ruleset_json: null }, npcs: [{ voice_json: { voiceSeed: Infinity, mood: undefined } }] };
+  assert.equal(validateClassBundle(legacySanitizerInput), null, 'Target-only validation must not preempt existing legacy sanitizers.');
+  assert.deepEqual(remapClassBundle(legacySanitizerInput, {}), legacySanitizerInput);
   assert.deepEqual(remapClassBundle({ kind: 'aetheria-campaign', format_version: 3, campaign: { ruleset_json: null }, arbitraryLegacy: 'preserved' }, {}),
     { kind: 'aetheria-campaign', format_version: 3, campaign: { ruleset_json: null }, arbitraryLegacy: 'preserved' });
   const reject = mutate => {
@@ -130,6 +133,12 @@ export function runClassPortabilityTests() {
   assert.equal(remapped.turns[0].player_action, bundle.turns[0].player_action);
   assert.equal(remapped.turns[0].narrative, bundle.turns[0].narrative);
   assert.equal(JSON.parse(remapped.turns[0].state_changes_json).scene_grounding, 'npc:20 is prose.');
+  const remappedChanges = JSON.parse(remapped.turns[0].state_changes_json);
+  assert.deepEqual(remappedChanges.quest_update, { active_quest: 'npc:20', quest_description: 'character:10' });
+  assert.deepEqual(remappedChanges.arbitrary_prose, { actor: 10, detail: 'npc:20' });
+  assert.equal(remappedChanges.rules_effects[0].who, 'npc:120');
+  assert.deepEqual(remappedChanges.rules_events, [{ who: 'npc:120', detail: 'npc:20' }]);
+  assert.equal(remappedChanges.rules_award.actor, 110);
   assert.equal(remapped.memories[0].summary, 'npc:20 is text.');
   assert.deepEqual(bundle, original, 'Remapping cannot mutate source identities.');
   const twice = remapClassBundle(remapped, createClassReferenceMaps(remapped, { campaignId: 3000,

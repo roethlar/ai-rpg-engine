@@ -14,20 +14,27 @@ to `docs/history/state-archive.md`.
   passed, including the new boundary guard's failure proof; the implementation plan owns details.
   Immutable d100 history projection and the durable operation/check/annotation store also pass
   focused and full-suite checks. The authored catalog foundation covers all 24 branch packages,
-  168 definitions and levels 1-10; its component checks pass. These foundations are not yet
-  connected to Council turns. The strict effect evaluator and versioned class extensions pass
+  168 definitions and levels 1-10; its component checks pass. These foundations now back
+  target Council turns. The strict effect evaluator and versioned class extensions pass
   focused operation/rollback tests. Signed-rules execution, real creation/play integration and
   end-to-end verification remain in progress.
   Creation/scene/world adapter and the creator/seat UI are integrated;
   real HTTP/provider-stubbed creation, all-branch joining, reload and stale-write checks pass.
-  Target turns currently refuse legacy d20 execution while Council integration is pending.
-  Exact-world portability helpers pass component checks; legacy lifecycle paths still refuse target
-  worlds until their integration lands. Parallel work now covers ordinary actions and real creator
-  browser verification; root owns Council and lifecycle integration. The active plan records the
-  contracts and evidence and remains the completion audit.
+  Target turns now use the dedicated signed Council path. Real creator-to-turn DB tests pass
+  direct Magic Missile, Fireball narration-failure recovery with the same committed check and
+  one use charged, table-talk no-ops, rejected-action preservation, mixed-party ownership and
+  authored advancement. Exact v4 export/import/fork/release now passes real lifecycle tests,
+  including archived empty tables and imported checks. Ordinary actions and asymmetric NPC
+  turns have canonical handlers, including readying a recovered weapon without a free attack.
+  Combined unit/browser verification passes, including actual desktop/mobile HTTP/catalog/DB/
+  Council/RNG cast, narration failure, reload, exact retry and history. Guard mutations were
+  restored before verification. The active plan remains the completion audit. Next work closes
+  live reachability gaps: complete qualitative class selectors for the Referee, materialized fallen
+  NPC prerequisites for revival, and real cross-location scene travel. These are not permission to
+  invent PC dying rules or claim a live-model/human enjoyment verdict from stubbed-provider tests.
   Class action/progression components now pass the full active-ability/mode matrix and real-adapter
   protection/transfer tests. Combined `node test.js` also passes creation and seat integration.
-  These facts do not remove the pending Council/portability activation work.
+  These facts do not remove the pending full experience verification and completion audit.
   Do not stop at another paper recommendation or ask for routine per-class approvals.
 - **THE OWNER IS NOT THE ABILITY-REVIEW COMMITTEE.** The 2026-09-07 agent-owned design decision
   in `.agents/decisions.md` rejects serial ability verdicts and per-step go requests. Agents own

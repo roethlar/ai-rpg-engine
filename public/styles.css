@@ -691,7 +691,13 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
+  gap: 8px;
   margin-bottom: 12px;
+}
+.character-header > div:first-child {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 .char-class-badge {
   background: rgba(255, 255, 255, 0.05);
@@ -703,6 +709,7 @@ body {
   color: var(--theme-text-dim);
 }
 .char-level-badge {
+  flex-shrink: 0;
   text-align: center;
   background: linear-gradient(135deg, var(--theme-primary), var(--theme-secondary));
   border-radius: 8px;

@@ -282,12 +282,17 @@ export function validateClassCheckArtifact(raw, { campaignId } = {}) {
  * return null; a target ruleset without its extension is never downgraded.
  */
 export function validateClassBundle(rawBundle) {
-  const bundle = clone(rawBundle);
-  const ruleset = rulesetOf(bundle);
-  if (!isClassRuleset(ruleset)) {
-    if (bundle.class_runtime !== undefined && bundle.class_runtime !== null) fail('A class runtime artifact requires its matching target ruleset.');
+  let ruleset;
+  try { ruleset = rulesetOf(rawBundle); }
+  catch {
+    if (rawBundle?.class_runtime !== undefined && rawBundle.class_runtime !== null) fail('A class runtime artifact requires a valid matching target ruleset.');
     return null;
   }
+  if (!isClassRuleset(ruleset)) {
+    if (rawBundle.class_runtime !== undefined && rawBundle.class_runtime !== null) fail('A class runtime artifact requires its matching target ruleset.');
+    return null;
+  }
+  const bundle = clone(rawBundle);
   validateClassRuleset(ruleset);
   if (bundle.kind !== 'aetheria-campaign' || bundle.format_version !== 4) fail('Target class campaigns require campaign bundle format version 4.');
   const runtime = bundle.class_runtime;
@@ -494,10 +499,12 @@ function remapper(maps) {
  */
 export function remapClassBundle(rawBundle, maps) {
   const runtime = validateClassBundle(rawBundle);
-  if (!runtime) return clone(rawBundle);
+  if (!runtime) return structuredClone(rawBundle);
   validateMappings(rawBundle, runtime, maps);
   const bundle = clone(rawBundle);
   const mapper = remapper(maps);
+  const remapChanges = raw => Object.fromEntries(Object.entries(raw).map(([key, value]) => [key,
+    ['dice_rolls', 'rules_effects', 'rules_events', 'rules_award'].includes(key) ? mapper.walk(value) : clone(value)]));
   bundle.class_runtime = {
     ...runtime, sourceCampaignId: maps.campaignId, world: mapper.world(runtime.world),
     checks: runtime.checks.map(check => mapper.walk(check))
@@ -527,8 +534,8 @@ export function remapClassBundle(rawBundle, maps) {
     if (typeof row.rules_snapshot_json === 'string') row.rules_snapshot_json = JSON.stringify(snapshot);
     else row.rules_snapshot = snapshot;
     if (row.ability_invocations) row.ability_invocations = mapper.walk(row.ability_invocations);
-    if (typeof row.state_changes_json === 'string') row.state_changes_json = JSON.stringify(mapper.walk(parsed(row.state_changes_json, 'turn state changes')));
-    else if (row.state_changes) row.state_changes = mapper.walk(row.state_changes);
+    if (typeof row.state_changes_json === 'string') row.state_changes_json = JSON.stringify(remapChanges(parsed(row.state_changes_json, 'turn state changes')));
+    else if (row.state_changes) row.state_changes = remapChanges(row.state_changes);
   }
   if (bundle.portability?.character_ability_bindings) {
     for (const binding of bundle.portability.character_ability_bindings) {

@@ -143,6 +143,7 @@ handler after definition/ownership checks, never numeric fields accepted from mo
 |---|---|
 | `disarm` | `{op,who,item}`; target's wielded, removable recorded weapon drops into its current area. Natural/fixed weapons reject. No new item is minted. |
 | `item_consume` | `{op,owner,item,quantity:1}`; the acting character's held `kind:'revival-catalyst'` record becomes lost. The accompanying revival is independently ledgered; the item is not a prose effect parser. |
+| `item_ready` | Ordinary-only `{op,owner,item}`; the acting PC readies one held, usable, movable weapon for which its pinned class grants training. Requires explicit compatible `weaponKind`, `weaponCategory`, `wielded:false`, and boolean `equipped`; sets wielded/equipped true. Unknown or contradictory authored equipment, another owner, broken/natural/fixed weapons and already-readied weapons reject. It grants no attack, damage or pickup. |
 | `object_unlock` | `{op,object,maximumSecurity:'ordinary'}`; sets a recorded ordinary lock to unlocked. Authored checkless use requires `opposed:false`; ordinary skill entitlement belongs to the ordinary authorizer. |
 | `object_disable` | `{op,object,maximumSecurity:'ordinary',duration:'scene'}`; disables an ordinary recorded lock/mechanism until scene change. Protected systems remain a distinct access subsystem. |
 | `reveal` | `{op,subject,scope,maximum:1|2}`; actor/object/area subject reveals at most that many undiscovered stored facts in stable record order, marks them discovered and appends exact party facts. No matched records means a rejection, never success-by-prose. |
@@ -160,6 +161,13 @@ actions under their authorizer; bypassing a mundane check is an authored ability
 a ban on ordinary lockpicking. Other added class operations require `consumer:'ability'`.
 Core NPC vitals and recorded party-allied NPC framing are available to every consumer under their
 normal authorization.
+
+Ordinary `wield {item}` consumes one Main and emits exactly `item_ready`. Pickup remains a
+separate custody action and leaves the weapon unwielded; attacking with it requires a later
+ready action. The scene descriptor pins weapon training through optional `weaponCategory`:
+`melee_weapon` permits `simple`, `martial`, or `heavy`, defaulting to `simple`; `ranged_weapon`
+permits and defaults to `ranged`. Nonweapons use null. These defaults belong to scene schema 1,
+not display-name inference, and never change the fixed ordinary wound harm grade.
 
 Reveal scope tokens are `quarry_route`, `combat_trait`, `defense_trait`, `leverage`, `motive`,
 `route`, `area_features`, `profile_senses`, and `companion_scout`. Remote reveal is limited to

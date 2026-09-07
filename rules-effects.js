@@ -1,7 +1,7 @@
 import { isDeepStrictEqual } from 'node:util';
 import { caseFold } from 'unicode-case-folding';
 import { STAKES_BUDGETS } from './rules-resolution.js';
-import { getAbilityDefinition } from './class-catalog.js';
+import { CLASS_EQUIPMENT, CLASS_EQUIPMENT_PERMISSIONS, getAbilityDefinition, getClassBranch } from './class-catalog.js';
 
 export const EFFECT_CATALOG_VERSION = 'effects-class-runtime-1';
 export const EFFECT_VALUES = Object.freeze({
@@ -26,7 +26,7 @@ export const SUPPORTED_EFFECT_OPERATIONS = Object.freeze([
   'item_drop', 'item_pickup', 'item_condition_shift', 'wealth_shift', 'disposition_improve',
   'disposition_worsen', 'reposition', 'scene_exit', 'hindrance_apply', 'boon_apply',
   'condition_clear', 'scene_feature_place', 'scene_feature_clear', 'encounter_start',
-  'encounter_end', 'fact_learn', 'location_transition', 'actor_status', ...ABILITY_EXTENSIONS
+  'encounter_end', 'fact_learn', 'location_transition', 'actor_status', 'item_ready', ...ABILITY_EXTENSIONS
 ].sort());
 
 function fail(code, message) {
@@ -288,7 +288,7 @@ export function evaluateEffects({ state, effects, consumer, actor, turn, transac
     if (!SUPPORTED_EFFECT_OPERATIONS.includes(effect.op)) fail('MEMBERSHIP', 'Operation is not in the pinned catalog.');
     if (ABILITY_EXTENSIONS.includes(effect.op) && consumer !== 'ability'
       && !(consumer === 'ordinary' && ORDINARY_EXTENSIONS.includes(effect.op))) fail('AUTHORIZATION', 'This operation is restricted to authored abilities.');
-    if (['location_transition', 'actor_status'].includes(effect.op) && consumer !== 'ordinary') fail('AUTHORIZATION', 'This operation is restricted to the ordinary engine authorizer.');
+    if (['location_transition', 'actor_status', 'item_ready'].includes(effect.op) && consumer !== 'ordinary') fail('AUTHORIZATION', 'This operation is restricted to the ordinary engine authorizer.');
     const result = executeEffect(effect, { ...context, index });
     for (const key of result.keys) {
       if (used.has(key)) fail('CONFLICT', 'Two effects address the same conflict key.');
@@ -432,6 +432,29 @@ function executeEffect(effect, context) {
       }
       if (Object.hasOwn(item, 'wielded')) item.wielded = false;
       return result([`${effect.item}:possession`], frame(who, pickup), { significant: item.class === 'significant', targets: { item: effect.item, owner: who, holder: item.holder }, prestate: { holder: before, class: item.class }, params });
+    }
+    case 'item_ready': {
+      shape(effect, ['owner', 'item']);
+      if (effect.owner !== `character:${context.actor}`) fail('AUTHORIZATION', 'Only the acting character may ready its own weapon.');
+      const owner = actorRecord(state, effect.owner);
+      const item = itemRecord(state, effect.item);
+      const build = owner.classBuild;
+      const permission = CLASS_EQUIPMENT_PERMISSIONS[build?.familyId];
+      const definition = item.equipmentId ? CLASS_EQUIPMENT[item.equipmentId] : null;
+      if (!getClassBranch(build?.familyId, build?.branchId) || !permission?.weapons.includes(item.weaponCategory)) fail('AUTHORIZATION', 'Readying this weapon requires its recorded class training.');
+      if (item.holder !== effect.owner || item.weapon !== true || item.condition === 'broken' || item.fixed === true || item.natural === true
+        || owner.health <= 0 || owner.status !== 'active') fail('PRECONDITION', 'Readying requires a held usable movable weapon and an active owner.');
+      if (!['melee_weapon', 'ranged_weapon'].includes(item.weaponKind)
+        || !['simple', 'martial', 'heavy', 'ranged'].includes(item.weaponCategory)
+        || (item.weaponKind === 'ranged_weapon') !== (item.weaponCategory === 'ranged')
+        || typeof item.wielded !== 'boolean' || typeof item.equipped !== 'boolean') fail('STATE', 'Weapon readiness and category must be explicit compatible state.');
+      if (item.equipmentId && (!definition || definition.weaponKind !== item.weaponKind || definition.weaponCategory !== item.weaponCategory)) fail('AUTHORIZATION', 'The weapon contradicts its authored equipment definition.');
+      if (item.wielded) fail('NO_OP', 'That weapon is already wielded.');
+      const prestate = { holder: item.holder, wielded: item.wielded, equipped: item.equipped, class: item.class };
+      item.wielded = true;
+      item.equipped = true;
+      events.push({ type: 'item_readied', owner: effect.owner, item: effect.item });
+      return result([`${effect.item}:readiness`], 'beneficial', { targets: { owner: effect.owner, item: effect.item }, prestate });
     }
     case 'item_condition_shift': {
       shape(effect, ['item', 'direction'], ['to']);

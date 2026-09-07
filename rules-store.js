@@ -81,12 +81,13 @@ function active(row) {
  * return the saved operation; every binding field, including input, is fixed.
  * input is JSON (prose plus engine-owned declarations when applicable).
  */
-export async function beginRulesOperation({ campaignId, actor, turn, input, catalogVersion, requestId }) {
+export async function beginRulesOperation({ campaignId, actor, turn, input, catalogVersion, requestId, expectedWorldRevision = null }) {
   integer(campaignId, 'campaignId');
   integer(actor, 'actor');
   integer(turn, 'turn');
   text(catalogVersion, 'catalogVersion');
   text(requestId, 'requestId');
+  if (expectedWorldRevision !== null) integer(expectedWorldRevision, 'expectedWorldRevision', 0);
   const inputJson = json(input);
   return withWriteTransaction(async () => {
     const previous = await get('SELECT * FROM rules_turn_operations WHERE request_id = ?', [requestId]);
@@ -96,6 +97,10 @@ export async function beginRulesOperation({ campaignId, actor, turn, input, cata
         fail('CONFLICT', 'Request identity is already bound to a different action.');
       }
       return operationView(previous);
+    }
+    if (expectedWorldRevision !== null) {
+      const campaign = await get('SELECT rules_revision FROM campaigns WHERE id = ?', [campaignId]);
+      if (!campaign || campaign.rules_revision !== expectedWorldRevision) fail('STALE', 'The world changed while this action was being validated.');
     }
     const character = await get('SELECT campaign_id, status FROM characters WHERE id = ?', [actor]);
     if (!character || character.campaign_id !== campaignId || character.status !== 'active') {

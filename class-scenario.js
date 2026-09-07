@@ -35,6 +35,10 @@ const REVEAL_SCOPES = ['quarry_route', 'combat_trait', 'defense_trait', 'leverag
 const AREA_TRAITS = ['visible', 'safe', 'visited', 'focus', 'anchor', 'teleport_ward', 'blocked', 'flight_blocked', 'space_for_wings', 'safe_recovery', 'immediate_threat'];
 const SURFACES = ['ground', 'wall', 'ceiling', 'water'];
 const ITEM_KINDS = ['melee_weapon', 'ranged_weapon', 'tool', 'mundane', 'revival_catalyst'];
+export const SCENE_WEAPON_CATEGORIES = freeze({
+  melee_weapon: { default: 'simple', allowed: ['simple', 'martial', 'heavy'] },
+  ranged_weapon: { default: 'ranged', allowed: ['ranged'] }
+});
 const CONDITIONS = [...HINDRANCES, ...BOONS];
 const DURATIONS = ['scene', 'persistent'];
 
@@ -43,7 +47,7 @@ export const CLASS_SCENE_CONTRACT = freeze({
   fields: {
     areas: [{ area: 'provided-area-id', terrain: 'dry_ground', traits: ['visible', 'safe', 'visited'], surfaces: ['ground'] }],
     actors: [{ actor: 'provided-actor-key', area: 'provided-area-id', allegiance: 'neutral', profile: 'combatant', conditions: [] }],
-    items: [{ key: 'saber', name: 'Saber', description: 'A plain saber.', kind: 'melee_weapon', holder: { kind: 'actor', key: 'provided-actor-key' }, wielded: true, condition: 'pristine' }],
+    items: [{ key: 'saber', name: 'Saber', description: 'A plain saber.', kind: 'melee_weapon', weaponCategory: 'simple', holder: { kind: 'actor', key: 'provided-actor-key' }, wielded: true, condition: 'pristine' }],
     objects: [{ key: 'gate-lock', name: 'Gate lock', area: 'provided-area-id', kind: 'lock', security: 'ordinary', opposed: false, locked: true, mapFeature: 0 }],
     features: [{ key: 'barrier', name: 'Barrier', area: 'provided-area-id', kind: 'cover', duration: 'persistent', worksAgainst: 'both', origin: 'mundane' }],
     discoveries: [{ key: 'gate-route', subject: { kind: 'area', key: 'provided-area-id' }, scope: 'route', fact: 'The gate connects to the courtyard.' }],
@@ -52,7 +56,7 @@ export const CLASS_SCENE_CONTRACT = freeze({
   tokens: { npcProfiles: Object.keys(NPC_PROFILES), allegiance: ['party', 'neutral', 'opposition'], terrain: ['dry_ground', 'underwater'], areaTraits: AREA_TRAITS,
     surfaces: SURFACES, itemKinds: ITEM_KINDS, itemConditions: ['pristine', 'worn', 'damaged', 'broken'], objectKinds: ['lock', 'mechanism', 'scenery'],
     security: ['ordinary', 'protected'], featureKinds: FEATURE_KINDS, worksAgainst: ['party', 'opposition', 'both'], durations: DURATIONS,
-    conditions: CONDITIONS, revealScopes: REVEAL_SCOPES, featureOrigins: ['mundane', 'magical', 'unknown'] },
+    conditions: CONDITIONS, revealScopes: REVEAL_SCOPES, featureOrigins: ['mundane', 'magical', 'unknown'], weaponCategories: SCENE_WEAPON_CATEGORIES },
   rules: [
     'Return every required top-level field, even empty arrays. No additional fields, numbers for combat power, effect operations, or invented actor/area references.',
     'Include each provided area and actor exactly once. Actor area may be null for an absent NPC; player actors and engine-controlled companions use profile:null and allegiance:party.',
@@ -61,6 +65,7 @@ export const CLASS_SCENE_CONTRACT = freeze({
     'A discovery has exact stored fact text (1-120 characters), one listed scope, and a recorded actor, area, or object subject. Fact text never grants permission or changes state.',
     'A lock has an explicit locked flag; mechanisms and scenery must use locked:false. Protected security cannot be unlocked or disabled by ordinary access powers.',
     'Held items require a provided actor holder or recorded area holder. Only a held weapon can be wielded. Items grant only their engine-defined kind, never numeric bonuses.',
+    'Optional weaponCategory must match the typed weapon kind: melee permits simple, martial, or heavy and defaults to simple; ranged permits and defaults to ranged. Nonweapons omit it or use null. Display names never grant a weapon category.',
     'Active encounters list present opposition actors, never party or neutral actors. Inactive encounters have an empty opposition list.',
     'Safe occupancy is not safe recovery. Only explicit safe_recovery permits a recovery opportunity; immediate_threat forbids it. These two traits cannot coexist in an area.',
     'Set feature origin explicitly to mundane or magical when known. Omitted origin is unknown; a name or feature kind never proves its origin.'
@@ -197,10 +202,16 @@ export function validateClassSceneFrame(raw, { layout, actorKeys } = {}) {
     return { kind: entry.kind, key: value };
   };
   const items = list(raw.items, 'items').map(entry => {
-    shape(entry, ['key', 'name', 'description', 'kind', 'holder', 'wielded', 'condition']);
+    shape(entry, ['key', 'name', 'description', 'kind', 'holder', 'wielded', 'condition'], ['weaponCategory']);
     const result = { key: key(entry.key), name: text(entry.name, 80, 'item name'), description: text(entry.description, 300, 'item description'),
       kind: oneOf(entry.kind, ITEM_KINDS, 'item kind'), holder: subject(entry.holder, ['actor', 'area']),
       wielded: boolean(entry.wielded, 'item wielded'), condition: oneOf(entry.condition, ['pristine', 'worn', 'damaged', 'broken'], 'item condition') };
+    const categories = SCENE_WEAPON_CATEGORIES[result.kind];
+    if (categories) result.weaponCategory = oneOf(entry.weaponCategory ?? categories.default, categories.allowed, 'weapon category');
+    else {
+      if (entry.weaponCategory !== undefined && entry.weaponCategory !== null) invalid('Nonweapons cannot claim weapon training categories.');
+      result.weaponCategory = null;
+    }
     if (result.wielded && (result.holder.kind !== 'actor' || !['melee_weapon', 'ranged_weapon'].includes(result.kind))) invalid('Only a held weapon may be wielded.');
     if (result.holder.kind === 'actor' && actors.find(value => value.actor === result.holder.key).area === null) invalid('Scene items require a present holder.');
     return result;
@@ -315,7 +326,7 @@ export function buildClassScenario({ world, location, frame, actorBindings, turn
       type: weapon ? 'weapon' : entry.kind === 'tool' ? 'equipment' : 'general',
       kind: entry.kind === 'revival_catalyst' ? 'revival-catalyst' : entry.kind,
       class: entry.kind === 'revival_catalyst' ? 'significant' : 'mundane', condition: entry.condition,
-      weapon, weaponKind: weapon ? entry.kind : null, wielded: entry.wielded, equipped: entry.wielded,
+      weapon, weaponKind: weapon ? entry.kind : null, weaponCategory: entry.weaponCategory, wielded: entry.wielded, equipped: entry.wielded,
       natural: false, fixed: false, lost: false, provenance: [{ kind: 'scene_authored', source }] };
   }
   for (const entry of normalized.discoveries) {

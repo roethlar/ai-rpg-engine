@@ -1610,7 +1610,21 @@ function scopeOwnCharacterForSeat(member) {
   return scoped;
 }
 
-export function scopeStateForSeat(state, seatCharacterId) {
+const SEAT_REQUEST_ID_PATTERN = /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/iu;
+
+function scopePendingActionForSeat(action, seatCharacterId, actingCharacterId) {
+  if (!action || typeof action !== 'object' || Array.isArray(action)
+    || action.characterId !== seatCharacterId || actingCharacterId !== seatCharacterId
+    || action.actor !== `character:${seatCharacterId}`
+    || typeof action.requestId !== 'string' || !SEAT_REQUEST_ID_PATTERN.test(action.requestId)
+    || typeof action.playerAction !== 'string' || !action.playerAction.trim() || action.playerAction.length > 2000
+    || typeof action.abilityTriggerRevision !== 'string' || !/^ak\d+:[a-f0-9]{64}$/u.test(action.abilityTriggerRevision)
+    || !['accepted', 'prepared', 'resolved', 'narrated'].includes(action.stage)) return null;
+  return { requestId: action.requestId, actor: action.actor, characterId: action.characterId,
+    playerAction: action.playerAction, abilityTriggerRevision: action.abilityTriggerRevision, stage: action.stage };
+}
+
+export function scopeStateForSeat(state, seatCharacterId, { allowSettledRequestId = false } = {}) {
   if (!state || typeof state !== 'object') return state;
   const party = Array.isArray(state.party) ? state.party : [];
   const own = party.find(member => member && member.id === seatCharacterId) || null;
@@ -1652,6 +1666,13 @@ export function scopeStateForSeat(state, seatCharacterId) {
     }
   };
   if (scoped.turn && dice.annotationDetails.length) scoped.turn.rollAnnotationDetails = dice.annotationDetails;
+  if (state.ruleset?.id === 'aetheria') {
+    scoped.pendingAction = scopePendingActionForSeat(state.pendingAction, seatCharacterId, state.turnOrder?.actingCharacterId);
+    if (scoped.turn && turn?.characterId === seatCharacterId
+      && typeof turn.requestId === 'string' && SEAT_REQUEST_ID_PATTERN.test(turn.requestId)) scoped.turn.requestId = turn.requestId;
+    if (allowSettledRequestId && typeof state.settledRequestId === 'string'
+      && SEAT_REQUEST_ID_PATTERN.test(state.settledRequestId)) scoped.settledRequestId = state.settledRequestId;
+  }
   return scoped;
 }
 
@@ -1694,7 +1715,11 @@ export function scopeJournalForSeat(turns) {
  * the same validators live play uses, bounded, and shape-normalized before
  * any caller may write it.
  */
-export const CAMPAIGN_BUNDLE_VERSION = 3;
+import { validateClassBundle } from './class-portability.js';
+import { buildCharacterAbilityTriggerState } from './ability-trigger-state.js';
+import { classTriggerOptions } from './class-state.js';
+
+export const CAMPAIGN_BUNDLE_VERSION = 4;
 
 const CAMPAIGN_BUNDLE_PORTABILITY_ROW_LIMIT = 10000;
 const CAMPAIGN_BUNDLE_PORTABILITY_COUNTER_LIMIT = Number.MAX_SAFE_INTEGER - 1;
@@ -1740,6 +1765,7 @@ function emptyBundlePortability() {
 
 function validateBundlePortability(bundle, characters, canonBasis) {
   if (bundle.format_version < 2) return emptyBundlePortability();
+  const target = isClassRuleset(bundleJsonObject(bundle.campaign?.ruleset_json ?? bundle.ruleset));
 
   const raw = bundle.portability;
   if (!hasExactKeys(raw, [
@@ -1844,7 +1870,8 @@ function validateBundlePortability(bundle, characters, canonBasis) {
       'prose',
       'provenance',
       'vocabulary_version',
-      'binding_set_revision'
+      'binding_set_revision',
+      ...(target ? ['aliases'] : [])
     ])) {
       invalidBundlePortability('ability binding row shape is invalid');
     }
@@ -1852,12 +1879,22 @@ function validateBundlePortability(bundle, characters, canonBasis) {
     const sourceProfileId = bundleSourceProfileId(row.source_profile_id);
     let binding;
     try {
-      binding = normalizeCharacterAbilityBinding({
+      binding = target ? {
+        abilityId: normalizeAbilityBindingId(row.ability_id),
+        term: normalizePortabilityText(row.term, 80, invalidCharacterAbilityBinding),
+        prose: normalizePortabilityText(row.prose, 500, invalidCharacterAbilityBinding),
+        provenance: row.provenance
+      } : normalizeCharacterAbilityBinding({
         abilityId: row.ability_id,
         term: row.term,
         prose: row.prose,
         provenance: row.provenance
       });
+      if (target && (!CHARACTER_ABILITY_BINDING_PROVENANCES.includes(binding.provenance)
+        || !Array.isArray(row.aliases) || row.aliases.length > 16
+        || row.aliases.some(alias => typeof alias !== 'string' || !alias.trim() || alias.length > 80))) {
+        invalidBundlePortability('class binding metadata is invalid');
+      }
     } catch {
       invalidBundlePortability('ability binding row is invalid');
     }
@@ -1869,8 +1906,8 @@ function validateBundlePortability(bundle, characters, canonBasis) {
       invalidBundlePortability('ability binding wording is not normalized');
     }
     if (
-      containsStageOnePrivateCanonEcho(binding.term, canonBasis)
-      || containsStageOnePrivateCanonEcho(binding.prose, canonBasis)
+      !target && (containsStageOnePrivateCanonEcho(binding.term, canonBasis)
+      || containsStageOnePrivateCanonEcho(binding.prose, canonBasis))
     ) {
       invalidBundlePortability('ability binding wording copies private canon');
     }
@@ -1885,7 +1922,7 @@ function validateBundlePortability(bundle, characters, canonBasis) {
     const identity = `${sourceProfileId}\u0000${binding.abilityId}`;
     if (
       !sourceCharacter
-      || sourceCharacter.status !== 'active'
+      || (!target && sourceCharacter.status !== 'active')
       || !sourceAbilityIds?.has(binding.abilityId)
       || bindingVocabularyVersion > vocabularyVersion
       || seenBindings.has(identity)
@@ -1900,9 +1937,19 @@ function validateBundlePortability(bundle, characters, canonBasis) {
       prose: binding.prose,
       provenance: binding.provenance,
       vocabulary_version: bindingVocabularyVersion,
-      binding_set_revision: bindingSetRevision
+      binding_set_revision: bindingSetRevision,
+      ...(target ? { aliases: [...row.aliases] } : {})
     };
   });
+
+  if (target) for (const character of characters) {
+    buildCharacterAbilityTriggerState({ campaignId: bundle.class_runtime.sourceCampaignId,
+      character: { ...character, id: character.source_id, player_character_id: character.source_profile_id,
+        classBuild: bundle.class_runtime.world.actors[`character:${character.source_id}`].classBuild },
+      bindings: characterAbilityBindings.filter(row => row.source_profile_id === character.source_profile_id)
+        .map(row => ({ abilityId: row.ability_id, term: row.term, prose: row.prose, aliases: row.aliases })),
+      ...classTriggerOptions({ classBuild: bundle.class_runtime.world.actors[`character:${character.source_id}`].classBuild }) });
+  }
 
   return {
     vocabulary_version: vocabularyVersion,
@@ -2008,7 +2055,7 @@ export function validateCampaignBundle(raw) {
   if (bundle.format_version > CAMPAIGN_BUNDLE_VERSION) {
     throw new Error(`Bundle format_version ${bundle.format_version} is newer than this engine supports (${CAMPAIGN_BUNDLE_VERSION}).`);
   }
-  // Older versions migrate here as the format grows. v1 is current.
+  const classRuntime = validateClassBundle(bundle);
 
   const rawCampaign = bundle.campaign && typeof bundle.campaign === 'object' ? bundle.campaign : {};
   const campaign = {
@@ -2023,7 +2070,6 @@ export function validateCampaignBundle(raw) {
 
   const outline = validateOutlineData(bundleJsonObject(bundle.outline ?? bundle.outline_json, {}));
   const ruleset = validateRulesetData(bundleJsonObject(rawCampaign.ruleset_json ?? bundle.ruleset));
-  if (isClassRuleset(ruleset)) throw new Error('Class campaign import requires the complete versioned runtime bundle integration.');
   const tableStyle = validateTableStyle(bundleJsonObject(rawCampaign.table_style_json ?? bundle.table_style));
 
   const characters = bundleJsonArray(bundle.characters).map(row => {
@@ -2045,10 +2091,12 @@ export function validateCampaignBundle(raw) {
       attributes: bundleBoundedObject(row.attributes ?? row.attributes_json, 5000),
       abilities: bundleObjectList(row.abilities ?? row.abilities_json, 100, 200000),
       progression_notes: cleanText(row.progression_notes, 10000),
-      status: row.status === 'released' ? 'released' : 'active'
+      status: row.status === 'released' ? 'released' : 'active',
+      ...(classRuntime ? { class_build_json: JSON.stringify(classRuntime.world.actors[`character:${row.source_id}`].classBuild),
+        baseline_json: row.baseline_json ?? null } : {})
     };
   }).filter(Boolean);
-  if (!characters.some(c => c.status === 'active')) {
+  if (!characters.some(c => c.status === 'active') && !classRuntime) {
     throw new Error('Bundle contains no active characters.');
   }
   const charactersBySourceId = new Map();
@@ -2065,6 +2113,7 @@ export function validateCampaignBundle(raw) {
     const name = cleanText(row.name, 120);
     if (!name) return null;
     return {
+      ...(classRuntime ? { source_id: row.source_id } : {}),
       name,
       role: cleanText(row.role, 200),
       personality: cleanText(row.personality, 2000),
@@ -2089,6 +2138,7 @@ export function validateCampaignBundle(raw) {
     if (seenLocationKeys.has(key)) return null;
     seenLocationKeys.add(key);
     return {
+      ...(classRuntime ? { source_id: row.source_id } : {}),
       name,
       key,
       description: cleanText(row.description, 600),
@@ -2213,7 +2263,8 @@ export function validateCampaignBundle(raw) {
       state_changes_json: stateChanges,
       ability_invocations: abilityInvocations,
       svg_illustration: svg,
-      created_at: cleanText(row.created_at, 40) || null
+      created_at: cleanText(row.created_at, 40) || null,
+      ...(classRuntime ? { rules_snapshot_json: JSON.stringify(bundleJsonObject(row.rules_snapshot_json ?? row.rules_snapshot)) } : {})
     };
   }).filter(Boolean).sort((a, b) => a.turn_number - b.turn_number);
   if (turns.length === 0) {
@@ -2242,7 +2293,8 @@ export function validateCampaignBundle(raw) {
     }
   };
 
-  return {
+  const validated = {
+    ...(classRuntime ? { kind: bundle.kind, class_runtime: classRuntime } : {}),
     format_version: bundle.format_version,
     campaign,
     outline,
@@ -2256,6 +2308,8 @@ export function validateCampaignBundle(raw) {
     turns,
     pointers
   };
+  if (classRuntime) validateClassBundle(validated);
+  return validated;
 }
 
 /**

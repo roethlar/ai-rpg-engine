@@ -2820,6 +2820,11 @@ async function main() {
   }
   if (runError) throw runError;
   await import('./test-class-creator-browser.mjs');
+  for (const runner of ['test-class-turn-transport.mjs', 'test-class-experience-browser.mjs']) {
+    const child = spawn(process.execPath, [path.join(ROOT, runner)], { cwd: ROOT, stdio: 'inherit' });
+    const [code, signal] = await once(child, 'exit');
+    if (code !== 0) throw new Error(`${runner} failed (${signal || code}).`);
+  }
 }
 
 main().catch(error => {

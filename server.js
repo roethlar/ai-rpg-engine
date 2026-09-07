@@ -197,6 +197,7 @@ const TURN_REQUEST_KEYS = new Set([
   'abilityTriggerRevision'
 ]);
 const ABILITY_TRIGGER_REVISION_PATTERN = /^ak\d+:[a-f0-9]{64}$/u;
+const TURN_REQUEST_ID_PATTERN = /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/iu;
 
 function boundedString(value, fieldName, maxLength) {
   if (typeof value !== 'string') {
@@ -225,11 +226,11 @@ function invalidTurnRequest(message) {
  * matches, IDs, ranges, families, or mechanics can never become a shadow
  * authority contract.
  */
-export function validateTurnRequestBody(body) {
+export function validateTurnRequestBody(body, { target = false } = {}) {
   if (!body || typeof body !== 'object' || Array.isArray(body)) {
     throw invalidTurnRequest('Turn request must be a JSON object.');
   }
-  const extraKeys = Object.keys(body).filter(key => !TURN_REQUEST_KEYS.has(key));
+  const extraKeys = Object.keys(body).filter(key => !TURN_REQUEST_KEYS.has(key) && !(target && key === 'requestId'));
   if (extraKeys.length > 0) {
     throw invalidTurnRequest('Turn request contains unsupported fields.');
   }
@@ -248,10 +249,14 @@ export function validateTurnRequestBody(body) {
   ) {
     throw invalidTurnRequest('abilityTriggerRevision is required and must be an opaque trigger revision.');
   }
+  if (target && (typeof body.requestId !== 'string' || !TURN_REQUEST_ID_PATTERN.test(body.requestId))) {
+    throw invalidTurnRequest('requestId must be a UUID for an Aetheria action.');
+  }
   return {
     playerAction: body.playerAction,
     characterId: body.characterId,
-    abilityTriggerRevision: body.abilityTriggerRevision
+    abilityTriggerRevision: body.abilityTriggerRevision,
+    ...(target ? { requestId: body.requestId } : {})
   };
 }
 
@@ -608,7 +613,9 @@ app.post('/api/campaigns/:id/turn', rateLimit(10, 60000), requireSeatCampaign, a
     if (isNaN(campaignId)) {
       return res.status(400).json({ error: 'Invalid campaign ID.' });
     }
-    const { playerAction, characterId, abilityTriggerRevision } = validateTurnRequestBody(req.body);
+    const campaign = await db.get('SELECT ruleset_json FROM campaigns WHERE id = ?', [campaignId]);
+    const target = campaign && JSON.parse(campaign.ruleset_json || 'null')?.id === 'aetheria';
+    const { playerAction, characterId, abilityTriggerRevision, requestId } = validateTurnRequestBody(req.body, { target });
     // Phase S1: for seats the speaking character DERIVES from the
     // credential — the body parameter is ignored entirely (nothing to
     // spoof). The host keeps explicit selection for solo/hosted play.
@@ -624,7 +631,8 @@ app.post('/api/campaigns/:id/turn', rateLimit(10, 60000), requireSeatCampaign, a
         playerAction,
         apiConfig,
         speakingCharacterId,
-        abilityTriggerRevision
+        abilityTriggerRevision,
+        ...(target ? [{ requestId }] : [])
       )
     );
     // Save-once narration (Phase V4): with the operator's always-generate
@@ -637,12 +645,12 @@ app.post('/api/campaigns/:id/turn', rateLimit(10, 60000), requireSeatCampaign, a
       });
     }
     // Phase S2: seats get the scoped view, never the host payload.
-    res.json(req.auth?.kind === 'seat' ? scopeStateForSeat(state, req.auth.characterId) : state);
+    res.json(req.auth?.kind === 'seat' ? scopeStateForSeat(state, req.auth.characterId, { allowSettledRequestId: true }) : state);
   } catch (error) {
     // rawText (parseJsonSafe) carries the malformed model output: log it for
     // the operator, never serialize it to the client.
     console.error('Error processing turn:', error, error.rawText ? `\nRaw model output: ${error.rawText}` : '');
-    const status = error.code === 'OUT_OF_TURN' || error.code === 'ABILITY_TRIGGERS_STALE' ? 409
+    const status = error.code === 'OUT_OF_TURN' || error.code === 'ABILITY_TRIGGERS_STALE' || error.code === 'CLASS_ACTION_PENDING' ? 409
       : error.code === 'CHARACTER_REQUIRED' ? 400
       : error.code === 'TURN_REQUEST_INVALID' ? 400
       // sv-1: the credential authenticated, but its character has left the

@@ -93,6 +93,32 @@ export function runRulesEffectsTests() {
   state = effectsTestState(); state.items['item:1'].holder = 'area:1:a';
   assert.equal(evaluate([{ op: 'item_pickup', item: 'item:1', owner: 'character:1' }], state).state.items['item:1'].holder, 'character:1');
   reject([{ op: 'item_lose', item: 'item:1' }], 'REFERENCE', state);
+  state = effectsTestState();
+  state.actors['character:1'].classBuild = { familyId: 'armsmaster', branchId: 'discipline' };
+  Object.assign(state.items['item:1'], { holder: 'character:1', weaponKind: 'melee_weapon', weaponCategory: 'martial', wielded: false, equipped: false });
+  const ready = { op: 'item_ready', owner: 'character:1', item: 'item:1' };
+  const readied = evaluate([ready], state);
+  assert.equal(readied.state.items['item:1'].wielded, true);
+  assert.equal(readied.state.items['item:1'].equipped, true);
+  assert.deepEqual(readied.effects[0].pricingPrestate, { holder: 'character:1', wielded: false, equipped: false, class: 'mundane' });
+  reject([ready], 'NO_OP', readied.state);
+  reject([ready], 'AUTHORIZATION', state, { consumer: 'ability' });
+  reject([ready], 'AUTHORIZATION', state, { consumer: 'annotation', band: 'crit_success', stakesLicense: 'minor' });
+  reject([{ ...ready, owner: 'character:2' }], 'AUTHORIZATION', state);
+  reject([{ ...ready, grade: 'grievous' }], 'SHAPE', state);
+  const untrainedReady = structuredClone(state);
+  untrainedReady.actors['character:1'].classBuild = { familyId: 'arcanist', branchId: 'formula' };
+  reject([ready], 'AUTHORIZATION', untrainedReady);
+  for (const fields of [{ condition: 'broken' }, { natural: true }, { fixed: true }, { holder: 'npc:2' }, { weapon: false }]) {
+    const unusable = structuredClone(state); Object.assign(unusable.items['item:1'], fields);
+    reject([ready], 'PRECONDITION', unusable);
+  }
+  const incompatibleCategory = structuredClone(state); incompatibleCategory.items['item:1'].weaponKind = 'ranged_weapon';
+  reject([ready], 'STATE', incompatibleCategory);
+  const forgedEquipment = structuredClone(state); forgedEquipment.items['item:1'].equipmentId = 'equipment.unknown';
+  reject([ready], 'AUTHORIZATION', forgedEquipment);
+  reject([ready, ready], 'NO_OP', state);
+  reject([ready, { op: 'harm', who: 'npc:missing', grade: 'wound' }], 'REFERENCE', state);
   state = effectsTestState(); state.actors['character:1'].inventory[0].stats = { attack: 1 };
   reject([{ op: 'item_gain', owner: 'character:1', name: 'rope' }], 'PRECONDITION', state);
   reject([{ op: 'item_lose', owner: 'character:1', item: 'rope' }], 'PRECONDITION', state);

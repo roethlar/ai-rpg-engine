@@ -6003,7 +6003,6 @@ async function testStageOneAbilityBindingPersistence() {
     storeApprovedStageOneAbilityBindings
   } = await import('./rpg-engine.js');
   const {
-    CAMPAIGN_BUNDLE_VERSION,
     containsStageOnePrivateCanonEcho,
     normalizeCharacterAbilityBindings,
     scopeStateForSeat,
@@ -6622,7 +6621,7 @@ async function testStageOneAbilityBindingPersistence() {
     [campaignId, tableCharacterId]
   );
   const exported = await exportCampaign(campaignId);
-  assert.strictEqual(exported.format_version, CAMPAIGN_BUNDLE_VERSION);
+  assert.strictEqual(exported.format_version, 3, 'Legacy exports retain their existing format; v4 is the exact class runtime extension.');
   const validatedExport = validateCampaignBundle(exported);
   assert.strictEqual(validatedExport.portability.vocabulary_version, 1);
   assert.strictEqual(validatedExport.portability.vocabulary_entries.length, 1);
@@ -7240,6 +7239,8 @@ async function runAll() {
     runClassScenarioTests();
     runClassActionTests();
     runClassPortabilityTests();
+    const { runClassOrdinaryTests } = await import('./test-class-ordinary.mjs');
+    runClassOrdinaryTests();
     const signedRecord = createCheckRecord({
       call: { actor: 1, callSeq: 1, intent: 'Cast at the raider', tier: 'standard', tierBasis: 'An armed opponent', deltas: [] },
       actor: 1, turn: 1, skillBonus: 13, activeEncounter: true
@@ -7298,6 +7299,14 @@ async function runAll() {
     await runClassCreationTests();
     const { runClassSeatTests } = await import('./test-class-seats.mjs');
     await runClassSeatTests();
+    const { runClassLifecycleTests } = await import('./test-class-lifecycle.mjs');
+    await runClassLifecycleTests();
+    const { runClassTurnTests } = await import('./test-class-turns.mjs');
+    await runClassTurnTests();
+    const { runClassCouncilTests } = await import('./test-class-council.mjs');
+    await runClassCouncilTests();
+    const { runClassTurnTransportTests } = await import('./test-class-turn-transport.mjs');
+    await runClassTurnTransportTests({ verifyBrowser: false });
     console.log('✅ All unit tests completed successfully!');
     await cleanupTestDb();
   } catch (error) {

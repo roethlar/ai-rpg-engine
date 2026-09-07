@@ -101,6 +101,14 @@ export function runClassScenarioTests() {
   assert.equal(world.objects[refs.objects.marker].kind, 'scenery', 'Noncombat map features remain recorded objects.');
   assert.equal(world.objects[refs.objects.seal].protectedSystem, true);
   assert.equal(world.items[refs.items.saber].weapon, true);
+  assert.equal(world.items[refs.items.saber].weaponCategory, 'simple');
+  assert.equal(world.items[refs.items.bow].weaponCategory, 'ranged');
+  const categoryFixture = fixture();
+  categoryFixture.frame.items[0].weaponCategory = 'martial';
+  assert.equal(buildClassScenario(categoryFixture).world.items[refs.items.saber].weaponCategory, 'martial');
+  delete categoryFixture.frame.items[0].weaponCategory;
+  categoryFixture.frame.items[0].name = 'Heavy Martial Weapon';
+  assert.equal(buildClassScenario(categoryFixture).world.items[refs.items.saber].weaponCategory, 'simple', 'Display text cannot change the pinned category default.');
   assert.equal(world.items[refs.items.saber].natural, false);
   assert.equal(world.items[refs.items.saber].fixed, false);
   assert.equal(world.items[refs.items.catalyst].kind, 'revival-catalyst');
@@ -195,6 +203,10 @@ export function runClassScenarioTests() {
     [frame => { frame.items[0].holder = { kind: 'area', key: 'gate' }; }, 'wielded ground weapon'],
     [frame => { frame.items[0].kind = 'mundane'; }, 'wielded nonweapon'],
     [frame => { frame.items[0].condition = 'indestructible'; }, 'invented item condition'],
+    [frame => { frame.items[0].weaponCategory = 'ranged'; }, 'ranged category on melee weapon'],
+    [frame => { frame.items[1].weaponCategory = 'heavy'; }, 'melee category on ranged weapon'],
+    [frame => { frame.items[2].weaponCategory = 'simple'; }, 'weapon category on catalyst'],
+    [frame => { frame.items[0].weaponCategory = 'legendary'; }, 'invented training category'],
     [frame => { frame.items[0].key = '__proto__'; }, 'unsafe local key'],
     [frame => { frame.discoveries[0].fact = 'x'.repeat(121); }, 'unbounded discovery'],
     [frame => { frame.discoveries[0].scope = 'omniscience'; }, 'invented reveal scope'],

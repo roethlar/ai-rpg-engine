@@ -35,6 +35,10 @@ export async function runRulesStoreTests() {
       campaignId: campaign.id, actor, turn: 1, input: { prose: 'Strike the foe.', declarations: [] },
       catalogVersion: 'test-catalog-1', requestId: randomUUID()
     };
+    await assert.rejects(beginRulesOperation({ ...binding, expectedWorldRevision: 1 }), code('STALE'),
+      'A world changed during pre-roll Council work must reject before reserving the turn.');
+    assert.equal(await readRulesOperationByRequest(binding.requestId), null);
+    await assert.rejects(beginRulesOperation({ ...binding, expectedWorldRevision: -1 }), code('INVALID'));
     const [operation, duplicate] = await Promise.all([beginRulesOperation(binding), beginRulesOperation(binding)]);
     assert.deepEqual(duplicate, operation, 'Concurrent identical requests must reserve exactly one operation.');
     assert.equal(operation.status, 'active');

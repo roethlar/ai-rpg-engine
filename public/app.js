@@ -165,6 +165,7 @@ let voiceErrorShown = false;
 // source. Everything else here is derived feedback over the selected
 // character's server-owned trigger projection.
 const ABILITY_TRIGGER_REVISION_PATTERN = /^ak\d+:[a-f0-9]{64}$/u;
+const ACTION_REQUEST_ID_PATTERN = /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/iu;
 const EMPTY_COMPOSER_SCAN = Object.freeze({ matches: [], abilityIds: [], suggestions: [] });
 let activeComposerCharacterId = null;
 let activeAbilityTriggerRevision = '';
@@ -176,6 +177,81 @@ let composerLocked = false;
 let composerIsComposing = false;
 let rememberedComposerSelection = { start: 0, end: 0 };
 let announcedAbilitySignature = '';
+let pendingTargetAction = null;
+
+function pendingActionKey(scope) {
+  return `aetheria_pending_action_v1_${scope.campaignId}_${scope.characterId}`;
+}
+
+function normalizePendingAction(value, characterId) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)
+    || value.characterId !== characterId || value.actor !== `character:${characterId}`
+    || typeof value.requestId !== 'string' || !ACTION_REQUEST_ID_PATTERN.test(value.requestId)
+    || typeof value.playerAction !== 'string' || !value.playerAction.trim() || value.playerAction.length > 2000
+    || typeof value.abilityTriggerRevision !== 'string' || !ABILITY_TRIGGER_REVISION_PATTERN.test(value.abilityTriggerRevision)) return null;
+  return { requestId: value.requestId, actor: value.actor, characterId: value.characterId,
+    playerAction: value.playerAction, abilityTriggerRevision: value.abilityTriggerRevision };
+}
+
+function readPendingAction(scope) {
+  try { return normalizePendingAction(JSON.parse(localStorage.getItem(pendingActionKey(scope))), scope.characterId); }
+  catch { return null; }
+}
+
+function updatePendingActionControls() {
+  actionInput.readOnly = !!pendingTargetAction;
+  abilityCorrection.disabled = composerLocked || !!pendingTargetAction;
+  for (const button of [...charAbilities.querySelectorAll('button'), ...suggestedChoicesContainer.querySelectorAll('button')]) {
+    button.disabled = composerLocked || !!pendingTargetAction;
+  }
+}
+
+function releasePendingAction(scope, requestId) {
+  if (!requestId) return;
+  if (readPendingAction(scope)?.requestId === requestId) localStorage.removeItem(pendingActionKey(scope));
+  if (scope.campaignId === currentCampaignId && scope.characterId === activeComposerCharacterId
+    && pendingTargetAction?.requestId === requestId) {
+    pendingTargetAction = null;
+    updatePendingActionControls();
+  }
+}
+
+function reconcilePendingAction(gameState) {
+  const scope = captureComposerScope();
+  if (gameState.ruleset?.id !== 'aetheria' || !scope.characterId) {
+    pendingTargetAction = null;
+    updatePendingActionControls();
+    return;
+  }
+  const stored = readPendingAction(scope);
+  const completedId = gameState.settledRequestId || gameState.turn?.requestId;
+  if (stored && stored.requestId === completedId) {
+    releasePendingAction(scope, stored.requestId);
+    if (actionInput.value === stored.playerAction) setComposerValue('', 0, 0, { focus: false });
+  }
+  const authoritative = ['accepted', 'prepared', 'resolved', 'narrated'].includes(gameState.pendingAction?.stage)
+    ? normalizePendingAction(gameState.pendingAction, scope.characterId) : null;
+  const next = authoritative || readPendingAction(scope);
+  if (authoritative) localStorage.setItem(pendingActionKey(scope), JSON.stringify(authoritative));
+  const changed = pendingTargetAction?.requestId !== next?.requestId;
+  if (!next && pendingTargetAction && actionInput.value === pendingTargetAction.playerAction) {
+    setComposerValue('', 0, 0, { focus: false });
+  }
+  pendingTargetAction = next;
+  if (next && (changed || actionInput.value !== next.playerAction)) {
+    setComposerValue(next.playerAction, next.playerAction.length, next.playerAction.length, { focus: false });
+  }
+  updatePendingActionControls();
+}
+
+function createActionRequestId() {
+  if (typeof crypto.randomUUID === 'function') return crypto.randomUUID();
+  const bytes = crypto.getRandomValues(new Uint8Array(16));
+  bytes[6] = (bytes[6] & 15) | 64;
+  bytes[8] = (bytes[8] & 63) | 128;
+  const hex = Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('');
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
 
 function familyToneForKey(familyKey) {
   let hash = 2166136261;
@@ -263,7 +339,7 @@ function renderAbilityCorrection() {
   abilityCorrection.textContent = `Did you mean “${ability.name}”?`;
   abilityCorrection.dataset.familyTone = familyToneForKey(ability.familyKey);
   abilityCorrection.hidden = false;
-  abilityCorrection.disabled = composerLocked;
+  abilityCorrection.disabled = composerLocked || !!pendingTargetAction;
 }
 
 function scanAndRenderComposer() {
@@ -301,6 +377,8 @@ function restoreComposerDraft(text, selectionStart, selectionEnd) {
 }
 
 function resetAbilityComposerForSession() {
+  pendingTargetAction = null;
+  actionInput.readOnly = false;
   activeComposerCharacterId = null;
   activeAbilityTriggerRevision = '';
   activeInvocableAbilities = [];
@@ -344,7 +422,7 @@ function updateAbilityComposerForCharacter(character) {
 }
 
 function insertInvocableAbility(ability) {
-  if (composerLocked || !activeInvocableAbilityById.has(ability.abilityId)) return;
+  if (composerLocked || pendingTargetAction || !activeInvocableAbilityById.has(ability.abilityId)) return;
   const start = Math.max(0, Math.min(rememberedComposerSelection.start, actionInput.value.length));
   const end = Math.max(start, Math.min(rememberedComposerSelection.end, actionInput.value.length));
   const insertion = computeAbilityInsertion(actionInput.value, start, end, ability.trigger);
@@ -358,7 +436,7 @@ function insertInvocableAbility(ability) {
 
 function acceptAbilityCorrection() {
   const suggestion = currentComposerScan.suggestions[0] ?? null;
-  if (composerLocked || !suggestion) return;
+  if (composerLocked || pendingTargetAction || !suggestion) return;
   const replacement = applyAbilitySuggestion(actionInput.value, suggestion);
   actionInput.focus();
   actionInput.setRangeText(suggestion.replacement, suggestion.start, suggestion.end, 'end');
@@ -840,6 +918,12 @@ function setupEventListeners() {
     e.preventDefault();
     if (composerIsComposing || turnSubmitInFlight) return;
     scanAndRenderComposer();
+    if (pendingTargetAction && actionInput.value !== pendingTargetAction.playerAction) {
+      const text = pendingTargetAction.playerAction;
+      restoreComposerDraft(text, text.length, text.length);
+      appendSystemNotice('This action is awaiting completion. Retry the submitted action before starting another.');
+      return;
+    }
     const actionText = actionInput.value;
     if (!actionText.trim() || !currentCampaignId) return;
     if (!ABILITY_TRIGGER_REVISION_PATTERN.test(activeAbilityTriggerRevision)) {
@@ -853,6 +937,17 @@ function setupEventListeners() {
       selectionEnd: actionInput.selectionEnd ?? actionText.length
     };
     const scope = captureComposerScope();
+    let targetAction = null;
+    if (lastGameState?.ruleset?.id === 'aetheria') {
+      targetAction = pendingTargetAction || { requestId: createActionRequestId(), actor: `character:${scope.characterId}`,
+        characterId: scope.characterId, playerAction: actionText, abilityTriggerRevision: scope.triggerRevision };
+      try { localStorage.setItem(pendingActionKey(scope), JSON.stringify(targetAction)); }
+      catch {
+        appendSystemNotice('The action could not be saved for retry. Check browser storage before sending.');
+        return;
+      }
+      pendingTargetAction = targetAction;
+    }
     const optimisticBubble = appendPlayerAction(actionText, undefined, { optimistic: true });
 
     turnSubmitInFlight = true;
@@ -866,7 +961,8 @@ function setupEventListeners() {
           // Which character is speaking (Phase 3 M2/M3); harmless when solo
           characterId: scope.characterId ?? undefined,
           // Opaque echo only. Matches and ability IDs are recomputed server-side.
-          abilityTriggerRevision: scope.triggerRevision
+          abilityTriggerRevision: targetAction?.abilityTriggerRevision ?? scope.triggerRevision,
+          ...(targetAction ? { requestId: targetAction.requestId } : {})
         })
       }, TURN_TIMEOUT_MS);
 
@@ -882,20 +978,50 @@ function setupEventListeners() {
           return;
         }
         if (body.code === 'ABILITY_TRIGGERS_STALE') {
+          releasePendingAction(scope, targetAction?.requestId);
           optimisticBubble.remove();
           await refreshComposerAfterStale(scope, draft);
           return;
         }
         if (body.code === 'OUT_OF_TURN' || body.code === 'CHARACTER_REQUIRED') {
+          releasePendingAction(scope, targetAction?.requestId);
           optimisticBubble.remove();
           appendSystemNotice(body.error || 'It is not your turn to act.');
           restoreComposerDraft(draft.text, draft.selectionStart, draft.selectionEnd);
           return;
         }
+        if (body.code === 'CLASS_ACTION_PENDING') {
+          optimisticBubble.remove();
+          releasePendingAction(scope, targetAction?.requestId);
+          const refreshed = await fetchWithTimeout(`/api/campaigns/${scope.campaignId}`, {}, 15000);
+          if (!refreshed.ok) throw new Error('Could not reload the pending action.');
+          const state = await refreshed.json();
+          if (!isComposerScopeCurrent(scope)) return;
+          lastGameState = state;
+          renderPartyState(state);
+          appendSystemNotice(body.error || 'This action is awaiting completion. Retry the submitted action before starting another.');
+          return;
+        }
+        if (targetAction && ['CLASS_COUNCIL_REJECTED', 'CLASS_COUNCIL_GROUNDING', 'CLASS_COUNCIL_JSON', 'CLASS_COUNCIL_SHAPE'].includes(body.code)) {
+          const refreshed = await fetchWithTimeout(`/api/campaigns/${scope.campaignId}`, {}, 15000);
+          if (!refreshed.ok) throw new Error(body.error || 'Could not reload the action state.');
+          const state = await refreshed.json();
+          if (!isComposerScopeCurrent(scope)) { optimisticBubble.remove(); return; }
+          const unreserved = Object.hasOwn(state, 'pendingAction') && state.pendingAction === null;
+          if (unreserved) releasePendingAction(scope, targetAction.requestId);
+          optimisticBubble.remove();
+          lastGameState = state;
+          renderPartyState(state);
+          if (unreserved) restoreComposerDraft(draft.text, draft.selectionStart, draft.selectionEnd);
+          appendSystemNotice(body.error || 'The action could not be resolved against the recorded scene.');
+          return;
+        }
+        if (body.code === 'TURN_REQUEST_INVALID') releasePendingAction(scope, targetAction?.requestId);
         throw new Error(body.error || 'Failed to submit action');
       }
 
       const gameState = await response.json();
+      releasePendingAction(scope, targetAction?.requestId);
       // The turn resolved on its original table/character. A later poll will
       // pick it up if the player switched while the request was in flight.
       if (!isComposerScopeCurrent(scope)) {
@@ -1825,6 +1951,7 @@ function renderGame(gameState, resetNarrative = false, options = {}) {
   renderParty(gameState);
   updateTurnBanner(gameState);
   renderCharacterSheet(displayedCharacter(gameState));
+  reconcilePendingAction(gameState);
 
   // Render Codex (NPC Dossiers)
   renderCodex(gameState.npcs || []);
@@ -2169,6 +2296,7 @@ function renderPartyState(gameState) {
   renderParty(gameState);
   updateTurnBanner(gameState);
   renderCharacterSheet(displayedCharacter(gameState));
+  reconcilePendingAction(gameState);
 }
 
 function displayedCharacter(gameState) {
@@ -2599,10 +2727,15 @@ function applyCampaignTheme(genre, colors, fonts) {
 
 // Character sheet renderer (extracted for party support — Phase 3 M3)
 function renderCharacterSheet(char) {
+  charName.closest('.character-section').style.display = char ? '' : 'none';
   if (!char) {
     updateAbilityComposerForCharacter(null);
     renderAbilities([], []);
     renderClassDetails(null);
+    renderInventory([]);
+    for (const field of [charName, charClass, charLevel, healthText, manaText, xpText, attrStr, attrAgi, attrInt, attrWil]) field.textContent = '';
+    for (const fill of [healthFill, manaFill, xpFill]) fill.style.width = '0%';
+    setActionInputState(true, false);
     return;
   }
   updateAbilityComposerForCharacter(char);
@@ -2632,7 +2765,8 @@ function renderCharacterSheet(char) {
 
   renderClassDetails(char);
   renderInventory(char.inventory);
-  renderAbilities(char.abilities || [], activeInvocableAbilities);
+  renderAbilities(char.abilities || [], activeInvocableAbilities, !!char.classBuild);
+  setActionInputState(!turnSubmitInFlight, false);
 }
 
 function renderClassDetails(character) {
@@ -2763,7 +2897,7 @@ function renderInventory(items) {
   });
 }
 
-function renderAbilities(abilities, invocableAbilities) {
+function renderAbilities(abilities, invocableAbilities, authoredClass = false) {
   charAbilities.innerHTML = '';
   const canonicalAbilities = Array.isArray(abilities) ? abilities : [];
   const projectedAbilities = Array.isArray(invocableAbilities) ? invocableAbilities : [];
@@ -2821,10 +2955,13 @@ function renderAbilities(abilities, invocableAbilities) {
     const description = document.createElement('div');
     description.className = 'ability-desc';
     description.textContent = ability.description || 'A developing capability.';
-    const source = document.createElement('div');
-    source.className = 'ability-source';
-    source.textContent = ability.source || 'in-game development';
-    div.append(head, description, source);
+    div.append(head, description);
+    if (!authoredClass) {
+      const source = document.createElement('div');
+      source.className = 'ability-source';
+      source.textContent = ability.source || 'in-game development';
+      div.append(source);
+    }
     charAbilities.appendChild(div);
   }
 
@@ -2923,7 +3060,7 @@ function renderChoices(choices) {
     btn.className = 'choice-btn';
     btn.textContent = choice;
     btn.title = choice;
-    btn.disabled = composerLocked;
+    btn.disabled = composerLocked || !!pendingTargetAction;
     btn.addEventListener('click', () => {
       setComposerValue(choice, choice.length, choice.length);
       // requestSubmit fires a cancelable submit event; dispatchEvent(new Event('submit'))
@@ -2937,15 +3074,16 @@ function renderChoices(choices) {
 
 // Dialog input handlers
 function setActionInputState(enabled, focusInput = true) {
-  composerLocked = !enabled;
-  actionInput.disabled = !enabled;
-  btnSendAction.disabled = !enabled;
-  abilityCorrection.disabled = !enabled;
+  composerLocked = !enabled || activeComposerCharacterId === null;
+  actionInput.disabled = composerLocked;
+  actionInput.readOnly = !!pendingTargetAction;
+  btnSendAction.disabled = composerLocked;
+  abilityCorrection.disabled = composerLocked || !!pendingTargetAction;
   charAbilities.querySelectorAll('button').forEach(button => {
-    button.disabled = !enabled;
+    button.disabled = composerLocked || !!pendingTargetAction;
   });
   suggestedChoicesContainer.querySelectorAll('button').forEach(button => {
-    button.disabled = !enabled;
+    button.disabled = composerLocked || !!pendingTargetAction;
   });
   actionForm.classList.toggle('is-submitting', !enabled);
 

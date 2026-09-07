@@ -101,8 +101,12 @@ will use `campaigns.rules_history_json` rather than colliding with live globally
 Setup describes presence, authored asymmetric NPC profiles, actual map objects/features and stored
 discoverable facts, never class grants or free numeric combat values. Every map feature must be
 materialized explicitly. Target creation fails before commit if the layout/frame/world support is
-invalid. Until the Council path is connected, target turns explicitly refuse to enter legacy d20
-mutation logic. This temporary integration guard is not the delivered end state.
+invalid. Target turns use `class-council.js` and never enter legacy d20 mutation logic. Accepted
+actions persist their validated preparation with the operation's initial immutable input; the
+world revision is checked inside reservation. Signed checks and annotation work precede narration.
+Final world/projections, new grant bindings, exact turn snapshot and completion receipt commit in
+one transaction. Pending actions reject other inputs until the exact original request is resumed.
+Table-talk history retains its unchanged world snapshot without spending a Main or rules operation.
 
 ### Results
 
@@ -183,6 +187,38 @@ mutation logic. This temporary integration guard is not the delivered end state.
   A real creator-to-cast browser session and live Council execution remain pending.
 
 ## Completion Audit
+
+- Council integration: `test-class-turns.mjs` uses actual creation, `takeTurn`,
+  SQLite, d100 RNG, authored effects and v4 export; only provider responses are stubbed. Thirteen
+  fresh runs passed direct Magic Missile, a Fireball narration outage followed by exact retry,
+  one use charged, immutable checks, no-op/rejection and mixed-party progression. This is automated
+  contract evidence, not live-model quality or willing-player enjoyment evidence. Dedicated
+  annotation/semantic tests now pass; `.agents/review/class-council-integration.md` records their
+  durable-proposal, bounded-revision, stamped-effect and skipped-incapacitated-PC checks.
+- Exact lifecycle integration is described in `.agents/review/class-lifecycle-implementation.md`.
+  Actual export/import/fork/release preserves checks, profiles, old grants and historical membership;
+  an empty archived target table is a valid state. Legacy bundles remain v3 rather than pretending
+  to contain the new v4 runtime. Unknown catalog versions fail before writes.
+- Ordinary `wield` now restores usable weapon readiness after a pickup/disarm for one Main,
+  without bundling an attack. Typed scene equipment categories and training guards are documented
+  in `docs/rules/effects-runtime-v1.md`. The focused guard failed when training validation was
+  removed and passed after restoration. The effect runtime currently covers 37 operations.
+- Reservation revision guard: removing the world-revision comparison failed the new expected
+  rejection in `test-rules-store.mjs`; restored focused store tests pass. A scene changed while
+  the Council is validating cannot leave an accepted action bound to stale world state.
+- Full `node test.js` and `npm run test:browser` pass with the new Council, lifecycle and transport
+  runners wired. The browser entry runs its existing theme/interaction coverage and independent
+  disposable-DB target transport and creator/cast runners. Real desktop/mobile casts use the
+  actual HTTP route, Council, RNG, effect/history commit and retry machinery; only provider
+  responses are stubbed. The latest sentence is verified visible above the mobile composer.
+  Root inspected desktop cast and mobile pending/cast screenshots. Request IDs, original prose
+  and trigger revision survive reload; confirmed pre-reservation rejection restores an editable
+  draft. Pending seat data has a closed own-character projection. Old-completion, privacy,
+  pending-reload and rejection-unlock mutations all failed their assertions and were restored.
+- Remaining reachability audit: the initial scene currently has no materialized remote-location
+  route; revival needs a genuinely recorded fallen NPC rather than a synthetic world patch;
+  the Referee needs all qualitative owned selector IDs for profiles/devices/vehicles. These are
+  required follow-through work, not grounds to declare the full class experience complete.
 
 For each numbered requirement, record concrete current code and test/runtime evidence, not intent.
 Foundation tests alone do not prove creator/runtime integration. Mocked UI responses do not prove
