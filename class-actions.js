@@ -792,12 +792,16 @@ export function prepareClassEvent({ state, event, context = {} } = {}) {
       break;
     }
     case 'action_completed': {
-      actorRecord(next, event.who, { alive: false });
+      const completedActor = actorRecord(next, event.who, { alive: false });
       if (typeof event.success !== 'boolean' || !['attack', 'help', 'protect', 'other'].includes(event.kind)) fail('EVENT', 'Action lifecycle needs a checked result and authored action kind.');
+      const npcMain = event.npcMain === true;
+      if (npcMain && (!event.who.startsWith('npc:') || event.checked !== false || event.success !== true
+        || !completedActor.npcKit || completedActor.npcState?.lastMainOperationId !== context.operationId
+        || completedActor.npcState.lastMainRound !== context.round)) fail('EVENT', 'An NPC cue trigger requires its actually completed authored Main.');
       for (const [owner, value] of ownerEntries) {
         const cue = value.classState.cue;
         if (!cue || cue.ally !== event.who) continue;
-        const matches = cue.trigger === 'ally_check_completed' && event.checked === true
+        const matches = cue.trigger === 'ally_check_completed' && (event.checked === true || npcMain)
           || cue.trigger === 'ally_attack_success' && event.kind === 'attack' && event.success
           || cue.trigger === 'ally_attack_named_target_success' && event.kind === 'attack' && event.success && event.targets?.includes(cue.target)
           || cue.trigger === 'ally_help_success' && ['help', 'protect'].includes(event.kind) && event.success;

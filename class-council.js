@@ -284,6 +284,13 @@ function resolveBranch({ state, selected, ruling, context, checked, success }) {
     const plan = prepareNpcConsequence({ state: result.state, actingActor: context.actor, ...choice, context: npcContext });
     mergeReceipt(result, finalizeNpcConsequence({ state: result.state, plan }));
     dispatchChanges(result, before, context);
+    const kitAction = NPC_PROFILES[result.state.actors[choice.npc].npcProfile].actions.find(action => action.id === choice.actionId);
+    const beforeCompletion = result.state;
+    mergeReceipt(result, dispatchEvent(result.state, { type: 'action_completed', who: choice.npc,
+      kind: kitAction.kind === 'attack' ? 'attack' : kitAction.kind === 'help' ? 'help' : kitAction.kind === 'guard' ? 'protect' : 'other',
+      success: true, checked: false, npcMain: true,
+      targets: ['attack', 'help'].includes(kitAction.kind) ? [choice.target] : [] }, context));
+    dispatchChanges(result, beforeCompletion, context);
     result.events.push({ type: 'npc_acted', who: choice.npc, actionId: choice.actionId, tell: plan.tell });
   }
   if (ruling.award !== null && success) {
