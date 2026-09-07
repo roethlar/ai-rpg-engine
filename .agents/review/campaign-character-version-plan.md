@@ -17,7 +17,9 @@ never silently downgrade or translate mechanics. The draft's additional compatib
 gate was an error and is removed. The starting-ability question is paused: the owner's 2026-09-07
 objection concerns the class system itself, not merely how starting abilities are selected.
 `gate-5-class-model-plan.md` section 7.1 owns that feedback and the held proposal. Address the class
-design's appeal before further Creator choices; recheck existing rulings before later questions.
+design's appeal before further Creator choices. Section 7.1 now assigns a bounded agent-owned
+encounter-level recommendation, not per-ability owner reviews; recheck existing rulings before
+later questions.
 
 **Evidence baseline:** `e647c5a`. Function references identify current integration surfaces;
 re-read them at the implementation base. No runtime or browser tests were run for this draft.
@@ -481,7 +483,10 @@ two-human feel gates remain independently pending.
 ## 10. Owner decisions and stopping point
 
 This list is agent-facing sequencing, not a batch owner ask. Items marked settled are not another
-approval gate. The remaining product questions are presented individually.
+approval gate. The remaining genuine product decisions are presented individually, after agents
+have developed integrated recommendations within the authorized scope. This is not a requirement
+to seek approval for each analysis step or individual ability; the 2026-09-07 agent-owned design
+decision in `../decisions.md` governs that distinction.
 
 1. **Player keys and recovery: SETTLED.** Reusable key plus simple administrator reset, under the
    2026-09-05 and 2026-09-06 decisions. Section 3.3 is the bounded contract; no authentication

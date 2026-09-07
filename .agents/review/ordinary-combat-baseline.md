@@ -92,6 +92,10 @@ require completing ordinary combat, the three Mira interactions, or the entire g
 discussion. This inventory records real gaps but creates no new prerequisite queue. Existing
 resolution/effect authority and explicit special-ability invocation decisions remain intact.
 
+The later agent-owned design-process decision moves these local comparisons inside the bounded
+encounter-level batch in `gate-5-class-model-plan.md` section 7.1. Do not turn this inventory into
+individual owner questions or another baseline-first work queue.
+
 ## Verification
 
 Read-only source inventory; no game session, runtime suite, browser test, or human playtest was run.

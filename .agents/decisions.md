@@ -1707,3 +1707,27 @@ This applies the fun-per-player-action principle; it establishes no measured enj
 automatic roster/tier decision, replacement ability, implementation approval, or owner playtest
 requirement. Bodyguard remains withdrawn. `.agents/review/ordinary-combat-baseline.md` is reference
 evidence for local comparisons, not a prerequisite work queue.
+
+### 2026-09-07 - Agent-owned design work, not owner-by-ability review
+
+**Status: Active design-process direction; no class design or implementation approved.**
+
+The owner rejected being taken through every possible ability to judge its usefulness for a game
+they have never played and instructed the agent to improve the process. Stop the serial
+assessment -> owner go -> next ability loop. The local ability-benefit criterion remains useful
+for agent reasoning; it is not an owner approval queue or a request for the owner to design/test
+the mechanics.
+
+Agents own a bounded batch of comparison and synthesis within the authorized design task. Work
+through routine details internally, state local assumptions honestly, and deliver one coherent
+encounter-level recommendation with its player-facing interactions, meaningful tradeoffs, evidence
+limits, and any genuinely material decision. Do not require owner participation or permission for
+each research step. One-at-a-time owner decisions means actual product/authorization decisions,
+not stopping after every analytical observation.
+
+`.agents/review/gate-5-class-model-plan.md` section 7.1 owns the immediate batch scope and
+completion checkpoint. The next deliverable is not another ability verdict or a full catalog.
+Real-player enjoyment is still unverified; scripted agents cannot supply that evidence. Existing
+code-plan approval, opt-in external review, phased verification, tier-evidence policy, deterministic
+invocation, and the withdrawals of Bodyguard and the rejected runner remain unchanged. No game
+implementation or adoption of a proposed class is authorized by this process correction.

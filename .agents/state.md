@@ -6,6 +6,10 @@ to `docs/history/state-archive.md`.
 
 ## Now
 
+- **THE OWNER IS NOT THE ABILITY-REVIEW COMMITTEE.** The 2026-09-07 agent-owned design decision
+  in `.agents/decisions.md` rejects serial ability verdicts and per-step go requests. Agents own
+  internal comparisons and routine design choices within scope, then present one coherent
+  recommendation with tradeoffs and honest evidence limits. Owner participation is not required.
 - **THERE IS NO SHIPPED OR PLAYER-VALIDATED CURRENT GAME.** The owner's 2026-09-07
   development-state clarification in `.agents/decisions.md` owns the playtest history and evidence
   terminology. Early game playtests predate the current classes and system; existing code and
@@ -91,16 +95,15 @@ to `docs/history/state-archive.md`.
 
 ## Next
 
-**NEXT:** The owner-authorized Pursue assessment is complete in
-`.agents/review/fighter-encounter-walkthrough.md`. Its potential benefit is earlier following, not
-another attack or prevented escape. Ordinary following's timing and the Move allowance comparison
-are not settled; the retained fixture omits standalone ordinary movement. No worthwhile added
-benefit, enjoyment, adoption, or rejection is established as a result. Recommend assessing Driving
-Form's combined attack/reposition next, using the agreed local ability-benefit criterion in
-`.agents/decisions.md`; do not restrict ordinary actions merely to manufacture a class benefit.
-The ordinary-combat inventory is reference evidence, not a prerequisite queue. Bodyguard remains
-withdrawn. Do not require owner participation or expand into a full rules rewrite or playtest
-program. No new ability or implementation is approved.
+**NEXT:** Complete the agent-owned encounter-experience design batch in
+`.agents/review/gate-5-class-model-plan.md` section 7.1. Compare routine exchanges, changing
+positions, and competing objectives internally; deliver one coherent recommendation with concrete
+player interactions, tradeoffs, and evidence limits. Do not ask for another go to assess Driving or
+the next ability. The prior Fighter/Pursue assessments and ordinary-combat inventory are reference
+evidence, not an owner approval queue or a prerequisite to complete ordinary combat. Keep routine
+provisional choices agent-owned; escalate only genuine material decisions or scope conflicts.
+Owner participation is not required. Bodyguard remains withdrawn; no class adoption, new ability
+implementation, external review, or full playtest program is authorized.
 `.agents/review/gate-5-class-model-plan.md` section 7.1 owns the paused starting-set proposal.
 No replacement is selected, no Fighter package is authorized, and prior settled decisions remain
 intact. Carry the separate description-scope finding.

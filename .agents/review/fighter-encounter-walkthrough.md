@@ -383,8 +383,10 @@ accounting also needed before claiming extra movement efficiency. No whole-comba
 
 **Recommendation:** do not present the current Pursue card as an established answer to the owner's
 effort/payoff concern. Keep its status provisional, without adopting a new movement restriction to
-justify it. Next assess Driving Form's combined attack and reposition against the relevant ordinary
-attempt, applying the same local criterion; no roster ruling or replacement design is implied.
+justify it. The former next-ability checkpoint is superseded by the owner-directed process reset:
+`gate-5-class-model-plan.md` section 7.1 owns one agent-led encounter-level design batch. These
+individual findings are internal evidence, not a sequence of owner usefulness judgments. No roster
+ruling or replacement design is implied.
 
 **Verification:** source inspection only. No rejected runner, live resolver, provider session,
 browser test, runtime suite, or human playtest was run. No timing or enjoyment measurements were

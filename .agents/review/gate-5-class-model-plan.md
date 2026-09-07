@@ -13,7 +13,8 @@ plan, and implementation are not approved. No product code is authorized by this
 in `campaign-character-version-plan.md`; compatibility is already settled. The starting-set question
 in section 7.1 is paused following the owner's 2026-09-07 objection to the class system itself.
 Do not continue that question as though the underlying class design were accepted. The exact catalog
-and observed tier evidence remain separate work.
+and observed tier evidence remain separate work. Section 7.1 now owns an agent-led encounter-level
+design batch; the owner rejected the per-ability approval loop.
 
 **Purpose**: replace the failed one-of-22 archetype-roster question with a model that distinguishes
 restrictive classes from learnable skills, emergent party roles, backgrounds/status, assets, and
@@ -320,7 +321,56 @@ Merely describing the character correctly in prose does not pass.
 
 ## 7. Creator and S1.5 target shape after all gates close
 
-### 7.1 Current starting-ability proposal, 2026-09-06
+### 7.1 Agent-owned experience-design work, 2026-09-07
+
+**Scope:** prepare one coherent recommendation for the Fighter's encounter experience, using the
+owner's fun-per-action and local ability-benefit criteria. This is authorized design/process work,
+not approval of a replacement class, catalog, prototype implementation, or product code. Do not
+ask for a new go to inspect the next ability or perform the next comparison within this batch.
+
+**Unit of work:** evaluate the interaction as a whole in three representative situations:
+
+1. Repeated exchanges with a stationary opponent: expose recurring option sorting, invocation,
+   low-payoff repetition, and what the player gets from each input.
+2. A changing approach or retreat: expose positioning, commitments, target changes, and player
+   control when the situation changes.
+3. A competing ally/objective: expose ordinary intervention, opportunity costs, physical limits,
+   and whether a supposed class benefit merely duplicates ordinary action or invents a guarantee.
+
+Use existing evidence from `fighter-encounter-walkthrough.md`, `ordinary-combat-baseline.md`, and
+`interaction-burden-audit.md`. Develop and compare alternatives internally, then recommend one
+coherent interaction pattern. Individual ability analysis may support that reasoning, but there
+is no exhaustive catalog checklist and no owner-facing Driving/Pursue/next-ability queue. Do not
+require a complete ordinary-combat specification before making the recommendation; isolate local
+assumptions instead. Routine provisional design choices are the agent's work, not owner homework.
+
+**Completion checkpoint:** deliver one concise recommendation in chat, with concrete examples of
+what the player does, the benefit over ordinary action, lost choices/costs, and material unresolved
+assumptions. State the strongest reason it might not work. Keep discarded internal alternatives
+and technical evidence in this plan or linked records, not a new executive-summary document type.
+Do not stop midway to ask the owner to judge an isolated mechanic or approve continuing analysis.
+
+Count only what the proposed workflow actually specifies: required inputs, selections, prompts,
+and maintained states. These are structural properties, not measured search time or enjoyment.
+Check internal consistency, plausible limits, and player agency. Hold scene/threat/result conditions
+fixed when attributing a difference to mechanics; otherwise label the comparison illustrative.
+Fewer inputs are not automatically better if the result removes meaningful choices or still leaves
+the player repeating low-payoff actions. Do not hide shortcomings with fluent narration.
+
+**Owner checkpoint:** surface a genuinely material product choice or conflict with settled scope
+when it cannot be responsibly resolved within the task. Otherwise bring the finished recommendation,
+not a batch of micro-questions. Any later prototype or runtime implementation needs a concrete plan
+and the required explicit approval; this process direction does not supply that approval. A later
+real-player feel verdict cannot be replaced by scripted agents, and no available human testers are
+assumed. Owner participation is not required. Existing phase feel gates are not silently waived.
+
+**Non-goals:** full class catalog, complete combat rewrite, new invocation model, mandatory stance
+or reaction menus, automatic tactical choices, numerical fun scores, paper roster/tier admission,
+external reviewers without opt-in, a new playtest program, or revival of Bodyguard/rejected IBP-2.
+The starting-set policy remains paused; accepted creation hierarchy, versioning, class-set policy,
+and deterministic invocation remain authority.
+
+#### Retained starting-set proposal and feedback
 
 **Status: Paused after owner feedback, 2026-09-07; no code or catalog content approved.**
 After seeing the prototype's Fighter, Wizard and Paladin resource/ability examples, the owner said,

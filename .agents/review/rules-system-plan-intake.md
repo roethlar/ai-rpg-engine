@@ -83,6 +83,9 @@ initiative fields; `map-render.js` location-area graph.
 
 Per the `plan` operator, present these in chat one at a time. Record the
 owner-approved wording in `.agents/decisions.md` and the eventual plan status.
+This applies to actual adoption decisions, not agent research steps. The 2026-09-07 agent-owned
+design-process decision permits integrated recommendations within authorized scope; do not use
+this queue to require the owner to judge individual abilities or approve every comparison.
 
 | ID | Decision | Reviewer recommendation | Status |
 |---|---|---|---|

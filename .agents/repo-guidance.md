@@ -48,6 +48,11 @@
   put the label in parentheses only if the trail needs it. Decisions still go one at a time in
   ~25–50 plain words with a recommendation; this extends the `plan` operator's owner-facing rule
   in `AGENTS.md` to all owner communication.
+- Own the design work within its authorized scope. The 2026-09-07 agent-owned design decision in
+  `.agents/decisions.md` rejects ability-by-ability owner reviews and repeated go requests for
+  analytical steps. Present a coherent recommendation and meaningful tradeoffs; escalate an actual
+  material product choice, scope conflict, or required authorization. Do not require the owner to
+  playtest or resolve routine design details. Code still requires an approved plan and explicit go.
 
 ## Reading Order
 
