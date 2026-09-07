@@ -7301,6 +7301,8 @@ async function runAll() {
     await runRulesStoreTests();
     const { runClassCreationTests } = await import('./test-class-creation.mjs');
     await runClassCreationTests();
+    const { runClassArrivalBaselineTests } = await import('./test-class-arrival-baselines.mjs');
+    await runClassArrivalBaselineTests();
     const { runClassSeatTests } = await import('./test-class-seats.mjs');
     await runClassSeatTests();
     const { runClassLifecycleTests } = await import('./test-class-lifecycle.mjs');

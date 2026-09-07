@@ -1054,6 +1054,13 @@ function characterBaselineJson(seed) {
   });
 }
 
+async function writeClassArrivalBaselineInTransaction(campaignId, character, world) {
+  const baseline = characterBaselineJson(projectClassCharacter(character, world));
+  const result = await db.run(`UPDATE characters SET baseline_json = ?
+    WHERE id = ? AND campaign_id = ? AND baseline_json IS NULL`, [baseline, character.id, campaignId]);
+  if (result.changes !== 1) throw new Error('The new class arrival baseline could not be established.');
+}
+
 async function saveCharacterState(character) {
   await db.run(
     `UPDATE characters SET health = ?, max_health = ?, mana = ?, max_mana = ?, xp = ?, level = ?,
@@ -2131,8 +2138,8 @@ ${classSheet ? 'The supplied class sheet is authoritative. Introduce it as-is. D
     abilities: [...abilities],
     progression_notes: progressionNotes
   };
-  // Arrival snapshot BEFORE turn-1 updates: what fork replay seeds from.
-  const characterBaseline = characterBaselineJson(character);
+  // Legacy replay starts before turn-1 updates; class arrivals first bind destination identities.
+  const characterBaseline = classSheet ? null : characterBaselineJson(character);
 
   // Apply Turn 1 character updates so state matches the turn data
   const turn1Level = classSheet ? { leveledUp: false } : applyCharacterUpdate(character, turnData.character_update);
@@ -2333,6 +2340,8 @@ ${classSheet ? 'The supplied class sheet is authoritative. Introduce it as-is. D
         const recordedNpcs = await db.all(`SELECT * FROM npcs WHERE campaign_id = ? ORDER BY id`, [campaignId]);
         let world = createRulesWorld({ location: { id: locationInsert.id, layout: startingLayout }, npcs: recordedNpcs });
         await installClassActorInTransaction(campaignId,
+          { ...character, id: newCharacterRowId, player_character_id: playerCharacterId }, world);
+        await writeClassArrivalBaselineInTransaction(campaignId,
           { ...character, id: newCharacterRowId, player_character_id: playerCharacterId }, world);
         const actorBindings = { player: `character:${newCharacterRowId}`,
           ...Object.fromEntries(recordedNpcs.map((npc, index) => [sceneNpcKeys[index], `npc:${npc.id}`])) };
@@ -3314,12 +3323,14 @@ export async function joinCampaign(campaignId, { characterName, characterClass, 
         character.xp, character.level,
         JSON.stringify(character.inventory), JSON.stringify(character.attributes),
         JSON.stringify(character.abilities), character.progression_notes || '',
-        characterBaselineJson(character)
+        classSheet ? null : characterBaselineJson(character)
       ]
     );
     newCharacterId = characterResult.id;
     if (classSheet) {
       await installClassActorInTransaction(campaignId,
+        { ...character, id: newCharacterId, player_character_id: profileId }, world);
+      await writeClassArrivalBaselineInTransaction(campaignId,
         { ...character, id: newCharacterId, player_character_id: profileId }, world);
       await writeClassWorldInTransaction(campaignId, world, liveCampaign.rules_revision);
     }

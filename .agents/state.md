@@ -27,6 +27,10 @@ to `docs/history/state-archive.md`.
   party-NPC consent as Council/effects; its guard proof and full suite pass. Next: close the
   remaining paths through creation/Council/storage, rerun combined tests and refresh the disposable
   preview. No owner class-by-class review is required.
+  Copied class arrivals now bind their baseline inventory and companion/vehicle identities to
+  the actual destination world in the same creation/join transaction. The baseline binding record
+  owns real roundtrip and source-preservation evidence; already malformed development copies
+  remain explicitly incompatible rather than receiving guessed identity repairs.
 - **JOURNEY TEST DATABASE INCIDENT IS RECORDED.** The first standalone journey test
   loaded the configured database before assigning its temporary path. Test-owned rows were
   cleaned up, but normal schema/migration-marker/sequence changes remain. The owner was
