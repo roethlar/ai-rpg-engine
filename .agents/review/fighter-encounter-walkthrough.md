@@ -12,6 +12,10 @@ that the concern is sorting too many options and correctly entering an action, n
 or recall. The 2026-09-07 fun-per-player-action decision in `../decisions.md` governs the assessment.
 Retain this illustration as limited evidence, not the proposed answer to that concern.
 
+**Authorized follow-up, completed:** the owner subsequently authorized the effort-and-payoff
+assessment below, including a lower-effort comparison for one exchange. This remains a paper
+assessment without owner participation, not a fun test, class rewrite, or runtime change.
+
 ## Basis and limits
 
 Use the retained Armsmaster free-Forms candidate, explicitly expressed as Fighter in
@@ -139,7 +143,82 @@ occurs. Absence here does not establish absence in other class designs or encoun
 player effort demanded. It cannot justify resuming starting-package choices. Do not convert it into
 a new approval gate, evidence-tier promotion, or roster ruling.
 
-**Next recommendation, not yet authorized:** revise one exchange to expose option-sorting and input
-effort alongside its payoff, then propose a lower-effort alternative. The earlier recommendation
-to add a movement/rescue scene is displaced by the owner's clarification. Do not require the owner
-to participate, substitute more explanations, or expand this into a class rewrite or playtest program.
+## Effort-and-payoff assessment: exchange 3
+
+### Controlled comparison
+
+Retain the same scene, opponent response, earlier two exchanges, and taped outcomes. Rowan starts
+this exchange at 15 HP. Compare the existing Guarding Form with the existing ordinary Standard
+attack; do not invent a new ability, give the ordinary attack Deflect, change enemy behavior, or
+change the selected rolls to make either route look better.
+
+| | Guarding Form | Ordinary attack |
+|---|---|---|
+| Illustrative input | "Guarding Form against my sparring partner." | "I thrust at my sparring partner." |
+| Player's intended tradeoff | Less offense for protection against the reply | Normal offense without that protection |
+| Damage dealt | 4 | 5 |
+| Damage taken | 4 | 5 |
+| HP after the exchange | 11 | 10 |
+| Other immediate consequences | Deflect consumes the Reaction | No Counter is armed |
+
+These sentences illustrate intended inputs, not tested production triggers: the fixture is not
+installed in a real character catalog. Extra cinematic description is optional on either route;
+the earlier transcript's longer sentences are not a minimum typing requirement.
+
+`fixtures.js` already lists the ordinary attack as legal in every stable-duel beat. It costs the
+same Main and uses no class mechanic. A prior active Form label is preserved by an ordinary Main,
+but that label alone does not arm Deflect or grant its protection. Saying "I attack" must not be
+silently upgraded to Guarding; that would change the rules rather than reduce input effort.
+
+### Work asked of the player
+
+1. Establish the fictional intent and target; both routes need this.
+2. For deliberate class use, weigh the available special effects against the ordinary action.
+   This fixture offers three Forms plus the ordinary attack. That is the available set, NOT an
+   observation that every player rereads all four each turn. A habitual choice can reduce search.
+3. If selecting Guarding, include its recognized term or insert it through the ability control.
+   The landed composer infrastructure already supports named insertion, exact-term highlighting,
+   and explicit typo correction (`ability-keyword-production-plan.md`, AKP-3). It does not require
+   memorizing a command syntax or typing the name perfectly without assistance. It also does not
+   eliminate finding and choosing the desired option. No second action chooser is assumed here.
+4. Submit once and wait for the result. Both routes have one submission; neither requires an
+   interrupt answer for the Counter. No latency, search time, correction rate, or enjoyment was
+   measured. Engine arithmetic and trigger cleanup are not counted as manual player work.
+
+Taking the ordinary route can omit special selection and insertion if the player chooses to act
+without consulting the class options. It does not necessarily remove the perceived need to compare
+them: a player may still check whether skipping an ability wastes an advantage. Thus this is a
+lower-overhead available route, not proof that a default attack solves decision overload.
+
+### Payoff and judgment
+
+Guarding provides a real, immediate one-for-one damage tradeoff in this successful exchange. The
+decision is not mechanically empty, and a single HP can matter near a survival or defeat threshold.
+But no such threshold is established here: Rowan survives either route, the opponent has no defeat
+HP, and neither route changes position, objectives, information, or the opponent's behavior.
+The fixed duel does not demonstrate a compelling reason to reconsider the choice every exchange.
+
+Pressing would produce the same immediate damage numbers as the ordinary attack in this stationary
+beat because Pursue has no trigger. That is not universal dominance: pursuit or movement could
+matter in another scene. This assessment supplies no verdict on those other situations.
+
+**Design judgment:** the example gives weak support for the recurring option-comparison effort
+it invites. The class offers an understandable tactical adjustment, but this scene shows little
+payoff beyond that adjustment. More explanation or easier name entry would not improve those
+stakes. This is a reason to reconsider the frequency and consequence of the choice, not a claim
+that players disliked it or a decision to remove the class.
+
+**Recommendation:** in a subsequent paper comparison, replace this repeated small adjustment with
+a less frequent, more consequential player choice while retaining ordinary attacks and explicit
+player control. Its trigger, cost, consequence, and tradeoff would need to be shown before any
+adoption. This recommendation is not a new mechanic, a fixed ability count, a mandate to automate
+tactics, or authorization to build a replacement class. Starting-set decisions remain paused.
+
+### Verification and limits
+
+An inline Node check loaded only the committed fixture, confirmed ordinary-attack legality for
+`stable.3`, and asserted the comparison above: player 74 against 30; opponent 60 against 25;
+Guarding 4 dealt / 4 taken / 11 HP, ordinary attack 5 / 5 / 10. Both outcomes are clean successes.
+This verifies source-backed arithmetic, not the live resolver, composer, or human experience.
+The rejected runner was untouched. No browser, runtime suite, provider session, or human playtest
+was run; none is represented as passing. Docs are checked with `git diff --check`.

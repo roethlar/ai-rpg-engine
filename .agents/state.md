@@ -87,13 +87,15 @@ to `docs/history/state-archive.md`.
 
 ## Next
 
-**NEXT:** Apply the fun-per-player-action criterion before resuming class or Creator choices.
-The owner-authorized Fighter illustration is recorded in
-`.agents/review/fighter-encounter-walkthrough.md`; delivery was interrupted by the owner's
-clarification. Its scripted player bypasses option-sorting and invocation effort, so the arithmetic
-does not answer that concern. Recommend revising one exchange to expose effort and payoff and
-propose a lower-effort alternative; this further drafting is not yet authorized. The owner need
-not participate. Do not resume the displaced movement/rescue suggestion or start a playtest program.
+**NEXT:** The owner-authorized Fighter effort/payoff assessment is complete in
+`.agents/review/fighter-encounter-walkthrough.md`. It compares one Guarding exchange with the
+already-legal ordinary attack under the same fixture and rolls. The real damage/protection tradeoff
+offers weak demonstrated payoff for recurring option comparison in this scene; player effort and
+enjoyment remain unmeasured. Ordinary attacks and assisted ability-name insertion already exist as
+design/infrastructure, so neither is a newly discovered solution to option overload. Recommend a
+paper alternative with a less frequent, more consequential choice before class/Creator decisions;
+that further design is not yet authorized. The owner need not participate. Do not resume the
+displaced movement/rescue suggestion or start a playtest program.
 `.agents/review/gate-5-class-model-plan.md` section 7.1 owns the paused starting-set proposal.
 No replacement is selected, no Fighter package is authorized, and prior settled decisions remain
 intact. Carry the separate description-scope finding.

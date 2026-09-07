@@ -340,6 +340,10 @@ player-enjoyment result or class approval. The owner interrupted before delivery
 actual concern; the 2026-09-07 fun-per-player-action decision in `../decisions.md` owns that criterion.
 Address option-sorting and correct-input effort, not merely knowledge or memory. A scripted player
 who arrives with the right Form and sentence already chosen does not answer that objection.
+The owner subsequently authorized a one-exchange effort/payoff assessment, now recorded in that
+walkthrough. It compares Guarding with the already-legal ordinary attack and distinguishes real
+payload differences from unmeasured player effort. The lower-overhead route does not establish
+that option overload is solved; no enjoyment verdict or replacement mechanic is approved.
 The starting-set proposal remains paused.
 
 The proposal below is retained for reference, not renewed approval. Preserve the accepted
