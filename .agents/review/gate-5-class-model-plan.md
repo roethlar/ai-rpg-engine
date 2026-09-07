@@ -10,10 +10,10 @@ its one-record portability premise and adds tiered class availability. The taxon
 plan, and implementation are not approved. No product code is authorized by this document.
 
 **Current gate**: Gate 5 remains open and S1.5 remains blocked. Version architecture is now drafted
-in `campaign-character-version-plan.md`; compatibility is already settled. The next bounded Creator
-decision is section 7.1: a ready-to-play default starting ability set versus required individual
-starting-ability choices. This is not approval of the older classification proposal or whole draft.
-The exact catalog and observed tier evidence remain separate work.
+in `campaign-character-version-plan.md`; compatibility is already settled. The starting-set question
+in section 7.1 is paused following the owner's 2026-09-07 objection to the class system itself.
+Do not continue that question as though the underlying class design were accepted. The exact catalog
+and observed tier evidence remain separate work.
 
 **Purpose**: replace the failed one-of-22 archetype-roster question with a model that distinguishes
 restrictive classes from learnable skills, emergent party roles, backgrounds/status, assets, and
@@ -322,7 +322,18 @@ Merely describing the character correctly in prose does not pass.
 
 ### 7.1 Current starting-ability proposal, 2026-09-06
 
-**Status: Awaiting owner decision; no code or catalog content approved.** Preserve the accepted
+**Status: Paused after owner feedback, 2026-09-07; no code or catalog content approved.**
+After seeing the prototype's Fighter, Wizard and Paladin resource/ability examples, the owner said,
+"I don't like anything about this class system." The accompanying sarcastic assent is not approval
+of a Fighter starting set, the default-set policy, or a replacement design. The live game has no
+fixed authored class starting sets; these prototype examples are incomplete, provisional outlines.
+Pause the packaging question and address the appeal of the underlying class design before asking
+for more implementation choices. No specific replacement is selected, and prior settled decisions
+are not automatically revoked. Previously recorded objections to renamed common pools,
+mechanically different classes flattened into tactical roles, and burdensome/model-selected play
+remain relevant; do not ask the owner to repeat them.
+
+The proposal below is retained for reference, not renewed approval. Preserve the accepted
 creation hierarchy: mechanical archetype, campaign-specific class only when multiple mappings
 exist, then separate training, background, standing and identity. Automatically selecting a sole
 class mapping is already settled and is not this question.

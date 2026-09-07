@@ -82,11 +82,12 @@ to `docs/history/state-archive.md`.
 
 ## Next
 
-**NEXT:** Obtain the starting-ability decision in `.agents/review/gate-5-class-model-plan.md`
-section 7.1: selecting a class gives a ready-to-play default ability set (recommended), or the
-player must pick individual starting abilities before play. The accepted creation hierarchy is
-retained. This choice does not set the roster, ability count, economy or later customization rules.
-Record the answer and refine the Creator flow; carry the separate description-scope finding.
+**NEXT:** Address the owner's objection to the class system before resuming starting-set or Creator
+choices. `.agents/review/gate-5-class-model-plan.md` section 7.1 owns the 2026-09-07 feedback and
+paused starting-set proposal. Do not treat sarcastic assent as approval to author a Fighter package
+or implement the current design. No replacement is selected and prior settled decisions remain
+intact. Recommend discussing one concrete example of appealing Fighter play before proposing more
+mechanics; await direction. Carry the separate description-scope finding.
 Compatibility/upgrades, keys/reset, the single-composer direction and staged evidence policy are
 already settled. Optional archive controls stay deferred; no whole-plan or code approval is implied.
 AKP-4 still needs the real versioned catalog/creator; no provisional abilities or rejected IBP-2
