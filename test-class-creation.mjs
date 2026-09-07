@@ -19,7 +19,7 @@ export async function runClassCreationTests() {
     calls++;
     if (systemInstruction.includes('persistent structured layout')) return JSON.stringify(testClassLayout);
     if (systemInstruction.includes('initial Aetheria scene')) return JSON.stringify({ schemaVersion: 1,
-      areas: testClassLayout.areas.map(area => ({ area: area.id, terrain: 'dry_ground', traits: ['visible', 'safe', 'visited', 'anchor'], surfaces: ['ground'] })),
+      areas: testClassLayout.areas.map(area => ({ area: area.id, terrain: 'dry_ground', traits: ['visible', 'safe', 'visited', 'anchor', 'safe_recovery'], surfaces: ['ground'] })),
       actors: [
         { actor: 'player', area: 'gate', allegiance: 'party', profile: null, conditions: [] },
         { actor: 'npc0', area: 'gate', allegiance: 'party', profile: 'combatant', conditions: [] },

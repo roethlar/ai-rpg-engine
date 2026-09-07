@@ -151,7 +151,7 @@ handler after definition/ownership checks, never numeric fields accepted from mo
 | `teleport` | `{op,who,area,maximumAreas:1,mode:'blink'|'circle'}`. Blink moves one explicit actor to a visible adjacent safe area without traversing terrain. Circle accepts one to three unique explicit travelers including its caster, a recorded caster focus and previously visited destination. Other travelers must be willing and nearby. Wards block departure/arrival; pinned blocks movement. Only circle accepts a remote qualified area ref. |
 | `traverse` | `{op,who,area,mode:'flight'|'grapple',maximumDistance:1}`; one explicit actor crosses to a visible adjacent safe area. Grapple requires a recorded reachable anchor; flight respects a recorded flight block. Neither invents a destination or enables indefinite flight. |
 | `vehicle_repair` | `{op,who,amount:8}`; repairs the acting character's active recorded vehicle by eight hull, clamped to its maximum. Zero/destroyed hull is not revived. |
-| `vehicle_harm` | `{op,who,grade:'graze'|'wound'|'grievous'}`; explicitly targets vehicle hull using the same 2/5/9 map. Ordinary and authored ability consumers only; zero hull is recorded and emits an event, never implicitly destroys the vehicle or harms/ejects passengers. |
+| `vehicle_harm` | `{op,who,grade:'graze'|'wound'|'grievous'}`; explicitly targets vehicle hull using the same 2/5/9 map. Ordinary and authored ability consumers only. The authored Rider loss rule marks zero hull `lost`, empties occupancy, clears its vehicle-tied obstruction, and records the exact occupants in the event. Actor health, status and position remain unchanged: this is unusable craft and disembarkation, not destruction, death, collision damage or forced displacement. The wreck remains in its recorded location. |
 | `vehicle_condition_apply` | `{op,who,condition:'steadied',duration:'scene',detail}`; applies the Rider's authored vehicle boon with a vehicle-typed record. It is scene-duration fictional footing, not numeric armor or immunity. Generic actor-condition operations continue rejecting vehicle refs. |
 | `location_transition` | Ordinary-only `{op,location,area}`; a recorded exit reaches a different location's safe area, moving the currently present party after the active encounter ends and honoring pinned. Updates the current pointer and runs scene expiry. |
 | `actor_status` | Ordinary engine-only `{op,who,status:'active'|'downed'|'dead'}`. Active -> downed requires zero health; downed -> dead requires zero and records `deathTurn`; downed -> active requires positive health. These are explicit authorizations, not automatic extra consequences of `harm`. |
@@ -237,6 +237,48 @@ fixes restored; `git diff --check` was clean.
   an ability the actor owns. Those are mandatory preconditions of the caller, not a fallback to
   generative permissions. Persistence/bundle remapping must cover actors, areas, items, features,
   objects, vehicles and all embedded refs before a target campaign can promise portability.
+
+## Rider Runtime Completion
+
+The initial class-runtime release explicitly defines craft loss, rather than retaining the
+earlier development behavior in which zero hull left the craft active. This is a versioned
+class extension, not a claim about the signed actor-health rules. `vehicle_harm` uses the
+existing grade map and a single NPC kit Main; there are still no NPC checks or separate mount
+turns. The `mounted` NPC kit is one independent vehicle-scale unit with fixed health, skills,
+close actor attack and close hull attack options. Fiction must establish that scale; the model
+cannot assign numeric power. Player target effects still use actor refs, while the kit's
+`vehicle_attack` deliberately targets an opposing present occupied `vehicle:` ref.
+
+Zero hull makes the craft `lost` and unusable. Its exact occupants disembark without any actor
+health, status, condition or position change, and its own Hold the Approach obstruction ends.
+The wreck remains recorded. A later invalid effect rolls the entire tentative loss back.
+Field Damage Control repairs damaged active hull by its printed eight, not a lost craft.
+An explicit `replace_vehicle` utility spends one Main outside an encounter at recorded safe
+recovery. It requires the actor's genuinely lost, empty assigned craft, creates a new identity
+at the actor's location with the same profile and level-derived maximum, and preserves the
+wreck and reciprocal replacement links. Those links belong to that campaign world, not a
+reusable character-sheet assignment. Copying a character does not acquire foreign wreck refs.
+Rider-enabled initial scene authoring must establish connected, unblocked safe recovery access;
+a current empty wreck never prevents walking along an otherwise legal recorded journey and
+is never moved with the walkers.
+
+`VEHICLE_MOVEMENT_RULES.version = 'vehicle-movement-1'` is an initial delegated calibration,
+not playtested balance. Vehicle movement requires its present operator, actual occupants and
+a connected unblocked route. Pinned operators/passengers must be freed, including Passenger
+Rescue's printed clear-before-boarding. Party-affecting recorded obstructions block the route.
+Impossible Approach can bypass exactly one such obstruction only when the player explicitly
+selects its existing feature ref; it neither clears that feature nor permits a solid barrier.
+A vehicle Main whose route enters one or more recorded party-affecting hazard areas takes
+one wound (five hull) for that movement, even when bypassing an obstruction. This bounded
+movement consequence does not invent additional passenger damage. Targeted Run checks actual
+vehicle scale; Driving Impact also requires its printed movable vehicle-scale target.
+Evasive Course's actual vehicle `steadied` record can ground one slight favorable Pilot delta
+with exact `{kind:'vehicle_condition',ref:<vehicle ref>,token:'steadied'}` provenance. The shared
+check-context builder requires the acting Rider's own active, occupied, present craft and its
+canonical vehicle condition. Other skills, craft, tokens and stale/remote/unoccupied assignments
+do not supply this candidate. Council still judges relevance; it creates neither an NPC roll
+nor automatic armor. The accepted check and its situational delta persist in the usual d100
+ledger, independently of later narration.
 
 ## Comparison Dependency
 

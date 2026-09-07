@@ -76,7 +76,11 @@ export function prepareClassJourney({ state, actor, action, location, consenting
       || value.willing === false || !clearApproach(state, value.area, action.from)) fail('The whole traveling party needs a clear connected approach to the recorded exit.');
   }
   if (Object.values(state.actors).some(value => value.present && value.locationId === state.currentLocationId && value.opposed && !value.party && value.health > 0)) fail('Resolve the established opposition before taking an ordinary journey.');
-  const vehicles = Object.entries(state.vehicles).filter(([, vehicle]) => travelers.some(([ref]) => ref === vehicle.operator));
+  const vehicles = Object.entries(state.vehicles).filter(([, vehicle]) => {
+    if (!travelers.some(([ref]) => ref === vehicle.operator)) return false;
+    if (vehicle.status === 'lost' && vehicle.hull === 0 && !vehicle.occupants?.length) return false;
+    return true;
+  });
   for (const [, vehicle] of vehicles) {
     if (vehicle.locationId !== state.currentLocationId || vehicle.status !== 'active' || vehicle.hull <= 0
       || !clearApproach(state, vehicle.area, action.from)

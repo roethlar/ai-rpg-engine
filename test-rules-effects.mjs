@@ -213,10 +213,15 @@ export function runRulesEffectsTests() {
   reject([{ ...boon, who: 'vehicle:1' }], 'REFERENCE', undefined, ability);
   reject([{ ...harm, who: 'vehicle:1' }], 'REFERENCE');
   state = effectsTestState(); state.vehicles['vehicle:1'].hull = 1;
+  state.vehicles['vehicle:1'].occupants = ['character:1', 'character:2'];
   const zeroHull = evaluate([vehicleHarm], state);
   assert.equal(zeroHull.state.vehicles['vehicle:1'].hull, 0);
-  assert.equal(zeroHull.state.vehicles['vehicle:1'].status, 'active', 'Zero hull cannot imply undeclared destruction or passenger harm.');
-  reject([vehicleHarm], 'NO_OP', zeroHull.state);
+  assert.equal(zeroHull.state.vehicles['vehicle:1'].status, 'lost', 'The versioned Rider loss rule makes zero hull unusable.');
+  assert.deepEqual(zeroHull.state.vehicles['vehicle:1'].occupants, []);
+  assert.deepEqual(zeroHull.state.actors, state.actors, 'Craft loss cannot silently damage, kill or relocate its passengers.');
+  assert.deepEqual(zeroHull.events.find(value => value.type === 'vehicle_hull_zero').occupants, ['character:1', 'character:2']);
+  reject([vehicleHarm], 'REFERENCE', zeroHull.state);
+  reject([vehicleHarm, { op: 'condition_clear', who: 'character:1', condition: 'pinned' }], 'NO_OP', state);
   const revive = { op: 'revive', who: 'character:2', health: 1, maximumElapsedTurns: 2, condition: 'winded', duration: 'scene' };
   state = effectsTestState(); Object.assign(state.actors['character:2'], { health: 0, status: 'dead', deathTurn: 3, intactBody: true, willingReturn: true });
   const revived = evaluate([revive], state, ability);

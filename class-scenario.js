@@ -21,6 +21,8 @@ const guard = { id: 'guard', kind: 'guard', skill: 'endure', range: 'self', cond
 const rally = { id: 'rally', kind: 'help', skill: 'leadership', range: 'near', condition: 'inspired', requires: 'none', tell: 'Calls to one visible ally before lending support.' };
 const withdraw = { id: 'withdraw', kind: 'move', skill: 'move', range: 'adjacent', requires: 'none', tell: 'Turns toward a recorded neighboring area to withdraw.' };
 const heavyStrike = { ...strike, id: 'heavy_strike', harm: 'grievous', tell: 'Draws a weapon back for a heavy close-range blow; distance denies it.' };
+const mountedStrike = { ...brawl, id: 'mounted_strike', harm: 'wound', tell: 'Brings the mounted unit close enough to strike one opposing actor.' };
+const hullStrike = { id: 'hull_strike', kind: 'vehicle_attack', skill: 'pilot', range: 'engaged', harm: 'wound', requires: 'none', tell: 'Lines up a close impact against one opposing mount or craft, not its passengers.' };
 
 // These are asymmetric NPC kits, not player classes or model-authored effects.
 export const NPC_PROFILES = freeze({
@@ -28,7 +30,8 @@ export const NPC_PROFILES = freeze({
   ranged: { health: 14, skills: { ranged: 10, move: 5, notice: 5 }, actions: [shoot, brawl, withdraw], defense: 'This ranged combatant has no trained close-combat attack.' },
   support: { health: 14, skills: { leadership: 10, influence: 8, notice: 5 }, actions: [rally, brawl, withdraw], defense: 'This supporter has no trained weapon attack and must reach an ally to help.' },
   brute: { health: 28, skills: { melee: 8, endure: 10 }, actions: [heavyStrike, brawl, guard, withdraw], defense: 'This brute is durable but has no trained ranged attack or pursuit.' },
-  boss: { health: 40, skills: { melee: 13, ranged: 8, endure: 13, leadership: 8 }, actions: [heavyStrike, shoot, rally, brawl, guard, withdraw], defense: 'This leader still spends one Main action; an attack cannot also rally an ally.' }
+  boss: { health: 40, skills: { melee: 13, ranged: 8, endure: 13, leadership: 8 }, actions: [heavyStrike, shoot, rally, brawl, guard, withdraw], defense: 'This leader still spends one Main action; an attack cannot also rally an ally.' },
+  mounted: { health: 36, scale: 'vehicle', skills: { melee: 8, pilot: 10, endure: 10 }, actions: [mountedStrike, hullStrike, guard, withdraw], defense: 'This mounted unit has vehicle scale and close-range impacts, but no ranged attack or independent mount turn.' }
 });
 
 const FEATURE_KINDS = ['obstruction', 'hazard', 'smoke', 'darkness', 'alarm', 'cover', 'passage'];
@@ -72,6 +75,7 @@ export const CLASS_SCENE_CONTRACT = freeze({
     'Held items require a provided actor holder or recorded area holder. Only a held weapon can be wielded. Items grant only their engine-defined kind, never numeric bonuses.',
     'Optional weaponCategory must match the typed weapon kind: melee permits simple, martial, or heavy and defaults to simple; ranged permits and defaults to ranged. Nonweapons omit it or use null. Display names never grant a weapon category.',
     'Active encounters list present opposition actors, never party or neutral actors. Inactive encounters have an empty opposition list.',
+    'The mounted NPC profile represents a mounted or vehicle-scale opposing unit with one shared Main. Use it only when the established fiction supports that scale; never assign it merely to exercise a Rider ability. The engine supplies its scale, health and closed actor-or-hull attack options.',
     'Safe occupancy is not safe recovery. Only explicit safe_recovery permits a recovery opportunity; immediate_threat forbids it. These two traits cannot coexist in an area.',
     'Set feature origin explicitly to mundane or magical when known. Omitted origin is unknown; a name or feature kind never proves its origin.'
   ]
@@ -305,7 +309,7 @@ export function buildClassScenario({ world, location, frame, actorBindings, turn
         target.status = entry.fallen ? 'dead' : 'active';
         target.relationshipValue = target.relationshipValue ?? target.disposition ?? 0;
         target.wealth = 'comfortable';
-        target.scale = 'person';
+        target.scale = profile.scale || 'person';
         if (entry.fallen) {
           target.deathAge = entry.fallen.age;
           target.bodyState = entry.fallen.body;

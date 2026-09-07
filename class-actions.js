@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { isDeepStrictEqual } from 'node:util';
 import {
   CATALOG_VERSION, CATALOG_RULES_VERSION, CATALOG_RESOLUTION_VERSION, CATALOG_EFFECT_VERSION,
-  CLASS_PROFILES, COMPANION_PROFILES, CLASS_EQUIPMENT_PERMISSIONS,
+  CLASS_PROFILES, COMPANION_PROFILES, CLASS_EQUIPMENT_PERMISSIONS, VEHICLE_MOVEMENT_RULES,
   getAbilityDefinition, getClassBranch
 } from './class-catalog.js';
 import { evaluateEffects, EFFECT_VALUES } from './rules-effects.js';
@@ -333,7 +333,8 @@ export function prepareClassAction({ state, actor, ability, bindings = {}, conte
   }
   if (mechanic.kind === 'vehicle') {
     origin = state.vehicles?.[before.vehicle?.vehicleRef];
-    if (!origin || origin.operator !== actor || origin.hull <= 0 || origin.status !== 'active') fail('STATE', 'An active owned vehicle is required.');
+    if (!origin || origin.operator !== actor || origin.hull <= 0 || origin.status !== 'active'
+      || origin.locationId !== source.locationId || origin.area !== source.area || !origin.occupants?.includes(actor)) fail('STATE', 'An active owned vehicle occupied by its present operator is required.');
   }
   const effectiveDefinition = clone(definition);
   if (mechanic.kind === 'channel' && context.overreach && mechanic.range) effectiveDefinition.targeting.range = mechanic.range;
@@ -538,8 +539,23 @@ export function prepareClassAction({ state, actor, ability, bindings = {}, conte
       const vehicleRef = before.vehicle.vehicleRef;
       const vehicle = state.vehicles[vehicleRef];
       const nextVehicle = {};
+      if (mechanic.targetScale && (state.actors[targets[0]]?.scale !== mechanic.targetScale
+        || areaRecord(state, state.actors[targets[0]].area).visible !== true)) fail('PRECONDITION', 'This attack requires a visible vehicle-scale enemy.');
       if (['move', 'move_attack', 'board_move'].includes(mechanic.mode)) {
-        const destination = validateRoute(state, vehicle.area, context.route || [bindings.area], mechanic.maximumDistance);
+        const route = context.route || [bindings.area];
+        const destination = validateRoute(state, vehicle.area, route, mechanic.maximumDistance);
+        const routeAreas = new Set([vehicle.area, ...route].map(area => `area:${state.currentLocationId}:${area}`));
+        const obstructions = Object.entries(state.features).filter(([, feature]) => feature.status === 'active'
+          && feature.kind === 'obstruction' && routeAreas.has(feature.area) && ['party', 'both'].includes(feature.works_against));
+        if (obstructions.length > (mechanic.ignoreHindranceCount || 0)
+          || obstructions.length && (obstructions.length !== 1 || bindings.feature !== obstructions[0][0])
+          || !obstructions.length && bindings.feature) fail('ROUTE', 'The vehicle route is obstructed; only an authored explicitly selected hindrance bypass permits it.');
+        if (source.conditions.pinned) fail('PRECONDITION', 'The pinned operator must be freed before moving the craft.');
+        if (Object.values(state.features).some(feature => feature.status === 'active' && feature.kind === 'hazard'
+          && route.includes(state.areas[feature.area]?.id) && feature.location === state.currentLocationId
+          && ['party', 'both'].includes(feature.works_against))) {
+          successTemplates.push({ op: 'vehicle_harm', who: vehicleRef, grade: VEHICLE_MOVEMENT_RULES.hazardGrade });
+        }
         if (mechanic.mode === 'move_attack') {
           const reached = state.actors[targets[0]];
           if (!reached || distance(state, destination, reached.area) > (before.vehicle.profile === 'cavalier' ? 0 : 1)) fail('RANGE', 'The chosen vehicle route does not reach the attack target.');
@@ -553,6 +569,8 @@ export function prepareClassAction({ state, actor, ability, bindings = {}, conte
         for (const ref of [actor, ...passengers]) {
           const traveler = state.actors[ref];
           if (!traveler || traveler.area !== vehicle.area) fail('STATE', 'Recorded occupants must actually occupy the vehicle area.');
+          if (traveler.conditions.pinned && !(mechanic.mode === 'board_move' && targets.includes(ref)
+            && definition.onSuccess.some(effect => effect.op === 'condition_clear' && effect.condition === 'pinned'))) fail('PRECONDITION', 'A pinned passenger must be freed before the craft moves.');
           patchActor(successPatches, ref, { area: destination });
         }
         set('vehicle', { ...before.vehicle, area: destination, occupants: [actor, ...passengers], lastMainOperationId: context.operationId }, 'success');
@@ -624,7 +642,10 @@ export function prepareClassAction({ state, actor, ability, bindings = {}, conte
 
 function mergePatches(state, patches) {
   for (const [ref, fields] of Object.entries(patches.actors)) Object.assign(state.actors[ref], clone(fields));
-  for (const [ref, fields] of Object.entries(patches.vehicles)) Object.assign(state.vehicles[ref], clone(fields));
+  for (const [ref, fields] of Object.entries(patches.vehicles)) {
+    Object.assign(state.vehicles[ref], clone(fields));
+    if (state.vehicles[ref].status === 'lost') { state.vehicles[ref].occupants = []; state.vehicles[ref].passengers = []; }
+  }
 }
 
 export function finalizeClassAction({ state, plan, outcome, effectResult } = {}) {
@@ -677,6 +698,7 @@ function synchronizeClassState(state) {
     if (cs.vehicle?.vehicleRef && state.vehicles?.[cs.vehicle.vehicleRef]) {
       const vehicle = state.vehicles[cs.vehicle.vehicleRef];
       Object.assign(cs.vehicle, { hull: vehicle.hull, maxHull: vehicle.maxHull, area: vehicle.area, status: vehicle.status, occupants: clone(vehicle.occupants || []) });
+      if (vehicle.status === 'lost') delete cs.vehicle.hold;
     }
   }
 }

@@ -696,7 +696,19 @@ function executeEffect(effect, context) {
         const amount = EFFECT_VALUES.harm[effect.grade];
         vehicle.hull = Math.max(0, vehicle.hull - amount);
         events.push({ type: 'vehicle_hull_changed', who: effect.who, before, after: vehicle.hull, amount, appliedAmount: before - vehicle.hull });
-        if (vehicle.hull === 0) events.push({ type: 'vehicle_hull_zero', who: effect.who });
+        if (vehicle.hull === 0) {
+          const occupants = [...vehicle.occupants || []];
+          const owner = state.actors[vehicle.operator];
+          const holdSource = owner?.classState?.vehicle?.vehicleRef === effect.who ? owner.classState.vehicle.hold?.source : null;
+          const clearedFeatures = [];
+          for (const [ref, feature] of Object.entries(state.features)) if (holdSource && feature.source === holdSource
+            && feature.status === 'active' && feature.kind === 'obstruction') {
+            feature.status = 'cleared'; feature.clearedBy = transactionId; clearedFeatures.push(ref);
+          }
+          vehicle.status = 'lost'; vehicle.occupants = []; vehicle.passengers = []; vehicle.conditions = {};
+          if (owner?.classState?.vehicle?.vehicleRef === effect.who) delete owner.classState.vehicle.hold;
+          events.push({ type: 'vehicle_hull_zero', who: effect.who, occupants, clearedFeatures });
+        }
         return result([`${effect.who}:hull`], valence, { significant: effect.grade !== 'graze', targets: { who: effect.who, operator: vehicle.operator }, prestate: { hull: before, maxHull: vehicle.maxHull, amount, appliedAmount: before - vehicle.hull } });
       }
       if (effect.condition !== 'steadied' || effect.duration !== 'scene') fail('SHAPE', 'This vehicle capability applies only scene-duration steadied.');

@@ -8,7 +8,7 @@ import { NPC_PROFILES } from './class-scenario.js';
 import { validateRulesWorld } from './class-state.js';
 import { prepareClassAction, finalizeClassAction, prepareClassEvent, finalizeClassEvent, finalizeIncomingClassEffects } from './class-actions.js';
 import { prepareOrdinaryAction, finalizeOrdinaryAction, buildOrdinaryCheckContext, prepareNpcConsequence, finalizeNpcConsequence } from './class-ordinary.js';
-import { advanceClassCharacter, recoverClassCharacter, configureClassPreparation, returnToBaseProfile, abandonClassRitual } from './class-progression.js';
+import { advanceClassCharacter, recoverClassCharacter, configureClassPreparation, returnToBaseProfile, abandonClassRitual, replaceClassVehicle } from './class-progression.js';
 import { evaluateEffects, BOONS, HINDRANCES } from './rules-effects.js';
 import { validateCheckCall, checkSucceeded } from './rules-resolution.js';
 import { readRulesOperation, checkpointRulesOperation, commitRulesCheck, readRulesCheck, finalizeRulesAnnotation } from './rules-store.js';
@@ -60,7 +60,7 @@ async function ask(apiConfig, role, stage, instruction, data) {
 // projection also excludes undiscovered facts and the private class working state.
 export function classCouncilWorld(state, { privateCanon = false } = {}) {
   const actors = Object.fromEntries(Object.entries(state.actors).filter(([, value]) => value.present && value.locationId === state.currentLocationId).map(([ref, value]) => [ref, {
-    name: value.name, area: value.area, party: value.party, status: value.status,
+    name: value.name, area: value.area, party: value.party, status: value.status, scale: value.scale || 'person',
     vitality: value.health === 0 ? 'incapacitated' : value.health === value.maxHealth ? 'unharmed' : 'injured',
     conditions: Object.fromEntries(Object.entries(value.conditions || {}).map(([token, condition]) => [token, { duration: condition.duration, detail: condition.detail }])),
     ...(privateCanon ? { opposed: value.opposed === true, knowledge: value.knowledge || [],
@@ -87,7 +87,12 @@ export function classCouncilWorld(state, { privateCanon = false } = {}) {
   const features = Object.fromEntries(Object.entries(state.features).filter(([, value]) => value.status === 'active' && areas[value.area]).map(([ref, value]) => [ref, {
     name: value.name, area: value.area, kind: value.kind, origin: value.origin || 'unknown', worksAgainst: value.works_against
   }]));
-  return JSON.parse(JSON.stringify({ actors, areas, items, objects, features, facts: state.facts.map(value => value.fact), encounterActive: state.encounter.active }));
+  const vehicles = Object.fromEntries(Object.entries(state.vehicles).filter(([, value]) => value.locationId === state.currentLocationId).map(([ref, value]) => [ref, {
+    profile: value.profile, area: value.area, scale: value.scale, operator: value.operator, occupants: [...value.occupants || []],
+    status: value.status, hull: value.hull === 0 ? 'lost' : value.hull === value.maxHull ? 'intact' : 'damaged',
+    conditions: Object.keys(value.conditions || {})
+  }]));
+  return JSON.parse(JSON.stringify({ actors, areas, items, objects, features, vehicles, facts: state.facts.map(value => value.fact), encounterActive: state.encounter.active }));
 }
 
 function affirmedRefs(state, raw, field) {
@@ -125,6 +130,8 @@ action is one of:
  {kind:'continue_ritual'} | {kind:'recover'} | {kind:'prepare',definitionIds:[]} | {kind:'return_to_base'} | {kind:'abandon_ritual'}.
  {kind:'journey',from:<exact area>,exit:<exact out: token>,basis:<grounded route explanation>} selects one supplied journeyExit to leave this location. Never invent an exit or substitute an arbitrary destination. Only clear connected walking to the exit may be folded into the journey; no blocked path, uncertain escape or active encounter. Journey uses no check, NPC turns, encounter edit or XP award; arrival is authored and committed separately after this accepted selection.
 Ability bindings select recorded targets:[actor refs], ally, area (bare area ID), areas (actor-to-area map), condition, conditions, item, weapon, feature, object, travelers, catalyst, installation, retireInstallation or profile only as required by the selected definition. options permits mode, overreach (explicit player choice), route (bare area IDs). Do not add bookkeeping or numeric costs. Do not silently include another traveler or omit a Fireball occupant.
+The replace_vehicle utility is {kind:'replace_vehicle'}, available only for an owned lost craft at recorded safe recovery outside combat; it spends one Main and replaces the wreck, never heals passengers. A kit vehicle_attack uses target:<exact vehicle ref>, not its operator. Other attack/help targets remain actor refs. Vehicle movement cannot cross blocked areas or unselected obstructions; an authored bypass selects its exact feature. Recorded party-affecting hazards still damage the moving hull. Targeted Run and Driving Impact require a recorded vehicle-scale enemy.
+On a Pilot check only, the acting Rider's present occupied active craft may ground its recorded steadied boon as {kind:'vehicle_condition',ref:<that exact vehicle ref>,token:'steadied'}, with a slight favorable delta when relevant. This is not an NPC roll, armor or automatic avoidance. Other craft, conditions and skill contexts cannot use this source.
 Ordinary actions: attack {target,method:melee|ranged|unarmed,item?}; move {area}; aid {target}; unlock/disable {object}; pickup/drop/consume/wield {item}; travel {locationId,area} to recorded connected locations; skill {skill:influence|lore|notice|craft|survival,subject,discoveryId} for an exact stored eligible discovery. No invented skill permissions or spell effects. Ordinary area values are the area's bare id (for example "path"), never its map key ("area:1:path"). Ability selectors explicitly distinguish area_id from area_ref; follow their declared type.
 check is null when certainty or lack of stakes makes dice unnecessary, otherwise {actor,callSeq:1,intent,tier,tierBasis,deltas:[{direction,magnitude,reason}]}. Only the acting PC rolls; no NPC, opposed or reaction rolls. Tier is trivial|easy|standard|hard|extreme|legendary. Basis describes ordinary intrinsic difficulty, not transient conditions. Direction favors|hinders; magnitude slight|moderate|major. At most three unique situational facts. No targets, bonuses, totals or other arithmetic. deltaSources has one exact typed provenance per delta: condition {kind:'condition',ref,token}; feature {kind:'mundane_cover'|'mundane_aim'|'magical_ward'|'recorded_obstacle',ref}; profile {kind:'class_profile',ref,profile}; recorded fact {kind:'recorded_fact',ref:<exact fact text>}. Feature provenance follows recorded origin, never its name. If check is null explain why in noCheckReason, otherwise set it null.
 npcTurns is {success:[],failure:[]}. Each entry is {npc,actionId,target?} using that NPC's kit, or {npc,wait:<grounded reason>}. An attack or help action MUST include target:<exact actor ref>; a move MUST include target:<bare area id>; only guard omits target. A branch with no active encounter must have an EMPTY list, even on the final PC Main. During an active encounter, only on the final PC Main of the round, give each eligible present living party or affirmed-opposed NPC one Main or grounded wait in that outcome branch. Companions use their controller's shared Main, never a separate NPC turn. NPC attacks are consequences, not extra rolls. Respect equipment, range, target survival and the kit tell.
@@ -163,10 +170,11 @@ function prepareSelectedAction({ state, actor, ruling, declarations, context }) 
     case 'prepare': result = configureClassPreparation({ ...input, definitionIds: action.definitionIds }); break;
     case 'return_to_base': result = returnToBaseProfile(input); break;
     case 'abandon_ritual': result = abandonClassRitual(input); break;
+    case 'replace_vehicle': result = replaceClassVehicle(input); break;
     default: fail('ACTION', 'Unknown action kind.');
   }
   if (isDeepStrictEqual(result.state, state)) fail('NO_OP', 'This action would not change anything.');
-  return { kind: action.kind, plan: null, result: { ...result, effects: [], events: [] } };
+  return { kind: action.kind, plan: null, result: { ...result, effects: result.effects || [], events: result.events || [] } };
 }
 
 function checkForSelection(state, actor, selected, ruling) {
@@ -199,7 +207,9 @@ function checkForSelection(state, actor, selected, ruling) {
 }
 
 function dispatchEvent(state, event, context) {
-  return finalizeClassEvent({ state, plan: prepareClassEvent({ state, event, context: { ...context, actor: context.actor } }) });
+  const present = ref => state.actors[ref]?.present && state.actors[ref].locationId === state.currentLocationId;
+  return finalizeClassEvent({ state, plan: prepareClassEvent({ state, event, context: { ...context, actor: context.actor,
+    affirmedOpposed: (context.affirmedOpposed || []).filter(present), consentingActors: (context.consentingActors || []).filter(present) } }) });
 }
 
 function mergeReceipt(result, receipt) {

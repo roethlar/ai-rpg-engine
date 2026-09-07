@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import {
-  CATALOG_LEVEL_CAP, CATALOG_VERSION, CATALOG_OPTION_SET, CLASS_PROFILES, COMPANION_PROFILES,
+  CATALOG_LEVEL_CAP, CATALOG_VERSION, CATALOG_OPTION_SET, CLASS_PROFILES, COMPANION_PROFILES, VEHICLE_PROFILES,
   buildClassLoadout, getAbilityDefinition, getClassBranch
 } from './class-catalog.js';
 
@@ -20,6 +20,38 @@ function character(state, actor) {
 
 function contextId(value) {
   if (typeof value !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$/u.test(value)) fail('IDENTITY', 'A stable engine-owned award or recovery ID is required.');
+}
+
+export function replaceClassVehicle({ state, actor, operationId } = {}) {
+  contextId(operationId);
+  const source = character(state, actor);
+  const cs = source.classState;
+  const previousRef = cs.vehicle?.vehicleRef;
+  const previous = state.vehicles?.[previousRef];
+  const area = state.areas?.[`area:${source.locationId}:${source.area}`];
+  if (source.classBuild.familyId !== 'rider' || source.classBuild.capabilities?.rider !== true
+    || !source.classBuild.modules?.includes('rider') || !previous || previous.operator !== actor) fail('CHARACTER', 'Only the assigned Rider can replace this craft.');
+  if (source.tableStatus !== 'active' || state.turnOrder.order[state.turnOrder.currentIndex] !== actor
+    || source.health <= 0 || source.status !== 'active' || !source.present || source.locationId !== state.currentLocationId
+    || state.encounter.active || area?.safeRecovery !== true || area.immediateThreat === true) fail('SAFETY', 'Replacement requires your Main at a recorded safe recovery opportunity.');
+  if (previous.hull !== 0 || previous.status !== 'lost' || previous.occupants?.length) fail('PRECONDITION', 'Only a genuinely lost, disembarked craft can be replaced.');
+  const profile = VEHICLE_PROFILES[cs.vehicle.profile];
+  const maximum = getClassBranch(source.classBuild.branchId).progression[source.level - 1].vehicleMaxHull;
+  if (!profile || !Number.isSafeInteger(maximum)) fail('STATE', 'The assigned craft profile is invalid.');
+  const ref = `vehicle:${actor.slice('character:'.length)}:${operationId}`;
+  if (state.vehicles[ref]) fail('IDENTITY', 'The replacement identity is already recorded.');
+  const next = clone(state);
+  const craft = { id: ref, profile: profile.id, hull: maximum, maxHull: maximum, area: source.area,
+    locationId: source.locationId, controller: actor, operator: actor, occupants: [actor], passengers: [],
+    passengerCapacity: profile.passengerCapacity, scale: profile.scale, status: 'active', sharedMain: true,
+    conditions: {}, replacementOf: previousRef, source: operationId };
+  next.vehicles[ref] = craft;
+  next.vehicles[previousRef].replacedBy = ref;
+  next.actors[actor].classState.vehicle = { id: operationId, vehicleRef: ref, profile: profile.id,
+    hull: maximum, maxHull: maximum, area: source.area, occupants: [actor], passengerCapacity: profile.passengerCapacity,
+    scale: profile.scale, status: 'active', sharedMain: true, lastMainOperationId: operationId };
+  next.actors[actor].classState.lastMainOperationId = operationId;
+  return { state: next, applied: true, events: [{ type: 'vehicle_replaced', who: ref, previous: previousRef, actor }], effects: [] };
 }
 
 function targetLoadout(source, level, idFactory) {

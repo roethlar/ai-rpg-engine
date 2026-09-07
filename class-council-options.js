@@ -122,7 +122,9 @@ function selectors(definition, source, profiles, installations) {
     ...(mechanic.stance ? { resultingStance: mechanic.stance } : {}),
     ...(mechanic.binding ? { declaration: mechanic.binding } : {}),
     ...(mechanic.trigger ? { trigger: mechanic.trigger } : {}),
-    ...(mechanic.installation ? { installationKind: mechanic.installation } : {}) };
+    ...(mechanic.installation ? { installationKind: mechanic.installation } : {}),
+    ...(mechanic.targetScale ? { targetScale: mechanic.targetScale } : {}) };
+  if (mechanic.ignoreHindranceCount) bindings.feature = { type: 'feature_ref', relation: 'explicit_route_obstruction_to_bypass', optional: true };
   return { bindings, options, fixed,
     preparation: mechanic.requiresPrepared || mechanic.kind === 'device' && mechanic.mode === 'use'
       ? source.classState.prepared?.includes(definition.id) ? 'prepared' : 'not_prepared' : 'not_required' };
@@ -193,6 +195,7 @@ export function buildClassCouncilOptions({ state, actor, declarations } = {}) {
       conditions: conditionTokens(value.conditions), sharedMain: true };
   }
   const utilities = [{ kind: 'recover', requires: ['no_active_encounter', 'recorded_safe_recovery', 'no_immediate_threat'] }];
+  if (vehicle?.status === 'lost') utilities.push({ kind: 'replace_vehicle', requires: ['own_lost_craft', 'no_active_encounter', 'recorded_safe_recovery', 'one_main'], previous: vehicle.ref });
   if (['arcanist', 'maker'].includes(source.classBuild.familyId) && Array.isArray(cs.prepared)) {
     utilities.push({ kind: 'prepare', requires: ['no_active_encounter'], choices: [...owned.values()].filter(value => value.definition.activation === 'main')
       .map(({ definition }) => ({ definitionId: definition.id, name: definition.name, prepared: cs.prepared.includes(definition.id), basic: definition.grantedAtLevel === 1 })) });

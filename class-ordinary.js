@@ -108,7 +108,7 @@ function npcProfile(actor) {
   const profile = NPC_PROFILES[kit?.id];
   if (!profile || actor.npcProfile !== kit.id || kit.version !== NPC_PROFILE_VERSION || kit.mainActions !== 1
     || !isDeepStrictEqual(kit.actions, profile.actions) || !isDeepStrictEqual(kit.tells, profile.actions.map(action => action.tell))
-    || actor.maxHealth !== profile.health) fail('KIT', 'The NPC does not have an intact authored encounter kit.');
+    || actor.maxHealth !== profile.health || (actor.scale || 'person') !== (profile.scale || 'person')) fail('KIT', 'The NPC does not have an intact authored encounter kit.');
   return profile;
 }
 
@@ -137,6 +137,17 @@ function checkFor(state, actor, source, skill, { target = null, attack = ['melee
   const deltaSources = [];
   for (const [token, condition] of Object.entries(source.conditions)) {
     if (condition.class === 'hindrance' || ['steadied', 'inspired'].includes(token)) deltaSources.push({ direction: condition.class === 'hindrance' ? 'hinders' : 'favors', magnitude: 'slight', reason: `Acting character is ${token}.`, source: { kind: 'condition', ref: actor, token } });
+  }
+  if (skill === 'pilot' && source.classBuild.familyId === 'rider') {
+    const ref = source.classState.vehicle?.vehicleRef;
+    const vehicle = state.vehicles[ref];
+    const condition = vehicle?.conditions?.steadied;
+    if (vehicle?.operator === actor && vehicle.controller === actor && vehicle.status === 'active' && vehicle.hull > 0
+      && vehicle.locationId === source.locationId && vehicle.area === source.area && vehicle.occupants?.includes(actor)
+      && condition?.vehicle === ref && condition.condition === 'steadied' && condition.class === 'boon' && condition.duration === 'scene') {
+      deltaSources.push({ direction: 'favors', magnitude: 'slight', reason: 'The occupied craft has recorded steadied footing.',
+        source: { kind: 'vehicle_condition', ref, token: 'steadied' } });
+    }
   }
   for (const entry of profile?.checkDeltas ?? []) if (entry.skill === skill && (!entry.context || origin[entry.context] === true)) {
     deltaSources.push({ direction: entry.direction, magnitude: entry.magnitude, reason: entry.reason, source: { kind: 'class_profile', ref: actor, profile: profile.id } });
@@ -332,7 +343,15 @@ export function prepareNpcConsequence({ state, actingActor, npc, actionId, targe
   }
   if (source.npcState?.lastMainRound === context.round) fail('BUDGET', 'That NPC has already spent its Main action this round.');
   let effects = [];
-  if (action.kind === 'attack') {
+  if (action.kind === 'vehicle_attack') {
+    const victim = typeof target === 'string' && /^vehicle:[A-Za-z0-9][A-Za-z0-9_.:-]*$/u.test(target) ? state.vehicles[target] : null;
+    if (!victim || victim.locationId !== state.currentLocationId || victim.hull <= 0 || victim.status !== 'active') fail('REFERENCE', 'Choose one present active recorded craft.');
+    const operator = actorRecord(state, victim.operator);
+    if (operator.party === source.party || !operator.party && !frame.affirmedOpposed.includes(victim.operator)
+      || operator.area !== victim.area || !victim.occupants?.includes(victim.operator)) fail('ALLEGIANCE', 'A hull attack requires an opposing occupied craft.');
+    requireRange(state, source, victim, action.range === 'near' ? 1 : 0, true);
+    effects = [{ op: 'vehicle_harm', who: target, grade: action.harm }];
+  } else if (action.kind === 'attack') {
     const victim = actorRecord(state, target);
     if (target === npc || victim.party === source.party || !victim.party && !frame.affirmedOpposed.includes(target)) fail('ALLEGIANCE', 'The NPC attack must name an actual opposing actor.');
     requireRange(state, source, victim, action.range === 'near' ? 1 : 0, true);

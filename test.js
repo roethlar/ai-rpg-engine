@@ -7321,6 +7321,8 @@ async function runAll() {
     await runClassScoutTurnTests();
     const { runClassMakerTurnTests } = await import('./test-class-maker-turns.mjs');
     await runClassMakerTurnTests();
+    const { runClassRiderTurnTests } = await import('./test-class-rider-turns.mjs');
+    await runClassRiderTurnTests();
     const { runClassJourneyTests } = await import('./test-class-journey.mjs');
     await runClassJourneyTests();
     const { runClassTurnTransportTests } = await import('./test-class-turn-transport.mjs');
