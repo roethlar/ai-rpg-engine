@@ -15,7 +15,8 @@ to `docs/history/state-archive.md`.
   Immutable d100 history projection and the durable operation/check/annotation store also pass
   focused and full-suite checks. The authored catalog foundation covers all 24 branch packages,
   168 definitions and levels 1-10; its component checks pass. These foundations are not yet
-  connected to Council turns. Signed-rules execution, real creation/play integration and
+  connected to Council turns. The strict effect evaluator and versioned class extensions pass
+  focused operation/rollback tests. Signed-rules execution, real creation/play integration and
   end-to-end verification remain in progress.
   Do not stop at another paper recommendation or ask for routine per-class approvals.
 - **THE OWNER IS NOT THE ABILITY-REVIEW COMMITTEE.** The 2026-09-07 agent-owned design decision

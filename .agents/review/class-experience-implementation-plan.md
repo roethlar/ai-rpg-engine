@@ -110,6 +110,15 @@ separate unless an actual class-path dependency is established. No real user dat
   Expert-only admission guard. `.agents/review/class-catalog-design.md` owns detailed design and
   evidence limits. The combined repository suite passed with the catalog present. Creation,
   effect and interface integration remains in progress; this is not complete gameplay evidence.
+- Effect evaluator foundation: `rules-effects.js` implements strict typed references, ordered
+  tentative transactions, conflict/no-op guards, signed annotation budgets and the documented
+  `effects-class-runtime-1` extensions. `test-rules-effects.mjs` executes all 36 advertised
+  operations and the catalog dependency set, including NPC vitals, vehicle hull, direct spell
+  permissions, exact stored discoveries and the narrowly authored Refuse Defeat floor. Removing
+  conflict rejection failed the duplicate-harm assertion; restored tests passed. Full Unicode
+  case folding uses exact pinned `unicode-case-folding` 1.1.1, with its primary-source generator
+  and license checked. `docs/rules/effects-runtime-v1.md` owns schema/calibration details. These
+  component results do not claim Council, class lifecycle or narrated gameplay integration.
 
 ## Completion Audit
 
