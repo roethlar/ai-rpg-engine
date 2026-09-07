@@ -2,6 +2,7 @@
  * RPG State Management Submodule
  */
 import { validateVoiceDelivery } from './tts-providers.js';
+import { normalizeCheckRecord } from './rules-resolution.js';
 import {
   emptyAbilityInvocationRecord,
   validateAbilityInvocationRecord
@@ -401,13 +402,23 @@ function escapeXmlText(value) {
 /**
  * Coerces dice-roll records to the canonical shape (cr-4: shared by live
  * play and the import trust boundary — the roll bubble dereferences these).
- * Entries without numeric total+dc are dropped; everything else is coerced.
+ * Signed d100 records retain their ledger fields; legacy total+dc records
+ * keep their existing shape. Invalid d100 arithmetic never falls back to d20.
  */
 export function sanitizeDiceRollRecords(raw) {
   const rolls = [];
   if (Array.isArray(raw)) {
-    raw.slice(0, 3).forEach(roll => {
+    raw.forEach((roll, index) => {
       if (!roll || typeof roll !== 'object' || Array.isArray(roll)) return;
+      if (roll.sides === 100) {
+        try {
+          rolls.push(normalizeCheckRecord(roll));
+        } catch {
+          // This display sanitizer cannot repair a contradictory historical result.
+        }
+        return;
+      }
+      if (index >= 3) return;
       if (typeof roll.total !== 'number' || isNaN(roll.total)) return;
       if (typeof roll.dc !== 'number' || isNaN(roll.dc)) return;
       rolls.push({

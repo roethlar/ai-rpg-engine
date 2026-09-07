@@ -89,6 +89,12 @@ separate unless an actual class-path dependency is established. No real user dat
   arithmetic/clamp/license examples and invalid-input/immutability guards. Mutation proof:
   widening the marginal-success comparison from `< 5` to `<= 5` failed with `6 !== 5`; restored,
   the complete `node test.js` suite passed. Runtime activation remains pending.
+- Ledger projection foundation: `sanitizeDiceRollRecords` now preserves signed d100 records
+  without requiring legacy total/DC fields and rejects contradictory arithmetic without a d20
+  fallback. `normalizeCheckRecord` checks core arithmetic and the annotation envelope; actual
+  effect authorization remains the effects consumer's responsibility. Disabling the d100
+  projection branch made the new history assertion fail; after restoration, the full suite passed.
+  Signed history retains all checks rather than applying the legacy three-check display cap.
 - Other foundation implementation and all end-to-end requirements remain pending.
 
 ## Completion Audit

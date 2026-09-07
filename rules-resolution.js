@@ -178,3 +178,61 @@ export function createCheckRecord(
     timestamp
   });
 }
+
+/** Validates ledger arithmetic for projection/import; effect authorization belongs to its consumer. */
+export function normalizeCheckRecord(record) {
+  if (!record || typeof record !== 'object' || Array.isArray(record) || record.sides !== 100) {
+    throw new TypeError('Expected a signed d100 check record.');
+  }
+  if (!Array.isArray(record.deltas)) throw new TypeError('Check deltas must be an array.');
+  const deltas = record.deltas.map(delta => {
+    exactKeys(delta, ['direction', 'magnitude', 'reason', 'value'], 'Ledger delta');
+    return { direction: delta.direction, magnitude: delta.magnitude, reason: delta.reason };
+  });
+  const call = {
+    actor: record.actor, callSeq: record.callSeq, intent: record.intent,
+    tier: record.tier, tierBasis: record.tierBasis, deltas
+  };
+  const core = createCheckRecord({
+    call, actor: record.actor, turn: record.turn, skillBonus: record.skillBonus, activeEncounter: false
+  }, { roll: () => record.raw, newId: () => record.checkId, now: () => record.timestamp });
+  for (const key of ['tierTarget', 'netDelta', 'T', 'band']) {
+    if (record[key] !== core[key]) throw new TypeError('Check record contradicts its rules arithmetic.');
+  }
+  if (record.deltas.some((delta, index) => delta.value !== core.deltas[index].value)) {
+    throw new TypeError('Ledger delta value contradicts its magnitude.');
+  }
+  const legalLicenses = [false, true].map(activeEncounter => stakesLicenseFor({
+    tier: core.tier, band: core.band, activeEncounter
+  }));
+  if (!legalLicenses.includes(record.stakesLicense)) throw new TypeError('Invalid stakes license.');
+  if (!owns(record, 'annotation') || !owns(record, 'annotationRejected')) {
+    throw new TypeError('Check annotation fields are required.');
+  }
+  const annotationRejected = record.annotationRejected === null ? null
+    : boundedText(record.annotationRejected, 'Annotation rejection', 200);
+  let annotation = null;
+  if (record.annotation !== null) {
+    if (!EDGE_BANDS.has(core.band) || annotationRejected !== null) {
+      throw new TypeError('This check cannot carry an annotation.');
+    }
+    exactKeys(record.annotation, ['text', 'effects', 'affirmedOpposed'], 'Annotation');
+    const { text, effects, affirmedOpposed } = record.annotation;
+    boundedText(text, 'Annotation text', 300);
+    // Every catalog effect costs at least one point; no license grants more than two.
+    if (!Array.isArray(effects) || effects.length > STAKES_BUDGETS[record.stakesLicense]
+        || effects.some(effect => !effect || typeof effect !== 'object' || Array.isArray(effect))) {
+      throw new TypeError('Annotation effects exceed the license envelope.');
+    }
+    if (!Array.isArray(affirmedOpposed) || affirmedOpposed.length > 64
+        || new Set(affirmedOpposed).size !== affirmedOpposed.length
+        || affirmedOpposed.some(ref => typeof ref !== 'string' || !/^npc:[1-9]\d*$/u.test(ref))) {
+      throw new TypeError('Annotation opposition must be unique typed NPC references.');
+    }
+    annotation = structuredClone({ text, effects, affirmedOpposed });
+  }
+  if (!EDGE_BANDS.has(core.band) && annotationRejected !== null) {
+    throw new TypeError('A clean-band check cannot carry an annotation rejection.');
+  }
+  return { ...core, stakesLicense: record.stakesLicense, annotation, annotationRejected };
+}

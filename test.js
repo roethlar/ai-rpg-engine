@@ -2,7 +2,7 @@ import assert from 'assert';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
-import { parseJsonSafe, validateTurnData, validateRequiredChecks, rollCheck, forceNoOpTurnState, applyCharacterUpdate, applyDiceConsequences, buildVoiceScript, TABLE_TALK_KINDS } from './rpg-state.js';
+import { parseJsonSafe, validateTurnData, validateRequiredChecks, rollCheck, forceNoOpTurnState, applyCharacterUpdate, applyDiceConsequences, buildVoiceScript, TABLE_TALK_KINDS, sanitizeDiceRollRecords } from './rpg-state.js';
 import { AIClient, resolveAgentConfig, isTransientAiError } from './api-client.js';
 import { baseThemeVars, fullThemeVars } from './public/theme-vars.js';
 import {
@@ -21,6 +21,7 @@ import {
   validateAbilityInvocationRecord
 } from './ability-trigger-state.js';
 import { runRulesResolutionTests } from './test-rules-resolution.mjs';
+import { createCheckRecord } from './rules-resolution.js';
 
 // Hermetic store: db.js opens its file at module load, and several tests
 // dynamically import rpg-engine.js (which pulls db.js in). Redirect BEFORE
@@ -7227,6 +7228,14 @@ async function runAll() {
   try {
     testParseJsonSafe();
     runRulesResolutionTests();
+    const signedRecord = createCheckRecord({
+      call: { actor: 1, callSeq: 1, intent: 'Cast at the raider', tier: 'standard', tierBasis: 'An armed opponent', deltas: [] },
+      actor: 1, turn: 1, skillBonus: 13, activeEncounter: true
+    }, { roll: () => 70 });
+    assert.deepStrictEqual(sanitizeDiceRollRecords([signedRecord]), [signedRecord], 'D100 history keeps the full signed ledger, without requiring legacy total/dc.');
+    const signedHistory = Array.from({ length: 5 }, (_, index) => ({ ...signedRecord, callSeq: index + 1 }));
+    assert.deepStrictEqual(sanitizeDiceRollRecords(signedHistory), signedHistory, 'Signed history is not truncated by the legacy three-check display cap.');
+    assert.deepStrictEqual(sanitizeDiceRollRecords([{ ...signedRecord, T: 99, total: 20, dc: 10 }]), [], 'A corrupted d100 record cannot become a legacy result.');
     testLevelUpMath();
     testProductionSsrfBlock();
     testJsonSchemaValidation();

@@ -6,6 +6,7 @@ import {
   createCheckRecord,
   DIFFICULTY_TARGETS,
   evaluateOutcomeBand,
+  normalizeCheckRecord,
   OUTCOME_BANDS,
   stakesLicenseFor,
   validateCheckCall
@@ -78,6 +79,19 @@ export function runRulesResolutionTests() {
   assert.equal(Object.isFrozen(record), true);
   assert.equal(Object.isFrozen(record.deltas), true);
   assert.throws(() => { record.raw = 100; }, TypeError);
+  assert.deepEqual(normalizeCheckRecord(record), record);
+  assert.deepEqual(normalizeCheckRecord({ ...record, operationId: 'store-metadata' }), record);
+  for (const corrupt of [{ T: 49 }, { tierTarget: 49 }, { netDelta: 3 }, { band: 'clean_success' }, { sides: 20 }, { stakesLicense: 'significant' }]) {
+    assert.throws(() => normalizeCheckRecord({ ...record, ...corrupt }));
+  }
+  const annotated = {
+    ...record,
+    annotation: { text: 'A loud impact rings through the hall.', effects: [], affirmedOpposed: [] }
+  };
+  assert.deepEqual(normalizeCheckRecord(annotated), annotated);
+  assert.throws(() => normalizeCheckRecord({ ...annotated, annotationRejected: 'Rejected.' }));
+  assert.throws(() => normalizeCheckRecord({ ...annotated, band: 'clean_success', raw: 90, stakesLicense: null }));
+  assert.throws(() => normalizeCheckRecord({ ...annotated, annotation: { ...annotated.annotation, affirmedOpposed: ['character:1'] } }));
   const original = call();
   const validated = validateCheckCall(original, { actor: 7 });
   original.intent = 'A different action';
