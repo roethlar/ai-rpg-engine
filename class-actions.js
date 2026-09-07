@@ -488,7 +488,7 @@ export function prepareClassAction({ state, actor, ability, bindings = {}, conte
           }
           const slots = mechanic.slots || 1;
           if (installations.filter(entry => entry.status === 'active').reduce((sum, entry) => sum + entry.slots, 0) + slots > before.installationCapacity) fail('CAPACITY', 'Explicitly retire an installation before exceeding capacity.');
-          installations.push({ id: `installation:${context.operationId}`, kind: mechanic.installation, slots, area: bindings.area || source.area, locationId: source.locationId, status: 'active', health: 8, maxHealth: 8, source: context.operationId, features: [], trigger: mechanic.trigger || null, payload: clone(mechanic.payload || []), maximumTriggers: mechanic.maximumTriggers || 0, triggerCount: 0 });
+          installations.push({ id: `installation:${context.operationId}`, kind: mechanic.installation, slots, area: bindings.area || source.area, locationId: source.locationId, status: 'active', source: context.operationId, features: [], trigger: mechanic.trigger || null, payload: clone(mechanic.payload || []), maximumTriggers: mechanic.maximumTriggers || 0, triggerCount: 0 });
           set('installations', installations, 'success');
           check = mechanic.mode === 'deploy_or_fire' ? null : check;
         }
@@ -500,7 +500,7 @@ export function prepareClassAction({ state, actor, ability, bindings = {}, conte
           const prior = state.features[ref];
           if (prior?.status === 'active') successTemplates.push({ op: 'scene_feature_clear', feature: ref }, { op: 'scene_feature_place', area: destination, kind: prior.kind, name: prior.name, duration: prior.duration, works_against: prior.works_against });
         }
-        installation.area = destination; installation.health = Math.min(installation.maxHealth, installation.health + mechanic.repair); installation.features = []; installation.source = context.operationId;
+        installation.area = destination; installation.features = []; installation.source = context.operationId;
         set('installations', installations, 'success');
       }
       break;

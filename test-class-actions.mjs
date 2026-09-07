@@ -117,7 +117,7 @@ function matrixRequest(definition) {
     cs.prepared = source.abilities.filter(ability => ability.invocation).map(ability => ability.definition_id);
     if (mechanic.mode === 'deploy_or_fire') ctx.mode = 'deploy';
     if (mechanic.mode === 'relocate') {
-      cs.installations = [{ id: 'installation:fixture', kind: 'bulwark', slots: 1, area: 'a', locationId: 1, status: 'active', health: 2, maxHealth: 8, source: 'old', features: [] }];
+      cs.installations = [{ id: 'installation:fixture', kind: 'bulwark', slots: 1, area: 'a', locationId: 1, status: 'active', source: 'old', features: [] }];
       bindings.targets = ['installation:fixture']; bindings.installation = 'installation:fixture';
     }
   }
@@ -314,6 +314,27 @@ export function runClassActionTests() {
   request = { ...request, state: result.state, context: { ...request.context, turn: 19, operationId: 'expired-continuation' } };
   assert.throws(() => prepareClassAction(request), /recent recorded death/i, 'Each continuation still needs an eligible recorded death.');
   assert.deepEqual(request.state, startedWorking);
+
+  request = requestNamed('Deploy Bulwark', { bindings: { targets: [ACTOR] }, context: { operationId: 'deploy-mobile-bastion' } });
+  result = runAction(request);
+  const deployed = result.state.actors[ACTOR].classState.installations[0];
+  assert.equal(Object.hasOwn(deployed, 'health'), false, 'Installations have no unsupported durability pool.');
+  assert.equal(Object.hasOwn(deployed, 'maxHealth'), false);
+  assert.equal(deployed.features.length, 1);
+  const priorCover = deployed.features[0];
+  request = requestNamed('Mobile Bastion', { state: result.state, bindings: { installation: deployed.id, area: 'b' },
+    context: { operationId: 'move-mobile-bastion', turn: 11 } });
+  result = runAction(request);
+  const relocated = result.state.actors[ACTOR].classState.installations[0];
+  assert.equal(relocated.id, deployed.id);
+  assert.equal(relocated.area, 'b');
+  assert.equal(result.state.actors[ACTOR].area, 'a');
+  assert.equal(result.state.features[priorCover].status, 'cleared');
+  assert.equal(relocated.features.length, 1);
+  assert.equal(result.state.features[relocated.features[0]].area, 'area:1:b');
+  assert.equal(result.state.features[relocated.features[0]].kind, 'cover');
+  assert.equal(result.plan.consumeMain, true);
+  assert.equal(Object.hasOwn(definitionNamed('Mobile Bastion').mechanic, 'repair'), false);
 
   request = requestNamed('Passenger Rescue', { bindings: { targets: [ALLY], area: 'b' } });
   request.state.actors[ALLY].conditions.pinned = condition(ALLY, 'pinned');
