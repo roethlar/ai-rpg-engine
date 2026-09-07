@@ -91,15 +91,14 @@ to `docs/history/state-archive.md`.
 
 ## Next
 
-**NEXT:** The owner-authorized written Fighter alternative is complete in
-`.agents/review/fighter-encounter-walkthrough.md`, following its earlier effort/payoff assessment.
-For one illustrative exchange, an explicit maintained Bodyguard commitment replaces the Form menu:
-cover an ally and accept incoming melee attacks while staying beside them. It is proposed, not
-adopted or implemented. The example changes the scene as well as the mechanic, so it establishes no
-causal enjoyment or effort result. Recommend comparing the original Forms and this commitment in
-that exact rescue situation before drawing a design conclusion; that additional work is not yet
-authorized. No further owner participation is required by the example, and no full playtest
-program or additional ability catalog is authorized.
+**NEXT:** Bodyguard is withdrawn by owner direction. The authorized ordinary-combat inventory is
+complete in `.agents/review/ordinary-combat-baseline.md`: ordinary attacks, positioning, and helping
+attempts need no invented class ability, but exact blocking/interception, targeting, and competing
+threat rules are not yet a complete contract. Existing code and provisional fixture outcomes are
+not a released or player-validated baseline. Recommend drafting the ordinary interaction between
+attacking, intervening, and competing threats in the same Mira situation before class additions;
+that further specification is not yet authorized. Do not resume Forms-versus-Bodyguard comparison,
+require owner participation, or expand this into a full rules rewrite or playtest program.
 `.agents/review/gate-5-class-model-plan.md` section 7.1 owns the paused starting-set proposal.
 No replacement is selected, no Fighter package is authorized, and prior settled decisions remain
 intact. Carry the separate description-scope finding.
@@ -184,6 +183,8 @@ remaining bullets retain their independent priority.
   `.agents/review/archetype-portability-matrix-v3.md` — retained evidence.
 - `.agents/review/gate-5-class-model-plan.md` — draft replacement Gate 5 taxonomy and gate order;
   `.agents/review/archetype-roster-fable-candidate.md` — retained reviewer evidence.
+- `.agents/review/ordinary-combat-baseline.md` — completed inventory after Bodyguard withdrawal;
+  existing ordinary-intent support, approved-spec boundaries, and unresolved physical/action rules.
 - `plan.md` — the broader phased roadmap.
 - `.agents/review/index.md` — implementation findings, order, and verdicts.
 - `README.md` — current setup, hosting, seat, and voice flow.

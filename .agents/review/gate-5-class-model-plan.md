@@ -344,10 +344,12 @@ The owner subsequently authorized a one-exchange effort/payoff assessment, now r
 walkthrough. It compares Guarding with the already-legal ordinary attack and distinguishes real
 payload differences from unmeasured player effort. The lower-overhead route does not establish
 that option overload is solved; no enjoyment verdict or replacement mechanic is approved.
-The subsequently authorized written alternative is also recorded there: a single explicit,
-maintained Bodyguard commitment replaces the Form menu for that example. It is a proposed rule
-change, not another ability added to the catalog, and its changed scene is not controlled evidence
-that the mechanic improves enjoyment. The owner has not adopted or approved implementing it.
+The subsequently authorized Bodyguard illustration is now withdrawn by owner direction after the
+owner challenged its automatic-protection premise against ordinary combat. The completed inventory in
+`ordinary-combat-baseline.md` separates existing code, approved specifications, and provisional
+ordinary actions. It exposes missing positioning/interception rules without replacing them with
+class permissions. Do not resume the Bodyguard comparison or treat early playtests as validation
+of the current system; `../decisions.md` owns both 2026-09-07 clarifications.
 The starting-set proposal remains paused.
 
 The proposal below is retained for reference, not renewed approval. Preserve the accepted

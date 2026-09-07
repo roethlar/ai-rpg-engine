@@ -225,6 +225,11 @@ was run; none is represented as passing. Docs are checked with `git diff --check
 
 ## Written alternative: one protective commitment
 
+**WITHDRAWN, 2026-09-07:** the owner authorized dropping Bodyguard after challenging its automatic
+redirection and simultaneous-attack premise. `ordinary-combat-baseline.md` owns the subsequent
+inventory. The text below is retained as rejected design evidence, not a live proposal, pending
+comparison, or ordinary-combat rule. `../decisions.md` owns the withdrawal direction.
+
 **Authorization and status:** the owner authorized one concrete replacement exchange in chat:
 what the player types, what happens, and which rule changes, without owner participation. This
 section records that example. Its mechanics and outcomes are proposed/scripted, not implemented,
@@ -294,7 +299,6 @@ ally objective, so its added stakes cannot be credited solely to the mechanic. T
 could be too strong or uninteresting in practice, and changing allies frequently could reintroduce
 selection burden. No balance result, role/class restriction, or evidence-tier verdict follows.
 
-**Next recommendation, not authorized:** compare this exact rescue situation under the original
-Forms and the proposed commitment, holding threats and the ally's task fixed, to separate the
-mechanic's contribution from the more consequential scene. Do not add more abilities, ask the owner
-to play, or implement the proposal on the strength of this illustration.
+**Former comparison recommendation withdrawn:** do not resume a Forms-versus-Bodyguard comparison.
+The owner redirected work to the ordinary-combat baseline; see `ordinary-combat-baseline.md` for
+the completed inventory and its next recommendation. No replacement ability is approved.

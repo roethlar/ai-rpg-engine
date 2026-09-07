@@ -1674,3 +1674,17 @@ the repository, not a release or player-validated baseline. Correct active summa
 
 This clarification does not erase recorded component tests or owner prototype evaluations, revoke
 approved specifications, or authorize a release, code changes, or a new playtest program.
+
+### 2026-09-07 - Withdraw Bodyguard and establish the ordinary-combat baseline
+
+**Status: Active bounded design direction; no replacement mechanics or code approved.**
+
+After challenging how automatic protection could work against multiple enemies while the Fighter
+attacked elsewhere, the owner authorized dropping the proposed Bodyguard ability and establishing
+what ordinary combat already accomplishes. The old illustration remains withdrawn evidence, not
+an ability awaiting adoption or a comparison to resume. Its automatic redirection must not become
+an implicit rule for ordinary protective prose.
+
+`.agents/review/ordinary-combat-baseline.md` owns the resulting inventory, its incomplete-rule
+findings, and the proposed next step. This direction approves no class roster, special protection
+mechanic, full combat rewrite, implementation, or owner-participation requirement.
