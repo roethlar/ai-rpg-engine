@@ -6,12 +6,19 @@ to `docs/history/state-archive.md`.
 
 ## Now
 
+- **GAMEPLAY-VERIFICATION PLANNING IS COMPLETE; EXECUTION IS NOT APPROVED (2026-09-08).**
+  The owner authorized the plan, then clarified there is no intended Council configuration.
+  `.agents/review/class-gameplay-verification-plan.md` proposes an explicit per-role lineup,
+  no-provider coverage across all 24 packages, and a three-episode/eight-submission live pilot
+  with a 60-dispatch cap. It owns the acceptance criteria, isolation/stop rules and evidence
+  limits. No live model calls or tests were run while planning. Next is approval or revision
+  of that one bounded execution package, not another search for a nonexistent configuration.
 - **THE LATENCY TEST WAS UNAPPROVED AND REJECTED AS VALID EVIDENCE (2026-09-08).** The agent
   spent live calls on an unapproved single-model test plan without establishing the intended
   Council configuration. `.agents/review/council-latency-profile.md` owns the incident and retained
   audit measurements, not accepted performance/fun evidence. The optimization recommendation
-  and proposed Referee benchmark are withdrawn. The owner's latest go authorized record
-  correction only; no rerun or replacement task is approved. The live-test authorization
+  and proposed Referee benchmark are withdrawn. The correction go authorized record repair;
+  the later gameplay-planning go above does not authorize live execution. The live-test authorization
   correction in `.agents/decisions.md` owns the future approval boundary.
 - **THE AUTHORIZED CLASS EXPERIENCE IS IMPLEMENTED AND VERIFIED.** The owner's 2026-09-07
   "all gos are given" supersedes older planning-only/code-unapproved wording within
@@ -144,10 +151,11 @@ to `docs/history/state-archive.md`.
 
 ## Next
 
-**NEXT:** The authorized correction of the unapproved latency-test record is complete. Stop;
-no further latency investigation, live test or optimization is selected or authorized. The
-withdrawn Referee benchmark is not a queued next task. Any new work needs the owner's direction;
-the separate historical version/key, voice and multiplayer queues are not implicitly activated.
+**NEXT:** Present the bounded execution package in
+`.agents/review/class-gameplay-verification-plan.md` for explicit approval: proposed role models,
+three gameplay episodes and 60 total text-provider dispatches. Planning is complete; live execution
+and production changes are not approved. The withdrawn Referee optimization benchmark stays
+withdrawn. Do not implicitly activate the separate version/key, voice or multiplayer queues.
 
 **Prior design context:** `.agents/review/gate-5-class-model-plan.md` section 7.1 retains the
 Fighter-only analysis that preceded the owner's whole-system direction. Its planning-only stops
