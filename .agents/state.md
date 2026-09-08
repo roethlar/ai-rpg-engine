@@ -6,6 +6,14 @@ to `docs/history/state-archive.md`.
 
 ## Now
 
+- **COUNCIL LATENCY PROFILING IS COMPLETE (2026-09-08).** The owner's follow-up go authorized
+  the bounded diagnostic, not production optimization. Five fresh same-scene actions completed
+  without retry: question 4.8s, move 22.9s, Magic Missile 18.1s/16.1s, Fireball 33.6s. Model-call
+  wrappers accounted for 99.9% of measured action time; other work was 5-26ms per action.
+  `.agents/review/council-latency-profile.md` owns per-role measurements, historical rejections,
+  instrumentation/sample limits and the proposed controlled Referee-contract benchmark.
+  No production code, configured DB or provider settings changed. No current rejection rate,
+  latency percentile or human enjoyment verdict follows from these five accepted cases.
 - **THE AUTHORIZED CLASS EXPERIENCE IS IMPLEMENTED AND VERIFIED.** The owner's 2026-09-07
   "all gos are given" supersedes older planning-only/code-unapproved wording within
   `.agents/review/class-experience-implementation-plan.md`, not unrelated security work,
@@ -137,11 +145,12 @@ to `docs/history/state-archive.md`.
 
 ## Next
 
-**NEXT:** The authorized class implementation is complete. The next proposed experience task is
-bounded Council latency/reliability profiling, using the recorded 23.3-second live cast and its
-earlier rejected attempts to identify waiting cost. Present that scope before new product work;
-do not turn unverified enjoyment into another owner ability-review queue. Separate version/key,
-voice and historical multiplayer work below is not silently authorized by this closeout.
+**NEXT:** Class implementation and the authorized latency profile are complete. Proposed next:
+run the controlled Referee-contract benchmark in `.agents/review/council-latency-profile.md`,
+retaining every rules/consent/independent-review boundary while measuring narrower requests.
+That experiment and any resulting production changes need their own go. Do not turn unverified
+enjoyment into another owner ability-review queue. Separate version/key, voice and historical
+multiplayer work below is not silently authorized by this closeout.
 
 **Prior design context:** `.agents/review/gate-5-class-model-plan.md` section 7.1 retains the
 Fighter-only analysis that preceded the owner's whole-system direction. Its planning-only stops
