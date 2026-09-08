@@ -6,6 +6,13 @@ to `docs/history/state-archive.md`.
 
 ## Now
 
+- **HANDOFF AS OF `e468645` (2026-09-08).** Runner isolation and its diagnostic
+  dispatch guard are committed; verification evidence is in
+  `.agents/review/class-gameplay-verification/isolation-results.md`. No test or
+  live inference process remains running. The thread goal is blocked on explicit
+  approval for the proposed gameplay-only local run, not on implementation.
+  Handoff is not that approval. No production change, new model call, model
+  substitution or automatic retry is authorized.
 - **GAMEPLAY RUNNER ISOLATION PASSES OFFLINE (2026-09-08).** The owner directed
   "do something successfully" after the proposed offline runner correction.
   `.agents/review/class-gameplay-isolation-plan.md` owns that diagnostic scope:
@@ -197,11 +204,16 @@ to `docs/history/state-archive.md`.
 
 ## Next
 
-**NEXT:** Execute the explicitly authorized corrected live run in
-`.agents/review/class-gameplay-correction-plan.md`, then report actual outcomes, model usage and
-remaining evidence gaps in chat. The offline corrections and required verification are complete.
-Preserve both runs separately; do not silently add another allowance or claim unobserved success.
-The withdrawn Referee optimization benchmark stays withdrawn; do not activate unrelated queues.
+**NEXT AS OF `e468645`:** Obtain the pending explicit approval for the single
+gameplay-only run in `.agents/review/class-gameplay-isolation-plan.md`. After
+approval, record it and execute
+`node .agents/review/class-gameplay-verification/run-gameplay.mjs --run` once,
+then deliver actual inputs, outcomes, usage and limitations in chat. The
+creation-inclusive corrected run already ended; its allowance is consumed.
+Do not rerun it, repeat completed offline work as a substitute for live evidence,
+or restart a command merely because its observation connection times out.
+Both earlier failures remain in their separate result records. The withdrawn
+Referee benchmark and unrelated implementation queues remain out of scope.
 
 **Prior design context:** `.agents/review/gate-5-class-model-plan.md` section 7.1 retains the
 Fighter-only analysis that preceded the owner's whole-system direction. Its planning-only stops
@@ -230,6 +242,11 @@ remaining bullets retain their independent priority.
 
 ## Blockers
 
+- **Live gameplay approval, as of `e468645`:** the bounded gameplay-only run has
+  been proposed but not approved. The thread goal was marked blocked after this
+  same authorization boundary persisted across three goal turns. Resume only
+  on an actual owner response; automatic goal continuations and handoff do not
+  grant an inference allowance.
 - Former mapping blocker cleared as of `af69a85`: the parked location-title premise is false.
   `map-render.js` now fits and clips the title; fix `d4f680b` arrived through merge `a5c15d2`,
   whose renderer/test/review content matches its merged branch. `.agents/review/findings/map-2.md`
