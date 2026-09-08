@@ -13,7 +13,8 @@ to `docs/history/state-archive.md`.
   commits. Preserve game guards and the previous failed evidence. No fresh live allowance
   follows; no model call is part of this corrective implementation.
   Ritual-phase context now passes focused real-working checks and the full offline unit/browser
-  suites. Remaining: land response-bound feedback, integrate conservative envelopes, finalize
+  suites. The response bound is now explicit with field-specific repair feedback, and its
+  captured-response regression passes. Remaining: integrate conservative envelopes, finalize
   runner regression coverage and rerun final verification.
 - **LOCAL-MODEL GAMEPLAY PILOT STOPPED WITHOUT A COMPLETED EXCHANGE (2026-09-08).** The owner rejected the
   paid-cloud lineup, supplied `qwen3.8:27b-mlx` and `muse-glimmer:30b-mlx`, and said "use those".

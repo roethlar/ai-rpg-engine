@@ -30,8 +30,9 @@ function shape(value, required, optional = []) {
     || Object.keys(value).some(key => !required.includes(key) && !optional.includes(key))) fail('SHAPE', 'Unknown or missing Council response fields.');
 }
 
-function bounded(value, maximum = 2000) {
-  if (typeof value !== 'string' || !value.trim() || [...value].length > maximum) fail('SHAPE', 'Council text is empty or exceeds its bound.');
+function bounded(value, maximum = 2000, field = null) {
+  if (typeof value !== 'string' || !value.trim() || [...value].length > maximum) fail('SHAPE', field
+    ? `${field} must be a nonempty string of at most ${maximum} characters.` : 'Council text is empty or exceeds its bound.');
   return value;
 }
 
@@ -133,7 +134,7 @@ Ability bindings select recorded targets:[actor refs], ally, area (bare area ID)
 The replace_vehicle utility is {kind:'replace_vehicle'}, available only for an owned lost craft at recorded safe recovery outside combat; it spends one Main and replaces the wreck, never heals passengers. A kit vehicle_attack uses target:<exact vehicle ref>, not its operator. Other attack/help targets remain actor refs. Vehicle movement cannot cross blocked areas or unselected obstructions; an authored bypass selects its exact feature. Recorded party-affecting hazards still damage the moving hull. Targeted Run and Driving Impact require a recorded vehicle-scale enemy.
 On a Pilot check only, the acting Rider's present occupied active craft may ground its recorded steadied boon as {kind:'vehicle_condition',ref:<that exact vehicle ref>,token:'steadied'}, with a slight favorable delta when relevant. This is not an NPC roll, armor or automatic avoidance. Other craft, conditions and skill contexts cannot use this source.
 Ordinary actions: attack {target,method:melee|ranged|unarmed,item?}; move {area}; aid {target}; unlock/disable {object}; pickup/drop/consume/wield {item}; travel {locationId,area} to recorded connected locations; skill {skill:influence|lore|notice|craft|survival,subject,discoveryId} for an exact stored eligible discovery. No invented skill permissions or spell effects. Ordinary area values are the area's bare id (for example "path"), never its map key ("area:1:path"). Ability selectors explicitly distinguish area_id from area_ref; follow their declared type.
-check is null when certainty or lack of stakes makes dice unnecessary, otherwise {actor,callSeq:1,intent,tier,tierBasis,deltas:[{direction,magnitude,reason}]}. Only the acting PC rolls; no NPC, opposed or reaction rolls. Tier is trivial|easy|standard|hard|extreme|legendary. Basis describes ordinary intrinsic difficulty, not transient conditions. Direction favors|hinders; magnitude slight|moderate|major. At most three unique situational facts. No targets, bonuses, totals or other arithmetic. deltaSources has one exact typed provenance per delta: condition {kind:'condition',ref,token}; feature {kind:'mundane_cover'|'mundane_aim'|'magical_ward'|'recorded_obstacle',ref}; profile {kind:'class_profile',ref,profile}; recorded fact {kind:'recorded_fact',ref:<exact fact text>}. Feature provenance follows recorded origin, never its name. If check is null explain why in noCheckReason, otherwise set it null.
+check is null when certainty or lack of stakes makes dice unnecessary, otherwise {actor,callSeq:1,intent,tier,tierBasis,deltas:[{direction,magnitude,reason}]}. Only the acting PC rolls; no NPC, opposed or reaction rolls. Tier is trivial|easy|standard|hard|extreme|legendary. Basis describes ordinary intrinsic difficulty, not transient conditions. Direction favors|hinders; magnitude slight|moderate|major. At most three unique situational facts. No targets, bonuses, totals or other arithmetic. deltaSources has one exact typed provenance per delta: condition {kind:'condition',ref,token}; feature {kind:'mundane_cover'|'mundane_aim'|'magical_ward'|'recorded_obstacle',ref}; profile {kind:'class_profile',ref,profile}; recorded fact {kind:'recorded_fact',ref:<exact fact text>}. Feature provenance follows recorded origin, never its name. If check is null explain why in a nonempty noCheckReason of at most 500 characters, otherwise set it null.
 npcTurns is {success:[],failure:[]}. Each entry is {npc,actionId,target?} using that NPC's kit, or {npc,wait:<grounded reason>}. An attack or help action MUST include target:<exact actor ref>; a move MUST include target:<bare area id>; only guard omits target. A branch with no active encounter must have an EMPTY list, even on the final PC Main. During an active encounter, only on the final PC Main of the round, give each eligible present living party or affirmed-opposed NPC one Main or grounded wait in that outcome branch. Companions use their controller's shared Main, never a separate NPC turn. NPC attacks are consequences, not extra rolls. Respect equipment, range, target survival and the kit tell.
 encounter is {success:'unchanged'|'start'|'end',failure:'unchanged'|'start'|'end'}. Start only established opposition; end only when the confrontation actually ends, never just to recover a spent power. award is null or {kind:'encounter'|'objective'|'milestone',id:<stable established accomplishment identity>}; never award XP for repeating an action or asking for XP. Awards occur only on success, once per identity.`;
 
@@ -180,7 +181,7 @@ function prepareSelectedAction({ state, actor, ruling, declarations, context }) 
 function checkForSelection(state, actor, selected, ruling) {
   if (!Array.isArray(ruling.deltaSources)) fail('CHECK', 'Delta provenance must be an array.');
   if (ruling.check === null) {
-    bounded(ruling.noCheckReason, 500);
+    bounded(ruling.noCheckReason, 500, 'noCheckReason');
     if (ruling.deltaSources.length) fail('CHECK', 'A no-roll action cannot carry deltas.');
     return null;
   }

@@ -68,5 +68,11 @@ from unused requests in the stopped run.
   the ritual and response-bound changes. The browser baseline had 366 assertions,
   zero failures and zero external requests attempted; class creator, transport
   and desktop/mobile experience checks passed. No model responses were generated.
-- Response bound, envelope integration and runner corrections remain in progress;
+- Response bound: implemented and verified without changing its 500-character
+  limit. The Referee sees the limit and a rejection identifies `noCheckReason`.
+  The exact captured 547-character explanation now exercises a field-specific
+  repair followed by independent pre-roll review, with no check or early revival.
+  Removing either the prompt bound or field label failed the focused assertions;
+  both fixes were restored green. Full offline unit/browser results above apply.
+- Envelope integration and runner corrections remain in progress;
   each gets its own evidence and commit. No new live test is authorized or running.

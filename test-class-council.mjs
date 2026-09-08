@@ -9,6 +9,9 @@ import { CATALOG_VERSION, CATALOG_OPTION_SET, getAbilityDefinition } from './cla
 import { buildClassScenario } from './class-scenario.js';
 import { computeCheckTarget } from './rules-resolution.js';
 
+// Captured pilot reply, aetheria-gameplay-pilot-6rMxOt/report.json, calls[6].
+const CAPTURED_NO_CHECK_REASON = 'The contextual_check for Recall the Departed omits dice because both omission conditions are met. Established certainty: Tarin (npc:6) has intactBody true, deathRecorded true, and willingReturn true; the Return catalyst (item:scene:3:return-material) is pristine, owned by Sera, and unused; all ritual prerequisites are satisfied deterministically. No stakes: the Gate has no immediate threat, no active encounter, and no opposing actor; the scene is safe and quiet. With certainty and absence of stakes both established, the dice are unnecessary.';
+
 export async function runClassCouncilTests() {
   assert.ok(process.env.RPG_DB_PATH, 'Council tests require a disposable database.');
   const db = await import('./db.js');
@@ -297,6 +300,47 @@ export async function runClassCouncilTests() {
     assert.equal(ritualEnd.phase, 'complete');
     assert.equal(ritualEnd.success.state.actors[ritual.actor].area, 'yard');
     assert.equal(ritualEnd.success.state.actors[ritual.actor].classState.ritual, null);
+
+    const recallSample = await fixture('arcanist', 'ritual', { level: 10 });
+    const recall = recallSample.sheet.abilities.find(ability => ability.name === 'Recall the Departed');
+    Object.assign(recallSample.world.actors[recallSample.enemy], {
+      name: 'Tarin', party: true, allegiance: 'party', opposed: false,
+      health: 0, status: 'dead', deathTurn: 1, intactBody: true, willingReturn: true
+    });
+    const catalyst = `item:scene:${recallSample.locationId}:return-material`;
+    recallSample.world.items[catalyst] = { id: catalyst, name: 'Return catalyst', class: 'mundane',
+      kind: 'revival-catalyst', holder: recallSample.actor, condition: 'pristine' };
+    const recallDeclaration = { abilities: [{ ability_id: recall.id, definition_id: recall.definition_id,
+      definition_version: recall.definition_version, canonical_name: recall.name, canonical_description: recall.description }] };
+    const recallRuling = rulingFor(recallSample, {
+      action: { kind: 'ability', abilityId: recall.id, bindings: { targets: [recallSample.enemy], catalyst }, options: {} },
+      check: null, noCheckReason: CAPTURED_NO_CHECK_REASON
+    });
+    const beforeRecall = structuredClone(recallSample.world);
+    let reasonAttempts = 0;
+    const recallReview = () => ({ approved: true, reason: 'The recorded preliminary working is deterministic.',
+      affirmedOpposed: [], consentingActors: [] });
+    responses(recallSample, recallRuling, { grounding: recallReview, pre_roll: recallReview,
+      referee: data => {
+        reasonAttempts++;
+        if (reasonAttempts === 1) return recallRuling;
+        assert.equal(data.rejection, 'noCheckReason must be a nonempty string of at most 500 characters.');
+        return { ...recallRuling, noCheckReason: 'The initial working is deterministic; no revival or catalyst consumption occurs yet.' };
+      }
+    });
+    assert.equal([...CAPTURED_NO_CHECK_REASON].length, 547);
+    const correctedRecall = await prepare(recallSample, recallDeclaration, { playerAction: 'I begin Recall the Departed for Tarin using the return catalyst.' });
+    assert.equal(reasonAttempts, 2, 'The captured overlong explanation receives one field-specific correction.');
+    assert.match(calls.find(call => call.stage === 'referee').instruction, /noCheckReason of at most 500 characters/u);
+    assert.equal(calls.filter(call => call.stage === 'pre_roll').length, 1, 'The corrected ruling still requires independent semantic review.');
+    assert.equal(correctedRecall.check, null);
+    assert.equal(correctedRecall.phase, 'ritual_progress');
+    assert.equal(correctedRecall.success.state.actors[recallSample.actor].classState.ritual.completed, 1);
+    assert.equal(correctedRecall.success.state.actors[recallSample.enemy].health, 0);
+    assert.ok(correctedRecall.success.state.items[catalyst], 'A corrected preliminary working cannot consume the catalyst early.');
+    assert.deepEqual(recallSample.world, beforeRecall, 'Response repair cannot mutate the authoritative world.');
+    assert.equal((await db.get('SELECT COUNT(*) AS n FROM rules_checks WHERE campaign_id = ?', [recallSample.campaignId])).n, 0);
+    assert.equal((await db.get('SELECT COUNT(*) AS n FROM rules_turn_operations WHERE campaign_id = ?', [recallSample.campaignId])).n, 0);
   } finally {
     AIClient.prototype.sendPrompt = originalPrompt;
     for (const id of campaigns) await db.run('DELETE FROM campaigns WHERE id = ?', [id]);
