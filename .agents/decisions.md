@@ -1778,3 +1778,24 @@ versioned mechanics, staged class evidence and the distinction between tests and
 No unrelated security framework, external reviewer, destructive cleanup, or history rewriting is
 authorized. The rejected runner stays untouched. The active goal remains incomplete until the
 integrated experience is verified against the plan, not merely until a design memo is complete.
+
+### 2026-09-08 - Live-test authorization and rejected latency evidence
+
+**Status: Active owner correction; record correction only is authorized.**
+
+The owner rejected the agent's latency test as invalid and challenged live
+Ollama token spending without explicit approval of its plan. The agent had
+treated a go to investigate as approval for a specific live test configuration
+and budget that it had not presented. The owner subsequently authorized
+correcting the record, not another test or retroactive acceptance of the run.
+`.agents/review/council-latency-profile.md` owns the incident, retained audit
+data and withdrawn optimization recommendation. Those results are not accepted
+evidence about the intended Council or a demonstrated fun-per-action problem.
+
+Before any further live test, obtain explicit owner approval of its plan,
+including model assignments, test scope and spending limit. A general go to
+investigate, available provider credentials, a local Ollama endpoint, a runner's
+`--live` flag or an agent-chosen call cap does not substitute for that approval.
+No further live calls, replacement benchmark or optimization is authorized by
+this correction. Do not turn the withdrawn recommendation into the next queue
+item. No deletion of diagnostic artifacts or history rewrite was requested.
