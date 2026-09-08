@@ -4,9 +4,11 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { createLocalGuard, localModelManifest, MODELS, ROLES, OLLAMA_ORIGIN } from './local-guard.mjs';
+import { PILOT_DRAFT, validatePilotDraft, observeBrowserRequest, trackApplicationRequests, verifyRenderedNarrative } from './runner-support.mjs';
 
 const execute = process.argv.includes('--run');
 assert.ok(execute || process.argv.includes('--prepare'), 'Use --prepare for offline setup or --run for the owner-approved local pilot.');
+validatePilotDraft(PILOT_DRAFT);
 const originalFetch = globalThis.fetch;
 // A missing/remote selected model refuses before any application/database import.
 const manifest = execute ? await localModelManifest(originalFetch) : null;
@@ -22,6 +24,7 @@ let activeCall = null;
 let origin = null;
 let liveStart = null;
 let listener;
+let requestTracker;
 let browser;
 let deadlineTimer;
 let hardStopTimer;
@@ -103,12 +106,26 @@ async function submit(page, episode, prose) {
   report.playerSubmissions = submissions;
   await page.locator('#action-input').fill(prose);
   action.recognizedTerms = await page.locator('.ability-highlight').allTextContents();
-  const responsePromise = page.waitForResponse(response => new URL(response.url()).pathname === `/api/campaigns/${episode.campaignId}/turn`,
-    { timeout: Math.max(1, remaining()) });
+  const observed = observeBrowserRequest(page, { pathname: `/api/campaigns/${episode.campaignId}/turn`, timeoutMs: Math.max(1, remaining()) });
   const start = performance.now();
-  await page.locator('#btn-send-action').click();
-  const response = await responsePromise;
+  let outcome;
+  try { await page.locator('#btn-send-action').click(); outcome = await observed.result; }
+  finally { observed.cancel(); }
   action.elapsedMs = performance.now() - start;
+  if (outcome.kind !== 'response') {
+    action.status = 'transport_failed';
+    action.transport = outcome;
+    guard.abort();
+    report.status = 'transport_stopped';
+    action.serverSettled = await requestTracker.waitForIdle(Math.max(1, remaining()));
+    if (action.serverSettled) action.after = await snapshot(episode.campaignId);
+    action.callEnd = report.calls.length;
+    action.dispatchEnd = report.dispatches.length;
+    if (!page.isClosed()) await recordView(page, episode, `action-${episode.actions.length}-transport`);
+    await save();
+    throw new Error(`Browser submission failed: ${outcome.error}`);
+  }
+  const response = outcome.response;
   action.httpStatus = response.status();
   action.response = await response.json();
   action.after = await snapshot(episode.campaignId);
@@ -127,7 +144,7 @@ async function submit(page, episode, prose) {
   }
   if (response.ok()) {
     await page.waitForFunction(() => !document.querySelector('#action-input').disabled);
-    assert.equal((await page.locator('.log-gm .content').last().innerText()).trim(), action.response.turn.narrative.trim());
+    await verifyRenderedNarrative(page, action.response.turn.narrative);
   }
   await recordView(page, episode, `action-${episode.actions.length}`);
   await save();
@@ -162,6 +179,7 @@ try {
     const { chromium } = await import('playwright');
     const { app } = await import('../../../server.js?local-gameplay-pilot');
     listener = await new Promise(resolve => { const server = app.listen(0, '127.0.0.1', () => resolve(server)); });
+    requestTracker = trackApplicationRequests(listener);
     origin = `http://127.0.0.1:${listener.address().port}`;
     report.origin = origin;
     browser = await chromium.launch({ headless: true });
@@ -174,7 +192,7 @@ try {
     liveStart = performance.now();
     guard.enable();
     deadlineTimer = setTimeout(() => {
-      guard.disable(); report.status = 'time_budget_exhausted';
+      guard.abort(); report.status = 'time_budget_exhausted';
       save().finally(() => { browser?.close().catch(() => {}); listener?.close(); });
       hardStopTimer = setTimeout(() => process.exit(2), 5000);
     }, report.maximumLiveMs);
@@ -182,16 +200,23 @@ try {
     report.episodes.push(magic);
     await page.goto(origin);
     await page.locator('#btn-new-campaign-trigger').click();
-    await page.locator('#input-genre').fill('Fantasy battlefield rescue');
-    await page.locator('#input-char-name').fill('Mira Local Pilot');
-    await page.locator('#input-char-concept').fill('A field arcanist defending an open rescue route from an actively attacking enemy.');
+    await page.locator('#input-genre').fill(PILOT_DRAFT.genre);
+    await page.locator('#input-char-name').fill(PILOT_DRAFT.name);
+    await page.locator('#input-char-concept').fill(PILOT_DRAFT.concept);
     await page.locator('#class-family').selectOption('arcanist');
     await page.locator('#class-branch').selectOption('arcanist.formula');
     await page.locator('#input-class-rider').uncheck();
     await page.locator('#input-class-allies').uncheck();
-    const creating = page.waitForResponse(response => new URL(response.url()).pathname === '/api/campaigns' && response.request().method() === 'POST', { timeout: remaining() });
-    await page.locator('#btn-submit-wizard').click();
-    const created = await creating;
+    const creating = observeBrowserRequest(page, { pathname: '/api/campaigns', timeoutMs: Math.max(1, remaining()) });
+    let creation;
+    try { await page.locator('#btn-submit-wizard').click(); creation = await creating.result; }
+    finally { creating.cancel(); }
+    if (creation.kind !== 'response') {
+      magic.transport = creation;
+      report.status = 'transport_stopped';
+      throw new Error(`Browser creation failed: ${creation.error}`);
+    }
+    const created = creation.response;
     magic.creationStatus = created.status();
     magic.creationResponse = await created.json();
     if (created.ok()) {
@@ -265,20 +290,29 @@ try {
     report.status = 'pilot_observed';
   }
 } catch (error) {
-  report.status = report.status === 'time_budget_exhausted' ? report.status : 'pilot_stopped';
+  if (!['time_budget_exhausted', 'transport_stopped'].includes(report.status)) report.status = 'pilot_stopped';
   report.error = structuredError(error);
   process.exitCode = 1;
   console.error(error);
 } finally {
-  guard.disable();
-  clearTimeout(deadlineTimer);
-  clearTimeout(hardStopTimer);
+  guard.abort();
+  report.serverSettled = requestTracker ? await requestTracker.waitForIdle(Math.max(1, remaining())) : true;
+  if (report.serverSettled) {
+    for (const episode of report.episodes.filter(value => value.campaignId)) {
+      episode.finalSnapshot = await snapshot(episode.campaignId);
+      episode.export ||= `${episode.id}-campaign.json`;
+      await writeFile(join(artifacts, episode.export), JSON.stringify(await engine.exportCampaign(episode.campaignId), null, 2));
+    }
+  }
   report.endedAt = new Date().toISOString();
   await save();
   if (browser) await browser.close();
   if (listener) await new Promise(resolve => listener.close(resolve));
+  requestTracker?.detach();
   AIClient.prototype.sendPrompt = originalPrompt;
   globalThis.fetch = originalFetch;
   await db.closeDb();
+  clearTimeout(deadlineTimer);
+  clearTimeout(hardStopTimer);
   console.log(`Gameplay pilot artifacts: ${artifacts}`);
 }

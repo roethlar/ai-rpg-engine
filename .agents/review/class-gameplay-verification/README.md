@@ -4,10 +4,10 @@ Authority, scope, role assignments and stopping rules belong to
 `../class-gameplay-verification-plan.md`. This is a diagnostic runner, not a new
 game path or an automatic benchmark queue. No production code is changed.
 
-**The authorized pilot has stopped.** [Results](results.md) record failed output,
-ritual-contract problems and runner input/timeout defects. Do not rerun these
-commands against live models without correcting the runner and obtaining the
-new bounded authorization. Pass native commands directly through PTK; it already
+**The authorized pilot has stopped.** [Results](results.md) preserve its failure.
+The [correction plan](../class-gameplay-correction-plan.md) owns the now-completed
+offline fixes and regression evidence. A corrected live rerun still requires
+the proposed new bounded authorization. Pass native commands directly through PTK; it already
 handles RTK routing/compression, so do not nest an `rtk` invocation.
 
 `node .agents/review/class-gameplay-verification/run.mjs --prepare` creates and
@@ -34,6 +34,13 @@ reported temporary artifact directory. The owner database and admin settings
 are never used. The runner closes its server/browser/database, leaving its own
 artifacts available for inspection. `pilot_observed` means execution ended; it
 is not an automatic gameplay pass or evidence of human enjoyment.
+
+Browser request failures are recorded, abort the pending local transport and
+prohibit additional inference. Final snapshots wait for application handlers to
+settle, including after a disconnected socket; unsettled state is labeled rather
+than guessed. Narrative comparison uses the same sanitized Markdown rendering as
+the application. `test-runner-support.mjs` exercises these paths with only local
+HTTP/browser fixtures; `test-local-guard.mjs` uses fake generation counters.
 
 ## Preparation Verification (2026-09-08)
 

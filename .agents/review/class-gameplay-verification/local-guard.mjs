@@ -21,9 +21,11 @@ export async function localModelManifest(fetchImpl) {
 export function createLocalGuard({ fetchImpl, manifest, report, getActiveCall, getLocalOrigin, onDispatch,
   deadline = () => Infinity }) {
   let live = false;
+  const cancellation = new AbortController();
   return {
-    enable() { live = true; },
+    enable() { assert.ok(!cancellation.signal.aborted, 'A stopped pilot cannot start a fresh allowance.'); live = true; },
     disable() { live = false; },
+    abort() { live = false; cancellation.abort(new Error('The pilot stopped; no further inference is permitted.')); },
     async fetch(input, init = {}) {
       const url = new URL(typeof input === 'string' || input instanceof URL ? input : input.url);
       if (url.origin === getLocalOrigin()) return fetchImpl(input, { ...init, redirect: 'error' });
@@ -40,6 +42,7 @@ export function createLocalGuard({ fetchImpl, manifest, report, getActiveCall, g
       assert.ok(deadline() > 0, 'The local pilot time budget is exhausted.');
       const current = await localModelManifest(fetchImpl);
       assert.deepEqual(current, manifest, 'Selected model identity changed; do not continue.');
+      assert.ok(live && !cancellation.signal.aborted && deadline() > 0, 'The pilot stopped during model metadata inspection.');
       const dispatch = { index: report.dispatches.length, callIndex: active.index, model: body.model,
         stage: active.stage, request: body, startedAt: new Date().toISOString() };
       report.dispatches.push(dispatch);
@@ -47,7 +50,7 @@ export function createLocalGuard({ fetchImpl, manifest, report, getActiveCall, g
       const start = performance.now();
       try {
         const response = await fetchImpl(input, { ...init, redirect: 'error',
-          signal: AbortSignal.any([init.signal, AbortSignal.timeout(Math.max(1, Math.floor(Math.min(deadline(), 240000))))].filter(Boolean)) });
+          signal: AbortSignal.any([init.signal, cancellation.signal, AbortSignal.timeout(Math.max(1, Math.floor(Math.min(deadline(), 240000))))].filter(Boolean)) });
         dispatch.status = response.status;
         dispatch.headersMs = performance.now() - start;
         for (const method of ['json', 'text']) {

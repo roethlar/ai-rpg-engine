@@ -142,6 +142,11 @@ Base/Advanced promotion remain unverified.
 
 ## Recommended Next Scope, Not Authorized Implementation
 
+This was the recommendation at pilot closeout. The subsequent owner direction
+and completed offline corrections are recorded in
+[the correction plan](../class-gameplay-correction-plan.md); this original failed
+run has not been rerun or relabeled successful.
+
 1. Make declared ritual and plain-continuation Council options phase-aware using
    the authoritative current ritual and the same completion condition as
    `class-actions.js`. Advertise `no_check` for preliminary workings and preserve

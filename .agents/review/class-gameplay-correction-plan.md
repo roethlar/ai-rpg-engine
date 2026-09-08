@@ -37,7 +37,8 @@ downloads, external review, unrelated classes or new game rules are in scope.
    a supported concept length. Observe both HTTP responses and browser request
    failures. On failure stop further generation, preserve error/browser evidence,
    wait for already-started server work to settle within the original deadline,
-   and capture final mechanical state before orderly shutdown. Fix timeout and
+   and capture final mechanical state before orderly shutdown. Compare rendered
+   narration with the app's sanitized Markdown, not literal source text. Fix timeout and
    budget bookkeeping without silently extending limits or buying retries.
 
 ## Verification And Landing
@@ -86,5 +87,35 @@ from unused requests in the stopped run.
 - Full `node test.js`, `npm run test:browser` and diagnostic support/guard tests
   passed again under the offline preload after envelope integration. Same browser
   baseline and real creator/transport/experience scope as above. No live calls.
-- Runner corrections are verified and being landed separately. No new live test
-  is authorized or running.
+- Runner corrections: implemented and verified. The bounded creator draft is
+  checked before model metadata or application imports. Request failure/page close
+  ends the browser wait, cancels pending text transport and forbids follow-up
+  inference. The diagnostic server tracker waits for handler completion rather
+  than mistaking socket close for completion; final stored snapshots/exports are
+  captured only after settlement. Stopped guards cannot enable a fresh allowance.
+- The offline Chromium/HTTP diagnostic verifies HTTP success and rejection,
+  actual request abort, still-running handler detection, later settlement, no
+  duplicate submission, observer cleanup, page close and the original deadline.
+  It also verifies sanitized Markdown equality without treating formatting as a
+  narrative mismatch. Draft-bound, request-failure, cancellation-signal and raw-
+  Markdown mutations each failed their regression assertions; all were restored.
+  `run.mjs --prepare`, guard/support tests, syntax checks and `git diff --check`
+  passed. No model call was made for any correction or regression proof.
+
+## Remaining Live Gate
+
+The four corrective items are complete **offline**, not proven with live models.
+The owner was asked during implementation to approve one corrected rerun after
+all offline checks pass. No reply authorizing that new allowance is recorded.
+
+Proposed scope: the same three episodes/eight submissions in the original pilot
+plan, in a fresh disposable store. `muse-glimmer:30b-mlx` handles Setup/Narration;
+`qwen3.8:27b-mlx` handles Interaction/Continuity/Referee. At most 60 local generation
+dispatches including repairs, and 20 minutes total live work; no cloud, fallback,
+downloads, tuning, extra scenarios or automatic continuation. Recheck local
+identities before generation, retain every adverse result and report actual
+requests, completed actions, choices and consequences directly in chat.
+
+Until that explicit go, start no new inference. The previous eight calls and
+failed episodes remain their own immutable evidence; this proposal is not a
+reclassification of the stopped run or permission to silently reuse its balance.
