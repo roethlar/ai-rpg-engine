@@ -14,7 +14,10 @@ not a baseline for this work.
 
 The single local pilot is stopped; [results](class-gameplay-verification/results.md)
 own its failed/incomplete execution evidence and corrective recommendation. No
-rerun is authorized. No live model requests or tests were made
+rerun remains authorized. The subsequently approved offline corrections and one
+corrected run belong to [the correction plan](class-gameplay-correction-plan.md);
+that run also stopped, with [separate results](class-gameplay-verification/rerun-results.md).
+No live model requests or tests were made
 while drafting the plan. Read-only configuration/model metadata inspection did
 not generate responses. Verify both exact models are local and available before
 starting generation; do not silently substitute if either is missing.

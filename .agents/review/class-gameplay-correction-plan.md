@@ -121,3 +121,13 @@ requests, completed actions, choices and consequences directly in chat.
 Execute once and record its own results. The previous eight calls and failed
 episodes remain their own immutable evidence; this new authorization does not
 reclassify the stopped run or create permission for further automatic reruns.
+
+That single corrected run has now stopped during creation. Its separate
+[results](class-gameplay-verification/rerun-results.md) own the evidence:
+two Muse setup dispatches, zero gameplay inputs and no Qwen calls. The browser
+creation request aborted at its 300-second timeout; the corrected runner
+cancelled pending transport, recorded application settlement and exited. No
+live campaign was persisted. The Council/ritual corrections remain offline
+verified, not live exercised. This allowance is consumed, and no further run or
+diagnostic change is authorized. The result recommends separating gameplay
+episodes from live creation before a newly approved bounded pilot.

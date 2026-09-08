@@ -6,7 +6,7 @@ to `docs/history/state-archive.md`.
 
 ## Now
 
-- **CORRECTED LOCAL PILOT IS AUTHORIZED (2026-09-08).** After the concrete failed-run
+- **CORRECTED LOCAL PILOT STOPPED DURING CREATION (2026-09-08).** After the concrete failed-run
   report and focused corrective proposal, the owner directed continued work rather than idle
   status. `.agents/review/class-gameplay-correction-plan.md` owns ritual-phase context,
   response bounds/envelopes and runner input/timeout fixes, regression proofs and separate
@@ -18,10 +18,16 @@ to `docs/history/state-archive.md`.
   exact schema/review guards intact; the final full offline suites pass. Runner draft validation,
   request-abort handling, inference cancellation, application settlement and Markdown comparison
   now pass actual offline browser/fake-transport regressions and restored mutation proofs.
-  The correction plan owns full evidence and the same-model, three-episode/eight-input,
-  60-local-request/20-minute rerun. The owner explicitly answered "go" after the final corrective
-  report. Execute exactly one fresh disposable run and deliver its actual results in chat;
-  this does not authorize further reruns, model changes, tuning or cloud calls.
+  The correction plan owns full offline evidence and the consumed one-run authorization.
+  `.agents/review/class-gameplay-verification/rerun-results.md` owns the separate result:
+  two Muse setup dispatches, zero Qwen calls, zero gameplay inputs. Browser creation aborted
+  at its 300-second limit during the opening request. Known usage is 778 prompt / 2,855 generated
+  tokens from the outline only; cancelled-request usage is unknown. The corrected runner
+  cancelled transport and settled/closed cleanly; read-only storage checks found no new live
+  campaign. All class episodes remain unplayed with this configuration. Next recommendation:
+  separate authored-scene gameplay testing from live creation, with independently bounded
+  episode failure handling proven offline before any new explicitly bounded live run.
+  No further rerun, diagnostic change, model change, tuning or cloud call is authorized.
 - **LOCAL-MODEL GAMEPLAY PILOT STOPPED WITHOUT A COMPLETED EXCHANGE (2026-09-08).** The owner rejected the
   paid-cloud lineup, supplied `qwen3.8:27b-mlx` and `muse-glimmer:30b-mlx`, and said "use those".
   `.agents/review/class-gameplay-verification-plan.md` owns the selected local models, three

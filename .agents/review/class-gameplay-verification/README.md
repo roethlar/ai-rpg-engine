@@ -4,10 +4,12 @@ Authority, scope, role assignments and stopping rules belong to
 `../class-gameplay-verification-plan.md`. This is a diagnostic runner, not a new
 game path or an automatic benchmark queue. No production code is changed.
 
-**The authorized pilot has stopped.** [Results](results.md) preserve its failure.
+**Both authorized pilots have stopped without a completed gameplay exchange.**
+[Original results](results.md) and [corrected-run results](rerun-results.md)
+preserve their distinct failures and actual usage.
 The [correction plan](../class-gameplay-correction-plan.md) owns the now-completed
-offline fixes and regression evidence. The owner has now authorized exactly one
-corrected live rerun under that plan's explicit limits, not repeated executions.
+offline fixes and regression evidence. Its one corrected-run authorization is
+consumed. No further execution or diagnostic change is authorized.
 Pass native commands directly through PTK; it already
 handles RTK routing/compression, so do not nest an `rtk` invocation.
 
