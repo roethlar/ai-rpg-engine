@@ -6,8 +6,9 @@ game path or an automatic benchmark queue. No production code is changed.
 
 **The authorized pilot has stopped.** [Results](results.md) preserve its failure.
 The [correction plan](../class-gameplay-correction-plan.md) owns the now-completed
-offline fixes and regression evidence. A corrected live rerun still requires
-the proposed new bounded authorization. Pass native commands directly through PTK; it already
+offline fixes and regression evidence. The owner has now authorized exactly one
+corrected live rerun under that plan's explicit limits, not repeated executions.
+Pass native commands directly through PTK; it already
 handles RTK routing/compression, so do not nest an `rtk` invocation.
 
 `node .agents/review/class-gameplay-verification/run.mjs --prepare` creates and

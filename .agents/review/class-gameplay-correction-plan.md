@@ -102,13 +102,15 @@ from unused requests in the stopped run.
   `run.mjs --prepare`, guard/support tests, syntax checks and `git diff --check`
   passed. No model call was made for any correction or regression proof.
 
-## Remaining Live Gate
+## Approved Corrected Run
 
 The four corrective items are complete **offline**, not proven with live models.
-The owner was asked during implementation to approve one corrected rerun after
-all offline checks pass. No reply authorizing that new allowance is recorded.
+After the final corrective summary, the owner explicitly answered "go" to one
+additional run with the selected local models and existing roles, three episodes,
+at most eight inputs, 60 requests and 20 minutes, without cloud fallback.
+That one corrected run is authorized on 2026-09-08; it is not an ongoing allowance.
 
-Proposed scope: the same three episodes/eight submissions in the original pilot
+Approved scope: the same three episodes/eight submissions in the original pilot
 plan, in a fresh disposable store. `muse-glimmer:30b-mlx` handles Setup/Narration;
 `qwen3.8:27b-mlx` handles Interaction/Continuity/Referee. At most 60 local generation
 dispatches including repairs, and 20 minutes total live work; no cloud, fallback,
@@ -116,6 +118,6 @@ downloads, tuning, extra scenarios or automatic continuation. Recheck local
 identities before generation, retain every adverse result and report actual
 requests, completed actions, choices and consequences directly in chat.
 
-Until that explicit go, start no new inference. The previous eight calls and
-failed episodes remain their own immutable evidence; this proposal is not a
-reclassification of the stopped run or permission to silently reuse its balance.
+Execute once and record its own results. The previous eight calls and failed
+episodes remain their own immutable evidence; this new authorization does not
+reclassify the stopped run or create permission for further automatic reruns.

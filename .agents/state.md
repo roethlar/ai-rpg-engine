@@ -6,20 +6,22 @@ to `docs/history/state-archive.md`.
 
 ## Now
 
-- **PILOT CORRECTIONS ARE COMPLETE OFFLINE; LIVE RERUN AWAITS GO (2026-09-08).** After the concrete failed-run
+- **CORRECTED LOCAL PILOT IS AUTHORIZED (2026-09-08).** After the concrete failed-run
   report and focused corrective proposal, the owner directed continued work rather than idle
   status. `.agents/review/class-gameplay-correction-plan.md` owns ritual-phase context,
   response bounds/envelopes and runner input/timeout fixes, regression proofs and separate
-  commits. Preserve game guards and the previous failed evidence. No fresh live allowance
-  follows; no model call is part of this corrective implementation.
+  commits. Preserve game guards and the previous failed evidence. No model call was part of
+  corrective implementation; the later explicit corrected-run go below is separate.
   Ritual-phase context now passes focused real-working checks and the full offline unit/browser
   suites. The response bound is now explicit with field-specific repair feedback, and its
   captured-response regression passes. Conservative response envelopes are integrated with
   exact schema/review guards intact; the final full offline suites pass. Runner draft validation,
   request-abort handling, inference cancellation, application settlement and Markdown comparison
   now pass actual offline browser/fake-transport regressions and restored mutation proofs.
-  The correction plan owns full evidence and the proposed same-model, three-episode/eight-input,
-  60-local-request/20-minute rerun. The owner was asked; no new live go is recorded yet.
+  The correction plan owns full evidence and the same-model, three-episode/eight-input,
+  60-local-request/20-minute rerun. The owner explicitly answered "go" after the final corrective
+  report. Execute exactly one fresh disposable run and deliver its actual results in chat;
+  this does not authorize further reruns, model changes, tuning or cloud calls.
 - **LOCAL-MODEL GAMEPLAY PILOT STOPPED WITHOUT A COMPLETED EXCHANGE (2026-09-08).** The owner rejected the
   paid-cloud lineup, supplied `qwen3.8:27b-mlx` and `muse-glimmer:30b-mlx`, and said "use those".
   `.agents/review/class-gameplay-verification-plan.md` owns the selected local models, three
@@ -173,10 +175,10 @@ to `docs/history/state-archive.md`.
 
 ## Next
 
-**NEXT:** Obtain the explicit corrected live-run go described in
-`.agents/review/class-gameplay-correction-plan.md`, then execute only that same-model bounded
-pilot and report its actual outcomes in chat. The offline corrections and required verification
-are complete. Do not silently restart the stopped model allowance or claim live success.
+**NEXT:** Execute the explicitly authorized corrected live run in
+`.agents/review/class-gameplay-correction-plan.md`, then report actual outcomes, model usage and
+remaining evidence gaps in chat. The offline corrections and required verification are complete.
+Preserve both runs separately; do not silently add another allowance or claim unobserved success.
 The withdrawn Referee optimization benchmark stays withdrawn; do not activate unrelated queues.
 
 **Prior design context:** `.agents/review/gate-5-class-model-plan.md` section 7.1 retains the
