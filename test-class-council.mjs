@@ -8,6 +8,7 @@ import { createClassSheet, createClassRuleset, createRulesWorld } from './class-
 import { CATALOG_VERSION, CATALOG_OPTION_SET, getAbilityDefinition } from './class-catalog.js';
 import { buildClassScenario } from './class-scenario.js';
 import { computeCheckTarget } from './rules-resolution.js';
+import { CAPTURED_COUNCIL_RESPONSES } from './test-class-council-json.mjs';
 
 // Captured pilot reply, aetheria-gameplay-pilot-6rMxOt/report.json, calls[6].
 const CAPTURED_NO_CHECK_REASON = 'The contextual_check for Recall the Departed omits dice because both omission conditions are met. Established certainty: Tarin (npc:6) has intactBody true, deathRecorded true, and willingReturn true; the Return catalyst (item:scene:3:return-material) is pristine, owned by Sera, and unused; all ritual prerequisites are satisfied deterministically. No stakes: the Gate has no immediate threat, no active encounter, and no opposing actor; the scene is safe and quiet. With certainty and absence of stakes both established, the dice are unnecessary.';
@@ -105,6 +106,58 @@ export async function runClassCouncilTests() {
     calls.slice(0, 4).forEach(call => noArithmetic(call.data));
     assert.deepEqual(classCouncilWorld(sample.world), JSON.parse(JSON.stringify(classCouncilWorld(sample.world))), 'Persistable qualitative projection cannot contain undefined properties.');
     await completeRulesOperation(operation.operationId, { done: true });
+
+    const envelopes = await fixture();
+    const beforeEnvelopes = structuredClone(envelopes.world);
+    for (const label of ['inputKind', 'input']) {
+      // Preserve the captured envelope; adapt only its intent to this fixture's ordinary action.
+      const interaction = { ...JSON.parse(CAPTURED_COUNCIL_RESPONSES[label].slice(label.length)), intent: 'Strike the guard.' };
+      responses(envelopes, rulingFor(envelopes), { interaction: () => label + JSON.stringify(interaction) });
+      const recovered = await prepare(envelopes);
+      assert.equal(recovered.selectedKind, 'ordinary');
+      assert.equal(recovered.check.call.actor, envelopes.actorId);
+      assert.deepEqual(calls.map(call => call.stage), ['interaction', 'grounding', 'referee', 'pre_roll'],
+        'A captured label needs one Interaction call and cannot bypass the remaining pre-roll Council roles.');
+      assert.deepEqual(calls.find(call => call.stage === 'grounding').data.interaction, interaction);
+      assert.equal(calls.some(call => call.data.formatCorrection), false);
+    }
+
+    responses(envelopes, rulingFor(envelopes), { interaction: () => CAPTURED_COUNCIL_RESPONSES.damagedAction });
+    await assert.rejects(prepare(envelopes), { code: 'CLASS_COUNCIL_JSON' });
+    assert.deepEqual(calls.map(call => call.stage), ['interaction', 'interaction'], 'Damaged structure exhausts the existing two format attempts.');
+    assert.equal(calls[1].data.formatCorrection.response, CAPTURED_COUNCIL_RESPONSES.damagedAction);
+
+    let damagedRefereeAttempts = 0;
+    responses(envelopes, rulingFor(envelopes), { referee: data => {
+      damagedRefereeAttempts++;
+      if (damagedRefereeAttempts === 1) return CAPTURED_COUNCIL_RESPONSES.damagedAction;
+      assert.equal(data.formatCorrection.response, CAPTURED_COUNCIL_RESPONSES.damagedAction);
+      return rulingFor(envelopes);
+    } });
+    await prepare(envelopes);
+    assert.deepEqual(calls.map(call => call.stage), ['interaction', 'grounding', 'referee', 'referee', 'pre_roll'],
+      'The captured Referee fragment must request its existing bounded correction, not select the inner object.');
+
+    responses(envelopes, rulingFor(envelopes), { referee: () => CAPTURED_COUNCIL_RESPONSES.damagedAction });
+    await assert.rejects(prepare(envelopes), { code: 'CLASS_COUNCIL_REJECTED' });
+    const malformedRefereeCalls = calls.filter(call => call.stage === 'referee');
+    assert.equal(malformedRefereeCalls.length, 6, 'The unchanged Referee semantic loop has three attempts, each with two format attempts.');
+    assert.deepEqual(malformedRefereeCalls.map(call => !!call.data.formatCorrection), [false, true, false, true, false, true]);
+    assert.equal(calls.some(call => call.stage === 'pre_roll'), false);
+
+    responses(envelopes, rulingFor(envelopes), { interaction: () => 'input' + JSON.stringify({
+      inputKind: 'committed_action', intent: 'Strike the guard.', answer: null, approved: true
+    }) });
+    await assert.rejects(prepare(envelopes), { code: 'CLASS_COUNCIL_SHAPE' });
+    assert.deepEqual(calls.map(call => call.stage), ['interaction'], 'Recognized labels cannot discard an unexpected semantic field.');
+
+    responses(envelopes, rulingFor(envelopes), { referee: () => `\`\`\`json\n${JSON.stringify({ ...rulingFor(envelopes), inventedPower: true })}\n\`\`\`` });
+    await assert.rejects(prepare(envelopes), { code: 'CLASS_COUNCIL_REJECTED', message: 'Unknown or missing Council response fields.' });
+    assert.equal(calls.filter(call => call.stage === 'referee').length, 3, 'Fenced JSON still faces the exact semantic schema on each existing attempt.');
+    assert.equal(calls.some(call => call.data.formatCorrection || call.stage === 'pre_roll'), false);
+    assert.deepEqual(envelopes.world, beforeEnvelopes);
+    assert.equal((await db.get('SELECT COUNT(*) AS n FROM rules_checks WHERE campaign_id = ?', [envelopes.campaignId])).n, 0);
+    assert.equal((await db.get('SELECT COUNT(*) AS n FROM rules_turn_operations WHERE campaign_id = ?', [envelopes.campaignId])).n, 0);
 
     const bounced = await fixture();
     let refereeAttempts = 0;

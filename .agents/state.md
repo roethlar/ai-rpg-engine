@@ -14,8 +14,9 @@ to `docs/history/state-archive.md`.
   follows; no model call is part of this corrective implementation.
   Ritual-phase context now passes focused real-working checks and the full offline unit/browser
   suites. The response bound is now explicit with field-specific repair feedback, and its
-  captured-response regression passes. Remaining: integrate conservative envelopes, finalize
-  runner regression coverage and rerun final verification.
+  captured-response regression passes. Conservative response envelopes are integrated with
+  exact schema/review guards intact; the final full offline suites pass. Remaining: land the
+  verified runner corrections and present the live rerun gate.
 - **LOCAL-MODEL GAMEPLAY PILOT STOPPED WITHOUT A COMPLETED EXCHANGE (2026-09-08).** The owner rejected the
   paid-cloud lineup, supplied `qwen3.8:27b-mlx` and `muse-glimmer:30b-mlx`, and said "use those".
   `.agents/review/class-gameplay-verification-plan.md` owns the selected local models, three

@@ -26,6 +26,7 @@ import { runClassStateTests } from './test-class-state.mjs';
 import { runClassScenarioTests } from './test-class-scenario.mjs';
 import { runClassSceneAuthorTests } from './test-class-scene-author.mjs';
 import { runClassCouncilOptionsTests } from './test-class-council-options.mjs';
+import { runClassCouncilJsonTests } from './test-class-council-json.mjs';
 import { runRulesEffectsTests } from './test-rules-effects.mjs';
 import { runClassActionTests } from './test-class-actions.mjs';
 import { runClassPortabilityTests } from './test-class-portability.mjs';
@@ -7241,6 +7242,7 @@ async function runAll() {
     runClassScenarioTests();
     await runClassSceneAuthorTests();
     runClassCouncilOptionsTests();
+    runClassCouncilJsonTests();
     runClassActionTests();
     runClassPortabilityTests();
     const { runClassOrdinaryTests } = await import('./test-class-ordinary.mjs');

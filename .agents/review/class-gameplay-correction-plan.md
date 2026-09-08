@@ -74,5 +74,17 @@ from unused requests in the stopped run.
   repair followed by independent pre-roll review, with no check or early revival.
   Removing either the prompt bound or field label failed the focused assertions;
   both fixes were restored green. Full offline unit/browser results above apply.
-- Envelope integration and runner corrections remain in progress;
-  each gets its own evidence and commit. No new live test is authorized or running.
+- Response envelopes: integrated in the existing Council repair loop. The two
+  exact captured Interaction labels and complete JSON fences recover without
+  invented content; damaged object fragments, multiple objects and unrecognized
+  prose still reject. Pure coverage includes 69 rejection cases. Integrated tests
+  prove one recovered Interaction call still goes through Grounding, Referee and
+  pre-roll review; unexpected semantic fields still fail exact schemas. Existing
+  retry bounds remain: two format attempts, within three Referee semantic attempts.
+  Removing label recovery, its stage restriction or the integrated parser caused
+  the respective regression assertion to fail; all were restored green.
+- Full `node test.js`, `npm run test:browser` and diagnostic support/guard tests
+  passed again under the offline preload after envelope integration. Same browser
+  baseline and real creator/transport/experience scope as above. No live calls.
+- Runner corrections are verified and being landed separately. No new live test
+  is authorized or running.
