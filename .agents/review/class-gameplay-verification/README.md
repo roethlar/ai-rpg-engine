@@ -4,6 +4,12 @@ Authority, scope, role assignments and stopping rules belong to
 `../class-gameplay-verification-plan.md`. This is a diagnostic runner, not a new
 game path or an automatic benchmark queue. No production code is changed.
 
+**The authorized pilot has stopped.** [Results](results.md) record failed output,
+ritual-contract problems and runner input/timeout defects. Do not rerun these
+commands against live models without correcting the runner and obtaining the
+new bounded authorization. Pass native commands directly through PTK; it already
+handles RTK routing/compression, so do not nest an `rtk` invocation.
+
 `node .agents/review/class-gameplay-verification/run.mjs --prepare` creates and
 checks the authored fixtures in a new system-temporary SQLite store while all
 fetch is denied. It generates no model responses. Application imports occur

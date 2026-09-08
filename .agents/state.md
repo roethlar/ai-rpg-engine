@@ -6,15 +6,19 @@ to `docs/history/state-archive.md`.
 
 ## Now
 
-- **LOCAL-MODEL GAMEPLAY PILOT IS RUNNING (2026-09-08).** The owner rejected the
+- **LOCAL-MODEL GAMEPLAY PILOT STOPPED WITHOUT A COMPLETED EXCHANGE (2026-09-08).** The owner rejected the
   paid-cloud lineup, supplied `qwen3.8:27b-mlx` and `muse-glimmer:30b-mlx`, and said "use those".
   `.agents/review/class-gameplay-verification-plan.md` owns the selected local models, three
   episodes/eight submissions, 60-dispatch cap, no-provider coverage, stop rules and evidence
   limits. No cloud fallback, paid calls, downloads or production changes are authorized.
-  Offline unit/browser checks, guarded fixture preparation and fake-transport refusal tests
-  pass; guard-removal proofs were restored green. Both exact local identities are available.
-  `.agents/review/class-gameplay-verification/README.md` owns preparation evidence.
-  The single bounded pilot is running; retain adverse outcomes and incomplete coverage.
+  `.agents/review/class-gameplay-verification/results.md` owns the outcome: eight local Qwen
+  dispatches, two inputs, no Muse dispatch reached and no completed turn. Support output was
+  malformed; Recall options contradicted deterministic preliminary workings, and repair ran
+  past the browser timeout. The runner also supplied an overlong creation concept and failed
+  to handle the disconnected request. Its disposable processes are closed. Read-only checks of
+  its temporary DB confirm both worlds unchanged, no checks/operations or resource charges.
+  Offline unit/browser coverage still passes but is not live gameplay validation. Preserve
+  these adverse results. No production fix or rerun is authorized by unused pilot allowance.
   Do not ask the owner to repeat the model selection or silently replace a model.
 - **THE LATENCY TEST WAS UNAPPROVED AND REJECTED AS VALID EVIDENCE (2026-09-08).** The agent
   spent live calls on an unapproved single-model test plan without establishing the intended
@@ -154,9 +158,10 @@ to `docs/history/state-archive.md`.
 
 ## Next
 
-**NEXT:** Finish the running single local-only pilot in
-`.agents/review/class-gameplay-verification-plan.md`, then consolidate its gameplay evidence.
-Offline verification and local model availability checks pass. Retain the fixed run budget.
+**NEXT:** Present one scoped correction for phase-aware ritual options, explicit response bounds,
+local JSON-envelope handling and the runner's input/timeout defects, as recommended in
+`.agents/review/class-gameplay-verification/results.md`. Keep guards intact; obtain the scoped
+production-change and new live-run go before execution. Do not rerun the failed pilot unchanged.
 The withdrawn Referee optimization benchmark stays withdrawn; do not activate unrelated queues.
 
 **Prior design context:** `.agents/review/gate-5-class-model-plan.md` section 7.1 retains the

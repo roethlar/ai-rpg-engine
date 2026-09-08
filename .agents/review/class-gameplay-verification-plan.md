@@ -12,8 +12,9 @@ additional scenarios or production changes. The earlier latency test and its opt
 recommendation remain withdrawn; `council-latency-profile.md` is incident history,
 not a baseline for this work.
 
-Planning is complete; local-only pilot preparation is active. Its execution
-evidence must be recorded separately. No live model requests or tests were made
+The single local pilot is stopped; [results](class-gameplay-verification/results.md)
+own its failed/incomplete execution evidence and corrective recommendation. No
+rerun is authorized. No live model requests or tests were made
 while drafting the plan. Read-only configuration/model metadata inspection did
 not generate responses. Verify both exact models are local and available before
 starting generation; do not silently substitute if either is missing.
@@ -247,8 +248,7 @@ choices/payoffs, unnecessary player effort, mechanical/narrative discrepancies,
 coverage gaps and exact model usage. Label each episode passed, failed or
 incomplete; preserve adverse results. Do not call the entire game done.
 
-Next: prepare and check the guarded runner, complete no-provider verification,
-then execute only this pilot when both selected local models are available.
-Report completion, defects and incomplete coverage without expanding the run.
+Next: use the recorded failed/incomplete results to present one scoped correction,
+not to restart this allowance or expand the run.
 Any production fix, download, paid call or larger playtest needs its own scoped
 plan and approval; the model-selection instruction does not authorize them.
