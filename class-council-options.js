@@ -39,6 +39,17 @@ function requirementOptions(requirement) {
     ...(requirement.duration ? { duration: requirement.duration } : {}) };
 }
 
+function resolutionOptions({ ability, definition }, classState) {
+  const active = classState.ritual;
+  const progress = active?.abilityId === ability.id && active.definitionId === definition.id ? active.completed : 0;
+  const workingPhase = definition.mechanic.kind === 'ritual'
+    ? progress + 1 < definition.mechanic.steps ? 'preliminary' : 'completing' : null;
+  const check = workingPhase === 'preliminary' ? null : definition.check;
+  return { resolution: check ? { kind: 'contextual_check', skill: check.skill, defaultTier: check.defaultTier,
+    automaticSuccess: false, omitOnlyFor: ['established_certainty', 'no_stakes'] } : { kind: 'no_check' },
+  ...(workingPhase ? { workingPhase } : {}) };
+}
+
 function selectors(definition, source, profiles, installations) {
   const type = definition.targeting.kind;
   const mechanic = definition.mechanic;
@@ -163,8 +174,7 @@ export function buildClassCouncilOptions({ state, actor, declarations } = {}) {
     const definition = entry.definition;
     return { abilityId: entry.ability.id, definitionId: definition.id, name: definition.name,
       activation: definition.activation, targeting: { kind: definition.targeting.kind, range: definition.targeting.range },
-      resolution: definition.check ? { kind: 'contextual_check', skill: definition.check.skill, defaultTier: definition.check.defaultTier,
-        automaticSuccess: false, omitOnlyFor: ['established_certainty', 'no_stakes'] } : { kind: 'no_check' },
+      ...resolutionOptions(entry, cs),
       ...selectors(definition, source, profiles, installations),
       requirements: [...definition.requirements.map(requirementOptions), ...(definition.mechanic.kind === 'ritual'
         ? definition.mechanic.requirements.map(kind => ({ kind })) : [])] };
@@ -205,7 +215,7 @@ export function buildClassCouncilOptions({ state, actor, declarations } = {}) {
     const ritual = owned.get(cs.ritual.abilityId);
     if (!ritual || ritual.definition.activation !== 'ritual') fail('The active ritual is not an owned authored working.');
     utilities.push({ kind: 'continue_ritual', abilityId: ritual.ability.id, definitionId: ritual.definition.id,
-      name: ritual.definition.name, retainedBindings: true });
+      name: ritual.definition.name, retainedBindings: true, ...resolutionOptions(ritual, cs) });
     utilities.push({ kind: 'abandon_ritual', abilityId: ritual.ability.id });
   }
   const commitments = {

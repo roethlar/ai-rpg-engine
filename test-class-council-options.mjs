@@ -176,6 +176,11 @@ export function runClassCouncilOptionsTests() {
   const working = optionsFor(ritualist);
   assert.equal(working.utilities.find(value => value.kind === 'continue_ritual').definitionId, definitionNamed('Far Sight').id);
   assert.equal(working.utilities.find(value => value.kind === 'continue_ritual').retainedBindings, true);
+  assert.equal(working.utilities.find(value => value.kind === 'continue_ritual').workingPhase, 'completing');
+  assert.equal(working.utilities.find(value => value.kind === 'continue_ritual').resolution.kind, 'contextual_check');
+  assert.equal(optionsFor(ritualist, ['Transit Circle']).abilities[0].workingPhase, 'preliminary',
+    'A different ritual cannot borrow the active working progress.');
+  assert.deepEqual(optionsFor(ritualist, ['Transit Circle']).abilities[0].resolution, { kind: 'no_check' });
   assert.ok(working.utilities.some(value => value.kind === 'abandon_ritual'));
   assertQualitative(working);
   const sanctuary = optionsFor(ritualist, ['Sanctuary Working']).abilities[0];
@@ -183,6 +188,36 @@ export function runClassCouncilOptionsTests() {
   assert.equal(sanctuary.fixed.destination, 'current_area');
   const recall = optionsFor(ritualist, ['Recall the Departed']).abilities[0];
   assert.equal(recall.bindings.catalyst.relation, 'owned_revival_catalyst');
+
+  let recallState = namedFixture('Recall the Departed');
+  Object.assign(recallState.actors[ALLY], { health: 0, status: 'dead', intactBody: true, willingReturn: true, deathTurn: 8 });
+  const recallDefinition = definitionNamed('Recall the Departed');
+  const recallAbility = recallState.actors[ACTOR].abilities.find(value => value.definition_id === recallDefinition.id);
+  const recallBindings = { targets: [ALLY], catalyst: 'item:2' };
+  for (let step = 1; step <= 3; step++) {
+    const declared = optionsFor(recallState, ['Recall the Departed']).abilities[0];
+    const plan = prepareClassAction({ state: recallState, actor: ACTOR, ability: recallAbility.id, bindings: recallBindings,
+      context: { operationId: `options-recall-${step}`, turn: 9 + step, sceneId: 'scene:1', consentingActors: [ALLY] } });
+    assert.equal(declared.workingPhase, step < 3 ? 'preliminary' : 'completing');
+    assert.equal(declared.resolution.kind, plan.check ? 'contextual_check' : 'no_check',
+      'Ritual selector resolution must match the executable current working, not just the final definition.');
+    if (step < 3) assert.deepEqual(declared.resolution, { kind: 'no_check' });
+    else assert.deepEqual(declared.resolution, { kind: 'contextual_check', skill: 'lore', defaultTier: 'standard',
+      automaticSuccess: false, omitOnlyFor: ['established_certainty', 'no_stakes'] });
+    if (step > 1) {
+      const plain = optionsFor(recallState);
+      const continuation = plain.utilities.find(value => value.kind === 'continue_ritual');
+      assert.deepEqual(plain.abilities, []);
+      assert.equal(continuation.workingPhase, declared.workingPhase);
+      assert.deepEqual(continuation.resolution, declared.resolution);
+      assert.equal(continuation.retainedBindings, true);
+      assertQualitative(plain);
+    }
+    assertQualitative(declared);
+    recallState = finalizeClassAction({ state: recallState, plan, outcome: 'success' }).state;
+  }
+  assert.equal(recallState.actors[ACTOR].classState.ritual, null);
+  assert.equal(recallState.actors[ALLY].health, 1);
 
   let hunter = namedFixture('Mark Quarry');
   hunter = applyNamed(hunter, 'Mark Quarry', { targets: [FOE] });

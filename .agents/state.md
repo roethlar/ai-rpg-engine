@@ -6,6 +6,15 @@ to `docs/history/state-archive.md`.
 
 ## Now
 
+- **PILOT CORRECTIONS ARE ACTIVE, OFFLINE ONLY (2026-09-08).** After the concrete failed-run
+  report and focused corrective proposal, the owner directed continued work rather than idle
+  status. `.agents/review/class-gameplay-correction-plan.md` owns ritual-phase context,
+  response bounds/envelopes and runner input/timeout fixes, regression proofs and separate
+  commits. Preserve game guards and the previous failed evidence. No fresh live allowance
+  follows; no model call is part of this corrective implementation.
+  Ritual-phase context now passes focused real-working checks and the full offline unit/browser
+  suites. Remaining: land response-bound feedback, integrate conservative envelopes, finalize
+  runner regression coverage and rerun final verification.
 - **LOCAL-MODEL GAMEPLAY PILOT STOPPED WITHOUT A COMPLETED EXCHANGE (2026-09-08).** The owner rejected the
   paid-cloud lineup, supplied `qwen3.8:27b-mlx` and `muse-glimmer:30b-mlx`, and said "use those".
   `.agents/review/class-gameplay-verification-plan.md` owns the selected local models, three
@@ -158,10 +167,10 @@ to `docs/history/state-archive.md`.
 
 ## Next
 
-**NEXT:** Present one scoped correction for phase-aware ritual options, explicit response bounds,
-local JSON-envelope handling and the runner's input/timeout defects, as recommended in
-`.agents/review/class-gameplay-verification/results.md`. Keep guards intact; obtain the scoped
-production-change and new live-run go before execution. Do not rerun the failed pilot unchanged.
+**NEXT:** Finish the active offline corrections in
+`.agents/review/class-gameplay-correction-plan.md`, prove regressions bite and run required suites.
+Report the actual delta in chat, then present the explicit new bounded live-run gate.
+Do not rerun the failed pilot unchanged or silently restart its model allowance.
 The withdrawn Referee optimization benchmark stays withdrawn; do not activate unrelated queues.
 
 **Prior design context:** `.agents/review/gate-5-class-model-plan.md` section 7.1 retains the
