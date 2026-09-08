@@ -2,17 +2,21 @@
 
 ## Authority And Status
 
-2026-09-08: the owner authorized preparing a bounded gameplay-verification plan,
-not executing it. The owner clarified that no intended Council configuration
-exists. Do not wait for or invent a supposedly existing configuration. The
-candidate lineup below is an explicit proposal requiring approval together with
-the test scope and spending cap. The earlier latency test and its optimization
+2026-09-08: the owner first authorized preparing this bounded plan and clarified
+that no intended Council configuration existed. After rejecting the proposed
+paid-cloud lineup, the owner supplied `qwen3.8:27b-mlx` and
+`muse-glimmer:30b-mlx` and instructed "use those". Execute only the previously
+presented three-episode/eight-submission pilot with those local models and the
+60-dispatch cap. This does not authorize paid calls, cloud fallback, downloads,
+additional scenarios or production changes. The earlier latency test and its optimization
 recommendation remain withdrawn; `council-latency-profile.md` is incident history,
 not a baseline for this work.
 
-Planning is complete. No live model requests, tests, production changes or
-configuration writes were made in preparing this plan. Read-only inspection of
-configuration and provider model metadata did not generate model responses.
+Planning is complete; local-only pilot preparation is active. Its execution
+evidence must be recorded separately. No live model requests or tests were made
+while drafting the plan. Read-only configuration/model metadata inspection did
+not generate responses. Verify both exact models are local and available before
+starting generation; do not silently substitute if either is missing.
 
 ## Question And Evidence
 
@@ -36,39 +40,37 @@ Do not require the owner to play or judge individual abilities. Deliver one
 consolidated assessment. Passing this pilot means only its stated criteria were
 met, not that all 24 packages or the entire game are 100% player-validated.
 
-## Proposed Council
+## Selected Local Models
 
-All text calls use the existing Ollama provider through its approved local
-endpoint. Exact proposed model identifiers:
+All text calls use the existing Ollama provider through its local endpoint.
+The owner selected the two exact model identifiers; the agent assigns their
+roles below within the bounded pilot:
 
-| Role | Proposed Model |
+| Role | Model |
 | --- | --- |
-| Setup | `kimi-k3:cloud` |
-| Interaction | `deepseek-v4-flash:cloud` |
-| Continuity, including grounding, table talk and independent reviews | `glm-5.3:cloud` |
-| Referee, including its applicable annotation stages | `deepseek-v4-pro:0813-cloud` |
-| Narration | `kimi-k3:cloud` |
+| Setup | `muse-glimmer:30b-mlx` |
+| Interaction | `qwen3.8:27b-mlx` |
+| Continuity, including grounding, table talk and independent reviews | `qwen3.8:27b-mlx` |
+| Referee, including its applicable annotation stages | `qwen3.8:27b-mlx` |
+| Narration | `muse-glimmer:30b-mlx` |
 
-This is a candidate starting configuration, not a demonstrated best assignment.
-It keeps classification on Flash and proposes separate models for adjudication,
-consistency and prose; that role-fit judgment is a testable hypothesis, not a
-vendor benchmark result or an owner-selected production setting. Naming different
-models by itself does not make the test valid: the approved questions, scenarios,
-oracles and evidence limits below do that.
+These assignments are not a demonstrated best configuration. Classification,
+adjudication and independent consistency review remain separate requests and
+contexts even where they use Qwen. Muse supplies setup and narration. Role-fit
+is a testable design hypothesis, not a vendor quality claim. Neither local
+availability nor different model names establish game quality.
 
-The identifiers were checked against available model metadata. Official model
-pages: [Flash](https://ollama.com/library/deepseek-v4-flash),
-[Pro](https://ollama.com/library/deepseek-v4-pro),
-[Kimi](https://ollama.com/library/kimi-k3),
-[GLM](https://ollama.com/library/glm-5.3). Availability is not evidence of game
-quality. Recheck exact identities before execution without generating text. If
-an approved identity is unavailable, stop; do not substitute another model.
+Inspect model metadata before execution, pin both digests, and reject remote
+model/host declarations, cloud aliases or missing model identities. A loopback
+Ollama URL alone does not prove local inference. If either model is unavailable,
+complete useful no-provider preparation but make no generation call. Do not
+pull a model or alter the user's running server to resolve the condition.
 
-No fallback model is proposed. Preserve existing production JSON mode and
+No fallback model is allowed. Preserve existing production JSON mode and
 provider-default generation/reasoning settings; do not silently introduce a
 thinking/temperature/token-limit ablation. Pin effective role configurations in
 the run manifest and abort on drift. Configuration belongs only to the disposable
-run; do not save this proposal into the operator's admin settings.
+run; do not save these assignments into the operator's admin settings.
 
 ## No-Provider Coverage
 
@@ -196,7 +198,7 @@ part of this plan. Do not compare unlike random outcomes as ability strength.
 
 ## Spending And Stop Conditions
 
-Proposed hard cap: **60 total text-provider dispatch attempts for the entire
+Hard cap: **60 total local text-provider dispatch attempts for the entire
 pilot**, including live Setup, formatting repairs, semantic revisions, annotations,
 transport retries and any interrupted request. No fallback, model comparison,
 additional player agent API, image generation, TTS or external review calls.
@@ -210,11 +212,10 @@ A resume keeps the original count; it is not a new allowance. Disable redirects
 outside approved endpoints and refuse unlisted providers/models. Fail closed if
 the instrumentation cannot account for a supported dispatch path.
 
-Sixty calls is an invocation spending limit, **not a guaranteed token or dollar
-ceiling**: prompt/history/reasoning length and account billing vary. State this
-distinction in the approval request. Log provider-reported input/output usage
-without inventing missing values or treating subscription usage as free. No
-monetary estimate or claimed token cap is approved by this draft.
+Paid API/cloud calls are prohibited, not merely limited to sixty. The sixty-call
+cap bounds local inference work; it is not a token or energy-use ceiling. Log
+reported input/output usage without inventing missing values. The earlier
+paid-cloud lineup is rejected and must not be used even as a fallback.
 
 Stop on a call-cap boundary, unavailable approved model, instrumentation failure,
 configured-store exposure, privacy/state-integrity failure, or after two rejected
@@ -224,9 +225,9 @@ automatically, add scenarios or change models/prompts to rescue the result.
 
 ## Isolation And Implementation Boundary
 
-If execution is approved, prepare a dedicated runner and fixtures under
+Prepare a dedicated runner and fixtures under
 `.agents/review/class-gameplay-verification/`, with a denied-by-default network
-boundary and explicit approved manifest. Do not repurpose the rejected latency
+boundary and the explicit local-model manifest. Do not repurpose the rejected latency
 runner or remove its incident record. No production edits are proposed.
 
 Use only builtin static imports until a fresh system-temporary database path is
@@ -241,14 +242,13 @@ and browser checks without authorizing new live scenarios.
 ## Deliverable And Next Gate
 
 Planning deliverable: this plan and a current-state pointer, checked and committed.
-Execution deliverable, only after approval: one consolidated report of observed
+Execution deliverable: one consolidated report of observed
 choices/payoffs, unnecessary player effort, mechanical/narrative discrepancies,
 coverage gaps and exact model usage. Label each episode passed, failed or
 incomplete; preserve adverse results. Do not call the entire game done.
 
-The next owner decision is one bounded package: approve or revise the proposed
-role lineup, these three episodes/eight submissions and the 60-dispatch limit.
-No tests or live provider calls may start until that explicit approval. If the
-owner approves, prepare the guarded runner, complete no-provider verification,
-execute only this pilot and report; any production fix or larger playtest needs
-its own scoped plan and approval.
+Next: prepare and check the guarded runner, complete no-provider verification,
+then execute only this pilot when both selected local models are available.
+Report completion, defects and incomplete coverage without expanding the run.
+Any production fix, download, paid call or larger playtest needs its own scoped
+plan and approval; the model-selection instruction does not authorize them.
