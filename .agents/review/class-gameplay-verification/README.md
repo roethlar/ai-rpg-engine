@@ -9,9 +9,41 @@ game path or an automatic benchmark queue. No production code is changed.
 preserve their distinct failures and actual usage.
 The [correction plan](../class-gameplay-correction-plan.md) owns the now-completed
 offline fixes and regression evidence. Its one corrected-run authorization is
-consumed. No further execution or diagnostic change is authorized.
+consumed. The later [isolation plan](../class-gameplay-isolation-plan.md) owns the
+now-verified diagnostic-only correction and its pending live gate. No further
+live execution is authorized.
 Pass native commands directly through PTK; it already
 handles RTK routing/compression, so do not nest an `rtk` invocation.
+
+## Gameplay-Only Runner
+
+[Isolation results](isolation-results.md) distinguish the completed offline
+browser/engine checks from the still-unverified selected-model experience.
+
+`node .agents/review/class-gameplay-verification/run-gameplay.mjs --verify`
+traverses all three authored scenes with authored Council responses and real
+browser/engine/storage behavior. It cannot dispatch inference. Add
+`--inject-abort` or `--inject-narration-abort` to deliberately interrupt the first
+episode before adjudication or after its roll; later episodes remain isolated.
+Traversal completion alone is not a gameplay pass: the assertions in
+`test-gameplay-runner.mjs` check all planned inputs, mechanics and failure cases.
+
+`run-gameplay.mjs --run` is a separate, **not yet authorized** local pilot. It
+uses no live campaign generation. Each episode gets its own process/store and
+fixed reservation of 20 dispatches and six live minutes, never borrowed from
+another episode. Input allocations are three/two/three. The coordinator's
+20-minute deadline includes preparation; cancellation allows cleanup only,
+not new inference. It waits for process/group exit and complete accounting
+before starting another worker. Integrity, identity, unknown-state or settlement
+failure stops the whole run.
+
+The diagnostic tests are standalone processes, not imports into an application
+with an already-open database. Run the six tests named in the evidence record
+with `offline-preload.mjs` inherited through `NODE_OPTIONS`, alongside the repo's
+normal unit/browser suites. The historical creation-inclusive runner below
+remains available as recorded evidence, not a default or fresh allowance.
+
+## Historical Creation-Inclusive Runner
 
 `node .agents/review/class-gameplay-verification/run.mjs --prepare` creates and
 checks the authored fixtures in a new system-temporary SQLite store while all

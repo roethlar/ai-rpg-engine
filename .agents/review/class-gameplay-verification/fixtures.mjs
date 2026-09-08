@@ -35,11 +35,12 @@ function selection(familyId, branchId) {
 
 function outlineFor(mode) {
   const catalyst = mode === 'catalyst';
+  const combat = catalyst || mode === 'direct-magic';
   return {
-    title: catalyst ? 'The contested gate' : 'The unfinished return',
+    title: mode === 'direct-magic' ? 'Dispatch under fire' : catalyst ? 'The contested gate' : 'The unfinished return',
     setting: 'A gatehouse with a visible open arch into its adjoining courtyard.',
     major_locations: [{ name: 'Gatehouse', description: 'A gate and a connected courtyard.' }],
-    key_npcs: catalyst ? [
+    key_npcs: combat ? [
       { name: 'Nessa', role: 'Independent allied supporter', personality: 'Cooperative and attentive to danger', quirks: 'Calls her intentions clearly.' },
       { name: 'Raider', role: 'Hostile swordsman holding the gate', personality: 'Aggressive', quirks: 'Threatens anyone crossing the arch.' },
       { name: 'Sentry', role: 'Hostile bow wielder guarding the courtyard dispatch case', personality: 'Watchful', quirks: 'Keeps the case in view.' }
@@ -47,12 +48,16 @@ function outlineFor(mode) {
       { name: 'Tarin', role: 'Allied messenger who explicitly wants to return if fallen', personality: 'Trusting', quirks: 'Makes his wishes plain.' },
       { name: 'Nessa', role: 'Living allied witness and guide', personality: 'Patient', quirks: 'Recalls Tarin\'s stated wishes.' }
     ],
-    starting_quest: catalyst ? { title: 'Secure the dispatch', description: 'Protect the party and recover the courtyard dispatch case.' }
+    starting_quest: combat ? { title: 'Secure the dispatch', description: 'Protect the party and recover the courtyard dispatch case.' }
       : { title: 'Restore the gatehouse', description: 'Complete the distinct gatehouse preparations and help the allied messenger.' }
   };
 }
 
 function openingFor(mode) {
+  if (mode === 'direct-magic') return {
+    narrative: 'Sera and Nessa stand at the Gate. The Raider faces them with a drawn sword. Through the open arch, the Sentry holds a bow beside the dispatch case in the Courtyard. Both enemies are actively opposing the party. The Courtyard contains no allies. Nessa watches the Raider and chooses her own response; nobody has acted yet.',
+    scene_grounding: 'Sera, Nessa and Raider occupy Gate. Only Sentry occupies the adjacent visible Courtyard, beside the dispatch case. Both areas have stable dry ground and the connecting arch is open. The Raider is within unarmed striking distance. Ordinary attack, aid and movement remain choices; no spell or NPC response has been selected.'
+  };
   if (mode === 'catalyst') return {
     narrative: 'Sera and Nessa stand at the Gate beside the open arch. The Raider faces them with a drawn sword. Across the arch, the Sentry holds a bow near the dispatch case in the Courtyard. Nessa says, "I agree to the Courtyard as my destination if your Advance Cue opens that opportunity. I will decide whether an attack, help or waiting best serves us." Both enemies are actively opposing the party; securing the dispatch and handling the Raider are competing priorities.',
     scene_grounding: 'Sera, Nessa and Raider occupy Gate. Sentry and the dispatch case occupy the adjacent visible Courtyard. Both areas have stable dry ground and the connecting arch is open. Nessa carries no weapon and acts from her own support kit; no NPC action has been selected for her.'
@@ -68,14 +73,14 @@ function openingFor(mode) {
 }
 
 function frameFor(mode) {
-  const catalyst = mode === 'catalyst';
+  const combat = mode === 'catalyst' || mode === 'direct-magic';
   const fallen = mode === 'ritual';
   return { schemaVersion: 1,
     areas: layout.areas.map(area => ({ area: area.id, terrain: 'dry_ground',
-      traits: ['visible', 'safe', 'visited', catalyst ? 'immediate_threat' : 'safe_recovery',
-        ...(!catalyst && area.id === 'gate' ? ['focus'] : [])], surfaces: ['ground'] })),
+      traits: ['visible', 'safe', 'visited', combat ? 'immediate_threat' : 'safe_recovery',
+        ...(!combat && area.id === 'gate' ? ['focus'] : [])], surfaces: ['ground'] })),
     actors: [{ actor: 'player', area: 'gate', allegiance: 'party', profile: null, conditions: [] },
-      ...(catalyst ? [
+      ...(combat ? [
         { actor: 'npc0', area: 'gate', allegiance: 'party', profile: 'support', conditions: [] },
         { actor: 'npc1', area: 'gate', allegiance: 'opposition', profile: 'combatant', conditions: [] },
         { actor: 'npc2', area: 'yard', allegiance: 'opposition', profile: 'ranged', conditions: [] }
@@ -84,7 +89,7 @@ function frameFor(mode) {
           ...(fallen ? { fallen: { age: 'recent', body: 'intact', returnChoice: 'willing' } } : {}) },
         { actor: 'npc1', area: 'gate', allegiance: 'party', profile: 'support', conditions: [] }
       ])],
-    items: catalyst ? [
+    items: combat ? [
       { key: 'raider-sword', name: 'Raider sword', description: 'A usable ordinary sword.', kind: 'melee_weapon',
         holder: { kind: 'actor', key: 'npc1' }, wielded: true, condition: 'pristine', weaponCategory: 'simple' },
       { key: 'sentry-bow', name: 'Sentry bow', description: 'A usable ordinary bow.', kind: 'ranged_weapon',
@@ -93,7 +98,7 @@ function frameFor(mode) {
         holder: { kind: 'area', key: 'yard' }, wielded: false, condition: 'pristine' }
     ] : fallen ? [{ key: 'return-material', name: 'Return catalyst', description: 'One unused revival catalyst held for Tarin\'s return.',
       kind: 'revival_catalyst', holder: { kind: 'actor', key: 'player' }, wielded: false, condition: 'pristine' }] : [],
-    objects: [], features: [], discoveries: [], encounter: { active: catalyst, opposition: catalyst ? ['npc1', 'npc2'] : [] }
+    objects: [], features: [], discoveries: [], encounter: { active: combat, opposition: combat ? ['npc1', 'npc2'] : [] }
   };
 }
 
@@ -165,6 +170,44 @@ async function withOfflineProvider({ engine, db, AIClient, apiConfig }, task) {
     AIClient.prototype.dispatchPrompt = originalDispatch;
     fixtureActive = false;
   }
+}
+
+export async function prepareDirectMagicEpisode(dependencies) {
+  const { engine, db } = dependencies;
+  return withOfflineProvider(dependencies, async ({ create }) => {
+    const created = await create('direct-magic', 'arcanist', 'arcanist.formula');
+    const state = await engine.getCampaignState(created.campaignId);
+    const saved = JSON.parse((await db.get('SELECT rules_state_json FROM campaigns WHERE id = ?', [state.campaignId])).rules_state_json);
+    const actor = saved.actors[`character:${state.character.id}`];
+    const raider = Object.values(saved.actors).find(value => value.name === 'Raider');
+    const sentry = Object.values(saved.actors).find(value => value.name === 'Sentry');
+    assert.equal(state.character.level, 1);
+    assert.equal(state.character.xp, 0);
+    for (const name of ['Magic Missile', 'Fireball']) assert.ok(state.character.invocableAbilities.some(ability => ability.name === name),
+      `The direct-magic episode requires an actually owned invocable ${name}.`);
+    assert.equal(saved.encounter.active, true);
+    assert.ok(raider?.present && raider.opposed && raider.health > 0 && raider.area === actor.area,
+      'The direct spell needs a real living opponent in the player area.');
+    assert.ok(sentry?.present && sentry.opposed && sentry.health > 0 && sentry.area === 'yard',
+      'The conditional Fireball needs a real living opponent in the separate Courtyard.');
+    const yard = saved.areas[`area:${saved.currentLocationId}:yard`];
+    assert.ok(yard.visible && yard.safeToOccupy && yard.adjacent.includes(actor.area));
+    assert.equal(Object.values(saved.actors).filter(value => value.present && value.area === 'yard' && value.party).length, 0);
+    assert.equal((await db.get('SELECT COUNT(*) AS count FROM rules_turn_operations WHERE campaign_id = ?', [state.campaignId])).count, 0);
+    return { episodeId: 'direct-magic', state, earnedAdvancements: 0,
+      playerPlan: [
+        { kind: 'question', description: 'Ask about visible threats and occupants without committing an action.',
+          input: 'Who is threatening us, and who is in the Courtyard?' },
+        { kind: 'direct_spell', description: 'Cast the owned routine spell at the recorded nearby Raider, without a preparatory sequence.',
+          input: 'I cast Magic Missile at the Raider.' },
+        { kind: 'conditional_fireball', description: 'Proceed only if the current visible Courtyard still contains living opposition and no party member. Otherwise record why it was skipped; never omit an occupant or force NPC positioning.',
+          input: 'I cast Fireball into the Courtyard.' }
+      ],
+      visibleChoices: ['The Raider threatens Sera and Nessa at Gate; ordinary unarmed attack or aid is possible.',
+        'The Sentry guards the dispatch case across the open arch in the Courtyard.',
+        'Ordinary movement can attempt to leave the threatened Gate; it is not guaranteed escape.',
+        'Fireball affects every current occupant of its selected area, so inspect the scene again after others act.'] };
+  });
 }
 
 export async function prepareCatalystEpisode(dependencies) {
