@@ -6,7 +6,7 @@ to `docs/history/state-archive.md`.
 
 ## Now
 
-- **LOCAL-MODEL GAMEPLAY PILOT IS READY TO EXECUTE (2026-09-08).** The owner rejected the
+- **LOCAL-MODEL GAMEPLAY PILOT IS RUNNING (2026-09-08).** The owner rejected the
   paid-cloud lineup, supplied `qwen3.8:27b-mlx` and `muse-glimmer:30b-mlx`, and said "use those".
   `.agents/review/class-gameplay-verification-plan.md` owns the selected local models, three
   episodes/eight submissions, 60-dispatch cap, no-provider coverage, stop rules and evidence
@@ -14,7 +14,7 @@ to `docs/history/state-archive.md`.
   Offline unit/browser checks, guarded fixture preparation and fake-transport refusal tests
   pass; guard-removal proofs were restored green. Both exact local identities are available.
   `.agents/review/class-gameplay-verification/README.md` owns preparation evidence.
-  Next execute the single bounded pilot, then record adverse outcomes and incomplete coverage.
+  The single bounded pilot is running; retain adverse outcomes and incomplete coverage.
   Do not ask the owner to repeat the model selection or silently replace a model.
 - **THE LATENCY TEST WAS UNAPPROVED AND REJECTED AS VALID EVIDENCE (2026-09-08).** The agent
   spent live calls on an unapproved single-model test plan without establishing the intended
@@ -154,7 +154,7 @@ to `docs/history/state-archive.md`.
 
 ## Next
 
-**NEXT:** Execute the prepared single local-only pilot in
+**NEXT:** Finish the running single local-only pilot in
 `.agents/review/class-gameplay-verification-plan.md`, then consolidate its gameplay evidence.
 Offline verification and local model availability checks pass. Retain the fixed run budget.
 The withdrawn Referee optimization benchmark stays withdrawn; do not activate unrelated queues.
