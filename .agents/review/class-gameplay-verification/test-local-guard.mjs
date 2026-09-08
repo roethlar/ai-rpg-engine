@@ -68,4 +68,37 @@ clearTimeout(abortTimer);
 assert.throws(() => abortGuard.enable(), /fresh allowance/);
 await assert.rejects(abortGuard.fetch(`${OLLAMA_ORIGIN}/api/chat`, request(MODELS.logic)), /not enabled/);
 assert.equal(abortDispatches, 1, 'Stopping cancels the pending fake call and forbids follow-up inference.');
+
+for (const interruption of ['deadline', 'abort', 'both', 'disable']) {
+  let persist, notifyPersistence;
+  const persistence = new Promise(resolve => { persist = resolve; });
+  const persistenceStarted = new Promise(resolve => { notifyPersistence = resolve; });
+  let transportCalls = 0;
+  let remainingMs = 1000;
+  const reserved = { maximumDispatches: 1, dispatches: [] };
+  const delayed = createLocalGuard({
+    fetchImpl: async (input, init) => {
+      if (new URL(input).pathname === '/api/tags') return fetchImpl(input, init);
+      transportCalls++;
+      return new Response(JSON.stringify({ message: { content: '{}' } }));
+    },
+    manifest, report: reserved, getActiveCall: () => active, getLocalOrigin: () => null,
+    onDispatch: () => { notifyPersistence(); return persistence; }, deadline: () => remainingMs
+  });
+  delayed.enable();
+  const waiting = delayed.fetch(`${OLLAMA_ORIGIN}/api/chat`, request(MODELS.logic));
+  await persistenceStarted;
+  assert.equal(reserved.dispatches.length, 1, 'The allocation is reserved before persistence finishes.');
+  if (interruption === 'deadline' || interruption === 'both') remainingMs = 0;
+  if (interruption === 'abort' || interruption === 'both') delayed.abort();
+  if (interruption === 'disable') delayed.disable();
+  const refused = assert.rejects(waiting, { message: 'The pilot stopped before generation dispatch.' });
+  persist();
+  await refused;
+  assert.equal(transportCalls, 0, `${interruption} during persistence must prevent actual generation transport.`);
+  assert.equal(reserved.dispatches.length, 1, 'A cancelled reservation is accounted for, never refunded.');
+  assert.equal(reserved.dispatches[0].error, 'The pilot stopped before generation dispatch.');
+  delayed.abort();
+  assert.throws(() => delayed.enable(), /fresh allowance/);
+}
 console.log('Local pilot guard checks passed with a fake transport; no network or model calls.');

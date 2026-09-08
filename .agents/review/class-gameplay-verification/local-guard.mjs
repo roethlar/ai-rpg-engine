@@ -49,6 +49,7 @@ export function createLocalGuard({ fetchImpl, manifest, report, getActiveCall, g
       await onDispatch();
       const start = performance.now();
       try {
+        assert.ok(live && !cancellation.signal.aborted && deadline() > 0, 'The pilot stopped before generation dispatch.');
         const response = await fetchImpl(input, { ...init, redirect: 'error',
           signal: AbortSignal.any([init.signal, cancellation.signal, AbortSignal.timeout(Math.max(1, Math.floor(Math.min(deadline(), 240000))))].filter(Boolean)) });
         dispatch.status = response.status;
