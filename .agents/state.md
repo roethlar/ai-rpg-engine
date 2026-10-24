@@ -6,6 +6,12 @@ to `docs/history/state-archive.md`.
 
 ## Now
 
+- **Root npm advisories cleared (2026-10-23, owner sweep go).** `npm audit fix`
+  (no `--force`, no package.json change) moved express 4.22.3, body-parser
+  1.20.9, proxy-addr 2.0.8, qs 6.16.1, tar 7.5.22 and undici 6.29.1 within
+  their majors; root `npm audit` now reports 0. sqlite3 6.0.1 and its
+  `allowScripts` key are unchanged. `npm test` passes on Node 26.12.1.
+  `desktop/` audit was already clean.
 - **Node runtime moved off EOL Node 20 (2026-10-23, owner go).** The October
   2026 Node security release (CVE-2026-111497, a Brotli decoder RCE reachable
   through the server's outbound `fetch()`) has no Node 20 fix. The Dockerfile
