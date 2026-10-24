@@ -6,6 +6,16 @@ to `docs/history/state-archive.md`.
 
 ## Now
 
+- **Node runtime moved off EOL Node 20 (2026-10-23, owner go).** The October
+  2026 Node security release (CVE-2026-111497, a Brotli decoder RCE reachable
+  through the server's outbound `fetch()`) has no Node 20 fix. The Dockerfile
+  base is now `node:22-slim` and `engines.node` is `>=22.23.4`. `npm ci` and
+  `npm test` pass on Node 26.12.1. Not run: a Docker build (no container
+  runtime on the authoring host). Rebuild with `docker compose build --pull`,
+  and check that sqlite3 builds on the new base. Hosts running `npm start` or
+  the desktop shell need Node 22.23.4+. Optional hardening, not approved and
+  not done: in non-production mode, request-supplied `baseUrl`/`ollamaUrl` let
+  callers choose outbound endpoints.
 - **HANDOFF AS OF `e468645` (2026-09-08).** Runner isolation and its diagnostic
   dispatch guard are committed; verification evidence is in
   `.agents/review/class-gameplay-verification/isolation-results.md`. No test or
